@@ -2350,6 +2350,8 @@
       lol_other_modes: "Andere Modi",
       lol_fallback: "Ausweich {n}",
       lol_ban: "Bann",
+      lol_presets_bans_head: "Bans (je Lane)",
+      lol_presets_picks_head: "Picks (je Lane)",
       lol_choose_champion_title: "{slot}: Champion wählen",
       lol_game_found: "Spiel gefunden!",
       lol_accepted_waiting: "Angenommen, warte auf die anderen…",
@@ -2763,6 +2765,8 @@
       lol_other_modes: "Other Modes",
       lol_fallback: "Fallback {n}",
       lol_ban: "Ban",
+      lol_presets_bans_head: "Bans (per lane)",
+      lol_presets_picks_head: "Picks (per lane)",
       lol_choose_champion_title: "{slot}: Choose Champion",
       lol_game_found: "Match found!",
       lol_accepted_waiting: "Accepted, waiting for the others…",
@@ -3179,6 +3183,8 @@
       lol_other_modes: "Inne tryby",
       lol_fallback: "Zamiennik {n}",
       lol_ban: "Ban",
+      lol_presets_bans_head: "Bany (wg lane)",
+      lol_presets_picks_head: "Picki (wg lane)",
       lol_choose_champion_title: "{slot}: wybierz czempiona",
       lol_game_found: "Znaleziono grę!",
       lol_accepted_waiting: "Zaakceptowano, oczekiwanie na pozostałych…",
@@ -3599,6 +3605,8 @@
       lol_other_modes: "Autres modes",
       lol_fallback: "Repli {n}",
       lol_ban: "Ban",
+      lol_presets_bans_head: "Bans (par ligne)",
+      lol_presets_picks_head: "Picks (par ligne)",
       lol_choose_champion_title: "{slot} : choisir un champion",
       lol_game_found: "Partie trouvée !",
       lol_accepted_waiting: "Accepté, en attente des autres…",
@@ -4019,6 +4027,8 @@
       lol_other_modes: "Otros modos",
       lol_fallback: "Alternativa {n}",
       lol_ban: "Veto",
+      lol_presets_bans_head: "Vetos (por línea)",
+      lol_presets_picks_head: "Picks (por línea)",
       lol_choose_champion_title: "{slot}: elegir campeón",
       lol_game_found: "¡Partida encontrada!",
       lol_accepted_waiting: "Aceptado, esperando a los demás…",
@@ -4439,6 +4449,8 @@
       lol_other_modes: "Diğer modlar",
       lol_fallback: "Yedek {n}",
       lol_ban: "Yasak",
+      lol_presets_bans_head: "Yasaklar (lane başına)",
+      lol_presets_picks_head: "Seçimler (lane başına)",
       lol_choose_champion_title: "{slot}: Şampiyon seç",
       lol_game_found: "Oyun bulundu!",
       lol_accepted_waiting: "Kabul edildi, diğerleri bekleniyor…",
@@ -8505,28 +8517,31 @@
     </div>`;
   }
 
+  function lolPresetTileGroup(kind, lane, slots){
+    const main = lolPresetTileHtml(`${kind}:${lane}:0`, LOL_LANE_LABELS[lane], slots[0]);
+    const fallbacks = [1, 2].map(i => lolPresetTileHtml(`${kind}:${lane}:${i}`, LOL_FALLBACK_LABELS[i], slots[i], true)).join('');
+    return `<div class="lp-lane-group">${main}<div class="lp-fallback-row">${fallbacks}</div></div>`;
+  }
+
   function lolPresetsPanelHtml(){
-    const p = lolPresets || {autoBan:false, autoPick:false, ban:[null, null, null], picks:{}};
-    const banSlots = p.ban || [null, null, null];
-    const banMain = lolPresetTileHtml('ban:0', t('lol_ban'), banSlots[0]);
-    const banFallbacks = [1, 2].map(i => lolPresetTileHtml(`ban:${i}`, LOL_FALLBACK_LABELS[i], banSlots[i], true)).join('');
-    const banGroup = `<div class="lp-lane-group">${banMain}<div class="lp-fallback-row">${banFallbacks}</div></div>`;
-    const laneGroups = Object.keys(LOL_LANE_LABELS).map(lane => {
-      const slots = (p.picks || {})[lane] || [null, null, null];
-      const main = lolPresetTileHtml(`${lane}:0`, LOL_LANE_LABELS[lane], slots[0]);
-      const fallbacks = [1, 2].map(i => lolPresetTileHtml(`${lane}:${i}`, LOL_FALLBACK_LABELS[i], slots[i], true)).join('');
-      return `<div class="lp-lane-group">${main}<div class="lp-fallback-row">${fallbacks}</div></div>`;
-    }).join('');
+    const p = lolPresets || {autoBan:false, autoPick:false, ban:{}, picks:{}};
+    const banGroups = Object.keys(LOL_LANE_LABELS).map(lane =>
+      lolPresetTileGroup('ban', lane, (p.ban || {})[lane] || [null, null, null])).join('');
+    const pickGroups = Object.keys(LOL_LANE_LABELS).map(lane =>
+      lolPresetTileGroup('pick', lane, (p.picks || {})[lane] || [null, null, null])).join('');
 
     return `<div class="lol-card">
       <div class="panel-head">Presets<span class="line"></span></div>
       <div class="lol-toggle ${p.autoBan ? 'on' : ''}" id="lolAutoBanToggle" style="margin-bottom:8px;">
-        <span class="sw"></span><span class="lbl">Preset-Bann automatisch ausführen (mit Ausweich-Bans)</span>
+        <span class="sw"></span><span class="lbl">Preset-Bann automatisch ausführen (je Lane, mit Ausweich-Bans)</span>
       </div>
       <div class="lol-toggle ${p.autoPick ? 'on' : ''}" id="lolAutoPickToggle" style="margin-bottom:16px;">
         <span class="sw"></span><span class="lbl">Preset-Pick automatisch ausführen (je Lane, mit Ausweichchampions)</span>
       </div>
-      <div class="lp-tiles">${banGroup}${laneGroups}</div>
+      <div class="panel-head" style="font-size:12px; margin-bottom:10px;">${t('lol_presets_bans_head')}<span class="line"></span></div>
+      <div class="lp-tiles">${banGroups}</div>
+      <div class="panel-head" style="font-size:12px; margin:18px 0 10px;">${t('lol_presets_picks_head')}<span class="line"></span></div>
+      <div class="lp-tiles">${pickGroups}</div>
     </div>`;
   }
 
@@ -8551,15 +8566,15 @@
   // ---- Champion-Wahl fürs Preset: mittiges Popup statt Inline-Picker ----
   // key ist "ban:SLOT" oder "LANE:SLOT" (Slot 0 = Hauptziel, 1/2 = Ausweich).
   async function openLolPresetPicker(key){
-    const [lane, slotStr] = key.split(':');
-    const isBan = lane === 'ban';
+    const [kind, lane, slotStr] = key.split(':');
+    const isBan = kind === 'ban';
     const slot = Number(slotStr);
     const champs = await loadLolChampions();
-    const p = lolPresets || {ban:[null, null, null], picks:{}};
-    const curSel = isBan ? ((p.ban || [])[slot] || null) : (((p.picks || {})[lane] || [])[slot] || null);
-    const slotLabel = isBan
-      ? (slot === 0 ? t('lol_ban') : `${t('lol_ban')} (${LOL_FALLBACK_LABELS[slot]})`)
-      : (slot === 0 ? LOL_LANE_LABELS[lane] : `${LOL_LANE_LABELS[lane]} (${LOL_FALLBACK_LABELS[slot]})`);
+    const p = lolPresets || {ban:{}, picks:{}};
+    const bucket = isBan ? (p.ban || {}) : (p.picks || {});
+    const curSel = (bucket[lane] || [])[slot] || null;
+    const laneLabel = isBan ? `${t('lol_ban')}: ${LOL_LANE_LABELS[lane]}` : LOL_LANE_LABELS[lane];
+    const slotLabel = slot === 0 ? laneLabel : `${laneLabel} (${LOL_FALLBACK_LABELS[slot]})`;
     const title = t('lol_choose_champion_title', {slot: slotLabel});
     const cells = champs.map(c => lolChampCellHtml(c, c.id === (curSel && curSel.id), false)).join('');
 
@@ -8575,7 +8590,7 @@
 
     const finish = (id, name) => {
       const call = isBan
-        ? api('/api/lol/presets/ban', {slot, championId: id, name: name || ''})
+        ? api('/api/lol/presets/ban', {position: lane, slot, championId: id, name: name || ''})
         : api('/api/lol/presets/pick', {position: lane, slot, championId: id, name: name || ''});
       call.then(j => { if(j && j.ok) lolPresets = j; }).catch(() => {}).then(() => {
         closeModal();

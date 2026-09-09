@@ -3852,11 +3852,11 @@ def lol_champ_action(action_id, champion_id, lock):
 
 
 # ---- Presets: automatisches Bannen und Wählen nach Lane ----
-# "Preset Ban" (immer derselbe Champion wird gebannt) und "Preset Pick" (ein
-# Champion je Lane, erkannt über assignedPosition) — einmal eingestellt und
-# dauerhaft gespeichert, wie "Automatisch annehmen" oben. Ausgelöst wird über
-# denselben Wächter-Takt (_lol_watcher), damit auch hier ein Hintergrund-Tab
-# nichts verpasst.
+# "Preset Ban" und "Preset Pick" - je ein Champion (plus Ausweich) je Lane,
+# erkannt über assignedPosition - einmal eingestellt und dauerhaft
+# gespeichert, wie "Automatisch annehmen" oben. Ausgelöst wird über denselben
+# Wächter-Takt (_lol_watcher), damit auch hier ein Hintergrund-Tab nichts
+# verpasst.
 
 LOL_PRESETS_FILE = os.path.join(BASE, "vry_lol_presets.json")
 LOL_LANES = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
@@ -3869,11 +3869,13 @@ LOL_PICK_PRIORITIES = 3
 _lol_presets_lock = threading.Lock()
 _lol_presets = {
     "autoBan": False, "autoPick": False,
-    # Bis zu drei Bann-Ziele in Priorität — genau wie bei Picks: Wird der
-    # Hauptbann vorher schon vom Gegner-/Ally-Team gebannt (häufig bei
+    # Je Lane bis zu drei Bann-Ziele in Priorität — genau wie bei Picks: Wird
+    # der Hauptbann vorher schon vom Gegner-/Ally-Team gebannt (häufig bei
     # starken Champions), springt Auto-Bann sonst tatenlos ab. Siehe
-    # _lol_auto_tick().
-    "ban": [None] * LOL_PICK_PRIORITIES,   # [{"id":..,"name":..}|None, ...bis zu 3 Eintraege]
+    # _lol_auto_tick(). Gleiche Struktur wie "picks" (dieselbe Lane-basierte
+    # Auswahl ergibt bei Bann genauso viel Sinn wie beim Pick, z.B. "gegen
+    # Top will ich XY bannen, gegen Jungle etwas anderes").
+    "ban": {},         # {"TOP": [{"id":..,"name":..}|None, ...bis zu 3 Eintraege], ...}
     "picks": {},       # {"TOP": [{"id":..,"name":..}|None, ...bis zu 3 Eintraege], ...}
 }
 
@@ -3907,6 +3909,28 @@ def _lol_priority_slots(entries):
     return slots
 
 
+def _lol_priority_dict(raw):
+    """Rohe {Lane: Eintragsliste}-Struktur -> bereinigtes Dict mit festen
+    LOL_PICK_PRIORITIES-Plaetzen je Lane (wie bei picks). Laesst unbekannte
+    Lanes und leere Eintraege weg."""
+    src = raw if isinstance(raw, dict) else {}
+    cleaned = {}
+    for lane, entries in src.items():
+        if lane not in LOL_PICK_SLOTS:
+            continue
+        # Aeltere Speicherstaende hatten nur einen Eintrag je Lane (ein
+        # einzelnes {"id":..,"name":..} statt einer Prioritaetsliste) — der
+        # wird als Slot 0 uebernommen, statt beim Laden zu verschwinden.
+        if isinstance(entries, dict):
+            entries = [entries]
+        if not isinstance(entries, list):
+            continue
+        slots = _lol_priority_slots(entries)
+        if any(slots):
+            cleaned[lane] = slots
+    return cleaned
+
+
 def _lol_presets_restore():
     data = _load_json(LOL_PRESETS_FILE)
     if not isinstance(data, dict):
@@ -3914,31 +3938,18 @@ def _lol_presets_restore():
     with _lol_presets_lock:
         _lol_presets["autoBan"] = bool(data.get("autoBan"))
         _lol_presets["autoPick"] = bool(data.get("autoPick"))
-        # Ältere Speicherstände hatten nur EINEN Bann (ein einzelnes
-        # {"id":..,"name":..} bzw. null statt einer Prioritätsliste) — der
-        # wird als Slot 0 übernommen, statt beim Laden zu verschwinden.
         ban = data.get("ban")
-        if isinstance(ban, dict):
-            ban = [ban]
-        if not isinstance(ban, list):
-            ban = []
-        _lol_presets["ban"] = _lol_priority_slots(ban)
-        picks = data.get("picks") if isinstance(data.get("picks"), dict) else {}
-        cleaned = {}
-        for lane, entries in picks.items():
-            if lane not in LOL_PICK_SLOTS:
-                continue
-            # Ältere Speicherstände hatten nur einen Hauptpick je Lane (ein
-            # einzelnes {"id":..,"name":..} statt einer Prioritätsliste) —
-            # der wird als Slot 0 übernommen, statt beim Laden zu verschwinden.
-            if isinstance(entries, dict):
-                entries = [entries]
-            if not isinstance(entries, list):
-                continue
-            slots = _lol_priority_slots(entries)
-            if any(slots):
-                cleaned[lane] = slots
-        _lol_presets["picks"] = cleaned
+        if isinstance(ban, list):
+            # Noch aelterer Speicherstand: EIN lane-uebergreifender Bann
+            # (Prioritaetsliste ohne Lane-Aufteilung) statt je Lane. Wird auf
+            # jede Lane uebernommen, statt beim Umstieg auf Per-Lane-Baenne
+            # zu verschwinden - der Nutzer kann die Lanes danach frei
+            # auseinanderziehen.
+            slots = _lol_priority_slots(ban)
+            _lol_presets["ban"] = {lane: list(slots) for lane in LOL_LANES} if any(slots) else {}
+        else:
+            _lol_presets["ban"] = _lol_priority_dict(ban)
+        _lol_presets["picks"] = _lol_priority_dict(data.get("picks"))
 
 
 def _lol_presets_save():
@@ -3956,7 +3967,9 @@ def lol_presets_state():
                 "lastAutoCrash": _lol_auto.get("lastCrash")}
 
 
-def lol_presets_set_ban(slot, champion_id, name):
+def lol_presets_set_ban(position, slot, champion_id, name):
+    if position not in LOL_PICK_SLOTS:
+        return {"ok": False, "error": "Unbekannte Lane."}
     try:
         slot = int(slot)
     except (TypeError, ValueError):
@@ -3964,8 +3977,13 @@ def lol_presets_set_ban(slot, champion_id, name):
     if slot not in range(LOL_PICK_PRIORITIES):
         return {"ok": False, "error": "Unbekannter Prio-Platz."}
     with _lol_presets_lock:
-        entries = _lol_presets["ban"]
-        entries[slot] = {"id": int(champion_id), "name": name or ""} if champion_id else None
+        entries = _lol_presets["ban"].setdefault(position, [None] * LOL_PICK_PRIORITIES)
+        if champion_id:
+            entries[slot] = {"id": int(champion_id), "name": name or ""}
+        else:
+            entries[slot] = None
+        if not any(entries):
+            _lol_presets["ban"].pop(position, None)
     _lol_presets_save()
     return lol_presets_state()
 
@@ -4007,10 +4025,11 @@ def _lol_priority_ids(slots):
     return [s["id"] for s in (slots or []) if s and s.get("id")]
 
 
-def _lol_auto_pick_candidates(picks, lane):
-    """Champion-IDs in Prioritaetsreihenfolge fuer eine Lane (Hauptpick zuerst,
-    dann die Ausweichchampions) — leere Slots werden uebersprungen."""
-    return _lol_priority_ids(picks.get(lane) if lane else picks.get("OTHER"))
+def _lol_auto_lane_candidates(entries_by_lane, lane):
+    """Champion-IDs in Prioritaetsreihenfolge fuer eine Lane (Hauptziel zuerst,
+    dann die Ausweichchampions) — leere Slots werden uebersprungen. Gilt
+    gleichermassen fuer Baenne und Picks, beide sind {Lane: [...]} strukturiert."""
+    return _lol_priority_ids(entries_by_lane.get(lane) if lane else entries_by_lane.get("OTHER"))
 
 
 def _lol_auto_tick():
@@ -4023,7 +4042,7 @@ def _lol_auto_tick():
     Hauptpick inzwischen weg ist."""
     with _lol_presets_lock:
         auto_ban, auto_pick = _lol_presets["autoBan"], _lol_presets["autoPick"]
-        ban_slots = list(_lol_presets["ban"])
+        bans = {k: list(v) for k, v in _lol_presets["ban"].items()}
         picks = {k: list(v) for k, v in _lol_presets["picks"].items()}
     if not auto_ban and not auto_pick:
         return
@@ -4047,9 +4066,10 @@ def _lol_auto_tick():
     enemy_champs = {m.get("championId") for m in their_team if m.get("championId")}
 
     desired, skip_reason = None, None
+    lane = (me or {}).get("position")
     if action.get("type") == "ban":
         if auto_ban:
-            candidates = _lol_priority_ids(ban_slots)
+            candidates = _lol_auto_lane_candidates(bans, lane)
             bannable = set(cs.get("bannable") or [])
             # Ausserhalb eines beschränkten Champion-Pools (Turnier-Modus o.ä.)
             # liefert die LCU hier nur den Platzhalter [-1] statt einer echten
@@ -4062,11 +4082,10 @@ def _lol_auto_tick():
             desired = next((cid for cid in candidates
                             if cid in bannable and cid not in mate_champs), None)
             if desired is None and candidates:
-                skip_reason = ("Keiner der hinterlegten Bann-Champions ist gerade bannbar "
+                skip_reason = ("Keiner der hinterlegten Bann-Champions fuer diese Lane ist gerade bannbar "
                                "(schon gebannt oder von einem Team-Mitglied gehovert).")
     elif action.get("type") == "pick" and auto_pick:
-        lane = (me or {}).get("position")
-        candidates = _lol_auto_pick_candidates(picks, lane)
+        candidates = _lol_auto_lane_candidates(picks, lane)
         pickable = set(cs.get("pickable") or [])
         avail = [cid for cid in candidates if cid in pickable]
         # Erst den Ausweich bevorzugen, der nicht schon beim Gegner hängt (kein
@@ -4700,7 +4719,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/champselect/lock":
             self._safe(lambda: lol_champ_action(body.get("actionId"), body.get("championId"), True))
         elif path == "/api/lol/presets/ban":
-            self._safe(lambda: lol_presets_set_ban(body.get("slot", 0),
+            self._safe(lambda: lol_presets_set_ban(body.get("position"), body.get("slot", 0),
                                                      body.get("championId"), body.get("name")))
         elif path == "/api/lol/presets/pick":
             self._safe(lambda: lol_presets_set_pick(body.get("position"), body.get("slot", 0),
