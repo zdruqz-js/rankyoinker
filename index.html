@@ -6581,7 +6581,10 @@
     deathmatch:'Deathmatch', ggteam:'Escalation', hurm:'Team Deathmatch', onefa:'Replication',
     skirmish2v2:'2v2 Duell', fortcollins:'Premier', newmap:'Neue Map', premier:'Premier'
   };
-  let partyTimer = null, partyBusy = false, partySig = '';
+  let partyTimer = null, partyBusy = false, partySig = '', partyFailStreak = 0;
+  // Debug-Log fuer den "Start Game"-Bereich - bei Problemen einfach in der
+  // Chrome-Konsole nach "[party]" filtern und den Verlauf rüberkopieren.
+  function partyLog(){ try{ console.log.apply(console, ['[party]'].concat(Array.prototype.slice.call(arguments))); }catch(e){} }
   // Party-Stand direkt von Riot. RankYoinker liest die Party nur bei einem
   // Zustandswechsel neu — wer im Menü dazukommt, fehlt in seinem Heartbeat.
   let lobbyMembers = null, lobbySig = '';
@@ -6592,14 +6595,24 @@
   function renderPartyControls(){
     const el = document.getElementById('partyControls');
     if(!el) return;
-    api('/api/lobby').catch(apiFail).then(j => {
+    partyLog('poll fired');
+    api('/api/lobby').catch(e => { partyLog('poll fetch threw', e); return apiFail(e); }).then(j => {
       const box = document.getElementById('partyControls');
       if(!box) return;
+      partyLog('poll result', {ok: j && j.ok, state: j && j.state, error: j && j.error, members: j && j.members && j.members.length});
       if(!j.ok){
+        // Ein einzelner Aussetzer (z.B. lokaler Dienst kurz nicht bereit) soll
+        // den Bereich nicht sofort auf "keine Party gefunden" zuruecksetzen -
+        // das sah aus wie "verschwindet nach ein paar Sekunden". Erst nach
+        // mehreren Fehlschlägen in Folge wirklich als leer/fehlerhaft zeigen.
+        partyFailStreak++;
+        partyLog('not ok, failStreak=', partyFailStreak);
+        if(partyFailStreak < 3) return;
         box.innerHTML = `<div class="panel-empty">${esc(j.error || t('no_party_found'))}</div>`;
         partySig = 'err';
         return;
       }
+      partyFailStreak = 0;
 
       // Erst die Lobby-Karten: Ein neu eingeladener Spieler steht hier schon
       // drin, während RankYoinker ihn erst beim nächsten Match kennt. Ändert sich die
@@ -6609,7 +6622,7 @@
         [m.puuid, m.name, m.rank, m.rr, m.peakRank].join(':')).join(',');
       if(sigNow !== lobbySig){
         lobbySig = sigNow;
-        if(latestData && latestData.state === 'MENUS'){ render(); return; }
+        if(latestData && latestData.state === 'MENUS'){ partyLog('lobby roster changed, re-entering render()'); render(); return; }
       }
 
       const meMember = (j.members || []).find(m => m.me) || {};
@@ -6628,7 +6641,8 @@
       if(searchingEl && j.state === 'MATCHMAKING'){
         searchingEl.innerHTML = `${svgIcon('loader',13,'spin')} ${t('searching')}${j.queueTime ? ' · ' + t('approx') + ' ' + j.queueTime + 's' : ''}`;
       }
-      if(sig === partySig) return;   // nichts geändert -> nicht neu zeichnen
+      if(sig === partySig){ partyLog('sig unchanged, skip rebuild'); return; }
+      partyLog('sig changed, rebuilding panel', {old: partySig, next: sig});
       partySig = sig;
 
       const searching = j.state === 'MATCHMAKING';
@@ -7568,7 +7582,7 @@
     // dort wirklich geaendert hat. renderPartyControls() prueft selbst genug.
     if(state === 'MENUS'){
       bindInstalock();
-      if(sceneChanged) partySig = '';
+      if(sceneChanged){ partyLog('render(): sceneChanged, resetting partySig'); partySig = ''; }
       renderPartyControls();
       startPartyPoll();
     }
