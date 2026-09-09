@@ -9494,7 +9494,19 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       fetch("https://rankyoinker.de/api/version" + qs, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-          if (!data || !data.version || !isNewer(data.version, CURRENT_VERSION)) {
+          // Ein reiner Zahlenvergleich reicht nicht, sobald jemand den Kanal
+          // wechselt: laeuft man z.B. auf "2.0.9-dev" und stellt lokal wieder
+          // auf stable um (aktuell z.B. "2.0.5"), waere stable nach reiner
+          // Zahlenlogik NIE "neuer" als die laufende Dev-Version - man würde
+          // also nie das Angebot bekommen, zurück auf stable zu wechseln.
+          // Bei einem echten Kanalwechsel (laufende Version ist/ist-nicht
+          // "-dev", der jetzt geprüfte Kanal aber anders) gilt daher jede
+          // andere Versionsnummer als Angebot, nicht nur eine höhere.
+          const runningIsDev = /-dev$/.test(CURRENT_VERSION);
+          const channelMismatch = runningIsDev !== (channel === "dev");
+          const isOffer = data && data.version && data.version !== CURRENT_VERSION
+            && (channelMismatch || isNewer(data.version, CURRENT_VERSION));
+          if (!isOffer) {
             pending = null;
             return null;
           }
