@@ -1,0 +1,175 @@
+========================================================
+  RankYoinker Overlay - Einrichtung
+========================================================
+
+Das ist "VALORANT rank yoinker" (vRY) mit einem zusaetzlichen
+Browser-Overlay: index.html zeigt Raenge, Statistiken, Skins,
+Shop und die Agentenauswahl im Browser an.
+
+--------------------------------------------------------
+1. VORAUSSETZUNG: PYTHON INSTALLIEREN
+--------------------------------------------------------
+Ohne Python funktioniert nur die halbe Seite. Der mitgelieferte
+Hilfsdienst (vry_log_server.py) liefert Logs, Skins, Shop, Party
+und die Agentenauswahl - der braucht Python.
+
+  - Python 3.10 oder neuer von https://www.python.org/downloads/
+  - WICHTIG bei der Installation: Haken bei
+    "Add python.exe to PATH" setzen!
+  - Zusatzpakete sind NICHT noetig.
+
+Pruefen: Eingabeaufforderung oeffnen und "python --version"
+eingeben. Kommt eine Versionsnummer, passt es.
+
+--------------------------------------------------------
+2. STARTEN
+--------------------------------------------------------
+Doppelklick auf:  start_vry.vbs
+
+Das startet AUSSCHLIESSLICH:
+  - den Hilfsdienst auf Port 1101
+  - das Overlay im Standardbrowser unter
+        http://localhost:1101
+    (also eine richtige Adresse, kein langer Dateipfad)
+
+vry.exe wird dabei bewusst NICHT gestartet - es haengt am
+VALORANT-Prozess:
+
+  VALORANT geht auf  ->  RankYoinker startet automatisch mit
+  VALORANT geht zu   ->  RankYoinker wird automatisch mitgeschlossen
+
+Darum gibt es auf der Seite auch keine Start/Stop-Knoepfe mehr.
+Der Hilfsdienst darf ruhig dauerhaft laufen (Autostart, siehe
+Punkt 3); alles Weitere passiert von allein.
+
+Gestartet wird erst, wenn VALORANT und der Riot Client wirklich
+erreichbar sind. Frueher haette vry.exe sonst in "Connection
+error, retrying" festgehangen und danach oft kein Match mehr
+angezeigt. Solange steht auf der Seite "Warte auf VALORANT" -
+du kannst das Overlay also gefahrlos vor dem Spiel oeffnen.
+
+Bist du schon mitten in einem Match, wenn RankYoinker hochkommt (oder
+verschlaeft es einen Match-Start), merkt der Hilfsdienst das im
+Hintergrund und startet vry.exe einmal neu - das laufende Match
+erscheint dann von selbst. Kein Handstart noetig.
+
+Dasselbe gilt, wenn vry.exe beim Start stumm stehenbleibt
+(zuletzt gesehen nach einem Account-Wechsel: die Seite haengt
+bei "RankYoinker startet..."). Der Hilfsdienst erkennt das an einem
+Log, das nicht mehr waechst, und startet vry.exe nach etwa
+einer halben Minute selbst neu. stop_vry.bat und start_vry.vbs
+von Hand sind dafuer nicht mehr noetig.
+
+Tipp: Die Adresse als Lesezeichen speichern, dann reicht
+ein Klick - solange der Hilfsdienst laeuft.
+
+--------------------------------------------------------
+3. EMPFOHLEN: EINMAL EINRICHTEN
+--------------------------------------------------------
+Passiert automatisch beim Installieren. Erneut ausloesen (z.B. nach
+manuellen Aenderungen): RankYoinker-Setup.exe einfach noch einmal
+ausfuehren.
+
+Das erledigt in einem Rutsch:
+  - die Start/Stop-Buttons der Website funktionsfaehig machen
+  - den Log-Server in den Autostart legen, damit die Seite
+    immer erreichbar ist (auch wenn RankYoinker selbst nicht laeuft)
+  - die kurzen Adressen  http://rankyoinker  und  http://vry  einrichten
+  - die Firewall fuer Handys im eigenen WLAN freigeben
+    (Punkt 5), TCP 1100 und 1101, nur privates Netzprofil
+    und nur das eigene Subnetz
+  - den Log-Server sofort starten
+
+Fuer die kurze Adresse und die Firewall fragt Windows einmal
+nach Admin-Rechten. Ablehnen ist ok - dann laeuft alles Uebrige
+trotzdem, die Seite ist dann nur ueber http://localhost:1101
+erreichbar und das Handy bleibt aussen vor.
+
+Danach in die Adresszeile  rankyoinker/  tippen (mit Schraegstrich,
+sonst sucht der Browser danach) oder als Lesezeichen speichern.
+
+Alles rueckgaengig machen:  RankYoinker ganz normal ueber
+Windows-Einstellungen > Apps deinstallieren (oder Systemsteuerung >
+Programme und Features).
+
+--------------------------------------------------------
+4. BEENDEN
+--------------------------------------------------------
+Normalerweise gar nichts: RankYoinker geht mit VALORANT von selbst zu.
+
+Willst du es doch von Hand: Doppelklick auf  stop_vry.bat
+Das ist der Not-Aus - es beendet vry.exe UND den Hilfsdienst und
+damit auch die Automatik. Danach ist die Seite nicht mehr
+erreichbar; erst ein Doppelklick auf start_vry.vbs schaltet
+Seite und Automatik wieder ein.
+
+Nur RankYoinker beenden und die Seite weiterlaufen lassen:
+stop_vry_hidden.vbs. Achtung - laeuft VALORANT dabei noch, holt
+die Automatik vry.exe nach ein paar Sekunden von selbst zurueck.
+
+--------------------------------------------------------
+5. HANDY IM SELBEN WLAN
+--------------------------------------------------------
+Die Seite laesst sich auch vom Handy aus oeffnen, solange es im
+selben WLAN haengt wie der PC. Damit da nicht jeder mitliest,
+muss ein Geraet einmal gekoppelt werden:
+
+  1. Auf der Seite oben rechts auf das Handy-Symbol klicken
+  2. Den QR-Code mit der Handykamera scannen
+     (klappt der Scan nicht: die Adresse darunter abtippen)
+  3. Fertig - das Handy bleibt dauerhaft gekoppelt
+
+Der QR-Code gilt 5 Minuten und nur fuer ein Geraet. Fuer ein
+zweites Handy einfach einen neuen Code erzeugen.
+
+Im selben Fenster stehen alle verbundenen Geraete. "Entkoppeln"
+sperrt eines davon sofort wieder aus, "Alle entkoppeln" raeumt
+komplett auf. Verwalten laesst sich das nur am PC - ein
+gekoppeltes Handy kann sich keine weiteren Geraete dazuholen.
+
+Ein gekoppeltes Handy darf alles, was du am PC auch kannst -
+also auch dodgen und Instalock. Nur im eigenen WLAN nutzen.
+
+Voraussetzung ist die Firewall-Freigabe aus Punkt 3. Fehlt sie,
+bleibt die Seite am Handy einfach weiss.
+
+--------------------------------------------------------
+WAS DIE SEITE KANN
+--------------------------------------------------------
+  - Raenge, Peak, Level, K/D, Headshot-Rate aller Mitspieler
+  - Ergebnis der letzten 5 Matches als Punktreihe
+  - Detailansicht pro Spieler (ADR, ACS, First Kills, Karten)
+  - Agentenauswahl: hovern und sperren direkt aus dem Browser
+  - Instalock mit einstellbarer Verzoegerung. Die Uhr laeuft im
+    Hilfsdienst, nicht im Browser - er sperrt also puenktlich,
+    auch wenn der Tab im Hintergrund liegt oder geschlossen ist.
+    Ein Neustart des Hilfsdienstes hebt das Scharfschalten nicht
+    auf (es wird gesichert und zurueckgeholt) - liegt es aber
+    laenger als 10 Minuten zurueck, bleibt es aus. So sperrt
+    nichts unerwartet Stunden spaeter noch einen Agenten.
+  - "Schon mal zusammen gespielt?"-Zaehler. Wird ebenfalls im
+    Hilfsdienst gezaehlt, sobald ein Match beginnt - kein Match
+    faellt mehr aus der Statistik, nur weil der Tab zu war.
+  - Match dodgen ohne VALORANT zu schliessen
+  - Party: Modus umstellen, Suche starten, bereit melden.
+    Wer eingeladen wird, erscheint sofort in der Lobby - auch
+    ohne laufendes Match (RankYoinker selbst liest die Party nur bei
+    einem Spielzustandswechsel neu).
+  - Skins wechseln inkl. Varianten, Presets pro Account
+  - Shop: Tagesangebote, Bundles mit Inhalt, Nachtmarkt
+
+--------------------------------------------------------
+HINWEISE
+--------------------------------------------------------
+- Es werden keine Daten an Dritte gesendet: Die Seite spricht
+  nur mit dem eigenen PC und mit Riots eigenen Servern.
+  Der Hilfsdienst ist zusaetzlich im eigenen WLAN erreichbar
+  (fuer Punkt 5) - aber ausschliesslich fuer Geraete, die per
+  QR-Code gekoppelt wurden. Alles andere bekommt eine Abfuhr.
+- vRY ist ein Drittanbieter-Tool und nutzt die inoffizielle
+  Riot-Schnittstelle. Original + Quellcode:
+  https://github.com/zayKenyon/VALORANT-rank-yoinker
+- Presets und Logs des vorherigen Nutzers sind in diesem Paket
+  bewusst NICHT enthalten.
+- Ports 1100 (vRY) und 1101 (Hilfsdienst) muessen frei sein.
+  Falls belegt: Port oben rechts im Zahnrad-Menue aendern.

@@ -1,0 +1,33 @@
+# Embedded Python runtime (official python.org "embeddable" distribution,
+# not our code) + everything cx_Freeze/the installer produces at build time.
+*.pyd
+*.dll
+*.cat
+python.exe
+pythonw.exe
+python310._pth
+python310.zip
+rankyoinker-setup.exe
+setup/Output/
+__pycache__/
+*.pyc
+
+# Frozen runtime bundle (third-party dependencies cx_Freeze packed in, plus
+# its own loose-.py override mechanism - a partial, easy-to-confuse-with-
+# the-real-thing mirror of a few files). The actual, complete, readable
+# source that gets frozen into vry.exe lives in setup/build_source/ instead.
+lib/
+
+# Runtime state created on a user's machine (presets, encounters cache -
+# can contain other players' names/IDs, definitely not for the repo -
+# config, pairing) never part of the source.
+config.json
+vry_*.json
+.rankyoinker_client_id
+rankyoinker-heartbeat-error.txt
+rankyoinker-install-log.txt
+logs/
+
+# Compiled/frozen build output, not source - the website (/download) is the
+# distribution channel for the actual binary.
+vry.exe
