@@ -6641,8 +6641,14 @@
       if(searchingEl && j.state === 'MATCHMAKING'){
         searchingEl.innerHTML = `${svgIcon('loader',13,'spin')} ${t('searching')}${j.queueTime ? ' · ' + t('approx') + ' ' + j.queueTime + 's' : ''}`;
       }
-      if(sig === partySig){ partyLog('sig unchanged, skip rebuild'); return; }
-      partyLog('sig changed, rebuilding panel', {old: partySig, next: sig});
+      // box.children.length mit pruefen: render() ersetzt bei einem vollen
+      // Rebuild (auch ohne Szenenwechsel, z.B. durch ein volatiles Heartbeat-
+      // Feld) den #partyControls-Platzhalter durch einen NEUEN, leeren div -
+      // partySig weiss davon nichts und wuerde "unveraendert" melden, obwohl
+      // die Box gerade leergeraeumt wurde. Genau das war das "verschwindet
+      // nach 2s"-Symptom im Log: dutzende "skip rebuild" auf einer leeren Box.
+      if(sig === partySig && box.children.length){ partyLog('sig unchanged, skip rebuild'); return; }
+      partyLog('rebuilding panel', {sigChanged: sig !== partySig, boxWasEmpty: !box.children.length, old: partySig, next: sig});
       partySig = sig;
 
       const searching = j.state === 'MATCHMAKING';
