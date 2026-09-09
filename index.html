@@ -8890,8 +8890,9 @@
       // gerade in den Selects steht, auch wenn sie nie angefasst wurden
       // (Standard FILL/FILL).
       pushRoles().then(() => api('/api/lol/queue/search')).then(j => {
+        console.log('[lol-queue] /api/lol/queue/search response:', j);
         if(!j.ok) toast('error', t('toast_queue_start_failed'), j.error || t('unknown_error'));
-      }).catch(() => toast('error', t('generic_error'), t('err_local_service_port')));
+      }).catch(e => { console.log('[lol-queue] request itself failed:', e); toast('error', t('generic_error'), t('err_local_service_port')); });
     });
     const cancelBtn = document.getElementById('lolCancelBtn');
     if(cancelBtn) cancelBtn.addEventListener('click', () => { api('/api/lol/queue/cancel').catch(() => {}); });
@@ -9317,7 +9318,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.0.7";
+const CURRENT_VERSION = "2.0.8-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
