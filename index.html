@@ -7561,8 +7561,17 @@
     }
     bindDodge();
     if(state === 'PREGAME'){ bindAgentPick(); startPregamePoll(); } else stopPregamePoll();
-    // Party-Steuerung nur im Menü — im Match bringt sie nichts
-    if(state === 'MENUS'){ bindInstalock(); partySig = ''; renderPartyControls(); startPartyPoll(); }
+    // Party-Steuerung nur im Menü — im Match bringt sie nichts. partySig nur bei
+    // echtem Szenenwechsel hart zuruecksetzen (neuer Menue-Eintritt o.ae.) - sonst
+    // wuerde JEDER render()-Durchlauf (z.B. ein Heartbeat mit unveraendertem
+    // Party-Stand) den "Start Game"-Bereich zwingend neu aufbauen, egal was sich
+    // dort wirklich geaendert hat. renderPartyControls() prueft selbst genug.
+    if(state === 'MENUS'){
+      bindInstalock();
+      if(sceneChanged) partySig = '';
+      renderPartyControls();
+      startPartyPoll();
+    }
     else stopPartyPoll();
   }
 
