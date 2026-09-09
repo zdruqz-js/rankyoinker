@@ -8889,13 +8889,12 @@
       // früheres "change"-Event zu verlassen - so gilt garantiert das, was
       // gerade in den Selects steht, auch wenn sie nie angefasst wurden
       // (Standard FILL/FILL).
-      pushRoles().then(() => api('/api/lol/queue/search')).then(j => {
-        console.log('[lol-queue] /api/lol/queue/search response:', j);
+      pushRoles().then(() => api('/api/lol/queue/search', {})).then(j => {
         if(!j.ok) toast('error', t('toast_queue_start_failed'), j.error || t('unknown_error'));
-      }).catch(e => { console.log('[lol-queue] request itself failed:', e); toast('error', t('generic_error'), t('err_local_service_port')); });
+      }).catch(() => toast('error', t('generic_error'), t('err_local_service_port')));
     });
     const cancelBtn = document.getElementById('lolCancelBtn');
-    if(cancelBtn) cancelBtn.addEventListener('click', () => { api('/api/lol/queue/cancel').catch(() => {}); });
+    if(cancelBtn) cancelBtn.addEventListener('click', () => { api('/api/lol/queue/cancel', {}).catch(() => {}); });
     const toggle = document.getElementById('lolAutoToggle');
     if(toggle) toggle.addEventListener('click', () => {
       const next = !toggle.classList.contains('on');
@@ -8919,7 +8918,7 @@
            ${rc.autoAccept ? `<div class="lol-empty" style="margin-top:10px;">${t('lol_auto_accept_active')}</div>` : ''}`}
     </div>`;
     const btn = document.getElementById('lolAcceptBtn');
-    if(btn) btn.addEventListener('click', () => { btn.disabled = true; api('/api/lol/readycheck/accept').catch(() => {}); });
+    if(btn) btn.addEventListener('click', () => { btn.disabled = true; api('/api/lol/readycheck/accept', {}).catch(() => {}); });
   }
 
   // Nur "meine" Aktion entscheidet, ob der Picker neu aufgebaut wird — die
