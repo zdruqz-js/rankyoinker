@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")

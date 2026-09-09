@@ -25,7 +25,7 @@ build_exe_options = {
 # (RankYoinker.iss) und APP_VERSION (vry_log_server.py) hochzaehlen.
 setup(
     name = "RankYoinker",
-    version = "2.0.0",
+    version = "2.0.1",
     description='RankYoinker - Overlay & Automation fuer VALORANT (basiert auf vRY)',
     executables = [Executable("main.py", icon="../rankyoinker.ico", target_name="vry.exe")],
     options={"build_exe": build_exe_options}
