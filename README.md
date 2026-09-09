@@ -20,7 +20,8 @@ runtime state:
   local Riot client (League/VALORANT) session, proxies Riot's own APIs, and
   serves `index.html` locally.
 - `setup/build_source/`: the Python source that gets frozen (via
-  `cx_Freeze`, see `setup/build_exe.py`) into `vry.exe`, the small process
+  `cx_Freeze`, see `setup/build_source/setup.py` /
+  `setup/build_source/build_and_deploy.bat`) into `vry.exe`, the small process
   that hooks into VALORANT itself. This is the part most worth reading if
   you want to verify there's nothing sketchy going on before running the
   installer.

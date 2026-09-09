@@ -1,6 +1,5 @@
 import sys
 from cx_Freeze import setup, Executable
-from src.constants import version
 
 # with open("requirements.txt", "r") as f:
 #     requirements = f.read().splitlines()
@@ -21,10 +20,13 @@ build_exe_options = {
     "excludes": ["tkinter", "test", "unittest", "pygments", "xmlrpc"]
 }
 
+# version ist nur das cx_Freeze-Paket-Metadatenfeld, nicht sicherheitsrelevant -
+# bei jedem Release zusammen mit CURRENT_VERSION (index.html), MyAppVersion
+# (RankYoinker.iss) und APP_VERSION (vry_log_server.py) hochzaehlen.
 setup(
-    name = "VALORANT rank yoinker",
-    version = version,
-    description='vRY - VALORANT rank yoinker',
-    executables = [Executable("main.py", icon="./assets/Logo.ico", target_name="vry.exe")],
+    name = "RankYoinker",
+    version = "1.0.0",
+    description='RankYoinker - Overlay & Automation fuer VALORANT (basiert auf vRY)',
+    executables = [Executable("main.py", icon="../rankyoinker.ico", target_name="vry.exe")],
     options={"build_exe": build_exe_options}
 )
