@@ -9262,7 +9262,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.0.1";
+const CURRENT_VERSION = "2.0.2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -9270,6 +9270,10 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
   let popupShown = false;
   let snoozeUntil = 0; // Date.now()-Zeitstempel: bis dahin kein Popup mehr zeigen
   const SNOOZE_MS = 5 * 60 * 1000;
+  // Eigenes IIFE, eigener Closure (siehe Kommentar oben) - hat keinen Zugriff
+  // auf das LOG_URL des Haupt-App-IIFE weiter oben, darum hier noch einmal
+  // dieselbe kleine Berechnung statt eines (undefinierten) Zugriffs darauf.
+  const LOG_URL = /^https?:$/.test(location.protocol) ? '' : 'http://127.0.0.1:1101';
 
   function escText(s) {
     return String(s ?? "").replace(/[&<>"']/g, c => (
