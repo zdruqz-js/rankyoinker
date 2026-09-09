@@ -7561,7 +7561,20 @@
       }
     }
 
+    // #partyControls VOR dem Neuaufbau retten: content.innerHTML ersetzt es sonst
+    // durch einen frischen LEEREN Platzhalter (das bodyHtml-Template enthaelt nur
+    // "<div id=partyControls></div>", befuellt wird er async ueber renderPartyControls()).
+    // Bei jedem Heartbeat, der zwar fullSig aendert aber keinen echten Szenenwechsel
+    // bedeutet, sah das wie ein kurzes Verschwinden/Wiederauftauchen alle paar
+    // Sekunden aus. Den ECHTEN, bereits befuellten Knoten (inkl. Klick-Handler)
+    // einfach an derselben Stelle weiterverwenden statt ihn wegzuwerfen.
+    const oldPartyControls = (!sceneChanged && state === 'MENUS')
+      ? document.getElementById('partyControls') : null;
     content.innerHTML = headHtml + (state === 'PREGAME' ? agentPickHtml() : '') + bodyHtml;
+    if(oldPartyControls && oldPartyControls.children.length){
+      const freshPlaceholder = document.getElementById('partyControls');
+      if(freshPlaceholder) freshPlaceholder.replaceWith(oldPartyControls);
+    }
     content.classList.toggle('anim', sceneChanged);
     if(sceneChanged){
       let d = 0;
