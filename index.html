@@ -1118,8 +1118,10 @@
   .dots{display:flex; align-items:center; gap:7px;}
   .dot{
     width:11px; height:11px; border-radius:50%; flex-shrink:0; position:relative;
-    animation:dotPop .4s cubic-bezier(.22,1,.36,1) backwards;
   }
+  /* Pop-In nur beim echten Erstaufbau (wie bei .pcard), nicht bei jedem
+     Re-Render - sonst "blitzen" die Punkte bei jedem Update kurz auf. */
+  #content.anim .dot{animation:dotPop .4s cubic-bezier(.22,1,.36,1) backwards;}
   .dot.w{background:var(--green); box-shadow:0 0 9px rgba(34,197,94,.55);}
   .dot.l{background:var(--loss); box-shadow:0 0 9px rgba(255,117,128,.5);}
   .dot.none{background:rgba(255,255,255,.09); box-shadow:none;}
@@ -5640,7 +5642,10 @@
       .finally(() => { kdaInFlight = false; });
   }
   function paintKda(){
-    content.querySelectorAll('.lm-tile[data-kda]').forEach(el => {
+    // Nur die noch "ladenden" Kacheln ersetzen - fuer bereits geladene wuerde
+    // recentTileHtml() ohnehin dieselbe Ausgabe liefern, das Ersetzen aber die
+    // Punkte-Animation unnoetig neu abspielen lassen (staendiges "Aufblitzen").
+    content.querySelectorAll('.lm-tile.pending[data-kda]').forEach(el => {
       const id = el.getAttribute('data-kda');
       if(kdaCache[id] === undefined) return;
       const tmp = document.createElement('div');
@@ -6610,11 +6615,19 @@
       const meMember = (j.members || []).find(m => m.me) || {};
       // Die Namen gehören mit in die Signatur: Nach einem Account-Wechsel
       // ändert sich sonst nichts „Sichtbares" und die Lobby zeigt weiter die
-      // alten Spielernamen an.
-      const sig = [j.state, j.queue, j.accessibility, meMember.ready, j.queueTime,
+      // alten Spielernamen an. queueTime bewusst NICHT mit rein - die Sekunden
+      // zählen waehrend der Suche staendig hoch, das würde den ganzen Bereich
+      // alle 3s neu aufbauen (Buttons verlieren Hover, alles blinkt), nur weil
+      // eine Zahl weiterläuft. Die Anzeige dafür wird weiter unten separat
+      // aktualisiert, ganz ohne Neuaufbau.
+      const sig = [j.state, j.queue, j.accessibility, meMember.ready,
                    (j.eligibleQueues || []).join(','),
                    (j.members || []).map(m => (m.puuid || '') + ':' + (m.name || '') + ':' + (m.ready ? 1 : 0)).join(',')
                   ].join('|');
+      const searchingEl = box.querySelector('.searching');
+      if(searchingEl && j.state === 'MATCHMAKING'){
+        searchingEl.innerHTML = `${svgIcon('loader',13,'spin')} ${t('searching')}${j.queueTime ? ' · ' + t('approx') + ' ' + j.queueTime + 's' : ''}`;
+      }
       if(sig === partySig) return;   // nichts geändert -> nicht neu zeichnen
       partySig = sig;
 
