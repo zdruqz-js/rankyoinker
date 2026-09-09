@@ -8,12 +8,10 @@ import traceback
 import requests
 import urllib3
 from colr import color as colr
-from InquirerPy import inquirer
 from rich.console import Console as RichConsole
 
 from src.colors import Colors
 from src.config import Config
-from src.configurator import configure
 from src.constants import *
 from src.content import Content
 from src.errors import Error
@@ -71,30 +69,12 @@ try:
     # OS Logging
     log(f"Operating system: {get_os()}\n")
 
-    try:
-        if len(sys.argv) > 1 and sys.argv[1] == "--config":
-            configure()
-            run_app = inquirer.confirm(
-                message="Do you want to run vRY now?", default=True
-            ).execute()
-            if run_app:
-                os.system("cls")
-            else:
-                os._exit(0)
-        else:
-            os.system("cls")
-    except Exception as e:
-        print("Something went wrong while running configurator!")
-        log(f"configurator encountered an error")
-        log(str(traceback.format_exc()))
-        input("press enter to exit...\n")
-        os._exit(1)
+    os.system("cls")
 
     acc_manager = AccountManager(log, AccountConfig, AccountAuth, NUMBERTORANKS)
 
     ErrorSRC = Error(log, acc_manager)
 
-    Requests.check_version(version, Requests.copy_run_update_script)
     Requests.check_status()
     Requests = Requests(version, log, ErrorSRC)
 

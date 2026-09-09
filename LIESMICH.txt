@@ -7,11 +7,16 @@ Browser-Overlay: index.html zeigt Raenge, Statistiken, Skins,
 Shop und die Agentenauswahl im Browser an.
 
 --------------------------------------------------------
-1. VORAUSSETZUNG: PYTHON INSTALLIEREN
+1. VORAUSSETZUNG: PYTHON INSTALLIEREN (nur bei Start aus dem Quellcode)
 --------------------------------------------------------
-Ohne Python funktioniert nur die halbe Seite. Der mitgelieferte
-Hilfsdienst (vry_log_server.py) liefert Logs, Skins, Shop, Party
-und die Agentenauswahl - der braucht Python.
+Wer den normalen RankYoinker-Installer von rankyoinker.de nutzt, kann
+diesen Punkt ueberspringen: der bringt ein eingebettetes Python schon
+mit, eine eigene Installation ist dafuer nicht noetig.
+
+Nur wer den Quellcode (dieses GitHub-Repo) direkt startet, statt den
+Installer zu nutzen, braucht ein eigenes Python fuer den mitgelieferten
+Hilfsdienst (vry_log_server.py). Der liefert Logs, Skins, Shop, Party
+und die Agentenauswahl.
 
   - Python 3.10 oder neuer von https://www.python.org/downloads/
   - WICHTIG bei der Installation: Haken bei

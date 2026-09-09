@@ -116,7 +116,6 @@ Source: "..\start_vry.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry_hidden.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\stop_vry.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\stop_vry_hidden.vbs"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\configurator.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "rankyoinker.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "install_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion

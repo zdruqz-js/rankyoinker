@@ -1559,9 +1559,7 @@ RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr")
 
 def set_rpc_lang(lang):
     """Schreibt die App-Sprache in config.json, damit vry.exe (Discord Rich
-    Presence, siehe lib/src/rpc.py) sie unabhaengig vom Browser mitliest -
-    config.json wird sonst nur von configurator.bat angefasst, der Browser
-    selbst kannte die Datei bisher gar nicht."""
+    Presence, siehe lib/src/rpc.py) sie unabhaengig vom Browser mitliest."""
     lang = str(lang or "").lower()
     if lang not in RPC_LANGS:
         return {"ok": False, "error": "Unbekannte Sprache."}
