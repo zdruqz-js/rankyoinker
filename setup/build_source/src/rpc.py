@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 import time
 import asyncio
 import threading
@@ -114,14 +116,31 @@ RPC_STRINGS: Dict[str, Dict[str, str]] = {
 }
 
 
+def _config_path() -> str:
+    """Absoluter Pfad zu config.json - bewusst NICHT relativ zum aktuellen
+    Arbeitsverzeichnis (das war der eigentliche Bug: config.json liegt neben
+    vry.exe, aber ein bloßes open("config.json", ...) haengt am Arbeits-
+    verzeichnis des Prozesses zum Zeitpunkt des Aufrufs. Weicht das auch nur
+    einmal vom erwarteten Fall ab, findet dieser Read die Datei nie und faellt
+    lautlos auf "de" zurueck, OHNE dass irgendwo ein Fehler sichtbar wird -
+    genau das Symptom "Discord Rich Presence bleibt immer Deutsch"). Im
+    gefrorenen vry.exe liegt config.json direkt neben der exe selbst
+    (sys.executable); beim Testen aus dem Quellcode (src/rpc.py) beim
+    Projekt-Root eine Ebene ueber src/."""
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "config.json")
+
+
 def _current_lang() -> str:
-    """Liest die App-Sprache direkt aus config.json (relativ zum Arbeits-
-    verzeichnis, genau wie src/config.py das schon fuer alles andere tut).
-    Bewusst OHNE Cache: config.json ist winzig, ein Lesevorgang pro Update-
-    Zyklus (max. alle paar Sekunden) faellt nicht ins Gewicht, macht dafuer
-    einen Sprachwechsel sofort wirksam statt erst nach einem Neustart."""
+    """Liest die App-Sprache aus config.json. Bewusst OHNE Cache: config.json
+    ist winzig, ein Lesevorgang pro Update-Zyklus (max. alle paar Sekunden)
+    faellt nicht ins Gewicht, macht dafuer einen Sprachwechsel sofort wirksam
+    statt erst nach einem Neustart."""
     try:
-        with open("config.json", "r", encoding="utf-8") as f:
+        with open(_config_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         lang = str((data or {}).get("lang", "de")).lower()
     except Exception:
