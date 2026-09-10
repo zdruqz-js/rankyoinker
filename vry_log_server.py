@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.0.9"
+APP_VERSION = "2.0.10"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -4256,41 +4256,6 @@ def lol_champion_list():
     return {"ok": True, "champions": champs}
 
 
-# ---- Freie Rotation (kostenlos spielbare Champions der Woche) ----
-
-
-# "champions-minimal-with-rotation" (ohne Queue) gibt es in aktuellen Client-
-# Versionen nicht mehr - Riot hat das auf eine Rotation PRO WARTESCHLANGE
-# umgestellt. 490 = Quickplay, die aktuelle Standard-Warteschlange, deren
-# Rotation auch im Client selbst als "kostenlos verfuegbar" angezeigt wird
-# (per /help live verifiziert - andere Queue-IDs wie 430 liefern eine
-# veraltete/leere Rotation). Ausserdem liegt "owned" jetzt verschachtelt
-# unter "ownership.owned" statt direkt auf oberster Ebene.
-LOL_ROTATION_QUEUE_ID = 490
-
-
-def lol_free_rotation():
-    try:
-        me = lol_current_summoner()
-    except LcuError as e:
-        return {"ok": False, "error": str(e)}
-    sid = me.get("summonerId")
-    if not sid:
-        return {"ok": False, "error": "Keine summonerId gefunden."}
-    try:
-        status, j = lcu_get("/lol-champions/v1/inventories/%s/%s/champions-minimal-per-queue"
-                             % (sid, LOL_ROTATION_QUEUE_ID))
-    except LcuError as e:
-        return {"ok": False, "error": str(e)}
-    if status != 200 or not isinstance(j, list):
-        return {"ok": False, "error": "Rotation nicht lesbar (Status %s)." % status}
-    free = [{"id": c.get("id"), "name": c.get("name"),
-             "owned": bool((c.get("ownership") or {}).get("owned"))}
-            for c in j if c.get("freeToPlay")]
-    free.sort(key=lambda c: c["name"])
-    return {"ok": True, "champions": free}
-
-
 # ---- Champion Mastery (nur die eigene — die LCU gibt Mastery-Werte anderer
 # Spieler grundsätzlich nicht her, das bräuchte den offiziellen Riot-API-Key) ----
 
@@ -5020,9 +4985,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/lol/champions":
             self._json(lol_champion_list())
-
-        elif path == "/api/lol/rotation":
-            self._safe(lol_free_rotation)
 
         elif path == "/api/lol/encounters":
             ids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]
