@@ -280,6 +280,7 @@
   }
 
   /* custom dropdown */
+  .cdrop{position:relative;}
   .cdrop-btn{
     width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--panel-3); border:1px solid var(--border-strong); color:var(--text);
@@ -290,10 +291,14 @@
   .cdrop-btn .caret{color:var(--text-faint); font-size:10px; transition:transform .15s ease; flex-shrink:0;}
   .cdrop.open .cdrop-btn{border-color:var(--red);}
   .cdrop.open .caret{transform:rotate(180deg); color:var(--red);}
+  /* Schwebendes Overlay statt normalem Fluss - sonst "schiebt" sich beim
+     Oeffnen der gesamte umgebende Kasten auf, statt wie ein echtes Dropdown
+     ueber dem restlichen Inhalt zu schweben. */
   .cdrop-list{
-    display:none; margin-top:4px; background:#0b131c; border:1px solid var(--border-strong);
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:60;
+    background:#0b131c; border:1px solid var(--border-strong);
     max-height:198px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent;
-    border-radius:9px;
+    border-radius:9px; box-shadow:0 12px 30px -8px rgba(0,0,0,0.7);
   }
   .cdrop-list::-webkit-scrollbar{width:7px;}
   .cdrop-list::-webkit-scrollbar-thumb{background:var(--border-strong);}
@@ -8235,6 +8240,10 @@
     if(!content) return false;
     const ae = document.activeElement;
     if(ae && content.contains(ae) && (ae.tagName === 'SELECT' || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return true;
+    // Die Warteschlangen-/Lane-Dropdowns sind eigene .cdrop-Widgets, kein
+    // <select> - ohne diesen Check hat der 1,5s-Poll ein offenes Dropdown
+    // nach spaetestens einer Sekunde wieder zugeklappt.
+    if(content.querySelector('.cdrop.open')) return true;
     const sel = window.getSelection();
     if(sel && sel.toString().length && sel.anchorNode && content.contains(sel.anchorNode)) return true;
     return false;
@@ -8848,7 +8857,7 @@
            <span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span>
          </div>
        </div>` +
-      `<div class="lol-card"><div class="panel-head">${t('lol_lobby')}${lolStatePillHtml(state)}<span class="line"></span></div>${queuePicker}${membersHtml}</div>` +
+      `<div class="lol-card"><div class="panel-head">${t('lol_lobby')}<span class="line"></span></div>${queuePicker}${membersHtml}</div>` +
       lolPresetsPanelHtml();
     bindLolCardClicks(el);
     bindLolPresets();
@@ -9309,7 +9318,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.0";
+const CURRENT_VERSION = "2.1.1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
