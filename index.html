@@ -515,7 +515,7 @@
   .lol-match-row.loss .mr-res{color:#ff7580;}
   .lol-match-row .mr-kda{font-family:var(--font-big); font-size:16px; font-weight:600;}
   .lol-match-row .mr-extra{margin-left:auto; font-size:10px; color:var(--text-faint);}
-  .lol-toggle{display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none;}
+  .lol-toggle{display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none;}
   .lol-toggle .sw{width:36px; height:20px; border-radius:999px; background:rgba(255,255,255,0.1);
     border:1px solid var(--border-strong); position:relative; transition:.18s ease; flex-shrink:0;}
   .lol-toggle .sw::after{content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%;
@@ -2354,6 +2354,8 @@
       lol_ban: "Bann",
       lol_presets_bans_head: "Bans (je Lane)",
       lol_presets_picks_head: "Picks (je Lane)",
+      lol_auto_ban_toggle: "Preset-Bann automatisch ausführen (je Lane, mit Ausweich-Bans)",
+      lol_auto_pick_toggle: "Preset-Pick automatisch ausführen (je Lane, mit Ausweichchampions)",
       lol_choose_champion_title: "{slot}: Champion wählen",
       lol_game_found: "Spiel gefunden!",
       lol_accepted_waiting: "Angenommen, warte auf die anderen…",
@@ -2769,6 +2771,8 @@
       lol_ban: "Ban",
       lol_presets_bans_head: "Bans (per lane)",
       lol_presets_picks_head: "Picks (per lane)",
+      lol_auto_ban_toggle: "Run preset ban automatically (per lane, with fallback bans)",
+      lol_auto_pick_toggle: "Run preset pick automatically (per lane, with fallback champions)",
       lol_choose_champion_title: "{slot}: Choose Champion",
       lol_game_found: "Match found!",
       lol_accepted_waiting: "Accepted, waiting for the others…",
@@ -3187,6 +3191,8 @@
       lol_ban: "Ban",
       lol_presets_bans_head: "Bany (wg lane)",
       lol_presets_picks_head: "Picki (wg lane)",
+      lol_auto_ban_toggle: "Automatyczne wykonywanie presetu banów (wg lane, z zamiennikami)",
+      lol_auto_pick_toggle: "Automatyczne wykonywanie presetu picków (wg lane, z zamiennikami)",
       lol_choose_champion_title: "{slot}: wybierz czempiona",
       lol_game_found: "Znaleziono grę!",
       lol_accepted_waiting: "Zaakceptowano, oczekiwanie na pozostałych…",
@@ -3609,6 +3615,8 @@
       lol_ban: "Ban",
       lol_presets_bans_head: "Bans (par ligne)",
       lol_presets_picks_head: "Picks (par ligne)",
+      lol_auto_ban_toggle: "Ban preset exécuté automatiquement (par ligne, avec bans de repli)",
+      lol_auto_pick_toggle: "Pick preset exécuté automatiquement (par ligne, avec champions de repli)",
       lol_choose_champion_title: "{slot} : choisir un champion",
       lol_game_found: "Partie trouvée !",
       lol_accepted_waiting: "Accepté, en attente des autres…",
@@ -4031,6 +4039,8 @@
       lol_ban: "Veto",
       lol_presets_bans_head: "Vetos (por línea)",
       lol_presets_picks_head: "Picks (por línea)",
+      lol_auto_ban_toggle: "Ejecutar veto preestablecido automáticamente (por línea, con vetos de reserva)",
+      lol_auto_pick_toggle: "Ejecutar pick preestablecido automáticamente (por línea, con campeones de reserva)",
       lol_choose_champion_title: "{slot}: elegir campeón",
       lol_game_found: "¡Partida encontrada!",
       lol_accepted_waiting: "Aceptado, esperando a los demás…",
@@ -4453,6 +4463,8 @@
       lol_ban: "Yasak",
       lol_presets_bans_head: "Yasaklar (lane başına)",
       lol_presets_picks_head: "Seçimler (lane başına)",
+      lol_auto_ban_toggle: "Ön ayarlı yasağı otomatik uygula (lane başına, yedek yasaklarla)",
+      lol_auto_pick_toggle: "Ön ayarlı seçimi otomatik uygula (lane başına, yedek şampiyonlarla)",
       lol_choose_champion_title: "{slot}: Şampiyon seç",
       lol_game_found: "Oyun bulundu!",
       lol_accepted_waiting: "Kabul edildi, diğerleri bekleniyor…",
@@ -8588,10 +8600,10 @@
     return `<div class="lol-card">
       <div class="panel-head">Presets<span class="line"></span></div>
       <div class="lol-toggle ${p.autoBan ? 'on' : ''}" id="lolAutoBanToggle" style="margin-bottom:8px;">
-        <span class="sw"></span><span class="lbl">Preset-Bann automatisch ausführen (je Lane, mit Ausweich-Bans)</span>
+        <span class="sw"></span><span class="lbl">${t('lol_auto_ban_toggle')}</span>
       </div>
       <div class="lol-toggle ${p.autoPick ? 'on' : ''}" id="lolAutoPickToggle" style="margin-bottom:16px;">
-        <span class="sw"></span><span class="lbl">Preset-Pick automatisch ausführen (je Lane, mit Ausweichchampions)</span>
+        <span class="sw"></span><span class="lbl">${t('lol_auto_pick_toggle')}</span>
       </div>
       <div class="panel-head" style="font-size:12px; margin-bottom:10px;">${t('lol_presets_bans_head')}<span class="line"></span></div>
       <div class="lp-tiles">${banGroups}</div>
@@ -9317,7 +9329,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.0.8";
+const CURRENT_VERSION = "2.0.9";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
