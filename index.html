@@ -305,6 +305,7 @@
   }
   .cdrop-item:hover{background:rgba(201,168,105,0.1); color:var(--text); border-left-color:var(--red);}
   .cdrop-item.sel{color:var(--red); border-left-color:var(--red); background:rgba(201,168,105,0.06);}
+  .cdrop.disabled{opacity:.5; pointer-events:none;}
 
   /* ================= STATUS OVERLAY ================= */
   #statusOverlay{
@@ -809,13 +810,19 @@
   .stat-strip .s + .s::before{content:""; position:absolute; left:0; top:15%; bottom:15%; width:1px; background:var(--border);}
   .stat-strip .v{font-family:var(--font-big); font-size:15px; line-height:1; font-weight:600;}
   .stat-strip .l{font-size:8px; color:var(--text-faint); letter-spacing:.14em; text-transform:uppercase; margin-top:3px; font-family:var(--font-display); font-weight:700;}
+  /* Groessere Variante fuer freistehende Panels (z.B. Saison-Uebersicht) statt
+     der engen Spielerkarten - dort ist genug Platz, die kleine Kartenschrift
+     wirkte dort nur winzig und schwer lesbar. */
+  .stat-strip.lg{padding-top:12px;}
+  .stat-strip.lg .v{font-size:23px;}
+  .stat-strip.lg .l{font-size:10.5px; margin-top:5px;}
 
   /* Saison-Übersicht: meistgespielte Champions als kleine Chips */
-  .lol-champ-stats{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:16px;}
-  .lol-champ-stat{display:flex; flex-direction:column; align-items:center; gap:6px; width:64px;}
-  .lol-champ-stat img{width:44px; height:44px; border-radius:10px; object-fit:cover; background:var(--panel-3);}
-  .lol-champ-stat .lcs-games{font-family:var(--font-display); font-weight:700; font-size:10.5px; color:var(--text-dim);}
-  .lol-champ-stat .lcs-wr{font-size:9.5px; color:var(--text-faint);}
+  .lol-champ-stats{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:16px;}
+  .lol-champ-stat{display:flex; flex-direction:column; align-items:center; gap:6px; width:72px;}
+  .lol-champ-stat img{width:48px; height:48px; border-radius:10px; object-fit:cover; background:var(--panel-3);}
+  .lol-champ-stat .lcs-games{font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--text-dim);}
+  .lol-champ-stat .lcs-wr{font-size:11.5px; color:var(--text-faint);}
 
   /* ================= MODAL ================= */
   #modalWrap{
@@ -1934,8 +1941,8 @@
 <div id="appLeague">
   <nav class="tabs" id="lolTabs">
     <span class="tab-pill" id="lolTabPill"></span>
-    <button class="tab active" data-ltab="live">Spiel</button>
-    <button class="tab" data-ltab="history">Verlauf</button>
+    <button class="tab active" data-ltab="live" data-i18n="tab_lol_live">Spiel</button>
+    <button class="tab" data-ltab="history" data-i18n="tab_lol_history">Verlauf</button>
   </nav>
   <div id="lolContent" class="tabpanel active"></div>
   <div id="lolPanelHistory" class="tabpanel"></div>
@@ -8338,10 +8345,17 @@
       portraitInner = `<img class="portrait" src="${champUrl}" alt="" loading="lazy">`;
       subLabel = `${esc(p.champion || '')}${posLabel ? ' · ' + posLabel : ''}`;
     } else if(mode === 'lobby'){
+      // Statt des Rang-Emblems lieber der zuletzt gespielte Champion als grosses
+      // Kartenbild - der Rang steht ohnehin schon separat in den Rang-Kacheln
+      // weiter unten, ein Champion-Splash wirkt hier deutlich weniger steril.
       const topTier = p.rankSolo && p.rankSolo.tier;
-      portraitInner = topTier
-        ? `<div class="rank-hero"><div class="rank-emblem-lol"><img src="${lolRankIconUrl(topTier)}" alt="" loading="lazy" onerror="lolRankImgFallback(this)"></div></div>`
-        : `<div class="rank-hero"><div class="rh-fall-lol">${svgIcon('shield', 26)}</div></div>`;
+      if(p.lastChampionId){
+        portraitInner = `<img class="portrait" src="https://cdn.communitydragon.org/latest/champion/${p.lastChampionId}/splash-art/centered" alt="" loading="lazy">`;
+      } else if(topTier){
+        portraitInner = `<div class="rank-hero"><div class="rank-emblem-lol"><img src="${lolRankIconUrl(topTier)}" alt="" loading="lazy" onerror="lolRankImgFallback(this)"></div></div>`;
+      } else {
+        portraitInner = `<div class="rank-hero"><div class="rh-fall-lol">${svgIcon('shield', 26)}</div></div>`;
+      }
       subLabel = posLabel || (p.leader ? t('party_leader') : '');
     } else {
       portraitInner = `<div class="agent-fallback-big">${esc((p.champion || '?').slice(0, 2).toUpperCase())}</div>`;
@@ -8801,9 +8815,6 @@
         : `<div class="lol-empty">${t('lol_lobby_empty')}</div>`;
     }
 
-    const opts = ((queues && queues.queues) || []).map(q =>
-      `<option value="${q.id}" ${q.id === currentQueueId ? 'selected' : ''}>${esc(q.name)}</option>`).join('');
-
     // Lane-Präferenz: für Ranked (Solo/Duo, Flex) verlangt der League
     // Client eine gesetzte Position, sonst wird die Suche abgelehnt - siehe
     // lol_queue_action("search"). Vorbelegt mit dem, was am Account bereits
@@ -8813,51 +8824,56 @@
     const curPrimary = (selfMember && selfMember.position) || 'FILL';
     const curSecondary = (selfMember && selfMember.positionSecondary) || 'FILL';
     const LANE_OPTS = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'FILL'];
-    const laneOptsHtml = cur => LANE_OPTS.map(p =>
-      `<option value="${p}" ${p === cur ? 'selected' : ''}>${esc(LOL_POSITIONS[p])}</option>`).join('');
-    const laneSelectStyle = 'background:var(--panel-3); color:var(--text); border:1px solid var(--border-strong); ' +
-      'border-radius:var(--r-sm); padding:8px 10px; font-family:var(--font-display); font-weight:700; font-size:11px;';
 
+    // Dropdowns als custom .cdrop (wie im Einstellungsmenü) statt nativer
+    // <select> - Platzhalter-Divs, per makeDropdown() gleich nach dem
+    // Einfuegen ins DOM befuellt (siehe unten).
     const queuePicker = `
       <div style="display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:10px;">
-        <select id="lolQueuePick" ${searching ? 'disabled' : ''}
-          style="background:var(--panel-3); color:var(--text); border:1px solid var(--border-strong); border-radius:var(--r-sm); padding:8px 12px; font-family:var(--font-display); font-weight:700; font-size:11px;">
-          <option value="">${t('lol_pick_queue')}</option>${opts}
-        </select>
+        <div class="cdrop" id="lolQueuePick" style="width:210px;"></div>
         ${searching
           ? `<button class="pbtn halt" id="lolCancelBtn">${t('lol_cancel_search')}</button><span class="searching">${svgIcon('clock', 13)}${t('lol_searching')}</span>`
           : `<button class="pbtn go" id="lolSearchBtn" ${currentQueueId ? '' : 'disabled'}>${t('lol_start_queue')}</button>`}
       </div>
       <div style="display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:16px;">
         <span style="font-size:10.5px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.08em; text-transform:uppercase;">${t('lol_lane')}</span>
-        <select id="lolPrimaryPick" ${searching ? 'disabled' : ''} style="${laneSelectStyle}">${laneOptsHtml(curPrimary)}</select>
+        <div class="cdrop" id="lolPrimaryPick" style="width:150px;"></div>
         <span style="font-size:10.5px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.08em; text-transform:uppercase;">${t('lol_lane_2nd')}</span>
-        <select id="lolSecondaryPick" ${searching ? 'disabled' : ''} style="${laneSelectStyle}">${laneOptsHtml(curSecondary)}</select>
+        <div class="cdrop" id="lolSecondaryPick" style="width:150px;"></div>
       </div>`;
 
     el.innerHTML =
-      `<div class="lol-card"><div class="panel-head">${t('lol_lobby')}${lolStatePillHtml(state)}<span class="line"></span></div>${queuePicker}${membersHtml}</div>` +
       `<div class="lol-card">
          <div class="lol-toggle ${auto ? 'on' : ''}" id="lolAutoToggle">
            <span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span>
          </div>
        </div>` +
+      `<div class="lol-card"><div class="panel-head">${t('lol_lobby')}${lolStatePillHtml(state)}<span class="line"></span></div>${queuePicker}${membersHtml}</div>` +
       lolPresetsPanelHtml();
     bindLolCardClicks(el);
     bindLolPresets();
 
-    const qSel = document.getElementById('lolQueuePick');
-    if(qSel) qSel.addEventListener('change', () => {
-      if(qSel.value) api('/api/lol/queue/setQueue', {queueId: Number(qSel.value)}).catch(() => {});
-    });
-    const primSel = document.getElementById('lolPrimaryPick');
-    const secSel = document.getElementById('lolSecondaryPick');
-    const pushRoles = () => api('/api/lol/queue/roles', {
-      primary: (primSel && primSel.value) || 'FILL',
-      secondary: (secSel && secSel.value) || 'FILL',
-    }).catch(() => {});
-    if(primSel) primSel.addEventListener('change', pushRoles);
-    if(secSel) secSel.addEventListener('change', pushRoles);
+    const queueOpts = [{value:'', label: t('lol_pick_queue')}].concat(
+      ((queues && queues.queues) || []).map(q => ({value: String(q.id), label: q.name})));
+    const queueDropEl = document.getElementById('lolQueuePick');
+    if(queueDropEl){
+      makeDropdown(queueDropEl, queueOpts, currentQueueId != null ? String(currentQueueId) : '', (v) => {
+        if(v) api('/api/lol/queue/setQueue', {queueId: Number(v)}).catch(() => {});
+      });
+      if(searching) queueDropEl.classList.add('disabled');
+    }
+    const laneOpts = LANE_OPTS.map(p => ({value: p, label: LOL_POSITIONS[p]}));
+    let primDrop, secDrop;
+    function pushRoles(){
+      return api('/api/lol/queue/roles', {
+        primary: (primDrop && primDrop.value) || 'FILL',
+        secondary: (secDrop && secDrop.value) || 'FILL',
+      }).catch(() => {});
+    }
+    const primDropEl = document.getElementById('lolPrimaryPick');
+    const secDropEl = document.getElementById('lolSecondaryPick');
+    if(primDropEl){ primDrop = makeDropdown(primDropEl, laneOpts, curPrimary, pushRoles); if(searching) primDropEl.classList.add('disabled'); }
+    if(secDropEl){ secDrop = makeDropdown(secDropEl, laneOpts, curSecondary, pushRoles); if(searching) secDropEl.classList.add('disabled'); }
     const searchBtn = document.getElementById('lolSearchBtn');
     if(searchBtn) searchBtn.addEventListener('click', () => {
       searchBtn.disabled = true;
@@ -9047,7 +9063,7 @@
       seasonHtml = `
        <div class="lol-card">
          <div class="panel-head">${t('lol_last_n_matches', {n: season.games})}<span class="line"></span></div>
-         <div class="stat-strip">
+         <div class="stat-strip lg">
            <div class="s"><div class="v">${season.winrate}%</div><div class="l">${t('winrate_label')}</div></div>
            <div class="s"><div class="v">${season.avgKda}</div><div class="l">${t('avg_kda')}</div></div>
            <div class="s"><div class="v">${season.avgKills}/${season.avgDeaths}/${season.avgAssists}</div><div class="l">${t('avg_kda_full')}</div></div>
@@ -9293,7 +9309,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.0.10";
+const CURRENT_VERSION = "2.1.0";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
