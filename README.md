@@ -8,7 +8,7 @@ by Zay Kenyon and Contributors (ISC license, see `VRY-LICENSE.txt` /
 `setup/VRY-LICENSE.txt`).
 
 - Website & download: https://rankyoinker.de
-- Discord: https://discord.gg/4z2BDEqDQW
+- Discord: https://discord.gg/rankyoinker
 
 ## What's in this repo
 
