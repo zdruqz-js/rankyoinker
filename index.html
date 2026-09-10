@@ -2196,8 +2196,6 @@
       your_lobby: "Deine Lobby",
       dodge_agent_select_title_full: "Verlässt die Agentenauswahl, Queue dodgen, ohne VALORANT zu schließen",
       mastery_tip: "Mastery {level}: {points} Punkte",
-      agent_already_unlocked: "schon freigeschaltet",
-      agent_free_this_week: "diese Woche kostenlos spielbar",
       league_client_closed_hint: "League-Client ist nicht offen, sobald er läuft, erscheint hier die Lobby.",
       lol_not_running: "League of Legends läuft nicht",
       lol_not_running_hint: "Starte League of Legends. Sobald der Client läuft, wird hier automatisch alles angezeigt.",
@@ -2614,8 +2612,6 @@
       your_lobby: "Your Lobby",
       dodge_agent_select_title_full: "Leaves agent select, dodges the queue, without closing VALORANT",
       mastery_tip: "Mastery {level}: {points} points",
-      agent_already_unlocked: "already unlocked",
-      agent_free_this_week: "free to play this week",
       league_client_closed_hint: "League client isn't open, the lobby will appear here once it's running.",
       lol_not_running: "League of Legends is not running",
       lol_not_running_hint: "Start League of Legends. Once the client is running, everything will show up here automatically.",
@@ -3034,8 +3030,6 @@
       your_lobby: "Twoje lobby",
       dodge_agent_select_title_full: "Opuszcza wybór agenta, unik kolejki bez zamykania VALORANT",
       mastery_tip: "Mistrzostwo {level}: {points} pkt",
-      agent_already_unlocked: "już odblokowany",
-      agent_free_this_week: "grywalny za darmo w tym tygodniu",
       league_client_closed_hint: "Klient League nie jest otwarty, gdy tylko zostanie uruchomiony, pojawi się tu lobby.",
       lol_not_running: "League of Legends nie jest uruchomiony",
       lol_not_running_hint: "Uruchom League of Legends. Gdy tylko klient zacznie działać, wszystko pojawi się tu automatycznie.",
@@ -3458,8 +3452,6 @@
       your_lobby: "Ton lobby",
       dodge_agent_select_title_full: "Quitte la sélection d'agent, dodge la file sans fermer VALORANT",
       mastery_tip: "Maîtrise {level} : {points} points",
-      agent_already_unlocked: "déjà débloqué",
-      agent_free_this_week: "jouable gratuitement cette semaine",
       league_client_closed_hint: "Le client League n'est pas ouvert, dès qu'il sera lancé, le lobby apparaîtra ici.",
       lol_not_running: "League of Legends n'est pas lancé",
       lol_not_running_hint: "Lance League of Legends. Dès que le client sera lancé, tout s'affichera ici automatiquement.",
@@ -3882,8 +3874,6 @@
       your_lobby: "Tu lobby",
       dodge_agent_select_title_full: "Sale de la selección de agente, esquiva la cola sin cerrar VALORANT",
       mastery_tip: "Maestría {level}: {points} puntos",
-      agent_already_unlocked: "ya desbloqueado",
-      agent_free_this_week: "jugable gratis esta semana",
       league_client_closed_hint: "El cliente de League no está abierto, en cuanto se abra aparecerá aquí el lobby.",
       lol_not_running: "League of Legends no se está ejecutando",
       lol_not_running_hint: "Inicia League of Legends. En cuanto el cliente esté abierto, todo aparecerá aquí automáticamente.",
@@ -4306,8 +4296,6 @@
       your_lobby: "Lobin",
       dodge_agent_select_title_full: "Ajan seçiminden çıkar, VALORANT'ı kapatmadan kuyruğu terk eder",
       mastery_tip: "Ustalık {level}: {points} puan",
-      agent_already_unlocked: "zaten açıldı",
-      agent_free_this_week: "bu hafta ücretsiz oynanabilir",
       league_client_closed_hint: "League istemcisi açık değil, çalıştığında lobi burada görünecek.",
       lol_not_running: "League of Legends çalışmıyor",
       lol_not_running_hint: "League of Legends'i başlat. İstemci çalışmaya başlayınca her şey burada otomatik olarak görünecek.",
@@ -8690,28 +8678,6 @@
     }).catch(() => (lolChampCatalog = []));
   }
 
-  // ---- Kostenlose Rotation (wechselt nur wöchentlich, darum für die Sitzung gecacht) ----
-  let lolRotationCache = null;
-  function loadLolRotation(){
-    if(lolRotationCache) return Promise.resolve(lolRotationCache);
-    return api('/api/lol/rotation').then(j => {
-      lolRotationCache = (j && j.ok) ? j.champions : [];
-      return lolRotationCache;
-    }).catch(() => (lolRotationCache = []));
-  }
-  function lolRotationPanelHtml(champs){
-    if(!champs || !champs.length) return '';
-    const cells = champs.map(c => `
-      <div class="agent-cell" title="${esc(c.name)}${c.owned ? ' (' + t('agent_already_unlocked') + ')' : ' (' + t('agent_free_this_week') + ')'}">
-        <img src="https://cdn.communitydragon.org/latest/champion/${c.id}/square" alt="" loading="lazy">
-        <div class="an">${esc(c.name)}</div>
-      </div>`).join('');
-    return `<div class="lol-card">
-      <div class="panel-head">Kostenlose Rotation<span class="line"></span></div>
-      <div class="agent-grid">${cells}</div>
-    </div>`;
-  }
-
   function lolChampCellHtml(c, sel, locked){
     return `<div class="agent-cell ${sel ? 'sel' : ''} ${locked ? 'locked' : ''}" data-champ="${c.id}" title="${esc(c.name)}">
       <img src="https://cdn.communitydragon.org/latest/champion/${c.id}/square" alt="" loading="lazy">
@@ -8796,15 +8762,14 @@
     const el = document.getElementById('lolContent');
     // Champion-Katalog vorwärmen (für den Preset-Picker im Popup), Ergebnis
     // selbst wird hier nicht mehr gebraucht — die Kacheln zeigen nur Namen/Icons.
-    const [, presetsData, rotation] = await Promise.all([
-      loadLolChampions(), loadLolPresets(), loadLolRotation(),
+    const [, presetsData] = await Promise.all([
+      loadLolChampions(), loadLolPresets(),
     ]);
     lolPresets = presetsData || lolPresets;
 
     if(state === 'OFFLINE'){
       el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">
         ${t('league_client_closed_hint')}</div></div>` +
-        lolRotationPanelHtml(rotation) +
         lolPresetsPanelHtml();
       bindLolPresets();
       return;
@@ -8877,7 +8842,6 @@
            <span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span>
          </div>
        </div>` +
-      lolRotationPanelHtml(rotation) +
       lolPresetsPanelHtml();
     bindLolCardClicks(el);
     bindLolPresets();
@@ -9329,7 +9293,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.0.9";
+const CURRENT_VERSION = "2.0.10";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
