@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.0.10"
+APP_VERSION = "2.1.0"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -3553,6 +3553,7 @@ def lol_lobby():
     raw_members = j.get("members") or []
     puuids = [m.get("puuid") for m in raw_members if m.get("puuid")]
     ranks = dict(zip(puuids, _pool.map(lol_ranked, puuids))) if puuids else {}
+    last_champs = dict(zip(puuids, _pool.map(lol_last_champion, puuids))) if puuids else {}
     # Die Lobby liefert gameName/summonerName mittlerweile leer (Riot hat das
     # aus Datenschutzgründen entfernt) - genau wie in der Champion-Auswahl
     # muss der Name über die summonerId nachgeschlagen werden.
@@ -3569,6 +3570,7 @@ def lol_lobby():
             "position": m.get("firstPositionPreference") or None,
             "positionSecondary": m.get("secondPositionPreference") or None,
             "rankSolo": r.get("RANKED_SOLO_5x5"), "rankFlex": r.get("RANKED_FLEX_SR"),
+            "lastChampionId": last_champs.get(m.get("puuid")),
         })
     return {"ok": True, "queueId": qid, "queueName": names.get(qid),
             "canStart": bool(j.get("canStartActivity", True)), "members": members}
@@ -4162,6 +4164,21 @@ def lol_match_history(puuid, count=5):
     games = ((j.get("games") or {}).get("games") or [])[:count]
     matches = [m for m in (_lol_extract(g, puuid) for g in games) if m]
     return {"ok": True, "puuid": puuid, "matches": matches}
+
+
+def lol_last_champion(puuid):
+    """Champion aus dem letzten Match einer puuid, oder None. Fuer die Lobby-
+    Ansicht: statt des Rang-Emblems als grosses Kartenbild zeigt eine Karte
+    dort lieber den zuletzt gespielten Champion (der Rang steht sowieso schon
+    separat in den Rang-Kacheln darunter)."""
+    if not puuid:
+        return None
+    try:
+        res = lol_match_history(puuid, count=1)
+    except LcuError:
+        return None
+    matches = res.get("matches") or []
+    return matches[0].get("championId") if matches else None
 
 
 # ---- Saison-Übersicht (aggregiert aus derselben lokalen Historie) ----
