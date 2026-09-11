@@ -4044,6 +4044,57 @@ def _lol_auto_lane_candidates(entries_by_lane, lane):
     return primary if primary else _lol_priority_ids(entries_by_lane.get("OTHER"))
 
 
+def _lol_champ_select_for_auto():
+    """Schlanke Variante von lol_champ_select() nur fuer _lol_auto_tick():
+    die volle Funktion loest fuer JEDEN Mitspieler Namen auf (eine LCU-Anfrage
+    pro Person, nacheinander) und holt zusaetzlich Raenge - Daten, die nur die
+    UI-Kartenanzeige braucht, die Automatik selbst aber gar nicht. Dadurch war
+    jeder einzelne Watcher-Takt spuerbar langsam (mehrere sequenzielle LCU-
+    Requests), was den allerersten Hover nach Champ-Select-Start um mehrere
+    Sekunden verzoegern konnte, obwohl die eigene Lane laengst feststand."""
+    try:
+        status, j = lcu_get("/lol-champ-select/v1/session")
+    except LcuError as e:
+        return {"ok": False, "error": str(e)}
+    if status != 200 or not j:
+        return {"ok": False, "error": "Gerade keine Champion-Auswahl aktiv."}
+
+    local_cell = j.get("localPlayerCellId")
+    raw_my_team = j.get("myTeam") or []
+    me_raw = next((c for c in raw_my_team if c.get("cellId") == local_cell), None)
+    mate_champs = {c.get("championId") for c in raw_my_team
+                   if c.get("cellId") != local_cell and c.get("championId")}
+    enemy_champs = {c.get("championId") for c in (j.get("theirTeam") or []) if c.get("championId")}
+
+    my_action = None
+    banned_ids = set()
+    for group in (j.get("actions") or []):
+        for a in group:
+            if (a.get("actorCellId") == local_cell and a.get("isInProgress")
+                    and a.get("type") in ("pick", "ban")):
+                my_action = {"id": a.get("id"), "type": a.get("type"), "completed": bool(a.get("completed"))}
+            if a.get("type") == "ban" and a.get("completed") and a.get("championId"):
+                banned_ids.add(a["championId"])
+
+    pickable, bannable = [], []
+    try:
+        st_p, jp = lcu_get("/lol-champ-select/v1/pickable-champion-ids")
+        if st_p == 200 and isinstance(jp, list):
+            pickable = jp
+    except LcuError:
+        pass
+    try:
+        st_b, jb = lcu_get("/lol-champ-select/v1/bannable-champion-ids")
+        if st_b == 200 and isinstance(jb, list):
+            bannable = jb
+    except LcuError:
+        pass
+
+    return {"ok": True, "myAction": my_action, "pickable": pickable, "bannable": bannable,
+            "bannedChampionIds": sorted(banned_ids), "mateChamps": mate_champs, "enemyChamps": enemy_champs,
+            "myPosition": (me_raw.get("assignedPosition") or "").upper() or None if me_raw else None}
+
+
 def _lol_auto_tick():
     """Einmal je Watcher-Takt: laufende eigene Aktion mit dem passenden Preset
     abgleichen. Sobald ein Ziel feststeht, wird SOFORT gehovert (zeigt die
@@ -4059,7 +4110,7 @@ def _lol_auto_tick():
     if not auto_ban and not auto_pick:
         return
 
-    cs = lol_champ_select()
+    cs = _lol_champ_select_for_auto()
     if not cs.get("ok"):
         _lol_auto_reset()
         return
@@ -4068,17 +4119,11 @@ def _lol_auto_tick():
         _lol_auto_reset()
         return
 
-    my_team = cs.get("myTeam") or []
-    their_team = cs.get("theirTeam") or []
-    me = next((m for m in my_team if m.get("me")), None)
-    mate_champs = {m.get("championId") for m in my_team if not m.get("me") and m.get("championId")}
-    # Nur in manchen Modi überhaupt gefüllt (siehe lol_champ_select) — meist
-    # bleibt das während der eigenen Draft-Phase leer, dann hat dieser Check
-    # schlicht keine Wirkung.
-    enemy_champs = {m.get("championId") for m in their_team if m.get("championId")}
+    mate_champs = cs.get("mateChamps") or set()
+    enemy_champs = cs.get("enemyChamps") or set()
 
     desired, skip_reason = None, None
-    lane = (me or {}).get("position")
+    lane = cs.get("myPosition")
     if action.get("type") == "ban":
         if auto_ban:
             candidates = _lol_auto_lane_candidates(bans, lane)
