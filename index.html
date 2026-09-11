@@ -1902,7 +1902,10 @@
       <label data-i18n="language">Sprache</label>
       <div class="cdrop" id="langDrop"></div>
     </div>
-    <div class="app-version" id="settingsVersion"></div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div class="app-version" id="settingsVersion"></div>
+      <button class="icon-btn" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" title="Nach Updates suchen" style="padding:4px; width:auto; height:auto;"></button>
+    </div>
   </div>
 </aside>
 
@@ -2125,6 +2128,9 @@
       console_logs: "Konsolen-Logs",
       settings: "Einstellungen",
       primary_weapon_preview: "Primäre Waffe (Vorschau)",
+      check_for_updates: "Nach Updates suchen",
+      update_check_title: "Update-Check",
+      update_check_msg: "Branch: {branch} · Neueste Version: {latest} · Installierte Version: {installed}",
       language: "Sprache",
 
       // Status-Overlay (kein Programm/keine Verbindung)
@@ -2547,6 +2553,9 @@
       console_logs: "Console logs",
       settings: "Settings",
       primary_weapon_preview: "Primary weapon (preview)",
+      check_for_updates: "Check for updates",
+      update_check_title: "Update check",
+      update_check_msg: "Branch: {branch} · Latest version: {latest} · Installed version: {installed}",
       language: "Language",
 
       program_not_running: "Program is not running",
@@ -2959,6 +2968,9 @@
       console_logs: "Logi konsoli",
       settings: "Ustawienia",
       primary_weapon_preview: "Broń podstawowa (podgląd)",
+      check_for_updates: "Sprawdź aktualizacje",
+      update_check_title: "Sprawdzenie aktualizacji",
+      update_check_msg: "Gałąź: {branch} · Najnowsza wersja: {latest} · Zainstalowana wersja: {installed}",
       language: "Język",
 
       // Nakładka statusu (brak programu/połączenia)
@@ -3381,6 +3393,9 @@
       console_logs: "Journaux de la console",
       settings: "Paramètres",
       primary_weapon_preview: "Arme principale (aperçu)",
+      check_for_updates: "Vérifier les mises à jour",
+      update_check_title: "Vérification des mises à jour",
+      update_check_msg: "Branche : {branch} · Dernière version : {latest} · Version installée : {installed}",
       language: "Langue",
 
       // Overlay de statut (pas de programme/de connexion)
@@ -3803,6 +3818,9 @@
       console_logs: "Registros de la consola",
       settings: "Ajustes",
       primary_weapon_preview: "Arma principal (vista previa)",
+      check_for_updates: "Buscar actualizaciones",
+      update_check_title: "Comprobación de actualizaciones",
+      update_check_msg: "Rama: {branch} · Última versión: {latest} · Versión instalada: {installed}",
       language: "Idioma",
 
       // Overlay de estado (sin programa/conexión)
@@ -4225,6 +4243,9 @@
       console_logs: "Konsol günlükleri",
       settings: "Ayarlar",
       primary_weapon_preview: "Birincil silah (önizleme)",
+      check_for_updates: "Güncellemeleri kontrol et",
+      update_check_title: "Güncelleme kontrolü",
+      update_check_msg: "Dal: {branch} · En son sürüm: {latest} · Yüklü sürüm: {installed}",
       language: "Dil",
 
       // Durum katmanı (program/bağlantı yok)
@@ -4917,6 +4938,38 @@
       e.stopPropagation();
       document.querySelectorAll('.cdrop.open').forEach(d => { if(d !== wrap) d.classList.remove('open'); });
       wrap.classList.toggle('open');
+    });
+  })();
+
+  // ---------- manueller Update-Check (Icon neben der Versionsnummer) ----------
+  // Ruft dieselbe Kanal-/Versionslogik wie der automatische Update-Check
+  // (siehe zweites IIFE weiter unten) auf, meldet das Ergebnis aber IMMER
+  // per Toast zurueck statt nur bei einem echten Update - praktisch, um von
+  // aussen schnell zu pruefen, ob der eigene Client wirklich den erwarteten
+  // Branch/Stand faehrt, ohne dafuer extra ein Update abwarten zu muessen.
+  (function initCheckUpdateBtn(){
+    const btn = document.getElementById('checkUpdateBtn');
+    if(!btn) return;
+    btn.innerHTML = svgIcon('refresh', 13);
+    btn.addEventListener('click', () => {
+      btn.disabled = true;
+      fetch(LOG_URL + '/api/local-config', {cache:'no-store'})
+        .then(r => r.json())
+        .then(j => (j && j.updateChannel === 'dev') ? 'dev' : 'stable')
+        .catch(() => 'stable')
+        .then(channel => {
+          const qs = channel === 'dev' ? '?channel=dev' : '';
+          return fetch('https://rankyoinker.de/api/version' + qs, {cache:'no-store'})
+            .then(r => r.json())
+            .then(data => {
+              const latest = (data && data.version) || '?';
+              toast('info', t('update_check_title'), t('update_check_msg', {
+                branch: channel, latest, installed: CURRENT_VERSION,
+              }), {dur: 9000});
+            });
+        })
+        .catch(() => toast('error', t('generic_error'), t('err_local_service_port')))
+        .finally(() => { btn.disabled = false; });
     });
   })();
 
@@ -9351,7 +9404,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.2";
+const CURRENT_VERSION = "2.1.3-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
