@@ -1902,7 +1902,7 @@
       <label data-i18n="language">Sprache</label>
       <div class="cdrop" id="langDrop"></div>
     </div>
-    <div style="display:flex; align-items:center; gap:6px;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
       <div class="app-version" id="settingsVersion"></div>
       <button class="icon-btn" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" title="Nach Updates suchen" style="padding:4px; width:auto; height:auto;"></button>
     </div>
@@ -4963,7 +4963,8 @@
             .then(r => r.json())
             .then(data => {
               const latest = (data && data.version) || '?';
-              toast('info', t('update_check_title'), t('update_check_msg', {
+              const upToDate = latest === CURRENT_VERSION;
+              toast(upToDate ? 'success' : 'info', t('update_check_title'), t('update_check_msg', {
                 branch: channel, latest, installed: CURRENT_VERSION,
               }), {dur: 9000});
             });
