@@ -4963,10 +4963,14 @@
             .then(r => r.json())
             .then(data => {
               const latest = (data && data.version) || '?';
-              const upToDate = latest === CURRENT_VERSION;
-              toast(upToDate ? 'success' : 'info', t('update_check_title'), t('update_check_msg', {
-                branch: channel, latest, installed: CURRENT_VERSION,
-              }), {dur: 9000});
+              const upToDate = !data || !data.version || latest === CURRENT_VERSION;
+              if(upToDate){
+                toast('success', t('update_check_title'), t('update_check_msg', {
+                  branch: channel, latest, installed: CURRENT_VERSION,
+                }), {dur: 9000});
+              } else if(typeof window.ryForceShowUpdate === 'function'){
+                window.ryForceShowUpdate(data);
+              }
             });
         })
         .catch(() => toast('error', t('generic_error'), t('err_local_service_port')))
@@ -9405,7 +9409,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.4-dev";
+const CURRENT_VERSION = "2.1.5-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -9548,6 +9552,18 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       runInstall(document.getElementById("ryUpdInstall"), status);
     });
   }
+
+  // Fuer den manuellen "Update suchen"-Button in den Einstellungen (anderes
+  // IIFE, siehe initCheckUpdateBtn) - im Gegensatz zum automatischen Check
+  // bewusst OHNE currentlyInMatch()-Ruecksicht und ohne Snooze/bereits-
+  // gezeigt-Sperre: wer aktiv auf "pruefen" klickt, will das Ergebnis sofort
+  // sehen, auch mitten im Spiel.
+  window.ryForceShowUpdate = function (data) {
+    pending = data;
+    popupShown = false;
+    snoozeUntil = 0;
+    showUpdatePopup();
+  };
 
   // Der lokale Dienst beendet sich für die Installation selbst und ist
   // ein paar Sekunden weg (siehe trigger_self_update() in
