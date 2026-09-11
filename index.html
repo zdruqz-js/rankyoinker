@@ -8932,10 +8932,41 @@
     return JSON.stringify([a.id, a.type, a.completed, (cs.pickable || []).length, (cs.bannable || []).length]);
   }
 
+  // ---- Auto-Ban/-Pick-Diagnose: direkt im Champ-Select sichtbar, kein Devtools
+  // noetig - bisher lieferte /api/lol/presets diese Felder zwar schon mit, aber
+  // nirgends im UI stand je etwas davon, darum wirkten Aussetzer wie "einfach
+  // nichts passiert" ohne jede Spur, wo's hakt. ----
+  function lolAutoDebugHtml(p){
+    if(!p) return '';
+    const now = Date.now() / 1000;
+    const recent = (x) => x && x.at && (now - x.at) < 20;
+    const rows = [];
+    if(recent(p.lastAutoHover)){
+      rows.push(`${p.lastAutoHover.ok ? '✅' : '❌'} Hover ${p.lastAutoHover.championId ?? '?'}${p.lastAutoHover.error ? ' – ' + esc(p.lastAutoHover.error) : ''}`);
+    }
+    if(recent(p.lastAutoResult)){
+      rows.push(`${p.lastAutoResult.ok ? '✅' : '❌'} Sperren ${p.lastAutoResult.championId ?? '?'} (Versuch ${p.lastAutoResult.attempts})${p.lastAutoResult.error ? ' – ' + esc(p.lastAutoResult.error) : ''}`);
+    }
+    if(recent(p.lastAutoSkip)){
+      rows.push(`⏸️ ${esc(p.lastAutoSkip.reason)}`);
+    }
+    if(recent(p.lastAutoCrash)){
+      rows.push(`💥 ${esc(p.lastAutoCrash.error)}`);
+    }
+    if(!rows.length) return '';
+    return `<div class="lol-card" id="lolAutoDebug" style="font-size:11px; color:var(--text-dim); line-height:1.6;">
+      <div class="panel-head" style="font-size:11px;">Auto-Ban/-Pick<span class="line"></span></div>
+      ${rows.join('<br>')}
+    </div>`;
+  }
+
   async function renderLolChampSelect(state){
     const el = document.getElementById('lolContent');
-    let cs;
-    try{ cs = await api('/api/lol/champselect'); }catch(e){ cs = {ok:false}; }
+    const [cs, presetsForDebug] = await Promise.all([
+      api('/api/lol/champselect').catch(() => ({ok:false})),
+      api('/api/lol/presets').catch(() => null),
+    ]);
+    if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(!cs || !cs.ok){
       el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">${esc((cs && cs.error) || t('lol_champselect_unreadable'))}</div></div>`;
       return;
@@ -8953,10 +8984,12 @@
     // Wechsel aus der Lobby) — danach wird nur noch gezielt gepatcht.
     let teamsBox = document.getElementById('lolCsTeams');
     if(!teamsBox){
-      el.innerHTML = lolHead(state) + `<div id="lolCsPicker"></div><div id="lolCsTeams"></div>`;
+      el.innerHTML = lolHead(state) + `<div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
     }
+    const debugBox = document.getElementById('lolAutoDebugBox');
+    if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
     let timerEl = document.getElementById('lolTimer');
     if(timeLeft != null){

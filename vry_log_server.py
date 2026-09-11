@@ -4030,8 +4030,18 @@ def _lol_priority_ids(slots):
 def _lol_auto_lane_candidates(entries_by_lane, lane):
     """Champion-IDs in Prioritaetsreihenfolge fuer eine Lane (Hauptziel zuerst,
     dann die Ausweichchampions) — leere Slots werden uebersprungen. Gilt
-    gleichermassen fuer Baenne und Picks, beide sind {Lane: [...]} strukturiert."""
-    return _lol_priority_ids(entries_by_lane.get(lane) if lane else entries_by_lane.get("OTHER"))
+    gleichermassen fuer Baenne und Picks, beide sind {Lane: [...]} strukturiert.
+
+    Faellt auf den lanelosen "OTHER"-Eintrag zurueck, wenn entweder die Lane
+    noch gar nicht bekannt ist ODER fuer die (bekannte) Lane nichts hinterlegt
+    wurde. Der erste Fall ist der Grund fuer den Bug "die ersten paar Sekunden
+    von Champ-Select passiert nichts": assignedPosition steht erst fest,
+    nachdem die kurze Rollentausch-Phase am Anfang durch ist - bis dahin war
+    lane="" und ohne diesen Fallback blieb Auto-Ban/-Pick in der Zwischenzeit
+    komplett stumm (kein Hover, kein Fehler, nichts), obwohl in dieser Zeit
+    z.B. ein Team-Mitglied genau den eigenen Zielchampion wegbannen konnte."""
+    primary = _lol_priority_ids(entries_by_lane.get(lane)) if lane else []
+    return primary if primary else _lol_priority_ids(entries_by_lane.get("OTHER"))
 
 
 def _lol_auto_tick():
@@ -4083,9 +4093,11 @@ def _lol_auto_tick():
                 bannable = set(_lol_champion_catalog()["byId"]) - banned_ids
             desired = next((cid for cid in candidates
                             if cid in bannable and cid not in mate_champs), None)
-            if desired is None and candidates:
-                skip_reason = ("Keiner der hinterlegten Bann-Champions fuer diese Lane ist gerade bannbar "
-                               "(schon gebannt oder von einem Team-Mitglied gehovert).")
+            if desired is None:
+                skip_reason = (
+                    "Keiner der hinterlegten Bann-Champions fuer diese Lane ist gerade bannbar "
+                    "(schon gebannt oder von einem Team-Mitglied gehovert)." if candidates
+                    else "Kein Bann-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
     elif action.get("type") == "pick" and auto_pick:
         candidates = _lol_auto_lane_candidates(picks, lane)
         pickable = set(cs.get("pickable") or [])
@@ -4096,8 +4108,10 @@ def _lol_auto_tick():
         desired = next((cid for cid in avail if cid not in enemy_champs), None)
         if desired is None and avail:
             desired = avail[0]
-        if desired is None and candidates:
-            skip_reason = "Keiner der hinterlegten Ausweichchampions fuer diese Lane ist gerade waehlbar."
+        if desired is None:
+            skip_reason = (
+                "Keiner der hinterlegten Ausweichchampions fuer diese Lane ist gerade waehlbar." if candidates
+                else "Kein Pick-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
 
     if skip_reason and (_lol_auto.get("lastSkip") or {}).get("actionId") != action.get("id"):
         _lol_auto["lastSkip"] = {"actionId": action.get("id"), "type": action.get("type"),
