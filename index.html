@@ -2096,20 +2096,34 @@
     return "en";
   }
   const LANG = detectLang();
-  function setLang(lang){
-    if(SUPPORTED_LANGS.indexOf(lang) === -1) return;
-    try{ localStorage.setItem(LANG_KEY, lang); }catch(e){}
-    // vry.exe kennt localStorage nicht - config.json ist der einzige Weg, wie
-    // Discord Rich Presence (lib/src/rpc.py) von der gewählten Sprache
-    // erfährt. sendBeacon statt fetch, damit die Anfrage den Reload direkt
-    // danach zuverlässig übersteht (fetch könnte durch die Navigation
-    // abgebrochen werden, bevor sie beim Server ankommt).
+  // vry.exe kennt localStorage nicht - config.json ist der einzige Weg, wie
+  // Discord Rich Presence (lib/src/rpc.py) UND der /stats-Heartbeat (Sprach-
+  // Aufschluesselung im Discord-Bot) von der tatsaechlich angezeigten Sprache
+  // erfahren. sendBeacon statt fetch, robust auch waehrend eines Reloads
+  // (fetch koennte durch die Navigation abgebrochen werden, bevor sie beim
+  // Server ankommt).
+  function notifyBackendLang(lang){
     try{
       const url = (typeof LOG_URL !== 'undefined' ? LOG_URL : '') + '/api/set-lang';
       navigator.sendBeacon(url, new Blob([JSON.stringify({lang})], {type: 'text/plain'}));
     }catch(e){}
+  }
+  function setLang(lang){
+    if(SUPPORTED_LANGS.indexOf(lang) === -1) return;
+    try{ localStorage.setItem(LANG_KEY, lang); }catch(e){}
+    notifyBackendLang(lang);
     location.reload();
   }
+  // Bisher wurde config.json nur beim MANUELLEN Wechsel im Dropdown
+  // aktualisiert - wer nie manuell umgestellt hat (die meisten, weil die
+  // automatische Erkennung unten meist stimmt), blieb serverseitig auf dem
+  // Default "de" haengen, obwohl die Oberflaeche laengst z.B. Englisch
+  // zeigte. Das verzerrte sowohl Rich Presence als auch die /stats-Sprach-
+  // aufschluesselung im Discord-Bot Richtung "de". Darum jetzt bei JEDEM
+  // Laden synchronisiert (per setTimeout, damit LOG_URL - erst viel weiter
+  // unten im selben Script deklariert - zu dem Zeitpunkt sicher zugewiesen
+  // ist), nicht nur bei einer expliziten Auswahl.
+  setTimeout(() => notifyBackendLang(LANG), 0);
 
   const STRINGS = {
     de: {
@@ -9409,7 +9423,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.3";
+const CURRENT_VERSION = "2.1.3.1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
