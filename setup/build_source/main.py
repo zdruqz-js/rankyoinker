@@ -4,6 +4,7 @@ import socket
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import urllib3
@@ -185,6 +186,30 @@ try:
             }
 
         return playerRank, previousPlayerRank, ppstats
+
+    def prefetch_players_rank_and_stats(players, current_match_id):
+        """Holt Rang+Stats fuer ALLE Spieler auf einmal, statt einen nach dem
+        anderen - get_or_fetch_rank_and_stats() macht pro Spieler bis zu 4
+        einzelne, blockierende Riot-API-Anfragen (aktueller Rang, Peak-Rang,
+        Wettkampf-Historie, Match-Details). Nacheinander fuer 10 Spieler war
+        das der Hauptgrund fuer 30-60 Sekunden Ladezeit; jetzt laufen alle
+        Spieler parallel, das Ergebnis landet im selben match_player_cache
+        wie zuvor - der folgende Tabellen-Aufbau bleibt unveraendert und
+        findet dort nur noch fertige Werte statt selbst zu warten.
+        """
+        if not current_match_id or not players:
+            return
+        subjects = [p.get("Subject") for p in players if p.get("Subject")]
+        if not subjects:
+            return
+        with ThreadPoolExecutor(max_workers=min(12, len(subjects))) as executor:
+            # .map() statt einzelner submit()-Aufrufe, aber das Ergebnis wird
+            # bewusst nicht gebraucht - get_or_fetch_rank_and_stats() legt
+            # seinen Treffer schon selbst in match_player_cache ab.
+            list(executor.map(
+                lambda subject: get_or_fetch_rank_and_stats(subject, current_match_id),
+                subjects,
+            ))
 
     print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
 
@@ -399,6 +424,13 @@ try:
 
                     already_played_with = []
                     stats_data = stats.read_data()
+
+                    # Rang+Stats fuer alle Spieler auf einmal statt einen nach
+                    # dem anderen (siehe prefetch_players_rank_and_stats) - der
+                    # Aufbau der Tabelle unten liest danach nur noch fertige,
+                    # gecachte Werte.
+                    status.update("Loading Players...")
+                    prefetch_players_rank_and_stats(Players, coregame_match_id)
 
                     for p in Players:
                         if p["Subject"] == Requests.puuid:
@@ -704,6 +736,11 @@ try:
                         ),
                         reverse=True,
                     )
+                    # Rang+Stats fuer alle Spieler auf einmal statt einen nach
+                    # dem anderen (siehe prefetch_players_rank_and_stats).
+                    status.update("Loading Players...")
+                    prefetch_players_rank_and_stats(Players, pregame_match_id)
+
                     partyCount = 0
                     partyIcons = {}
                     for player in Players:
