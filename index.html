@@ -970,6 +970,9 @@
 
   /* ============ Detail-Statistiken im Modal ============ */
   .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:10px;}
+  /* Kleinere Untergruppen (z.B. nur 2 Kacheln wie "Bilanz") sollen nicht ueber
+     die volle Breite gestreckt werden wie die groesseren Gruppen darueber. */
+  .stat-grid.sm{grid-template-columns:repeat(auto-fit,minmax(104px,140px)); justify-content:start;}
   .stat-box{
     background:var(--panel-3); border:1px solid var(--border); border-radius:var(--r-sm);
     padding:11px 13px; text-align:center;
@@ -978,6 +981,20 @@
   .stat-box .sl{
     font-size:8.5px; color:var(--text-faint); letter-spacing:.14em; text-transform:uppercase;
     margin-top:5px; font-family:var(--font-display); font-weight:700;
+  }
+  /* Der KDA-Kopf steht alleine ueber den Gruppen, etwas groesser - fasst auf
+     einen Blick zusammen, was die Gruppen darunter im Detail aufschluesseln. */
+  .stat-hero{margin-bottom:16px;}
+  .stat-hero .stat-box{padding:14px 13px;}
+  .stat-hero .stat-box .sv{font-size:28px;}
+  /* Ueberschriften der Untergruppen (Effizienz / Bilanz / Rundenstatistik) -
+     bewusst dezenter als .sec-title, das ist schon "Performance, letzte
+     Matches" fuer den ganzen Block darueber. */
+  .stat-group{margin-top:18px;}
+  .stat-group:first-of-type{margin-top:0;}
+  .stat-group-label{
+    font-size:9.5px; color:var(--text-faint); letter-spacing:.15em; text-transform:uppercase;
+    font-family:var(--font-display); font-weight:700; margin-bottom:9px;
   }
   /* Begegnungen */
   .enc-box{
@@ -2444,6 +2461,9 @@
       stat_multikills: "Multikills",
       stat_plants: "Spikes gelegt",
       stat_defuses: "Entschärft",
+      stat_group_efficiency: "Effizienz",
+      stat_group_record: "Bilanz",
+      stat_group_rounds: "Rundenstatistik",
       individual_matches_title: "Einzelne Matches",
       load_more_n_btn: "Weitere {n} laden",
       rank_unknown: "Rang unbekannt",
@@ -2863,6 +2883,9 @@
       stat_multikills: "Multikills",
       stat_plants: "Spikes planted",
       stat_defuses: "Defuses",
+      stat_group_efficiency: "Efficiency",
+      stat_group_record: "Record",
+      stat_group_rounds: "Round Stats",
       individual_matches_title: "Individual Matches",
       load_more_n_btn: "Load {n} more",
       rank_unknown: "Rank unknown",
@@ -3285,6 +3308,9 @@
       stat_multikills: "Multikille",
       stat_plants: "Założone spike'i",
       stat_defuses: "Rozbrojone",
+      stat_group_efficiency: "Skuteczność",
+      stat_group_record: "Bilans",
+      stat_group_rounds: "Statystyki rund",
       individual_matches_title: "Poszczególne mecze",
       load_more_n_btn: "Załaduj kolejne {n}",
       rank_unknown: "Ranga nieznana",
@@ -3711,6 +3737,9 @@
       stat_multikills: "Multikills",
       stat_plants: "Spikes posés",
       stat_defuses: "Désamorcés",
+      stat_group_efficiency: "Efficacité",
+      stat_group_record: "Bilan",
+      stat_group_rounds: "Stats de round",
       individual_matches_title: "Matchs individuels",
       load_more_n_btn: "Charger {n} de plus",
       rank_unknown: "Rang inconnu",
@@ -4137,6 +4166,9 @@
       stat_multikills: "Multikills",
       stat_plants: "Spikes plantados",
       stat_defuses: "Desactivados",
+      stat_group_efficiency: "Eficiencia",
+      stat_group_record: "Balance",
+      stat_group_rounds: "Estadísticas de ronda",
       individual_matches_title: "Partidas individuales",
       load_more_n_btn: "Cargar {n} más",
       rank_unknown: "Rango desconocido",
@@ -4563,6 +4595,9 @@
       stat_multikills: "Multikill",
       stat_plants: "Yerleştirilen spike",
       stat_defuses: "Etkisiz hale getirilen",
+      stat_group_efficiency: "Verimlilik",
+      stat_group_record: "Bilanço",
+      stat_group_rounds: "Raunt İstatistikleri",
       individual_matches_title: "Tekil maçlar",
       load_more_n_btn: "{n} tane daha yükle",
       rank_unknown: "Rütbe bilinmiyor",
@@ -6265,20 +6300,33 @@
         const kdaLine = `<i class="k">${tot.kills}</i><s>/</s><i class="d">${tot.deaths}</i><s>/</s><i class="a">${tot.assists}</i>`;
         const hasMore = j.matches.length >= count && count < MODAL_STATS_MAX;
         box.innerHTML = `
-          <div class="stat-grid">
-            ${statBox(`<span class="lm-nums">${kdaLine}</span>`, t('stat_kda_games', {games: tot.games}))}
-            ${statBox(tot.kd, 'K/D')}
-            ${statBox(tot.kda, 'KDA')}
-            ${statBox(tot.hsPercent != null ? tot.hsPercent + '%' : '—', t('stat_headshots'))}
-            ${statBox(tot.adr != null ? Math.round(tot.adr) : '—', t('stat_dmg_round'))}
-            ${statBox(tot.acs != null ? Math.round(tot.acs) : '—', t('stat_combat_score'))}
-            ${statBox(`<span style="color:var(--green);">${tot.wins}</span><span style="color:var(--text-faint);">–</span><span style="color:var(--red);">${tot.losses}</span>`, t('record_label'))}
-            ${j.seasonGames != null ? statBox(`<span style="color:var(--green);">${j.seasonWins ?? 0}</span><span style="color:var(--text-faint);">/</span>${j.seasonGames}`, t('season_record_label')) : ''}
-            ${statBox(tot.rounds, t('stat_rounds'))}
-            ${statBox(tot.firstKills, t('stat_first_kills'))}
-            ${statBox(tot.multiKills, t('stat_multikills'))}
-            ${statBox(tot.plants, t('stat_plants'))}
-            ${statBox(tot.defuses, t('stat_defuses'))}
+          <div class="stat-hero">${statBox(`<span class="lm-nums">${kdaLine}</span>`, t('stat_kda_games', {games: tot.games}))}</div>
+          <div class="stat-group">
+            <div class="stat-group-label">${t('stat_group_efficiency')}</div>
+            <div class="stat-grid">
+              ${statBox(tot.kd, 'K/D')}
+              ${statBox(tot.kda, 'KDA')}
+              ${statBox(tot.hsPercent != null ? tot.hsPercent + '%' : '—', t('stat_headshots'))}
+              ${statBox(tot.adr != null ? Math.round(tot.adr) : '—', t('stat_dmg_round'))}
+              ${statBox(tot.acs != null ? Math.round(tot.acs) : '—', t('stat_combat_score'))}
+            </div>
+          </div>
+          <div class="stat-group">
+            <div class="stat-group-label">${t('stat_group_record')}</div>
+            <div class="stat-grid sm">
+              ${statBox(`<span style="color:var(--green);">${tot.wins}</span><span style="color:var(--text-faint);">–</span><span style="color:var(--red);">${tot.losses}</span>`, t('record_label'))}
+              ${j.seasonGames != null ? statBox(`<span style="color:var(--green);">${j.seasonWins ?? 0}</span><span style="color:var(--text-faint);">/</span>${j.seasonGames}`, t('season_record_label')) : ''}
+            </div>
+          </div>
+          <div class="stat-group">
+            <div class="stat-group-label">${t('stat_group_rounds')}</div>
+            <div class="stat-grid">
+              ${statBox(tot.rounds, t('stat_rounds'))}
+              ${statBox(tot.firstKills, t('stat_first_kills'))}
+              ${statBox(tot.multiKills, t('stat_multikills'))}
+              ${statBox(tot.plants, t('stat_plants'))}
+              ${statBox(tot.defuses, t('stat_defuses'))}
+            </div>
           </div>
           <div class="sec-title" style="margin-top:22px;">${t('individual_matches_title')}</div>
           <div class="match-list">
@@ -9430,7 +9478,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.7-dev";
+const CURRENT_VERSION = "2.1.8-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
