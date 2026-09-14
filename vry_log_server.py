@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.4"
+APP_VERSION = "2.1.5"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -4145,8 +4145,20 @@ def _lol_auto_tick():
                     else "Kein Bann-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
     elif action.get("type") == "pick" and auto_pick:
         candidates = _lol_auto_lane_candidates(picks, lane)
+        banned_ids = set(cs.get("bannedChampionIds") or [])
         pickable = set(cs.get("pickable") or [])
-        avail = [cid for cid in candidates if cid in pickable]
+        # Dieselbe Riot-Eigenheit wie bei "bannable" oben: ausserhalb eines
+        # beschraenkten Champion-Pools liefert die LCU "pickable-champion-ids"
+        # nach einem Bann manchmal nur kurz den Platzhalter [-1] oder eine
+        # leere Liste statt der echten, aktualisierten Liste. Ohne diesen
+        # Fallback war dann PLOETZLICH JEDER Kandidat "nicht pickbar", auch
+        # der eigentlich freie 2./3. Ausweich - berichtetes Symptom: der
+        # Fallback auf Ausweich N griff, wenn ein Mitspieler den Hauptpick
+        # wegpickte (pickable blieb dabei meist eine echte Liste), aber nicht,
+        # wenn er gebannt wurde. Fallback zaehlt nur, was WIRKLICH weg ist.
+        if pickable in (set(), {-1}):
+            pickable = set(_lol_champion_catalog()["byId"]) - banned_ids - mate_champs - enemy_champs
+        avail = [cid for cid in candidates if cid in pickable and cid not in banned_ids]
         # Erst den Ausweich bevorzugen, der nicht schon beim Gegner hängt (kein
         # Mirror-Match); hängt der Gegner an ALLEN hinterlegten Kandidaten,
         # lieber den bestplatzierten davon nehmen als am Ende gar nichts zu picken.
