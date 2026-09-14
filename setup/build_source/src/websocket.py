@@ -132,6 +132,7 @@ class Ws:
         """
         loop = asyncio.get_event_loop()
         ticks = 0
+        pending_leave = 0
         while True:
             await asyncio.sleep(STATE_POLL_INTERVAL)
             ticks += 1
@@ -154,9 +155,28 @@ class Ws:
                 self.log(f"Zustandsabfrage ueber die Spiel-API fehlgeschlagen: {e}")
                 continue
 
-            if state is not None and state != initial_game_state:
-                self.log(f"Spielzustand ueber die Spiel-API erkannt: {state}")
-                return state
+            if state is None or state == initial_game_state:
+                pending_leave = 0
+                continue
+
+            # Ein Match zu VERLASSEN (INGAME/PREGAME -> etwas anderes, meist
+            # MENUS) erst nach zwei aufeinanderfolgenden, uebereinstimmenden
+            # Checks glauben - ein einzelner kaputter/rate-limitierter API-
+            # Aufruf darf ein laufendes Match nicht mittendrin abbrechen und
+            # das gerade ladende Spielerliste neu starten (siehe requestsV.py:
+            # genau das ist vorher passiert). Neu in ein Match REIN zu kommen
+            # bleibt weiterhin sofort wirksam - das ist der unkritische,
+            # urspruengliche Zweck dieses Fallbacks und ein falscher Treffer
+            # dort ist folgenlos (erkennt hoechstens denselben echten Zustand
+            # etwas frueher).
+            if initial_game_state in ("PREGAME", "INGAME") and state == "MENUS":
+                pending_leave += 1
+                if pending_leave < 2:
+                    self.log(f"Moeglicher Wechsel zu MENUS erkannt - warte auf Bestaetigung ({pending_leave}/2).")
+                    continue
+
+            self.log(f"Spielzustand ueber die Spiel-API erkannt: {state}")
+            return state
 
     def _detect_state_via_api(self, initial_game_state, force=False):
         presence = self._presences.get_presence()
