@@ -398,6 +398,32 @@ try:
                 )
                 loadouts = loadouts_arr[0]
                 loadouts_data = loadouts_arr[1]
+                # Riot hat die Loadout-Daten (vor allem fuers gegnerische Team)
+                # im allerersten Moment von INGAME manchmal noch nicht
+                # vollstaendig befuellt - einzelne Spieler bleiben dann mit
+                # leerem Profil/Loadout haengen, und zwar fuers GANZE Match,
+                # weil dieser Block nur einmal pro INGAME-Erkennung laeuft
+                # (kein periodisches Neuladen waehrend eines laufenden
+                # Matches). Ein paar kurze Nachversuche fangen dieses
+                # Zeitfenster ab, bevor mit dem verfuegbaren Stand weitergemacht wird.
+                for retry_delay in (2, 3, 4):
+                    missing = [
+                        p["Subject"] for p in Players
+                        if not loadouts_data.get("Players", {}).get(p["Subject"])
+                    ]
+                    if not missing:
+                        break
+                    time.sleep(retry_delay)
+                    loadouts_arr = loadoutsClass.get_match_loadouts(
+                        coregame_match_id,
+                        Players,
+                        cfg.weapon,
+                        valoApiSkins,
+                        names,
+                        state="game",
+                    )
+                    loadouts = loadouts_arr[0]
+                    loadouts_data = loadouts_arr[1]
                 # with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                 isRange = False
                 playersLoaded = 1
