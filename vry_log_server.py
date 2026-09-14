@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.8"
+APP_VERSION = "2.1.9-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -464,7 +464,11 @@ def _notify_match_tracked(game):
 # Prozessspeicher: der Log-Server startet oft neu (Updates, Abstuerze), und
 # eine rein prozessinterne Merkliste haette dasselbe, laengst gemeldete Match
 # nach so einem Neustart nochmal als "neu" gesehen und doppelt gezaehlt.
+# Nur die letzten MATCHES_TRACKED_SEEN_MAX IDs je Spiel - waechst dadurch
+# nicht unbegrenzt (Match-IDs kommen ohnehin nie wieder vor, mehr als 1-2
+# braeuchte es dafuer eigentlich nicht, aber ein kleiner Puffer schadet nicht).
 MATCHES_TRACKED_SEEN_FILE = os.path.join(BASE, ".rankyoinker_matches_tracked_seen.json")
+MATCHES_TRACKED_SEEN_MAX = 10
 _matches_tracked_seen_cache = None
 
 
@@ -478,9 +482,13 @@ def _notify_match_tracked_once(game, match_id):
     if _matches_tracked_seen_cache is None:
         data = _load_json(MATCHES_TRACKED_SEEN_FILE)
         _matches_tracked_seen_cache = data if isinstance(data, dict) else {}
-    if _matches_tracked_seen_cache.get(game) == match_id:
+    recent = _matches_tracked_seen_cache.get(game)
+    if not isinstance(recent, list):
+        recent = []
+    if match_id in recent:
         return
-    _matches_tracked_seen_cache[game] = match_id
+    recent.append(match_id)
+    _matches_tracked_seen_cache[game] = recent[-MATCHES_TRACKED_SEEN_MAX:]
     _save_json(MATCHES_TRACKED_SEEN_FILE, _matches_tracked_seen_cache)
     _notify_match_tracked(game)
 
