@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.7"
+APP_VERSION = "2.1.8"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -458,6 +458,32 @@ def _notify_match_tracked(game):
         except Exception:
             pass
     threading.Thread(target=_send, daemon=True).start()
+
+
+# Welches Match je Spiel zuletzt gemeldet wurde - AUF DISK, nicht nur im
+# Prozessspeicher: der Log-Server startet oft neu (Updates, Abstuerze), und
+# eine rein prozessinterne Merkliste haette dasselbe, laengst gemeldete Match
+# nach so einem Neustart nochmal als "neu" gesehen und doppelt gezaehlt.
+MATCHES_TRACKED_SEEN_FILE = os.path.join(BASE, ".rankyoinker_matches_tracked_seen.json")
+_matches_tracked_seen_cache = None
+
+
+def _notify_match_tracked_once(game, match_id):
+    """Meldet ein Match hoechstens EINMAL als getrackt (siehe MATCHES_TRACKED_SEEN_FILE
+    oben fuer den Grund, warum das nicht einfach ein Dict im Speicher ist)."""
+    global _matches_tracked_seen_cache
+    if not match_id:
+        return
+    match_id = str(match_id)
+    if _matches_tracked_seen_cache is None:
+        data = _load_json(MATCHES_TRACKED_SEEN_FILE)
+        _matches_tracked_seen_cache = data if isinstance(data, dict) else {}
+    if _matches_tracked_seen_cache.get(game) == match_id:
+        return
+    _matches_tracked_seen_cache[game] = match_id
+    _save_json(MATCHES_TRACKED_SEEN_FILE, _matches_tracked_seen_cache)
+    _notify_match_tracked(game)
+
 
 # HTTPS-Requests an das ECHTE INTERNET (rankyoinker.de) - nicht zu verwechseln
 # mit _SSL oben, das bewusst unverifiziert nur für die lokale LCU-API auf
@@ -1769,10 +1795,6 @@ def encounters_record(match_id, players, meta=None):
 # holt sich der Dienst den Kader jetzt selbst.
 
 _enc_seen = {"match": None}
-# Getrennt von _enc_seen oben: der oeffentliche "Match getrackt"-Zaehler soll
-# unabhaengig davon zaehlen, ob die (mit mehr Voraussetzungen verbundene)
-# Begegnungen-Erfassung im Einzelfall klappt.
-_match_tracked_seen = {"match": None}
 
 
 def _core_game_roster(mid):
@@ -3123,9 +3145,7 @@ def _game_watcher():
             # unabhängig davon, ob die Seite gerade offen ist
             if state == "INGAME":
                 record_encounter_now(mid)
-                if mid and _match_tracked_seen["match"] != mid:
-                    _match_tracked_seen["match"] = mid
-                    _notify_match_tracked("valorant")
+                _notify_match_tracked_once("valorant", mid)
             _maybe_resync(state, mid, now)
         except Exception:
             pass
@@ -4598,7 +4618,6 @@ def lol_encounters_record(match_id, players, meta=None):
 
 
 _lol_enc_seen = {"match": None}
-_lol_match_tracked_seen = {"match": None}
 
 
 def _lol_record_encounter_now():
@@ -4617,9 +4636,7 @@ def _lol_record_encounter_now():
     if not game_id:
         return False
 
-    if _lol_match_tracked_seen["match"] != game_id:
-        _lol_match_tracked_seen["match"] = game_id
-        _notify_match_tracked("league")
+    _notify_match_tracked_once("league", game_id)
 
     if _lol_enc_seen["match"] == game_id:
         return False
