@@ -132,7 +132,6 @@ class Ws:
         """
         loop = asyncio.get_event_loop()
         ticks = 0
-        pending_leave = 0
         while True:
             await asyncio.sleep(STATE_POLL_INTERVAL)
             ticks += 1
@@ -144,6 +143,18 @@ class Ws:
             # zum manuellen Neustart im alten Zustand haengen, obwohl laengst
             # z. B. das Spiel lief. Dieser Sicherheits-Check greift nur ein,
             # wenn sich der Zustand wirklich geaendert hat.
+            #
+            # Frueher gab es hier zusaetzlich eine "2 aufeinanderfolgende
+            # Treffer noetig, bevor ein Match als verlassen gilt"-Bremse, als
+            # Schutz gegen einen kaputten Retry in requestsV.py (der liess
+            # einen einzelnen Rate-Limit-Treffer wie "Match verlassen"
+            # aussehen). Die eigentliche Ursache ist seitdem direkt in
+            # requestsV.py behoben - die Bremse blieb aber stehen und hat nur
+            # noch geschadet: wenn der Chat-Websocket das "Match zuende"-
+            # Event mal verpasst (kommt vor, siehe oben), dauerte es dank ihr
+            # bis zu ~40s (zwei Reconcile-Takte), bis das Overlay ueberhaupt
+            # merkte, dass das Match vorbei ist. Wieder entfernt - ein Treffer
+            # reicht wieder, in beide Richtungen.
             force_reconcile = (ticks % RECONCILE_EVERY_N_TICKS) == 0
             try:
                 # die Abfragen sind blockierend -> in den Threadpool, damit
@@ -155,28 +166,9 @@ class Ws:
                 self.log(f"Zustandsabfrage ueber die Spiel-API fehlgeschlagen: {e}")
                 continue
 
-            if state is None or state == initial_game_state:
-                pending_leave = 0
-                continue
-
-            # Ein Match zu VERLASSEN (INGAME/PREGAME -> etwas anderes, meist
-            # MENUS) erst nach zwei aufeinanderfolgenden, uebereinstimmenden
-            # Checks glauben - ein einzelner kaputter/rate-limitierter API-
-            # Aufruf darf ein laufendes Match nicht mittendrin abbrechen und
-            # das gerade ladende Spielerliste neu starten (siehe requestsV.py:
-            # genau das ist vorher passiert). Neu in ein Match REIN zu kommen
-            # bleibt weiterhin sofort wirksam - das ist der unkritische,
-            # urspruengliche Zweck dieses Fallbacks und ein falscher Treffer
-            # dort ist folgenlos (erkennt hoechstens denselben echten Zustand
-            # etwas frueher).
-            if initial_game_state in ("PREGAME", "INGAME") and state == "MENUS":
-                pending_leave += 1
-                if pending_leave < 2:
-                    self.log(f"Moeglicher Wechsel zu MENUS erkannt - warte auf Bestaetigung ({pending_leave}/2).")
-                    continue
-
-            self.log(f"Spielzustand ueber die Spiel-API erkannt: {state}")
-            return state
+            if state is not None and state != initial_game_state:
+                self.log(f"Spielzustand ueber die Spiel-API erkannt: {state}")
+                return state
 
     def _detect_state_via_api(self, initial_game_state, force=False):
         presence = self._presences.get_presence()
