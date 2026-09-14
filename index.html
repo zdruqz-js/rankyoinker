@@ -2404,6 +2404,7 @@
       avg_kda: "Ø KDA",
       avg_kda_full: "Ø K/D/A",
       record_label: "Bilanz",
+      season_record_label: "Saison-Bilanz",
       wins_losses_short: "{w}S/{l}N",
       last_matches_title: "Letzte Partien",
       lol_no_further_data: "Für diesen Spieler liegen keine weiteren Daten vor (fremde Lobby/Match ohne offene Identität).",
@@ -2822,6 +2823,7 @@
       avg_kda: "Avg KDA",
       avg_kda_full: "Avg K/D/A",
       record_label: "Record",
+      season_record_label: "Season Record",
       wins_losses_short: "{w}W/{l}L",
       last_matches_title: "Recent Matches",
       lol_no_further_data: "No further data available for this player (a lobby/match from someone else without an open identity).",
@@ -3243,6 +3245,7 @@
       avg_kda: "Śr. KDA",
       avg_kda_full: "Śr. K/D/A",
       record_label: "Bilans",
+      season_record_label: "Bilans sezonu",
       wins_losses_short: "{w}Z/{l}P",
       last_matches_title: "Ostatnie mecze",
       lol_no_further_data: "Dla tego gracza nie ma dalszych danych (obca lobby/mecz bez ujawnionej tożsamości).",
@@ -3668,6 +3671,7 @@
       avg_kda: "KDA moy.",
       avg_kda_full: "K/D/A moy.",
       record_label: "Bilan",
+      season_record_label: "Bilan saison",
       wins_losses_short: "{w}V/{l}D",
       last_matches_title: "Derniers matchs",
       lol_no_further_data: "Aucune autre donnée disponible pour ce joueur (lobby/match externe sans identité visible).",
@@ -4093,6 +4097,7 @@
       avg_kda: "KDA prom.",
       avg_kda_full: "K/D/A prom.",
       record_label: "Balance",
+      season_record_label: "Balance temporada",
       wins_losses_short: "{w}V/{l}D",
       last_matches_title: "Últimas partidas",
       lol_no_further_data: "No hay más datos disponibles para este jugador (lobby/partida ajena sin identidad visible).",
@@ -4518,6 +4523,7 @@
       avg_kda: "Ort. KDA",
       avg_kda_full: "Ort. K/D/A",
       record_label: "Bilanço",
+      season_record_label: "Sezon bilançosu",
       wins_losses_short: "{w}G/{l}M",
       last_matches_title: "Son maçlar",
       lol_no_further_data: "Bu oyuncu için başka veri yok (kimliği açık olmayan yabancı lobi/maç).",
@@ -6267,6 +6273,7 @@
             ${statBox(tot.adr != null ? Math.round(tot.adr) : '—', t('stat_dmg_round'))}
             ${statBox(tot.acs != null ? Math.round(tot.acs) : '—', t('stat_combat_score'))}
             ${statBox(`<span style="color:var(--green);">${tot.wins}</span><span style="color:var(--text-faint);">–</span><span style="color:var(--red);">${tot.losses}</span>`, t('record_label'))}
+            ${j.seasonGames != null ? statBox(`<span style="color:var(--green);">${j.seasonWins ?? 0}</span><span style="color:var(--text-faint);">/</span>${j.seasonGames}`, t('season_record_label')) : ''}
             ${statBox(tot.rounds, t('stat_rounds'))}
             ${statBox(tot.firstKills, t('stat_first_kills'))}
             ${statBox(tot.multiKills, t('stat_multikills'))}
@@ -9423,7 +9430,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.6-dev";
+const CURRENT_VERSION = "2.1.7-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

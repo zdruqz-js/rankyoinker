@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.6-dev"
+APP_VERSION = "2.1.7-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1203,6 +1203,17 @@ def player_stats(puuid, count=1):
             "plants": s("plants"), "defuses": s("defuses"),
         }
 
+    # Sieg-/Match-Bilanz der LAUFENDEN Season (Riot-eigene Zaehlung, nicht
+    # aus den oben abgerufenen `count` Matches hergeleitet - kann also mehr
+    # Spiele umfassen als die Stichprobe oben je zeigt).
+    try:
+        season = mmr_summary(puuid)
+        out["seasonWins"] = season.get("seasonWins")
+        out["seasonGames"] = season.get("seasonGames")
+    except Exception:
+        out["seasonWins"] = None
+        out["seasonGames"] = None
+
     with _cache_lock:
         _stats_cache[key] = (now, out)
     return out
@@ -1310,7 +1321,7 @@ def party_info():
 
 _mmr_cache = {}          # puuid -> (Zeitpunkt, Ergebnis)
 MMR_TTL = 120
-_seasons = {"ts": 0.0, "map": {}}
+_seasons = {"ts": 0.0, "map": {}, "current_id": None}
 # Ohne Sperre holen sich mehrere Mitglieder die Tabelle gleichzeitig: Der erste
 # Thread setzt den Zeitstempel, der zweite überspringt den Abruf daraufhin und
 # liest die noch leere Tabelle — dann fehlt bei einem Spieler die Act-Angabe.
@@ -1345,6 +1356,11 @@ def _load_seasons():
         _, j = _http("https://valorant-api.com/v1/seasons")
         by_id = {s.get("uuid"): s for s in ((j or {}).get("data") or [])}
         out = {}
+        # Aktuell laufende Act-Season bestimmen (fuer die Saison-Bilanz,
+        # siehe mmr_summary): valorant-api liefert start-/endTime in ISO-8601
+        # UTC ("...Z"), ein reiner String-Vergleich reicht dafuer.
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        current_id = None
         for sid, s in by_id.items():
             act = re.match(r"\s*ACT\s+([IVX]+)\s*$", s.get("displayName") or "", re.I)
             if not act:
@@ -1360,6 +1376,9 @@ def _load_seasons():
                 out[sid] = "%s · A%d" % (parent.strip(), num)
             else:
                 out[sid] = "A%d" % num
+            start, end = s.get("startTime"), s.get("endTime")
+            if start and end and start <= now_iso < end:
+                current_id = sid
         # Die MMR-Antwort schlüsselt teils nach Competitive-Season statt
         # nach Act — diese Zuordnung fängt beide Schreibweisen ab.
         try:
@@ -1371,19 +1390,21 @@ def _load_seasons():
         except Exception:
             pass
         _seasons["map"] = out
+        _seasons["current_id"] = current_id
     except Exception:
         pass
 
 
 def mmr_summary(puuid):
-    """Aktueller Rang + RR + hoechster je erreichter Rang eines Spielers."""
+    """Aktueller Rang + RR + hoechster je erreichter Rang + Saison-Bilanz eines Spielers."""
     now = time.time()
     with _cache_lock:
         hit = _mmr_cache.get(puuid)
         if hit and now - hit[0] < MMR_TTL:
             return hit[1]
 
-    out = {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None}
+    out = {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None,
+           "seasonWins": None, "seasonGames": None}
     try:
         status, j = riot_get("pd", "/mmr/v1/players/%s" % puuid)
     except Exception:
@@ -1408,6 +1429,17 @@ def mmr_summary(puuid):
         if best_tier:
             out["peakRank"] = best_tier
             out["peakRankAct"] = _act_label(best_season)
+
+        # Sieg-/Match-Bilanz der AKTUELL laufenden Act-Season (nicht zu
+        # verwechseln mit peakRank oben, das ist der hoechste JE erreichte
+        # Rang ueber alle Seasons hinweg).
+        with _seasons_lock:
+            _load_seasons()
+        current_id = _seasons.get("current_id")
+        current_info = seasons.get(current_id) if current_id else None
+        if isinstance(current_info, dict):
+            out["seasonWins"] = current_info.get("NumberOfWinsWithPlacements")
+            out["seasonGames"] = current_info.get("NumberOfGames")
     with _cache_lock:
         if len(_mmr_cache) > 60:
             _mmr_cache.clear()
