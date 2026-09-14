@@ -431,11 +431,33 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.6"
+APP_VERSION = "2.1.7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
 _HEARTBEAT_ERR_PATH = os.path.join(BASE, "rankyoinker-heartbeat-error.txt")
+
+# Anonymer "ein Match wurde getrackt"-Zaehler fuers oeffentliche Live-Stats-
+# Embed im Discord (siehe _game_watcher()/_lol_watcher() weiter unten, wo das
+# jeweils einmal pro Match ausgeloest wird) - nur "valorant" oder "league",
+# sonst nichts, kein Match-/Account-Bezug.
+MATCH_TRACKED_NOTIFY_URL = "https://rankyoinker.de/api/notify-match-tracked"
+
+
+def _notify_match_tracked(game):
+    def _send():
+        try:
+            body = json.dumps({"game": game}).encode("utf-8")
+            req = urllib.request.Request(
+                MATCH_TRACKED_NOTIFY_URL,
+                data=body,
+                headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-MatchTracked"},
+                method="POST",
+            )
+            _urlopen_public(req, timeout=10).close()
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
 
 # HTTPS-Requests an das ECHTE INTERNET (rankyoinker.de) - nicht zu verwechseln
 # mit _SSL oben, das bewusst unverifiziert nur für die lokale LCU-API auf
@@ -1747,6 +1769,10 @@ def encounters_record(match_id, players, meta=None):
 # holt sich der Dienst den Kader jetzt selbst.
 
 _enc_seen = {"match": None}
+# Getrennt von _enc_seen oben: der oeffentliche "Match getrackt"-Zaehler soll
+# unabhaengig davon zaehlen, ob die (mit mehr Voraussetzungen verbundene)
+# Begegnungen-Erfassung im Einzelfall klappt.
+_match_tracked_seen = {"match": None}
 
 
 def _core_game_roster(mid):
@@ -2786,70 +2812,9 @@ def _clear_account_caches():
     _self_name["name"] = None
 
 
-# Meldet ueber rankyoinker.de, welcher Riot-Account (Name#Tag) gerade
-# RankYoinker benutzt - rein zum Nachverfolgen bei Support-Anfragen ("wer war
-# das gerade, bei dem etwas nicht ging"), keine sonstigen Daten.
-# Bewusst KEIN Discord-Webhook mehr direkt hier verdrahtet: diese Datei geht
-# als Klartext an jede Installation raus, ein fest eingebauter Webhook waere
-# fuer jeden Nutzer auslesbar und missbrauchbar gewesen. Der eigentliche
-# Webhook lebt jetzt serverseitig in rankyoinker.de/.env, dieser Endpunkt
-# leitet nur einen festen Nachrichtentext weiter (siehe /api/notify-login in
-# server.js + sendAccountLoginNotice() in discord.js).
-ACCOUNT_LOGIN_NOTIFY_URL = "https://rankyoinker.de/api/notify-login"
-
-# _account (unten) ist reiner Prozessspeicher und wird bei JEDEM Neustart des
-# Log-Servers (Updates, Abstuerze, Neuinstallationen - kommt oft vor) wieder
-# auf puuid=None zurueckgesetzt. Ohne diese Datei sah darum jeder Neustart
-# wie ein "neuer Account" aus, obwohl es laengst dieselbe, schon bekannte
-# puuid war - das Ergebnis war Spam mit staendig denselben Accounts. Diese
-# Datei haelt fest, wer schon EINMAL gemeldet wurde, ueberlebt also Neustarts.
-NOTIFIED_ACCOUNTS_FILE = os.path.join(BASE, ".rankyoinker_notified_accounts.json")
-_notified_lock = threading.Lock()
-
-
-def _already_notified(puuid):
-    with _notified_lock:
-        data = _load_json(NOTIFIED_ACCOUNTS_FILE)
-        seen = data.get("puuids") if isinstance(data, dict) else None
-        return isinstance(seen, list) and puuid in seen
-
-
-def _mark_notified(puuid):
-    with _notified_lock:
-        data = _load_json(NOTIFIED_ACCOUNTS_FILE)
-        if not isinstance(data, dict):
-            data = {}
-        seen = data.get("puuids")
-        if not isinstance(seen, list):
-            seen = []
-        if puuid not in seen:
-            seen.append(puuid)
-        data["puuids"] = seen
-        _save_json(NOTIFIED_ACCOUNTS_FILE, data)
-
-
-def _notify_account_login(puuid):
-    """Loest bei einem neuen/anderen Account eine Discord-Meldung mit dem
-    Riot-Tag aus. Laeuft komplett im Hintergrund (eigener Thread), damit ein
-    langsamer Netzwerk-Call nicht get_auth() verzoegert, das hierher fuehrt."""
-    def _send():
-        try:
-            tag = (names_for([puuid]) or {}).get(puuid) or puuid
-            body = json.dumps({"puuid": puuid, "tag": tag}).encode("utf-8")
-            req = urllib.request.Request(
-                ACCOUNT_LOGIN_NOTIFY_URL,
-                data=body,
-                headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-AccountNotify"},
-                method="POST",
-            )
-            _urlopen_public(req, timeout=10).close()
-        except Exception:
-            pass
-    threading.Thread(target=_send, daemon=True).start()
-
-
 def note_account(puuid):
-    """Von get_auth() aufgerufen: gesehene puuid festhalten (und Wechsel melden)."""
+    """Von get_auth() aufgerufen: gesehene puuid festhalten (Wechsel-Generation
+    fuer die Oberflaeche, siehe game_ready()/gen weiter unten)."""
     if not puuid:
         return
     if _account["puuid"] != puuid:
@@ -2857,9 +2822,6 @@ def note_account(puuid):
             _account["gen"] += 1
         _account["puuid"] = puuid
         _account["name"] = None
-        if not _already_notified(puuid):
-            _notify_account_login(puuid)
-            _mark_notified(puuid)
     _account["ts"] = time.time()
 
 
@@ -3161,6 +3123,9 @@ def _game_watcher():
             # unabhängig davon, ob die Seite gerade offen ist
             if state == "INGAME":
                 record_encounter_now(mid)
+                if mid and _match_tracked_seen["match"] != mid:
+                    _match_tracked_seen["match"] = mid
+                    _notify_match_tracked("valorant")
             _maybe_resync(state, mid, now)
         except Exception:
             pass
@@ -4633,6 +4598,7 @@ def lol_encounters_record(match_id, players, meta=None):
 
 
 _lol_enc_seen = {"match": None}
+_lol_match_tracked_seen = {"match": None}
 
 
 def _lol_record_encounter_now():
@@ -4648,7 +4614,14 @@ def _lol_record_encounter_now():
         return False
     game_data = gf.get("gameData") or {}
     game_id = game_data.get("gameId")
-    if not game_id or _lol_enc_seen["match"] == game_id:
+    if not game_id:
+        return False
+
+    if _lol_match_tracked_seen["match"] != game_id:
+        _lol_match_tracked_seen["match"] = game_id
+        _notify_match_tracked("league")
+
+    if _lol_enc_seen["match"] == game_id:
         return False
 
     live = lol_live_game()
