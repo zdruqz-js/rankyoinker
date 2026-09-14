@@ -6510,7 +6510,7 @@
     const favs = favNames
       .map(n => list.find(a => a.name.toLowerCase() === String(n).toLowerCase()))
       .filter(Boolean);
-    const cells = list.map(agentCellHtml).join('');
+    const cells = list.filter(a => favs.indexOf(a) === -1).map(agentCellHtml).join('');
     return `
       <div class="agentpick">
         <div class="ap-top">
@@ -9515,7 +9515,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.12-dev";
+const CURRENT_VERSION = "2.1.13-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
