@@ -404,9 +404,13 @@ try:
                 # leerem Profil/Loadout haengen, und zwar fuers GANZE Match,
                 # weil dieser Block nur einmal pro INGAME-Erkennung laeuft
                 # (kein periodisches Neuladen waehrend eines laufenden
-                # Matches). Ein paar kurze Nachversuche fangen dieses
-                # Zeitfenster ab, bevor mit dem verfuegbaren Stand weitergemacht wird.
-                for retry_delay in (2, 3, 4):
+                # Matches). Ein paar Nachversuche fangen dieses Zeitfenster
+                # ab, bevor mit dem verfuegbaren Stand weitergemacht wird.
+                # Grosszuegigere Abstaende als zuerst (2/3/4s): passiert genau
+                # dann, wenn gleichzeitig 10 Spieler Rang+Stats laden - trifft
+                # das ein Riot-Rate-Limit (429), braucht ein zu schneller
+                # erneuter Versuch das Limit erst recht nicht ab.
+                for retry_delay in (3, 5, 8):
                     missing = [
                         p["Subject"] for p in Players
                         if not loadouts_data.get("Players", {}).get(p["Subject"])

@@ -1055,6 +1055,18 @@ def riot_get(base_key, path):
     if status in (400, 401, 403):
         auth = get_auth(force=True)          # Token abgelaufen -> einmal erneuern
         status, j = _http(auth[base_key] + path, auth["headers"])
+    if status == 429:
+        # Bisher gar kein Retry hier - ein Rate-Limit-Treffer (kommt vor,
+        # v.a. direkt bei Matchstart wenn viele Spieler auf einmal geladen
+        # werden) liess Aufrufer (RR-Verlauf, Matchhistorie, ...) sofort
+        # aufgeben, sah dann wie "keine Daten"/"nicht lesbar" aus statt wie
+        # das, was es wirklich war. Kurz warten und bis zu zweimal neu
+        # versuchen, bevor wirklich aufgegeben wird.
+        for wait in (2, 4):
+            time.sleep(wait)
+            status, j = _http(auth[base_key] + path, auth["headers"])
+            if status != 429:
+                break
     return status, j
 
 
