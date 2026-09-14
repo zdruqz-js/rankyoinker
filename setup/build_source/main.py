@@ -358,9 +358,18 @@ try:
             }
 
             if game_state == "INGAME":
+                # Zeit-Diagnose: jeder grosse Schritt beim Laden eines Matches
+                # loggt, wie viele Sekunden seit INGAME-Erkennung vergangen
+                # sind - damit sich "dauert lange" konkret einer Ursache
+                # zuordnen laesst (Loadouts? Rang/Stats? Etwas anderes?),
+                # statt nur gefuehlt zu sein. Landet in logs/log-N.txt.
+                _t_ingame_start = time.time()
+                def _log_timing(label):
+                    log(f"[TIMING] INGAME {label}: +{time.time() - _t_ingame_start:.2f}s")
                 coregame_stats = coregame.get_coregame_stats()
                 if coregame_stats == None:
                     continue
+                _log_timing("coregame_stats abgerufen")
                 coregame_match_id = coregame.get_coregame_match_id()
                 ensure_match_player_cache(coregame_match_id)
                 Players = coregame_stats["Players"]
@@ -387,7 +396,9 @@ try:
 
                 server = coregame_stats.get("GamePodID", "")
                 presences.wait_for_presence(namesClass.get_players_puuid(Players))
+                _log_timing("wait_for_presence fertig")
                 names = namesClass.get_names_from_puuids(Players)
+                _log_timing("Namen abgerufen")
                 loadouts_arr = loadoutsClass.get_match_loadouts(
                     coregame_match_id,
                     Players,
@@ -398,6 +409,7 @@ try:
                 )
                 loadouts = loadouts_arr[0]
                 loadouts_data = loadouts_arr[1]
+                _log_timing("Loadouts abgerufen (1. Versuch)")
                 # Riot hat die Loadout-Daten (vor allem fuers gegnerische Team)
                 # im allerersten Moment von INGAME manchmal noch nicht
                 # vollstaendig befuellt - einzelne Spieler bleiben dann mit
@@ -417,6 +429,7 @@ try:
                     ]
                     if not missing:
                         break
+                    _log_timing(f"Loadouts unvollstaendig ({len(missing)} fehlen) - warte {retry_delay}s und versuche erneut")
                     time.sleep(retry_delay)
                     loadouts_arr = loadoutsClass.get_match_loadouts(
                         coregame_match_id,
@@ -428,6 +441,11 @@ try:
                     )
                     loadouts = loadouts_arr[0]
                     loadouts_data = loadouts_arr[1]
+                _missing_final = [
+                    p["Subject"] for p in Players
+                    if not loadouts_data.get("Players", {}).get(p["Subject"])
+                ]
+                _log_timing(f"Loadouts final ({len(_missing_final)} bleiben leer)" if _missing_final else "Loadouts vollstaendig")
                 # with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                 isRange = False
                 playersLoaded = 1
@@ -464,6 +482,7 @@ try:
                     # reinpoppen zu sehen.
                     status.update("Loading Players...")
                     prefetch_players_rank_and_stats(Players, coregame_match_id)
+                    _log_timing("Rang+Stats aller Spieler abgerufen (prefetch)")
 
                     stats_to_save = {}
                     for p in Players:
@@ -742,6 +761,7 @@ try:
                     # einlesen und zurueckschreiben - lag mit an der Ladezeit).
                     if stats_to_save:
                         stats.save_data(stats_to_save)
+                _log_timing("Tabelle/Spielerliste fertig aufgebaut")
             elif game_state == "PREGAME":
                 already_played_with = []
                 pregame_stats = pregame.get_pregame_stats()
@@ -1168,6 +1188,8 @@ try:
 
                 table.set_caption(f"VALORANT rank yoinker v{version}")
                 Server.send_payload("heartbeat", heartbeat_data)
+                if game_state == "INGAME":
+                    _log_timing("Heartbeat an Overlay gesendet (FERTIG)")
                 table.display()
                 firstPrint = False
 
