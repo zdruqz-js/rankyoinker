@@ -78,7 +78,15 @@ class Requests:
                         self.log("response not ok glz endpoint: " + response.text)
                     time.sleep(rate_limit_seconds+5)
                     self.headers = {}
-                    self.fetch(url_type, endpoint, method)
+                    # War hier ohne "return": der Retry lief zwar, sein Ergebnis
+                    # wurde aber verworfen, und die Funktion gab stattdessen die
+                    # Fehler-Antwort von OBEN zurueck (kein "MatchID" o.ae. drin,
+                    # sah fuer Aufrufer wie eine leere/negative Antwort aus). Bei
+                    # /core-game/v1/players/... (glz) fuehrte ein einzelner
+                    # Rate-Limit-Treffer dadurch dazu, dass der Zustandsabgleich
+                    # faelschlich "nicht mehr im Match" meldete und das laufende
+                    # Laden der Spielerliste mittendrin neu startete.
+                    return self.fetch(url_type, endpoint, method)
                 return response.json()
             elif url_type == "pd":
                 response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=False)
