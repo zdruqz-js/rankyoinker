@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.9-dev"
+APP_VERSION = "2.1.10-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -486,15 +486,41 @@ def _get_client_id():
     return new_id
 
 
+# Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
+# Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr"}
+
+
+def _detect_system_lang():
+    """Windows-Anzeigesprache als Fallback, wenn config.json noch kein "lang"
+    hat - z.B. weil die Overlay-Seite noch nie im Browser geoeffnet wurde
+    (das ist der einzige Weg, wie "lang" ueberhaupt hineingeschrieben wird,
+    siehe notifyBackendLang() in index.html). Ohne diesen Fallback fiel das
+    bisher hart auf "de" zurueck, VOELLIG unabhaengig von der tatsaechlichen
+    Systemsprache - deshalb sah die Sprachverteilung in /stats verzerrt
+    Richtung Deutsch aus, sobald jemand die Overlay-Seite gar nicht oder erst
+    spaeter im Browser aufruft (z.B. weil nur Discord Rich Presence oder die
+    Konsole genutzt wird)."""
+    try:
+        lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+        return _WIN_PRIMARY_LANG.get(lcid & 0xFF, "en")
+    except Exception:
+        return "en"
+
+
 def _heartbeat_lang():
     """Wie rpc.py._current_lang(), aber eigenstaendig - kein Cross-Import
     zwischen vry_log_server.py und lib/src/rpc.py noetig fuer ein Feld."""
     try:
-        data = _load_json(CONFIG_JSON_FILE)
-        lang = str((data or {}).get("lang", "de")).lower()
+        data = _load_json(CONFIG_JSON_FILE) or {}
+        raw = data.get("lang")
+        if raw:
+            code = str(raw).lower()
+            if code in RPC_LANGS:
+                return code
     except Exception:
-        lang = "de"
-    return lang if lang in RPC_LANGS else "de"
+        pass
+    return _detect_system_lang()
 
 
 def _active_user_heartbeat():

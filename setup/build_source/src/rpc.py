@@ -1,3 +1,4 @@
+import ctypes
 import json
 import os
 import sys
@@ -134,6 +135,25 @@ def _config_path() -> str:
     return os.path.join(base, "config.json")
 
 
+# Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
+# Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr"}
+
+
+def _detect_system_lang() -> str:
+    """Windows-Anzeigesprache als Fallback, wenn config.json noch kein "lang"
+    hat (z.B. weil die Overlay-Seite noch nie im Browser geoeffnet wurde -
+    das ist der einzige Weg, wie "lang" ueberhaupt hineingeschrieben wird).
+    Ohne diesen Fallback fiel das bisher hart auf "de" zurueck, VOELLIG
+    unabhaengig von der tatsaechlichen Systemsprache - genau das Symptom
+    "Discord Rich Presence bleibt immer Deutsch" oben in _config_path()."""
+    try:
+        lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+        return _WIN_PRIMARY_LANG.get(lcid & 0xFF, "en")
+    except Exception:
+        return "en"
+
+
 def _current_lang() -> str:
     """Liest die App-Sprache aus config.json. Bewusst OHNE Cache: config.json
     ist winzig, ein Lesevorgang pro Update-Zyklus (max. alle paar Sekunden)
@@ -142,10 +162,14 @@ def _current_lang() -> str:
     try:
         with open(_config_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
-        lang = str((data or {}).get("lang", "de")).lower()
+        raw = (data or {}).get("lang")
+        if raw:
+            lang = str(raw).lower()
+            if lang in RPC_STRINGS:
+                return lang
     except Exception:
-        lang = "de"
-    return lang if lang in RPC_STRINGS else "de"
+        pass
+    return _detect_system_lang()
 
 
 def _rpc_strings() -> Dict[str, str]:
