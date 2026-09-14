@@ -996,6 +996,24 @@
     font-size:9.5px; color:var(--text-faint); letter-spacing:.15em; text-transform:uppercase;
     font-family:var(--font-display); font-weight:700; margin-bottom:9px;
   }
+  /* Saison-Bilanz - Riots eigene Season-Zaehlung statt nur der Stichprobe
+     oben, deshalb bewusst herausgehoben statt als gleichwertige Kachel in
+     einer Gruppe untergebracht. */
+  .season-record-card{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:linear-gradient(135deg, rgba(201,168,105,0.16), rgba(201,168,105,0.04));
+    border:1px solid rgba(201,168,105,0.4); border-radius:var(--r-sm);
+    padding:13px 18px; margin-bottom:16px;
+  }
+  .season-record-card .src-label{
+    font-size:10px; color:var(--gold); letter-spacing:.16em; text-transform:uppercase;
+    font-family:var(--font-display); font-weight:700;
+  }
+  .season-record-card .src-value{
+    font-family:var(--font-big); font-size:32px; line-height:1; font-weight:700; color:var(--gold);
+    white-space:nowrap;
+  }
+  .season-record-card .src-value .src-total{font-size:17px; color:var(--text-dim); font-weight:600;}
   /* Begegnungen */
   .enc-box{
     display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:14px 16px;
@@ -1049,11 +1067,12 @@
   .match-row:hover{transform:translateX(2px);}
   .match-row.win{border-left-color:var(--green);}
   .match-row.loss{border-left-color:var(--loss);}
+  .match-row.draw{border-left-color:var(--text-dim);}
   .match-row .mr-head{min-width:94px;}
   .match-row .mr-map{font-family:var(--font-display); font-weight:700; font-size:13px; text-transform:none; letter-spacing:0;}
   .match-row .mr-date{font-size:10px; color:var(--text-faint); margin-top:3px;}
   .match-row .mr-res{font-size:9px; letter-spacing:.16em; text-transform:uppercase; font-family:var(--font-display); font-weight:700; margin-top:4px;}
-  .match-row.win .mr-res{color:var(--green);} .match-row.loss .mr-res{color:var(--loss);}
+  .match-row.win .mr-res{color:var(--green);} .match-row.loss .mr-res{color:var(--loss);} .match-row.draw .mr-res{color:var(--text-dim);}
   .match-row .mr-rank{text-align:center; min-width:50px; flex-shrink:0;}
   .match-row .mr-rank img{width:26px; height:26px; display:block; margin:0 auto 4px;}
   .match-row .mr-rank i{
@@ -1153,6 +1172,7 @@
   #content.anim .dot{animation:dotPop .4s cubic-bezier(.22,1,.36,1) backwards;}
   .dot.w{background:var(--green); box-shadow:0 0 9px rgba(34,197,94,.55);}
   .dot.l{background:var(--loss); box-shadow:0 0 9px rgba(255,117,128,.5);}
+  .dot.d{background:var(--text-dim); box-shadow:none;}
   .dot.none{background:rgba(255,255,255,.09); box-shadow:none;}
   .dot.skel{background:rgba(255,255,255,.09); animation:dotSkel 1.1s ease-in-out infinite;}
   @keyframes dotPop{from{opacity:0; transform:scale(.2);}}
@@ -2414,6 +2434,7 @@
       lol_enemy_team_n: "Gegner-Team {n}",
       win_upper: "SIEG",
       loss_upper: "NIEDERLAGE",
+      draw_upper: "UNENTSCHIEDEN",
       lol_waiting_client: "Warte auf Verbindung zum League-Client…",
       lol_no_matches_found: "Keine Partien gefunden.",
       games_and_winrate_title: "{games} Partien, {wr}% Winrate",
@@ -2836,6 +2857,7 @@
       lol_enemy_team_n: "Enemy Team {n}",
       win_upper: "WIN",
       loss_upper: "LOSS",
+      draw_upper: "DRAW",
       lol_waiting_client: "Waiting for connection to the League client…",
       lol_no_matches_found: "No matches found.",
       games_and_winrate_title: "{games} games, {wr}% win rate",
@@ -3261,6 +3283,7 @@
       lol_enemy_team_n: "Drużyna przeciwna {n}",
       win_upper: "ZWYCIĘSTWO",
       loss_upper: "PORAŻKA",
+      draw_upper: "REMIS",
       lol_waiting_client: "Oczekiwanie na połączenie z klientem League…",
       lol_no_matches_found: "Nie znaleziono meczów.",
       games_and_winrate_title: "{games} meczów, {wr}% winrate",
@@ -3690,6 +3713,7 @@
       lol_enemy_team_n: "Équipe adverse {n}",
       win_upper: "VICTOIRE",
       loss_upper: "DÉFAITE",
+      draw_upper: "MATCH NUL",
       lol_waiting_client: "En attente de la connexion au client League…",
       lol_no_matches_found: "Aucune partie trouvée.",
       games_and_winrate_title: "{games} parties, {wr} % de winrate",
@@ -4119,6 +4143,7 @@
       lol_enemy_team_n: "Equipo rival {n}",
       win_upper: "VICTORIA",
       loss_upper: "DERROTA",
+      draw_upper: "EMPATE",
       lol_waiting_client: "Esperando la conexión con el cliente de League…",
       lol_no_matches_found: "No se encontraron partidas.",
       games_and_winrate_title: "{games} partidas, {wr}% de winrate",
@@ -4548,6 +4573,7 @@
       lol_enemy_team_n: "Rakip takım {n}",
       win_upper: "ZAFER",
       loss_upper: "YENİLGİ",
+      draw_upper: "BERABERE",
       lol_waiting_client: "League istemcisine bağlantı bekleniyor…",
       lol_no_matches_found: "Maç bulunamadı.",
       games_and_winrate_title: "{games} maç, %{wr} kazanma oranı",
@@ -5735,16 +5761,18 @@
         <div class="dots">${'<span class="dot none"></span>'.repeat(5)}<span class="sep">${t('no_data')}</span></div></div>`;
     }
     const wins = res.filter(r => r.won === true).length;
+    const draws = res.filter(r => r.won === 'draw').length;
     const dots = res.slice(0, 5).map((r, i) => {
-      const cls = r.won === true ? 'w' : r.won === false ? 'l' : 'none';
-      const tip = (r.won === true ? t('win_upper') : r.won === false ? t('loss_upper') : t('unknown_short'))
+      const cls = r.won === true ? 'w' : r.won === false ? 'l' : r.won === 'draw' ? 'd' : 'none';
+      const tip = (r.won === true ? t('win_upper') : r.won === false ? t('loss_upper') : r.won === 'draw' ? t('draw_upper') : t('unknown_short'))
         + (r.rr != null ? ` · ${r.rr > 0 ? '+' : ''}${r.rr} RR` : '');
       return `<span class="dot ${cls}" style="animation-delay:${i * 60}ms" title="${esc(tip)}"></span>`;
     }).join('');
     const pad = '<span class="dot none"></span>'.repeat(Math.max(0, 5 - res.length));
+    const summary = draws ? `${wins}W · ${draws}D · ${res.length - wins - draws}L` : `${wins}W · ${res.length - wins}L`;
     return `<div class="lm-tile" data-kda="${esc(id)}">
       <div class="rt-label">${t('last_5_matches')}</div>
-      <div class="dots">${dots}${pad}<span class="sep">${wins}W · ${res.length - wins}L</span></div></div>`;
+      <div class="dots">${dots}${pad}<span class="sep">${summary}</span></div></div>`;
   }
 
   // Nach dem Rendern die fehlenden K/D/A nachladen und die Kacheln direkt ersetzen
@@ -6258,12 +6286,14 @@
   }
   function matchRowHtml(m){
     const ts = m.startedAt ? m.startedAt / 1000 : null;
+    const cls = m.won === true ? 'win' : m.won === false ? 'loss' : m.won === 'draw' ? 'draw' : '';
+    const resLabel = m.won === true ? t('win_upper') : m.won === false ? t('loss_upper') : m.won === 'draw' ? t('draw_upper') : '—';
     return `
-      <div class="match-row ${m.won === true ? 'win' : m.won === false ? 'loss' : ''}">
+      <div class="match-row ${cls}">
         <div class="mr-head">
           <div class="mr-map">${esc(mapName(m.map))}</div>
           <div class="mr-date" title="${esc(encExact(ts))}">${esc(encWhen(ts))}</div>
-          <div class="mr-res">${m.won === true ? t('win_upper') : m.won === false ? t('loss_upper') : '—'}</div>
+          <div class="mr-res">${resLabel}</div>
         </div>
         <div class="mr-kda">${kdaHtml(m)}</div>
         <div class="mr-stats">
@@ -6299,8 +6329,16 @@
         if(!tot){ box.innerHTML = `<div class="loadout-empty">${t('stats_no_completed_matches')}</div>`; return; }
         const kdaLine = `<i class="k">${tot.kills}</i><s>/</s><i class="d">${tot.deaths}</i><s>/</s><i class="a">${tot.assists}</i>`;
         const hasMore = j.matches.length >= count && count < MODAL_STATS_MAX;
+        const recordLine = `<span style="color:var(--green);">${tot.wins}</span>` +
+          (tot.draws ? `<span style="color:var(--text-faint);">–</span><span style="color:var(--text-dim);">${tot.draws}</span>` : '') +
+          `<span style="color:var(--text-faint);">–</span><span style="color:var(--loss);">${tot.losses}</span>`;
         box.innerHTML = `
           <div class="stat-hero">${statBox(`<span class="lm-nums">${kdaLine}</span>`, t('stat_kda_games', {games: tot.games}))}</div>
+          ${j.seasonGames != null ? `
+          <div class="season-record-card">
+            <div class="src-label">${t('season_record_label')}</div>
+            <div class="src-value">${j.seasonWins ?? 0}<span class="src-total">/${j.seasonGames}</span></div>
+          </div>` : ''}
           <div class="stat-group">
             <div class="stat-group-label">${t('stat_group_efficiency')}</div>
             <div class="stat-grid">
@@ -6314,8 +6352,7 @@
           <div class="stat-group">
             <div class="stat-group-label">${t('stat_group_record')}</div>
             <div class="stat-grid sm">
-              ${statBox(`<span style="color:var(--green);">${tot.wins}</span><span style="color:var(--text-faint);">–</span><span style="color:var(--red);">${tot.losses}</span>`, t('record_label'))}
-              ${j.seasonGames != null ? statBox(`<span style="color:var(--green);">${j.seasonWins ?? 0}</span><span style="color:var(--text-faint);">/</span>${j.seasonGames}`, t('season_record_label')) : ''}
+              ${statBox(recordLine, t('record_label'))}
             </div>
           </div>
           <div class="stat-group">
@@ -9478,7 +9515,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.1.8-dev";
+const CURRENT_VERSION = "2.1.9-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

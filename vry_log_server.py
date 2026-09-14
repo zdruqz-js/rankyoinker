@@ -431,7 +431,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.8-dev"
+APP_VERSION = "2.1.9-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1127,10 +1127,23 @@ def _extract(match, puuid):
             defuses += 1
 
     shots = head + body + leg
+    # Drei Zustaende statt nur True/False: wenn KEIN Team als Sieger markiert
+    # ist, war es ein Unentschieden (kommt in VALORANT selten, aber
+    # tatsaechlich vor) - vorher landete das faelschlich als "won=False",
+    # also ununterscheidbar von einer echten Niederlage.
+    teams = match.get("teams") or []
     won = None
-    for t in match.get("teams") or []:
+    my_team_won = None
+    for t in teams:
         if t.get("teamId") == me.get("teamId"):
-            won = bool(t.get("won"))
+            my_team_won = t.get("won")
+            break
+    if my_team_won:
+        won = True
+    elif any(t.get("won") for t in teams):
+        won = False
+    elif teams:
+        won = "draw"
     info = match.get("matchInfo") or {}
 
     return {
@@ -1189,6 +1202,7 @@ def player_stats(puuid, count=1):
         s = lambda f: sum(m.get(f) or 0 for m in out["matches"])
         rounds, shots = s("rounds"), s("headshots") + s("bodyshots") + s("legshots")
         wins = sum(1 for m in out["matches"] if m.get("won") is True)
+        draws = sum(1 for m in out["matches"] if m.get("won") == "draw")
         out["totals"] = {
             "games": len(out["matches"]),
             "kills": s("kills"), "deaths": s("deaths"), "assists": s("assists"),
@@ -1198,7 +1212,7 @@ def player_stats(puuid, count=1):
             "hsPercent": round(s("headshots") / shots * 100, 1) if shots else None,
             "adr": round(s("damage") / rounds, 1) if rounds else None,
             "acs": round(s("score") / rounds, 1) if rounds else None,
-            "wins": wins, "losses": len(out["matches"]) - wins,
+            "wins": wins, "draws": draws, "losses": len(out["matches"]) - wins - draws,
             "firstKills": s("firstKills"), "multiKills": s("multiKills"),
             "plants": s("plants"), "defuses": s("defuses"),
         }
@@ -1246,7 +1260,11 @@ def recent_results(puuid, count=5):
                 rr = m.get("RankedRatingEarned")
                 if rr is None or not m.get("MatchID"):
                     continue
-                res.append({"won": rr > 0, "rr": rr, "map": m.get("MapID"), "ranked": True})
+                # RR-Vorzeichen verraet Sieg/Niederlage guenstig ohne Match-
+                # Details zu laden - bei einem Unentschieden aendert sich die
+                # RR genau nicht, das ist hier der einzige Anhaltspunkt dafuer.
+                won = True if rr > 0 else ("draw" if rr == 0 else False)
+                res.append({"won": won, "rr": rr, "map": m.get("MapID"), "ranked": True})
         if not res:
             for mid in _recent_match_ids(puuid, min(count, 3)):
                 det = _match_details(mid)
