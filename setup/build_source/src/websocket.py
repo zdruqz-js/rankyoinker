@@ -32,6 +32,10 @@ from src.presences import Presences
 STATE_POLL_INTERVAL = 5
 # Wie oft dabei hoechstens die Discord-Anzeige aufgefrischt wird (Sekunden)
 RPC_REFRESH_INTERVAL = 30
+# Alle wie viele STATE_POLL_INTERVAL-Ticks zusaetzlich abgeglichen wird, auch
+# wenn die eigene Presence normal da ist (siehe _detect_state_via_api) - bei
+# 5s Takt macht das alle 20s einen Sicherheits-Check.
+RECONCILE_EVERY_N_TICKS = 4
 
 
 class Ws:
@@ -127,13 +131,24 @@ class Ws:
         gar nichts und der Websocket bleibt allein zustaendig.
         """
         loop = asyncio.get_event_loop()
+        ticks = 0
         while True:
             await asyncio.sleep(STATE_POLL_INTERVAL)
+            ticks += 1
+            # Neben dem eigentlichen Deceive-Fallback (unten) alle paar Ticks
+            # AUCH pruefen, wenn die eigene Presence ganz normal da ist:
+            # einzelne Zustandswechsel-Events gehen auf dem Chat-Websocket
+            # gelegentlich verloren (kurzer Hickup, Riot-seitige Aussetzer),
+            # ohne dass die Verbindung selbst abbricht - vRY blieb dann bis
+            # zum manuellen Neustart im alten Zustand haengen, obwohl laengst
+            # z. B. das Spiel lief. Dieser Sicherheits-Check greift nur ein,
+            # wenn sich der Zustand wirklich geaendert hat.
+            force_reconcile = (ticks % RECONCILE_EVERY_N_TICKS) == 0
             try:
                 # die Abfragen sind blockierend -> in den Threadpool, damit
                 # der Websocket weiter Chatnachrichten verarbeiten kann
                 state = await loop.run_in_executor(
-                    None, self._detect_state_via_api, initial_game_state
+                    None, self._detect_state_via_api, initial_game_state, force_reconcile
                 )
             except Exception as e:
                 self.log(f"Zustandsabfrage ueber die Spiel-API fehlgeschlagen: {e}")
@@ -143,12 +158,13 @@ class Ws:
                 self.log(f"Spielzustand ueber die Spiel-API erkannt: {state}")
                 return state
 
-    def _detect_state_via_api(self, initial_game_state):
+    def _detect_state_via_api(self, initial_game_state, force=False):
         presence = self._presences.get_presence()
         if presence is None:
             return None
-        if self._presences.has_own_presence(presence):
-            # alles normal - der Websocket meldet Wechsel selbst
+        if self._presences.has_own_presence(presence) and not force:
+            # alles normal - der Websocket meldet Wechsel selbst (force
+            # umgeht das fuer den periodischen Sicherheits-Check oben)
             return None
 
         prefer = initial_game_state if initial_game_state in ("PREGAME", "INGAME") else None

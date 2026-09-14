@@ -4,7 +4,7 @@ import socket
 import sys
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 import urllib3
@@ -187,15 +187,22 @@ try:
 
         return playerRank, previousPlayerRank, ppstats
 
-    def prefetch_players_rank_and_stats(players, current_match_id):
+    def prefetch_players_rank_and_stats(players, current_match_id, on_player_ready=None):
         """Holt Rang+Stats fuer ALLE Spieler auf einmal, statt einen nach dem
-        anderen - get_or_fetch_rank_and_stats() macht pro Spieler bis zu 4
-        einzelne, blockierende Riot-API-Anfragen (aktueller Rang, Peak-Rang,
-        Wettkampf-Historie, Match-Details). Nacheinander fuer 10 Spieler war
-        das der Hauptgrund fuer 30-60 Sekunden Ladezeit; jetzt laufen alle
-        Spieler parallel, das Ergebnis landet im selben match_player_cache
-        wie zuvor - der folgende Tabellen-Aufbau bleibt unveraendert und
-        findet dort nur noch fertige Werte statt selbst zu warten.
+        anderen - get_or_fetch_rank_and_stats() macht pro Spieler bis zu 3
+        einzelne, blockierende Riot-API-Anfragen (Rang+Peak-Rang ueber
+        denselben gecachten Request, Wettkampf-Historie, Match-Details).
+        Nacheinander fuer 10 Spieler war das der Hauptgrund fuer 30-60
+        Sekunden Ladezeit; jetzt laufen alle Spieler parallel, das Ergebnis
+        landet im selben match_player_cache wie zuvor - der folgende
+        Tabellen-Aufbau liest danach nur noch fertige Werte statt selbst zu
+        warten.
+
+        on_player_ready(subject, playerRank, previousPlayerRank, ppstats),
+        falls angegeben, wird sofort aufgerufen sobald EIN Spieler fertig
+        ist statt erst wenn ALLE fertig sind - damit die Overlay-Seite
+        Spieler schon einzeln zeigen kann, waehrend andere noch laden
+        (z. B. weil einer davon gerade ein Riot-Rate-Limit trifft).
         """
         if not current_match_id or not players:
             return
@@ -203,13 +210,19 @@ try:
         if not subjects:
             return
         with ThreadPoolExecutor(max_workers=min(12, len(subjects))) as executor:
-            # .map() statt einzelner submit()-Aufrufe, aber das Ergebnis wird
-            # bewusst nicht gebraucht - get_or_fetch_rank_and_stats() legt
-            # seinen Treffer schon selbst in match_player_cache ab.
-            list(executor.map(
-                lambda subject: get_or_fetch_rank_and_stats(subject, current_match_id),
-                subjects,
-            ))
+            futures = {
+                executor.submit(get_or_fetch_rank_and_stats, subject, current_match_id): subject
+                for subject in subjects
+            }
+            for future in as_completed(futures):
+                if on_player_ready is None:
+                    continue
+                subject = futures[future]
+                try:
+                    playerRank, previousPlayerRank, ppstats = future.result()
+                    on_player_ready(subject, playerRank, previousPlayerRank, ppstats)
+                except Exception as e:
+                    log(f"Sofort-Anzeige fuer Spieler {subject} fehlgeschlagen: {e}")
 
     print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
 
@@ -428,10 +441,44 @@ try:
                     # Rang+Stats fuer alle Spieler auf einmal statt einen nach
                     # dem anderen (siehe prefetch_players_rank_and_stats) - der
                     # Aufbau der Tabelle unten liest danach nur noch fertige,
-                    # gecachte Werte.
+                    # gecachte Werte. Zusaetzlich zeigt die Overlay-Seite jeden
+                    # Spieler schon an, sobald GENAU SEINE Anfrage fertig ist,
+                    # statt auf den langsamsten von allen zu warten - die paar
+                    # Felder (Party-Symbol, Peak-Rang-Akt) fehlen dabei kurz und
+                    # werden vom vollstaendigen Heartbeat unten nachgereicht.
                     status.update("Loading Players...")
-                    prefetch_players_rank_and_stats(Players, coregame_match_id)
 
+                    def _quick_heartbeat_ingame(subject, playerRank, previousPlayerRank, ppstats):
+                        player = next((p for p in Players if p.get("Subject") == subject), None)
+                        if player is None:
+                            return
+                        heartbeat_data["players"][subject] = {
+                            "puuid": subject,
+                            "name": names.get(subject, ""),
+                            "partyNumber": 0,
+                            "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
+                            "rank": playerRank["rank"],
+                            "peakRank": playerRank["peakrank"],
+                            "peakRankAct": "",
+                            "rr": playerRank["rr"],
+                            "kd": ppstats["kd"],
+                            "headshotPercentage": ppstats["hs"],
+                            "winPercentage": f"{playerRank['wr']} ({playerRank['numberofgames']})",
+                            "level": player["PlayerIdentity"].get("AccountLevel"),
+                            "agentImgLink": loadouts_data["Players"][subject].get("Agent", None),
+                            "team": loadouts_data["Players"][subject].get("Team", None),
+                            "sprays": loadouts_data["Players"][subject].get("Sprays", None),
+                            "title": loadouts_data["Players"][subject].get("Title", None),
+                            "playerCard": loadouts_data["Players"][subject].get("PlayerCard", None),
+                            "weapons": loadouts_data["Players"][subject].get("Weapons", None),
+                        }
+                        Server.send_payload("heartbeat", heartbeat_data)
+
+                    prefetch_players_rank_and_stats(
+                        Players, coregame_match_id, on_player_ready=_quick_heartbeat_ingame
+                    )
+
+                    stats_to_save = {}
                     for p in Players:
                         if p["Subject"] == Requests.puuid:
                             allyTeam = p["TeamID"]
@@ -692,20 +739,22 @@ try:
                             ),
                         }
 
-                        stats.save_data(
-                            {
-                                player["Subject"]: {
-                                    "name": names[player["Subject"]],
-                                    "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
-                                    "map": current_map,
-                                    "rank": playerRank["rank"],
-                                    "rr": rr,
-                                    "match_id": coregame.match_id,
-                                    "epoch": time.time(),
-                                }
-                            }
-                        )
+                        stats_to_save[player["Subject"]] = {
+                            "name": names[player["Subject"]],
+                            "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
+                            "map": current_map,
+                            "rank": playerRank["rank"],
+                            "rr": rr,
+                            "match_id": coregame.match_id,
+                            "epoch": time.time(),
+                        }
                         # bar()
+                    # Ein einziges Lesen+Schreiben von stats.json fuers ganze
+                    # Match statt einmal pro Spieler (10 Spieler = 10x die
+                    # komplette, mit der Zeit immer groesser werdende Datei neu
+                    # einlesen und zurueckschreiben - lag mit an der Ladezeit).
+                    if stats_to_save:
+                        stats.save_data(stats_to_save)
             elif game_state == "PREGAME":
                 already_played_with = []
                 pregame_stats = pregame.get_pregame_stats()
@@ -738,8 +787,33 @@ try:
                     )
                     # Rang+Stats fuer alle Spieler auf einmal statt einen nach
                     # dem anderen (siehe prefetch_players_rank_and_stats).
+                    # Overlay-Seite zeigt jeden Spieler schon an, sobald GENAU
+                    # SEINE Anfrage fertig ist (siehe INGAME weiter oben fuer
+                    # die ausfuehrliche Begruendung).
                     status.update("Loading Players...")
-                    prefetch_players_rank_and_stats(Players, pregame_match_id)
+
+                    def _quick_heartbeat_pregame(subject, playerRank, previousPlayerRank, ppstats):
+                        player = next((p for p in Players if p.get("Subject") == subject), None)
+                        if player is None:
+                            return
+                        heartbeat_data["players"][subject] = {
+                            "name": names.get(subject, ""),
+                            "partyNumber": 0,
+                            "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
+                            "rank": playerRank["rank"],
+                            "peakRank": playerRank["peakrank"],
+                            "peakRankAct": "",
+                            "level": player["PlayerIdentity"].get("AccountLevel"),
+                            "rr": playerRank["rr"],
+                            "kd": ppstats["kd"],
+                            "headshotPercentage": ppstats["hs"],
+                            "winPercentage": f"{playerRank['wr']} ({playerRank['numberofgames']})",
+                        }
+                        Server.send_payload("heartbeat", heartbeat_data)
+
+                    prefetch_players_rank_and_stats(
+                        Players, pregame_match_id, on_player_ready=_quick_heartbeat_pregame
+                    )
 
                     partyCount = 0
                     partyIcons = {}
