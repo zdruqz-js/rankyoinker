@@ -13,11 +13,25 @@ class Loadouts:
         self.colors = colors
         self.Server = Server
         self.current_map = current_map
+        # Statische valorant-api.com-Kataloge (Waffen/Sprays/Buddies/Agenten/
+        # Titel/Spielerkarten) aendern sich hoechstens mal pro Patch, nicht
+        # zwischen zwei Matches oder gar zwischen zwei Nachversuchen
+        # innerhalb DESSELBEN Matches. Wurden hier vorher bei JEDEM Aufruf von
+        # get_match_loadouts komplett neu geholt (bis zu 7 Anfragen) - bei
+        # bis zu 4 Aufrufen pro Match (1 Versuch + 3 Nachversuche bei
+        # unvollstaendigen Loadouts) ging dafuer unnoetig Zeit drauf. Jetzt
+        # einmal pro Programmlauf gecacht.
+        self._ref_cache = {}
+
+    def _cached_get(self, url):
+        if url not in self._ref_cache:
+            self._ref_cache[url] = requests.get(url)
+        return self._ref_cache[url]
 
     def get_match_loadouts(self, match_id, players, weaponChoose, valoApiSkins, names, state="game"):
         playersBackup = players
         weaponLists = {}
-        valApiWeapons = requests.get(
+        valApiWeapons = self._cached_get(
             "https://valorant-api.com/v1/weapons").json()
         if state == "game":
             team_id = "Blue"
@@ -76,13 +90,13 @@ class Loadouts:
     def convertLoadoutToJsonArray(self, PlayerInventorys, players, state, names):
         # get agent dict from main in future
         # names = self.namesClass.get_names_from_puuids(players)
-        valoApiSprays = requests.get("https://valorant-api.com/v1/sprays")
-        valoApiWeapons = requests.get("https://valorant-api.com/v1/weapons")
-        valoApiBuddies = requests.get("https://valorant-api.com/v1/buddies")
-        valoApiAgents = requests.get("https://valorant-api.com/v1/agents")
-        valoApiTitles = requests.get(
+        valoApiSprays = self._cached_get("https://valorant-api.com/v1/sprays")
+        valoApiWeapons = self._cached_get("https://valorant-api.com/v1/weapons")
+        valoApiBuddies = self._cached_get("https://valorant-api.com/v1/buddies")
+        valoApiAgents = self._cached_get("https://valorant-api.com/v1/agents")
+        valoApiTitles = self._cached_get(
             "https://valorant-api.com/v1/playertitles")
-        valoApiPlayerCards = requests.get(
+        valoApiPlayerCards = self._cached_get(
             "https://valorant-api.com/v1/playercards")
 
         final_final_json = {"Players": {},

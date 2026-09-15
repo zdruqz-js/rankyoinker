@@ -204,7 +204,17 @@ try:
         subjects = [p.get("Subject") for p in players if p.get("Subject")]
         if not subjects:
             return
-        with ThreadPoolExecutor(max_workers=min(12, len(subjects))) as executor:
+        # Nicht mehr alle Spieler gleichzeitig (war max_workers=12): die
+        # Diagnose-Logs zeigten mehrere Spieler exakt zur selben Sekunde mit
+        # Status 429 (Riot-Rate-Limit) auf /mmr/v1/players/.../competitive
+        # updates - 10 Anfragen an denselben Endpunkt im selben Sekundenbruch
+        # -teil reissen dieses Limit offenbar zuverlaessig. Einmal ausgeloest,
+        # haengt sich requestsV.py's Retry-Backoff (10s, 15s, 20s, ...) pro
+        # betroffenem Spieler auf und macht die Ladezeit dadurch NOCH viel
+        # schlimmer als ganz ohne Parallelisierung. Mit 4 gleichzeitigen
+        # Anfragen bleibt der Grossteil des Parallelisierungs-Vorteils
+        # erhalten, ohne das Limit zuverlaessig zu reissen.
+        with ThreadPoolExecutor(max_workers=min(4, len(subjects))) as executor:
             list(executor.map(
                 lambda subject: get_or_fetch_rank_and_stats(subject, current_match_id),
                 subjects,

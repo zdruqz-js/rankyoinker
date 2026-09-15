@@ -243,11 +243,29 @@ class Presences:
             "partyVersion": 0,
         }
 
-    def wait_for_presence(self, PlayersPuuids):
+    def wait_for_presence(self, PlayersPuuids, timeout=15):
+        """Wartet, bis alle uebergebenen puuids in der Chat-Presence auftauchen.
+
+        War hier vorher kaputt: "break" stand ausserhalb der for-Schleife und
+        lief darum IMMER nach genau einem Durchlauf, egal ob wirklich alle
+        puuids schon da waren - "continue" im if sprang dabei nur zum
+        naechsten puuid, nicht zurueck zum Schleifenkopf. Effekt: EIN
+        Presence-Abruf, danach pro (zu diesem einen Zeitpunkt) fehlendem
+        Spieler eine Sekunde sinnlos warten, und danach trotzdem weitermachen
+        - unabhaengig davon, ob die Presence inzwischen tatsaechlich
+        vollstaendig war. Bei 9 von 10 Spielern noch nicht in der Presence
+        waren das reproduzierbar ~9 Sekunden, die nichts gebracht haben (siehe
+        Timing-Logs: das allein war der groesste Einzelposten beim Laden).
+        Jetzt: frische Presence pro Versuch, wirklich erst zurueck wenn alle
+        da sind - und ein Timeout als Sicherheitsventil, falls ein Spieler
+        (z. B. wegen Streamer-Modus) nie auftaucht.
+        """
+        start = time.time()
         while True:
             presence = self.get_presence()
-            for puuid in PlayersPuuids:
-                if puuid not in str(presence):
-                    time.sleep(1)
-                    continue
-            break
+            haystack = str(presence)
+            if all(puuid in haystack for puuid in PlayersPuuids):
+                return
+            if time.time() - start > timeout:
+                return
+            time.sleep(0.5)
