@@ -67,6 +67,21 @@ jobs:
             Copy-Item "setup/build_source/src/$f" -Destination "lib/src/$f" -Force
           }
 
+      # vry_log_server.py laeuft NICHT ueber das cx_Freeze-Build oben, sondern
+      # ueber eine separate, offizielle "embeddable" Python-Distribution, die
+      # der Installer mit ausliefert (siehe RankYoinker.iss). Die liegt bewusst
+      # NICHT im Repo (.gitignore: python.exe/python310.zip/*.dll/*.pyd - reine
+      # Drittanbieter-Binaries, keine eigenen), sondern wird hier frisch vom
+      # offiziellen python.org-Download geholt - exakt dieselbe Version/Quelle,
+      # die bisher einmalig manuell auf dem Build-Server abgelegt wurde.
+      - name: Eingebettetes Python 3.10.11 herunterladen
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip" -OutFile "python-embed.zip"
+          Expand-Archive -Path "python-embed.zip" -DestinationPath "." -Force
+          Remove-Item "python-embed.zip"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/python/cpython/v3.10.11/LICENSE" -OutFile "PYTHON-LICENSE.txt"
+
       - name: Inno Setup installieren
         run: choco install innosetup -y --no-progress
 
