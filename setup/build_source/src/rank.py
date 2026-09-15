@@ -34,6 +34,7 @@ class Rank:
             "statusgood": None,
             "statuscode": None,
             }
+        r = None
         try:
             if response.ok:
                 # self.log("retrieved rank successfully")
@@ -76,33 +77,41 @@ class Rank:
             final["leaderboard"] = 0
         max_rank = final["rank"]
         max_rank_season = seasonID
-        seasons = r["QueueSkills"]["competitive"].get("SeasonalInfoBySeasonID")
-        if seasons is not None:
-            for season in r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"]:
-                if r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][season]["WinsByTier"] is not None:
-                    for winByTier in r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][season]["WinsByTier"]:
-                        if season in self.ranks_before:
-                            if int(winByTier) > 20:
-                                winByTier = int(winByTier) + 3
-                        if int(winByTier) > max_rank:
-                            max_rank = int(winByTier)
-                            max_rank_season = season
-            # rank.append(max_rank)
-            final["peakrank"] = max_rank
-        else:
-            # rank.append(max_rank)
-            final["peakrank"] = max_rank
-        try:
-            wins = r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][seasonID]["NumberOfWinsWithPlacements"]
-            total_games = r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][seasonID]["NumberOfGames"]
-            final["numberofgames"] = total_games
+        # "r" wird nur zugewiesen, wenn response.ok oben tatsaechlich True
+        # war - bei einer echten Fehlantwort (z.B. Riot-Rate-Limit, das seit
+        # dem Versuchs-Deckel in requestsV.py jetzt oefter mal aufgibt statt
+        # endlos weiterzuversuchen) bleibt "r" None. Das hier darunter griff
+        # vorher TROTZDEM bedingungslos auf "r" zu und stuerzte mit
+        # UnboundLocalError ab, statt einfach mit den obigen Nullwerten
+        # weiterzumachen.
+        if r is not None:
             try:
-                wr = int(wins / total_games * 100)
-            except ZeroDivisionError: #no loses
-                wr = 100
-        except (KeyError, TypeError): #haven't played this season, #no data?
-            # print("test")
-            wr = "N/A"
+                seasons = r["QueueSkills"]["competitive"].get("SeasonalInfoBySeasonID")
+            except (KeyError, TypeError):
+                seasons = None
+            if seasons is not None:
+                for season in seasons:
+                    if seasons[season]["WinsByTier"] is not None:
+                        for winByTier in seasons[season]["WinsByTier"]:
+                            if season in self.ranks_before:
+                                if int(winByTier) > 20:
+                                    winByTier = int(winByTier) + 3
+                            if int(winByTier) > max_rank:
+                                max_rank = int(winByTier)
+                                max_rank_season = season
+        final["peakrank"] = max_rank
+        wr = "N/A"
+        if r is not None:
+            try:
+                wins = r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][seasonID]["NumberOfWinsWithPlacements"]
+                total_games = r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][seasonID]["NumberOfGames"]
+                final["numberofgames"] = total_games
+                try:
+                    wr = int(wins / total_games * 100)
+                except ZeroDivisionError: #no loses
+                    wr = 100
+            except (KeyError, TypeError): #haven't played this season, #no data?
+                wr = "N/A"
 
 
         # rank.append(wr)
