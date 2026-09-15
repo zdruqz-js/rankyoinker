@@ -125,10 +125,14 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $name = "${{ steps.artifact.outputs.name }}"
           $isDev = "${{ steps.artifact.outputs.isDev }}" -eq "True"
-          $preFlag = if ($isDev) { "--prerelease" } else { "" }
           $title = if ($isDev) { "RankYoinker $tag (dev)" } else { "RankYoinker $tag" }
+          # Kein leerer String als Positionsargument (PowerShell versucht den
+          # sonst als Datei-Glob zu expandieren -> "no matches found for ``")
+          # - --prerelease nur ueberhaupt anhaengen, wenn's ein dev-Tag ist.
+          $extraArgs = @()
+          if ($isDev) { $extraArgs += "--prerelease" }
           gh release create $tag $name "$name.sha256" `
             --repo zdruqz-js/rankyoinker `
             --title $title `
             --generate-notes `
-            $preFlag
+            @extraArgs
