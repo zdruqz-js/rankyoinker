@@ -1,0 +1,31 @@
+{
+    "cooldown": 10,
+    "port": 1100,
+    "weapon": "Vandal",
+    "chat_limit": 5,
+    "table": {
+        "skin": true,
+        "rr": true,
+        "earned_rr": true,
+        "peakrank": true,
+        "previousrank": false,
+        "leaderboard": true,
+        "headshot_percent": true,
+        "winrate": true,
+        "kd": false,
+        "level": true
+    },
+    "flags": {
+        "last_played": true,
+        "auto_hide_leaderboard": true,
+        "pre_cls": false,
+        "game_chat": true,
+        "peak_rank_act": true,
+        "discord_rpc": true,
+        "aggregate_rank_rr": true,
+        "server_id": false,
+        "short_ranks": false,
+        "truncate_skins": true,
+        "truncate_names": true
+    }
+}

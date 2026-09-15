@@ -113,7 +113,11 @@ Source: "..\index.html"; DestDir: "{app}"; Flags: ignoreversion
 ; eingebettet - siehe /api/languages + /lang/<code>.json in vry_log_server.py.
 ; Neue Sprache = neue Datei hier reinlegen, kein Code-Update noetig.
 Source: "..\lang\*"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist
+; config.default.json ist im Repo versioniert (das *Standard*-Template) -
+; "..\config.json" waere die tatsaechliche Laufzeit-Konfiguration dieser
+; Maschine (siehe .gitignore) und existiert deshalb in einem frischen CI-
+; Checkout gar nicht.
+Source: "config.default.json"; DestDir: "{app}"; DestName: "config.json"; Flags: onlyifdoesntexist
 Source: "..\LIESMICH.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry.vbs"; DestDir: "{app}"; Flags: ignoreversion
