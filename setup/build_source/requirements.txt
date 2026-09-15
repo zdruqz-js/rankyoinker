@@ -1,0 +1,14 @@
+# Pinned so a CI build (see .github/workflows/build-release.yml) always
+# resolves the exact same dependency set instead of silently picking up a
+# newer, possibly API-breaking release - see the 2026-09-15 incident where an
+# unpinned websockets upgrade broke extra_headers/additional_headers on the
+# manual Windows build machine. cx_Freeze itself is installed separately in
+# the workflow (not a runtime dependency of vry.exe).
+requests==2.34.2
+colr==0.9.1
+InquirerPy==0.3.4
+websockets==17.1
+pypresence==4.6.2
+nest_asyncio==1.6.0
+rich==15.0.0
+websocket_server==0.6.4

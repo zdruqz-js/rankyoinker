@@ -1,0 +1,110 @@
+name: Build & release installer
+
+# Baut vry.exe + den Inno-Setup-Installer aus genau dem Quellcode, den der
+# gepushte Tag markiert, auf einem echten (nicht emulierten) Windows-Runner -
+# damit jede/r nachvollziehen kann, dass die veroeffentlichte .exe wirklich
+# aus diesem Repo/Commit stammt, statt es dem manuellen Wine-Build auf einem
+# privaten Server glauben zu muessen. Tag-Konvention: "vX.Y.Z" fuer stable,
+# "vX.Y.Z-dev" fuer den dev-Kanal (wird als GitHub-"prerelease" markiert).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write      # GitHub Release anlegen
+  id-token: write       # fuer die Build-Provenance-Attestation
+  attestations: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Repo auschecken (genau der getaggte Commit)
+        uses: actions/checkout@v4
+
+      - name: Python 3.10 einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Abhaengigkeiten installieren (gepinnt, siehe requirements.txt)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r setup/build_source/requirements.txt
+          pip install cx_Freeze==8.7.0
+
+      - name: vry.exe bauen (cx_Freeze)
+        working-directory: setup/build_source
+        run: python setup.py build
+
+      - name: Build-Ausgabe ins Repo-Root kopieren
+        shell: pwsh
+        run: |
+          $buildDir = Get-ChildItem -Path "setup/build_source/build" -Directory -Filter "exe.win-amd64-*" | Select-Object -First 1
+          if (-not $buildDir) { throw "cx_Freeze-Build-Ordner nicht gefunden" }
+          Copy-Item "$($buildDir.FullName)/vry.exe" -Destination "vry.exe" -Force
+          Copy-Item "$($buildDir.FullName)/lib" -Destination "lib" -Recurse -Force
+
+      - name: Loose-Override-Dateien reinkopieren
+        shell: pwsh
+        # Diese 5 Dateien liegen bewusst als .py NEBEN ihrer eingefrorenen
+        # .pyc in lib/src/ (Python bevorzugt .py im selben Ordner) - siehe
+        # Kommentare in den Dateien selbst. Ein frischer cx_Freeze-Build
+        # erzeugt nur die .pyc, die .py-Kopien fehlen ohne diesen Schritt.
+        run: |
+          $overrides = "colors.py","presences.py","requestsV.py","rpc.py","websocket.py"
+          foreach ($f in $overrides) {
+            Copy-Item "setup/build_source/src/$f" -Destination "lib/src/$f" -Force
+          }
+
+      - name: Inno Setup installieren
+        run: choco install innosetup -y --no-progress
+
+      - name: Installer kompilieren
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "setup\RankYoinker.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC.exe fehlgeschlagen (exit $LASTEXITCODE)" }
+
+      - name: Installer benennen + SHA256 berechnen
+        id: artifact
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"                  # z.B. v2.2.0 oder v2.2.0-dev
+          $version = $tag.TrimStart("v")                    # 2.2.0 / 2.2.0-dev
+          $isDev = $tag -like "*-dev"
+          $finalName = "RankYoinker-SetupV$version.exe"
+          Copy-Item "setup/Output/RankYoinker-Setup.exe" -Destination $finalName -Force
+          $hash = (Get-FileHash -Algorithm SHA256 $finalName).Hash.ToLower()
+          Set-Content -Path "$finalName.sha256" -Value "$hash  $finalName"
+          "name=$finalName"      >> $env:GITHUB_OUTPUT
+          "sha256=$hash"         >> $env:GITHUB_OUTPUT
+          "version=$version"     >> $env:GITHUB_OUTPUT
+          "isDev=$isDev"         >> $env:GITHUB_OUTPUT
+
+      # Erzeugt eine von GitHub signierte (Sigstore) Herkunftsbestaetigung:
+      # "diese Datei wurde von diesem Workflow, in diesem Repo, aus diesem
+      # Commit gebaut" - oeffentlich nachpruefbar per
+      # `gh attestation verify RankYoinker-SetupV<version>.exe --owner zdruqz-js`,
+      # nicht nur "vertrau dem Actions-Log".
+      - name: Build-Provenance bezeugen
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ steps.artifact.outputs.name }}
+
+      - name: GitHub Release veroeffentlichen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $name = "${{ steps.artifact.outputs.name }}"
+          $isDev = "${{ steps.artifact.outputs.isDev }}" -eq "True"
+          $preFlag = if ($isDev) { "--prerelease" } else { "" }
+          $title = if ($isDev) { "RankYoinker $tag (dev)" } else { "RankYoinker $tag" }
+          gh release create $tag $name "$name.sha256" `
+            --repo zdruqz-js/rankyoinker `
+            --title $title `
+            --generate-notes `
+            $preFlag
