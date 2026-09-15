@@ -24,7 +24,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.1.20"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -109,6 +109,10 @@ Source: "..\PYTHON-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\*.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\index.html"; DestDir: "{app}"; Flags: ignoreversion
+; Eine .json pro Sprache (de.json, pl.json, ...) statt fest in index.html
+; eingebettet - siehe /api/languages + /lang/<code>.json in vry_log_server.py.
+; Neue Sprache = neue Datei hier reinlegen, kein Code-Update noetig.
+Source: "..\lang\*"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist
 Source: "..\LIESMICH.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion

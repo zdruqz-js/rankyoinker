@@ -56,6 +56,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 LOGDIR = os.path.join(BASE, "logs")
+# Eine .json pro Sprache (de.json, pl.json, ...) statt fest im JS eingebettet -
+# lassen sich so einzeln an Uebersetzer weitergeben, und eine neue Sprache
+# hinzuzufuegen heisst nur "eine weitere Datei reinlegen", kein Code-Aenderung.
+# Siehe notesForCurrentLang()/LANGUAGES in index.html fuer die Verwendung.
+LANG_DIR = os.path.join(BASE, "lang")
+_LANG_CODE_RE = re.compile(r"^[a-z]{2}$")
 PORT = 1101
 CREATE_NO_WINDOW = 0x08000000
 
@@ -431,7 +437,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.1.20"
+APP_VERSION = "2.2.0"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -4934,6 +4940,30 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/favicon.ico":
             self._send(204, "")
+
+        elif path == "/api/languages":
+            # Liste der verfuegbaren Sprachen = einfach die Dateinamen in
+            # lang/ - siehe LANG_DIR oben. Neue Sprache = neue Datei, kein
+            # Code hier muss dafuer angefasst werden.
+            try:
+                codes = sorted(
+                    f[:-5] for f in os.listdir(LANG_DIR)
+                    if f.endswith(".json") and _LANG_CODE_RE.match(f[:-5])
+                )
+            except Exception:
+                codes = []
+            self._json({"ok": True, "codes": codes})
+
+        elif path.startswith("/lang/") and path.endswith(".json"):
+            code = path[len("/lang/"):-len(".json")]
+            if not _LANG_CODE_RE.match(code):
+                self._json({"ok": False, "error": "ungueltiger Sprachcode"}, 400)
+            else:
+                try:
+                    with open(os.path.join(LANG_DIR, code + ".json"), "r", encoding="utf-8") as fh:
+                        self._send(200, fh.read())
+                except Exception:
+                    self._json({"ok": False, "error": "Sprachdatei nicht gefunden"}, 404)
 
         elif path == "/api/pair":
             if self._local_only():
