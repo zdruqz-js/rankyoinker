@@ -29,10 +29,19 @@ jobs:
           python-version: "3.10"
 
       - name: Abhaengigkeiten installieren (gepinnt, siehe requirements.txt)
+        # PowerShell bricht bei einem fehlgeschlagenen Befehl NICHT automatisch
+        # ab (anders als "set -e" in bash) - ohne die expliziten Exit-Code-
+        # Checks lief ein fehlgeschlagenes "pip install -r requirements.txt"
+        # (z.B. eine Paketversion, die diese Python-Version nicht unterstuetzt)
+        # bisher stillschweigend weiter und schlug erst beim eigentlichen
+        # Build mit einem verwirrenden "ImportError" fehl.
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r setup/build_source/requirements.txt
+          if ($LASTEXITCODE -ne 0) { throw "pip install -r requirements.txt fehlgeschlagen (exit $LASTEXITCODE)" }
           pip install cx_Freeze==8.7.0
+          if ($LASTEXITCODE -ne 0) { throw "pip install cx_Freeze fehlgeschlagen (exit $LASTEXITCODE)" }
 
       - name: vry.exe bauen (cx_Freeze)
         working-directory: setup/build_source
