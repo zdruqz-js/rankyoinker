@@ -78,7 +78,21 @@ class Ws:
             poll_task = None
             recv_task = None
             try:
-                async with websockets.connect(url, ssl=self.ssl_context, extra_headers=local_headers) as websocket:
+                # websockets 13+ hat den Parameter von "extra_headers" auf
+                # "additional_headers" umbenannt - je nachdem, welche Version
+                # beim Bauen gerade von PyPI installiert wurde (kein Pin in
+                # requirements.txt), erwartet die Bibliothek den einen oder
+                # den anderen Namen. Der falsche Name liess JEDEN einzigen
+                # Verbindungsversuch sofort mit einem TypeError scheitern -
+                # der Websocket kam dadurch nie zustande, die App lief
+                # komplett auf dem (langsameren) Reconciliation-Fallback statt
+                # auf echten Echtzeit-Events (siehe die Logs: Sekunden-Takt
+                # "DISCONNECTED"/"MENUS" im Kreis nach jedem Match).
+                try:
+                    ws_ctx = websockets.connect(url, ssl=self.ssl_context, additional_headers=local_headers)
+                except TypeError:
+                    ws_ctx = websockets.connect(url, ssl=self.ssl_context, extra_headers=local_headers)
+                async with ws_ctx as websocket:
                     await websocket.send('[5, "OnJsonApiEvent_chat_v4_presences"]')
                     if self.cfg.get_feature_flag("game_chat"):
                         await websocket.send('[5, "OnJsonApiEvent_chat_v6_messages"]')

@@ -7,6 +7,18 @@ from colr import color
 import os
 from requests.exceptions import ConnectionError
 
+# fetch() gab bei einem 429 (Rate-Limit) bisher UNBEGRENZT oft mit wachsender
+# Wartezeit neu auf - blieb Riot laenger als ueblich rate-limitiert (kommt
+# vor, siehe Diagnose-Logs: teils >2 Minuten am Stueck), blockierte das den
+# aufrufenden Thread ebenso lange. Bei begrenzten ThreadPoolExecutor-Workern
+# (main.py) verhungerten dadurch ALLE anderen wartenden Spieler mit, obwohl
+# nur ein paar Spieler tatsaechlich betroffen waren. Ab MAX_FETCH_ATTEMPTS
+# wird stattdessen aufgegeben und die (fehlgeschlagene) Antwort zurueckgegeben
+# - Aufrufer (rank.py/player_stats.py) haben fuer genau diesen Fall schon
+# Standardwerte/Fallbacks, zeigen fuer den betroffenen Spieler dann eben "N/A"
+# statt die komplette Ladung fuer alle zu blockieren.
+MAX_FETCH_ATTEMPTS = 2
+
 class Requests:
     def __init__(self, version, log, Error):
         self.Error = Error
@@ -54,7 +66,7 @@ class Requests:
             print(color("[WARNING] Failed processing status - skipping...", fore=(255, 165, 0)))
             return
             
-    def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5):
+    def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5, attempt=1):
         try:
             if url_type == "glz":
                 response = requests.request(method, self.glz_url + endpoint, headers=self.get_headers(), verify=False)
@@ -76,6 +88,9 @@ class Requests:
                         self.log("response not ok glz endpoint: rate limit 429")
                     else:
                         self.log("response not ok glz endpoint: " + response.text)
+                    if attempt >= MAX_FETCH_ATTEMPTS:
+                        self.log(f"glz endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
+                        return response.json()
                     time.sleep(rate_limit_seconds+5)
                     self.headers = {}
                     # War hier ohne "return": der Retry lief zwar, sein Ergebnis
@@ -86,7 +101,7 @@ class Requests:
                     # Rate-Limit-Treffer dadurch dazu, dass der Zustandsabgleich
                     # faelschlich "nicht mehr im Match" meldete und das laufende
                     # Laden der Spielerliste mittendrin neu startete.
-                    return self.fetch(url_type, endpoint, method)
+                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
                 return response.json()
             elif url_type == "pd":
                 response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=False)
@@ -109,9 +124,12 @@ class Requests:
                         self.log(f"response not ok pd endpoint, rate limit 429")
                     else:
                         self.log(f"response not ok pd endpoint, {response.text}")
+                    if attempt >= MAX_FETCH_ATTEMPTS:
+                        self.log(f"pd endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
+                        return response
                     time.sleep(rate_limit_seconds+5)
                     self.headers = {}
-                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5)
+                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
                 return response
             elif url_type == "local":
                 local_headers = {'Authorization': 'Basic ' + base64.b64encode(
