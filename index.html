@@ -4038,7 +4038,10 @@
   const IL_RISK_ACK_KEY = 'vry_instalock_risk_ack';
   const hasInstalockRiskAck = () => localStorage.getItem(IL_RISK_ACK_KEY) === '1';
 
-  // Feste Zielverzögerung: immer zufällig zwischen 11 und 12 Sekunden, nicht mehr wählbar
+  // Feste Zielverzögerung: immer zufällig zwischen 11 und 12 Sekunden, nicht
+  // mehr wählbar - nur fürs Anzeigen hier (muss zu IL_DELAY/IL_JITTER im
+  // Log-Server passen). Der Dienst legt delay/jitter selbst fest und nimmt
+  // dafür keine Werte vom Client entgegen, siehe instalock_arm() dort.
   const IL_DELAY = 11.5, IL_JITTER = 0.5;
   const ilSpanText = () => `${(IL_DELAY - IL_JITTER).toFixed(1)}-${(IL_DELAY + IL_JITTER).toFixed(1)} s`;
 
@@ -4154,8 +4157,9 @@
 
   function armInstalock(){
     const name = agentById[String(instalockAgent).toLowerCase()] || '';
-    return api('/api/instalock/arm', {agent: instalockAgent, name: name,
-                                      delay: IL_DELAY, jitter: IL_JITTER})
+    // delay/jitter werden bewusst NICHT mitgeschickt - der Dienst legt sie
+    // selbst fest (siehe IL_DELAY/IL_JITTER in vry_log_server.py).
+    return api('/api/instalock/arm', {agent: instalockAgent, name: name})
       .catch(apiFail).then(j => {
         if(j && j.ok){
           instalockOn = true;

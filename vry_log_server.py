@@ -2555,13 +2555,22 @@ IL_POLL = 0.6             # so oft wird auf eine neue Agentenauswahl geprueft
 IL_LOCK_TRIES = 10        # ganz zu Beginn der Auswahl lehnt Riot gerne mal ab
 IL_LOCK_GAP = 0.35
 
+# Fest vorgegeben, NICHT vom Client uebernehmbar (siehe instalock_arm unten) -
+# genau diese zufaellige 11-12s-Verzoegerung ist die ganze Begruendung dafuer,
+# dass Instalock kein verbotenes Instant-Lock-Tool ist (siehe die Risiko-
+# Bestaetigung in index.html). Wuerde der Server einen vom Client geschickten
+# delay/jitter-Wert uebernehmen, koennte jeder ueber ein manipuliertes
+# index.html oder eine direkte Anfrage an /api/instalock/arm auf 0s stellen.
+IL_DELAY = 11.5
+IL_JITTER = 0.5
+
 _il_lock = threading.Lock()
 _il = {
     "on": False,          # scharf?
     "agent": None,        # Agenten-UUID
     "name": "",           # Anzeigename (nur fuer Meldungen)
-    "delay": 7.0,         # Wunsch-Verzoegerung in Sekunden
-    "jitter": 1.0,        # zufaellige Streuung +/- Sekunden
+    "delay": IL_DELAY,    # Verzoegerung in Sekunden (fest, siehe oben)
+    "jitter": IL_JITTER,  # zufaellige Streuung +/- Sekunden (fest, siehe oben)
     "match": None,        # Agentenauswahl, auf die gefeuert wird
     "fireAt": 0.0,        # Zeitpunkt des Sperrens
     "planned": 0.0,       # tatsaechlich gewuerfelte Verzoegerung
@@ -2614,8 +2623,8 @@ def _il_restore():
     with _il_lock:
         _il.update({
             "agent": data.get("agent"), "name": data.get("name") or "",
-            "delay": float(data.get("delay") or 7.0),
-            "jitter": float(data.get("jitter") or 1.0),
+            "delay": IL_DELAY,
+            "jitter": IL_JITTER,
             "on": resume,
             "status": "armed" if resume else "off",
             "message": ("Dienst neu gestartet — Instalock wieder scharf."
@@ -2654,24 +2663,20 @@ def instalock_state():
         }
 
 
-def _il_num(body, key, default, lo, hi):
-    try:
-        return max(lo, min(hi, float((body or {}).get(key, default))))
-    except (TypeError, ValueError):
-        return default
-
-
 def instalock_arm(body):
     """Scharf schalten. Die Seite darf das jederzeit erneut schicken —
-    zuletzt gewinnt, ohne dass eine laufende Verzoegerung durcheinanderkommt."""
+    zuletzt gewinnt, ohne dass eine laufende Verzoegerung durcheinanderkommt.
+
+    delay/jitter kommen bewusst NICHT aus body - siehe IL_DELAY/IL_JITTER
+    oben, fest im Dienst vorgegeben."""
     agent = (body or {}).get("agent")
     if not agent:
         return {"ok": False, "error": "Kein Agent angegeben."}
     with _il_lock:
         _il.update({
             "on": True, "agent": agent, "name": (body or {}).get("name") or "",
-            "delay": _il_num(body, "delay", 7.0, 0.0, 60.0),
-            "jitter": _il_num(body, "jitter", 1.0, 0.0, 5.0),
+            "delay": IL_DELAY,
+            "jitter": IL_JITTER,
             "match": None, "fireAt": 0.0, "planned": 0.0, "status": "armed",
             "lockedAt": 0.0,
             "message": "Wartet auf die naechste Agentenauswahl.",
