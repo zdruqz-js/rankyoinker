@@ -4033,6 +4033,11 @@
   let instalockAgent = localStorage.getItem('vry_instalock_agent') || null;
   let ilPollTimer = null, ilGen = -1;   // Anzeige-Poll; die Logik liegt im Log-Server
 
+  // Einmalige Risiko-Bestätigung, bevor Instalock ueberhaupt scharf geschaltet
+  // werden kann - siehe showInstalockRiskModal() weiter unten.
+  const IL_RISK_ACK_KEY = 'vry_instalock_risk_ack';
+  const hasInstalockRiskAck = () => localStorage.getItem(IL_RISK_ACK_KEY) === '1';
+
   // Feste Zielverzögerung: immer zufällig zwischen 11 und 12 Sekunden, nicht mehr wählbar
   const IL_DELAY = 11.5, IL_JITTER = 0.5;
   const ilSpanText = () => `${(IL_DELAY - IL_JITTER).toFixed(1)}-${(IL_DELAY + IL_JITTER).toFixed(1)} s`;
@@ -4091,7 +4096,39 @@
     const btn = document.getElementById('ilToggle');
     if(btn) btn.addEventListener('click', () => {
       if(!instalockAgent) return;
-      if(instalockOn) disarmInstalock(); else armInstalock();
+      if(instalockOn){ disarmInstalock(); return; }
+      if(!hasInstalockRiskAck()){ showInstalockRiskModal(armInstalock); return; }
+      armInstalock();
+    });
+  }
+
+  // Muss einmalig bestaetigt werden, bevor Instalock ueberhaupt scharf
+  // geschaltet werden kann - danach dauerhaft (per localStorage) gemerkt,
+  // genau wie der zuletzt gewaehlte Agent selbst.
+  function showInstalockRiskModal(onConfirm){
+    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
+      <div class="modal-body">
+        <div class="sec-title">${t('instalock_risk_title')}</div>
+        <p style="color:var(--text-dim); line-height:1.55; margin:0 0 18px;">${t('instalock_risk_body')}</p>
+        <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin-bottom:20px;">
+          <input type="checkbox" id="ilRiskCheck" style="accent-color:var(--gold); width:16px; height:16px; margin-top:2px; flex:none;">
+          <span>${t('instalock_risk_checkbox_label')}</span>
+        </label>
+        <div class="skinpick-actions">
+          <button class="pbtn go" id="ilRiskConfirm" disabled>${svgIcon('check', 12)}${t('instalock_risk_confirm_btn')}</button>
+          <button class="pbtn" id="ilRiskCancel">${svgIcon('x', 12)}${t('cancel')}</button>
+        </div>
+      </div>`;
+    modalWrap.classList.add('open');
+    const check = document.getElementById('ilRiskCheck');
+    const confirmBtn = document.getElementById('ilRiskConfirm');
+    check.addEventListener('change', () => { confirmBtn.disabled = !check.checked; });
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('ilRiskCancel').addEventListener('click', closeModal);
+    confirmBtn.addEventListener('click', () => {
+      localStorage.setItem(IL_RISK_ACK_KEY, '1');
+      closeModal();
+      onConfirm();
     });
   }
   function repaintInstalock(){
