@@ -1,4 +1,4 @@
-; RankYoinker Installer (Inno Setup)
+﻿; RankYoinker Installer (Inno Setup)
 ; ------------------------------------------------------------------
 ; Baut auf VALORANT Rank Yoinker (vRY) von Zay Kenyon and Contributors
 ; auf (https://github.com/zayKenyon/VALORANT-rank-yoinker, ISC-Lizenz).
@@ -77,9 +77,74 @@ Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+
+; Die eingebauten [Languages]-MessagesFile-Dateien uebersetzen nur die
+; Standard-Inno-Setup-UI (Weiter/Zurueck/Lizenzseite/Fertig-Seite, ...).
+; Alles, was RankYoinker selbst an eigenem Text in den Installer schreibt
+; (Task-Checkbox, Verknuepfungsnamen, Fortschrittstext, Checkbox auf der
+; Fertig-Seite), muss dafuer extra hier uebersetzt werden - sonst waere
+; das fuer jede gewaehlte Sprache ausser Deutsch ein Bruch mitten im
+; sonst durchgehend lokalisierten Assistenten.
+[CustomMessages]
+english.DesktopIconDesc=Create a desktop icon
+german.DesktopIconDesc=Desktop-Verknüpfung anlegen
+polish.DesktopIconDesc=Utwórz ikonę na pulpicie
+french.DesktopIconDesc=Créer une icône sur le bureau
+spanish.DesktopIconDesc=Crear un icono en el escritorio
+turkish.DesktopIconDesc=Masaüstü simgesi oluştur
+korean.DesktopIconDesc=바탕화면에 바로가기 만들기
+
+english.AdditionalIconsGroup=Additional icons:
+german.AdditionalIconsGroup=Zusätzliche Symbole:
+polish.AdditionalIconsGroup=Dodatkowe ikony:
+french.AdditionalIconsGroup=Icônes supplémentaires :
+spanish.AdditionalIconsGroup=Iconos adicionales:
+turkish.AdditionalIconsGroup=Ek simgeler:
+korean.AdditionalIconsGroup=추가 아이콘:
+
+english.StartMenuStartName=Start RankYoinker
+german.StartMenuStartName=RankYoinker starten
+polish.StartMenuStartName=Uruchom RankYoinker
+french.StartMenuStartName=Démarrer RankYoinker
+spanish.StartMenuStartName=Iniciar RankYoinker
+turkish.StartMenuStartName=RankYoinker'ı başlat
+korean.StartMenuStartName=RankYoinker 시작
+
+english.StartMenuStopName=Stop RankYoinker
+german.StartMenuStopName=RankYoinker beenden
+polish.StartMenuStopName=Zatrzymaj RankYoinker
+french.StartMenuStopName=Arrêter RankYoinker
+spanish.StartMenuStopName=Detener RankYoinker
+turkish.StartMenuStopName=RankYoinker'ı durdur
+korean.StartMenuStopName=RankYoinker 종료
+
+english.StartMenuOverlayName=Open overlay in browser
+german.StartMenuOverlayName=Overlay im Browser öffnen
+polish.StartMenuOverlayName=Otwórz nakładkę w przeglądarce
+french.StartMenuOverlayName=Ouvrir l'overlay dans le navigateur
+spanish.StartMenuOverlayName=Abrir el overlay en el navegador
+turkish.StartMenuOverlayName=Overlay'i tarayıcıda aç
+korean.StartMenuOverlayName=브라우저에서 오버레이 열기
+
+english.InstallStatusMsg=Setting up autostart, firewall and short address...
+german.InstallStatusMsg=Richte Autostart, Firewall und Kurzadresse ein...
+polish.InstallStatusMsg=Konfigurowanie autostartu, zapory i krótkiego adresu...
+french.InstallStatusMsg=Configuration du démarrage automatique, du pare-feu et de l'adresse courte...
+spanish.InstallStatusMsg=Configurando el inicio automático, el firewall y la dirección corta...
+turkish.InstallStatusMsg=Otomatik başlatma, güvenlik duvarı ve kısa adres ayarlanıyor...
+korean.InstallStatusMsg=자동 시작, 방화벽, 단축 주소를 설정하는 중...
+
+english.OpenOverlayNowDesc=Open the RankYoinker overlay in the browser now
+german.OpenOverlayNowDesc=RankYoinker-Overlay jetzt im Browser öffnen
+polish.OpenOverlayNowDesc=Otwórz teraz nakładkę RankYoinker w przeglądarce
+french.OpenOverlayNowDesc=Ouvrir l'overlay RankYoinker dans le navigateur maintenant
+spanish.OpenOverlayNowDesc=Abrir ahora el overlay de RankYoinker en el navegador
+turkish.OpenOverlayNowDesc=RankYoinker overlay'ini şimdi tarayıcıda aç
+korean.OpenOverlayNowDesc=지금 브라우저에서 RankYoinker 오버레이 열기
 
 [Tasks]
-Name: "desktopicon"; Description: "Desktop-Verknüpfung anlegen"; GroupDescription: "Zusätzliche Symbole:"
+Name: "desktopicon"; Description: "{cm:DesktopIconDesc}"; GroupDescription: "{cm:AdditionalIconsGroup}"
 
 [Dirs]
 ; ProgramData-Unterordner sind für normale Nutzer standardmässig nur
@@ -133,9 +198,9 @@ Source: "open_overlay.bat"; DestDir: "{app}\setup"; Flags: ignoreversion
 Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\RankYoinker starten"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\RankYoinker beenden"; Filename: "{app}\stop_vry.bat"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\Overlay im Browser öffnen"; Filename: "http://localhost:1101/"; IconFilename: "{app}\rankyoinker.ico"
+Name: "{group}\{cm:StartMenuStartName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
+Name: "{group}\{cm:StartMenuStopName}"; Filename: "{app}\stop_vry.bat"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
+Name: "{group}\{cm:StartMenuOverlayName}"; Filename: "http://localhost:1101/"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{group}\{cm:UninstallProgram,RankYoinker}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\RankYoinker"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
 
@@ -159,14 +224,14 @@ Name: "{autodesktop}\RankYoinker"; Filename: "{app}\{#MyAppExeName}"; WorkingDir
 ; Konsolenkontext laufen, statt stdout/stderr ins Leere gehen zu lassen -
 ; einfacher zu diagnostizieren, falls doch mal etwas schiefgeht.
 Filename: "{app}\python.exe"; Parameters: """{app}\setup\install_all.py"""; \
-    WorkingDir: "{app}\setup"; StatusMsg: "Richte Autostart, Firewall und Kurzadresse ein..."; Flags: waituntilterminated runhidden
+    WorkingDir: "{app}\setup"; StatusMsg: "{cm:InstallStatusMsg}"; Flags: waituntilterminated runhidden
 ; Öffnet die Overlay-Seite - "postinstall" heisst: läuft erst, wenn der
 ; Nutzer auf der "Fertig"-Seite auf "Fertigstellen" klickt, nicht vorher.
 ; "skipifsilent" hält eine stille/automatisierte Installation komplett
 ; browserfrei. Vorbelegt/angehakt, der Nutzer kann es auf der Fertig-
 ; Seite trotzdem abwählen.
 Filename: "{cmd}"; Parameters: "/C ""{app}\setup\open_overlay.bat"""; \
-    WorkingDir: "{app}\setup"; Description: "RankYoinker-Overlay jetzt im Browser öffnen"; \
+    WorkingDir: "{app}\setup"; Description: "{cm:OpenOverlayNowDesc}"; \
     Flags: postinstall skipifsilent runhidden nowait
 
 [UninstallRun]
