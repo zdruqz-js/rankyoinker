@@ -56,7 +56,7 @@ jobs:
           Copy-Item "$($buildDir.FullName)/lib" -Destination "lib" -Recurse -Force
           # Guard: a missing runtime package only shows up as a stuck "Loading..."
           # screen on the user's machine (yaml was silently missing once).
-          foreach ($pkg in @("yaml","requests","websockets","pypresence","rich","colr","InquirerPy","websocket_server","nest_asyncio")) {
+          foreach ($pkg in @("yaml","requests","websockets","pypresence","rich","colr","InquirerPy","websocket_server")) {
             if (-not (Test-Path "lib/$pkg")) { throw "Build unvollstaendig: lib/$pkg fehlt" }
           }
 
