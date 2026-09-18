@@ -12,3 +12,4 @@ pypresence==4.6.2
 nest_asyncio==1.6.0
 rich==15.0.0
 websocket_server==0.6.4
+PyYAML==6.0.3

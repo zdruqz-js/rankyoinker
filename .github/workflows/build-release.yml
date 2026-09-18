@@ -54,6 +54,11 @@ jobs:
           if (-not $buildDir) { throw "cx_Freeze-Build-Ordner nicht gefunden" }
           Copy-Item "$($buildDir.FullName)/vry.exe" -Destination "vry.exe" -Force
           Copy-Item "$($buildDir.FullName)/lib" -Destination "lib" -Recurse -Force
+          # Guard: a missing runtime package only shows up as a stuck "Loading..."
+          # screen on the user's machine (yaml was silently missing once).
+          foreach ($pkg in @("yaml","requests","websockets","pypresence","rich","colr","InquirerPy","websocket_server","nest_asyncio")) {
+            if (-not (Test-Path "lib/$pkg")) { throw "Build unvollstaendig: lib/$pkg fehlt" }
+          }
 
       - name: Loose-Override-Dateien reinkopieren
         shell: pwsh

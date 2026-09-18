@@ -16,7 +16,7 @@ from cx_Freeze import setup, Executable
 
 build_exe_options = {
     "path": sys.path,
-    "packages": ["requests", "colr", "InquirerPy", "websockets", "pypresence", "nest_asyncio", "rich", "websocket_server"],
+    "packages": ["requests", "colr", "InquirerPy", "websockets", "pypresence", "nest_asyncio", "rich", "websocket_server", "yaml"],
     "excludes": ["tkinter", "test", "unittest", "pygments", "xmlrpc"]
 }
 
