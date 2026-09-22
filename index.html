@@ -5211,10 +5211,13 @@
         enemies = list.filter(p => p.team && p.team !== ownTeam);
       } else if(state === 'PREGAME'){
         allies = list;
-        // Riot gibt Gegner-Puuids während der Agentenauswahl beim normalen
-        // Matchmaking nicht heraus — pregameEnemies bleibt darum meist leer,
-        // füllt sich in Sonderfällen aber schon vor dem Laden (siehe Server).
+        // Der Log-Server liest die Gegner-Puuids aus dem Loadouts-Endpunkt der
+        // Agentenauswahl (der Haupt-Match-Endpunkt haelt sie bei normalem
+        // Matchmaking zurueck, siehe Server) - "agent" kommt von dort als
+        // rohe Agenten-Uuid, genau wie beim eigenen Team erst hier in einen
+        // Anzeigenamen aufgeloest.
         enemies = pregameEnemies.map(p => ({puuid: p.puuid, name: p.name,
+          agent: p.agent ? (agentById[String(p.agent).toLowerCase()] || null) : null,
           rank: p.rank, rr: p.rr, peakRank: p.peakRank, peakRankAct: p.peakRankAct}));
       } else {
         allies = list;
@@ -7044,7 +7047,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.2.6";
+const CURRENT_VERSION = "2.2.7-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

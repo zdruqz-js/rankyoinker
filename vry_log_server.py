@@ -437,7 +437,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.2.6"
+APP_VERSION = "2.2.7-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -2443,7 +2443,9 @@ def _pregame_fetch():
             "hovering": sel == "selected",
         })
 
-    enemies = _pregame_enemies_best_effort(m, ally_puuids)
+    enemies = _pregame_loadouts_enemies(mid, ally_puuids)
+    if enemies is None:
+        enemies = _pregame_enemies_best_effort(m, ally_puuids)
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
             "enemies": enemies}
@@ -2474,6 +2476,57 @@ def _collect_strings(obj, out):
     elif isinstance(obj, list):
         for v in obj:
             _collect_strings(v, out)
+
+
+def _pregame_loadouts_enemies(mid, ally_puuids):
+    """Gegner-Puuids ueber /pregame/v1/matches/{id}/loadouts statt ueber den
+    Haupt-Match-Endpunkt (siehe _pregame_enemies_best_effort direkt darunter).
+
+    Dieser Endpunkt existiert, damit der offizielle Client schon waehrend der
+    Agentenauswahl weiss, welche Waffen-Skins spaeter im Killfeed auftauchen -
+    dafuer braucht er die Loadouts BEIDER Teams, nicht nur der eigenen Seite.
+    Im Gegensatz zum Haupt-Match-Endpunkt (der Gegner-Puuids in normalen
+    Matches bewusst zurueckhaelt) gibt Riot hier zuverlaessig alle zehn
+    Spieler mit "Subject" (Puuid) und "CharacterID" (gewaehlter Agent) heraus.
+    Ein Tipp aus der Community, danke dafuer.
+
+    Gibt bei Erfolg eine (moeglicherweise leere) Liste zurueck, bei jedem
+    Fehler None - der Aufrufer faellt dann auf die bisherige Bestenfalls-
+    Methode zurueck, statt den ganzen Aufruf scheitern zu lassen.
+    """
+    try:
+        status, j = riot_get("glz", "/pregame/v1/matches/%s/loadouts" % mid)
+        if status != 200 or not isinstance(j, dict):
+            return None
+        entries = j.get("Loadouts") or []
+        agent_by_puuid = {}
+        for entry in entries:
+            subj = entry.get("Subject")
+            if subj:
+                agent_by_puuid[subj] = entry.get("CharacterID") or None
+
+        skip = set(ally_puuids) | {get_auth()["puuid"]}
+        candidates = [u for u in agent_by_puuid if u not in skip]
+        if not candidates:
+            return []
+
+        name_map = names_for(candidates)
+        enemy_puuids = [u for u in candidates if name_map.get(u)]
+        if not enemy_puuids:
+            return []
+
+        ranks = dict(zip(enemy_puuids, _pool.map(mmr_summary, enemy_puuids)))
+        return [{
+            "puuid": u,
+            "name": name_map.get(u),
+            "agent": agent_by_puuid.get(u),
+            "rank": ranks[u].get("rank"),
+            "rr": ranks[u].get("rr"),
+            "peakRank": ranks[u].get("peakRank"),
+            "peakRankAct": ranks[u].get("peakRankAct"),
+        } for u in enemy_puuids]
+    except Exception:
+        return None
 
 
 def _pregame_enemies_best_effort(match_json, ally_puuids):
