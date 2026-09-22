@@ -760,6 +760,13 @@
     color:var(--text-dim); margin-top:2px;
   }
   .pcard-portrait .agent-tag .hov{color:var(--gold);}
+  /* Community-Idee: meistgespielter Agent der letzten Matches, schon in der
+     Agentenauswahl - eigene, dezente Zeile unter dem aktuell gewaehlten/
+     gehoverten Agenten, damit beides klar auseinanderzuhalten ist. */
+  .pcard-portrait .most-played{
+    font-size:10px; letter-spacing:.04em; text-transform:none; margin-top:3px;
+    color:rgba(236,232,225,.5); text-shadow:0 2px 10px rgba(0,0,0,0.8);
+  }
   /* nur gehoverte (noch nicht gelockte) Agenten leicht transparent zeigen */
   .pcard.hovering img.portrait, .pcard.hovering .agent-fallback-big{opacity:.62;}
 
@@ -3355,9 +3362,11 @@
 
         // Gegner-Ränge — meist leer (siehe Kommentar bei der Deklaration oben)
         const enemies = j.enemies || [];
-        // agent+Skin-Anzahl mit in die Signatur - sonst würde ein Agenten- oder
-        // Skinwechsel ohne Rangänderung nie ein Update auslösen.
-        const enemySig = enemies.map(p => [p.puuid, p.rank, p.rr, p.agent,
+        // agent+Skin-Anzahl+meistgespielter Agent mit in die Signatur - sonst
+        // würde weder ein Agenten-/Skinwechsel noch das (meist erst ein,
+        // zwei Polls später eintrudelnde) Ergebnis der Meistgespielt-Abfrage
+        // ohne Rangänderung ein Update auslösen.
+        const enemySig = enemies.map(p => [p.puuid, p.rank, p.rr, p.agent, p.mostPlayedAgent,
           p.weapons ? Object.keys(p.weapons).length : 0].join(':')).join(',');
         if(enemySig !== pregameEnemiesSig){
           pregameEnemiesSig = enemySig; pregameEnemies = enemies;
@@ -3456,6 +3465,9 @@
         <div class="name-stack">
           <div class="pname">${esc(dispName || t('name_unknown'))} <span class="tag">${esc(dispTag)}</span></div>
           <div class="agent-tag">${esc(p.agent || '—')}${info && info.role ? ' · ' + esc(info.role) : ''}${p.agent && p.agentLocked === false ? ` · <span class="hov">${t('hovering_lowercase')}</span>` : ''}</div>
+          ${p.mostPlayedAgent && p.mostPlayedAgent.toLowerCase() !== String(p.agent || '').toLowerCase()
+            ? `<div class="most-played">${t('most_played_agent_label', {agent: esc(p.mostPlayedAgent), n: p.mostPlayedAgentCount, total: p.mostPlayedAgentGames})}</div>`
+            : ''}
         </div>
       </div>
       <div class="pcard-body">
@@ -3543,7 +3555,14 @@
           <div class="sn">${esc(w.skinDisplayName || t('skin_default'))}</div>
         </div>`).join('') + `</div>`;
     } else {
-      skinsHtml = `<div class="loadout-empty">${t('loadout_transferred_ingame')}</div>`;
+      // Nicht mehr blind denselben Hinweis in jedem Zustand - "wird erst
+      // im laufenden Match uebertragen" ist irrefuehrend, wenn man das
+      // Match laengst laeuft und Riot das Loadout schlicht noch nicht
+      // nachgeliefert hat (siehe refill_missing_loadouts in main.py, das
+      // genau dafuer im Hintergrund weiter nachfragt und die Karte von
+      // selbst aktualisiert, sobald es etwas findet).
+      const alreadyIngame = latestData && latestData.state === 'INGAME';
+      skinsHtml = `<div class="loadout-empty">${t(alreadyIngame ? 'loadout_pending' : 'loadout_transferred_ingame')}</div>`;
     }
 
     let spraysHtml = '';
@@ -5232,6 +5251,12 @@
         enemies = pregameEnemies.map(p => ({puuid: p.puuid, name: p.name,
           agent: p.agent ? (agentById[String(p.agent).toLowerCase()] || null) : null,
           weapons: p.weapons || null,
+          // Community-Idee: meistgespielter Agent der letzten paar Matches -
+          // kommt vom Server oft erst ein, zwei Polls nach den Raengen
+          // (siehe most_played_agent_nonblocking dort), taucht dann von
+          // selbst auf.
+          mostPlayedAgent: p.mostPlayedAgent ? (agentById[String(p.mostPlayedAgent).toLowerCase()] || null) : null,
+          mostPlayedAgentCount: p.mostPlayedAgentCount, mostPlayedAgentGames: p.mostPlayedAgentGames,
           rank: p.rank, rr: p.rr, peakRank: p.peakRank, peakRankAct: p.peakRankAct}));
         pregameEnemiesForLoad = enemies;
       } else {
@@ -7070,7 +7095,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.1";
+const CURRENT_VERSION = "2.3.2-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

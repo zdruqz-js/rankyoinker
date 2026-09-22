@@ -440,7 +440,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.1"
+APP_VERSION = "2.3.2-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1652,6 +1652,97 @@ def mmr_summary(puuid):
     return out
 
 
+_agent_history_cache = {}   # puuid -> (Zeitpunkt, Ergebnis)
+AGENT_HISTORY_TTL = 6 * 3600   # 6h - der Hauptagent eines Spielers aendert sich nicht minuetlich
+AGENT_HISTORY_MATCHES = 3      # bewusst knapp: jedes Match kostet einen eigenen Match-Details-Aufruf
+
+
+def most_played_agent(puuid):
+    """Meistgespielter Agent der letzten paar Wettkampf-Matches - Idee aus der
+    Community: schon in der Agentenauswahl einen groben Hinweis geben, was
+    ein Spieler (vor allem ein Gegner) tendenziell spielt.
+
+    Bewusst auf AGENT_HISTORY_MATCHES begrenzt und hart gecacht: das hier
+    laeuft potenziell fuer bis zu 10 Spieler gleichzeitig waehrend der ohnehin
+    kurzen Agentenauswahl, parallel zu Rang und Skins - jedes zusaetzliche
+    Match ist ein eigener /match-details-Aufruf, zu viele davon aufs Mal
+    riskieren ein Riot-Rate-Limit genau dann, wenn es am wenigsten Zeit dafuer
+    gibt. Liefert None, sobald irgendetwas fehlschlaegt - nie ein Grund, die
+    restliche Anzeige zu verzoegern oder abzubrechen.
+    """
+    now = time.time()
+    with _cache_lock:
+        hit = _agent_history_cache.get(puuid)
+        if hit and now - hit[0] < AGENT_HISTORY_TTL:
+            return hit[1]
+
+    result = None
+    try:
+        status, j = riot_get(
+            "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d&queue=competitive"
+            % (puuid, AGENT_HISTORY_MATCHES))
+        matches = (j or {}).get("Matches") or [] if status == 200 else []
+        match_ids = [m.get("MatchID") for m in matches if m.get("MatchID")][:AGENT_HISTORY_MATCHES]
+        counts = {}
+        for mid in match_ids:
+            try:
+                mstatus, mdata = riot_get("pd", "/match-details/v1/matches/%s" % mid)
+            except Exception:
+                continue
+            if mstatus != 200 or not mdata:
+                continue
+            for p in (mdata.get("players") or []):
+                if p.get("subject") == puuid:
+                    cid = p.get("characterId")
+                    if cid:
+                        counts[cid] = counts.get(cid, 0) + 1
+                    break
+        if counts:
+            best = max(counts, key=counts.get)
+            result = {"agent": best, "count": counts[best], "games": len(match_ids)}
+    except Exception:
+        result = None
+
+    with _cache_lock:
+        if len(_agent_history_cache) > 60:
+            _agent_history_cache.clear()
+        _agent_history_cache[puuid] = (now, result)
+    return result
+
+
+_agent_history_pending = set()
+_agent_history_pending_lock = threading.Lock()
+
+
+def most_played_agent_nonblocking(puuid):
+    """Nicht-blockierende Fassung fuer die Agentenauswahl: liefert sofort den
+    gecachten Stand (oder None, wenn noch nichts bekannt ist), statt Rang und
+    Skins in _pregame_loadouts_enemies auf bis zu vier zusaetzliche
+    Riot-Aufrufe pro Spieler warten zu lassen. Stoesst hoechstens einmal pro
+    Puuid eine Hintergrundberechnung an; der naechste 1s-Poll von
+    /api/pregame zeigt das Ergebnis von selbst, sobald es da ist.
+    """
+    now = time.time()
+    with _cache_lock:
+        hit = _agent_history_cache.get(puuid)
+        if hit and now - hit[0] < AGENT_HISTORY_TTL:
+            return hit[1]
+    with _agent_history_pending_lock:
+        if puuid in _agent_history_pending:
+            return None
+        _agent_history_pending.add(puuid)
+
+    def _compute():
+        try:
+            most_played_agent(puuid)   # schreibt sein Ergebnis selbst in _agent_history_cache
+        finally:
+            with _agent_history_pending_lock:
+                _agent_history_pending.discard(puuid)
+
+    threading.Thread(target=_compute, daemon=True).start()
+    return None
+
+
 def lobby_info():
     """Party-Info wie /api/party, aber mit allem, was eine Lobby-Karte braucht."""
     info = party_info()
@@ -2733,6 +2824,13 @@ def _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid=None):
             return []
 
         ranks = dict(zip(enemy_puuids, _pool.map(mmr_summary, enemy_puuids)))
+        # Community-Idee: meistgespielter Agent der Gegner schon in der
+        # Agentenauswahl. Bewusst NICHT blockierend (siehe
+        # most_played_agent_nonblocking) - das koennte pro Spieler bis zu vier
+        # zusaetzliche Riot-Aufrufe brauchen, und /api/pregame wird jede
+        # Sekunde neu abgefragt; das soll dadurch nicht spuerbar langsamer
+        # werden. Taucht einfach im naechsten Poll auf, sobald es da ist.
+        history = {u: most_played_agent_nonblocking(u) for u in enemy_puuids}
         return [{
             "puuid": u,
             "name": name_map.get(u),
@@ -2742,6 +2840,9 @@ def _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid=None):
             "rr": ranks[u].get("rr"),
             "peakRank": ranks[u].get("peakRank"),
             "peakRankAct": ranks[u].get("peakRankAct"),
+            "mostPlayedAgent": (history.get(u) or {}).get("agent"),
+            "mostPlayedAgentCount": (history.get(u) or {}).get("count"),
+            "mostPlayedAgentGames": (history.get(u) or {}).get("games"),
         } for u in enemy_puuids]
     except Exception:
         return None

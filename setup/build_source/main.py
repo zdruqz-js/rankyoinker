@@ -2,6 +2,7 @@ import asyncio
 import os
 import socket
 import sys
+import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -219,6 +220,58 @@ try:
                 lambda subject: get_or_fetch_rank_and_stats(subject, current_match_id),
                 subjects,
             ))
+
+    def refill_missing_loadouts(match_id, players, weapon, valo_skins, names_map,
+                                 missing_puuids, hb_data):
+        """Nicht-blockierender Nachtrag fuer Spieler, deren Loadout auch nach
+        den drei schnellen Versuchen oben noch fehlt (siehe Kommentar dort:
+        Riot befuellt die Gegnerseite manchmal deutlich verzoegert, und dieser
+        Block laeuft nur EINMAL pro Match).
+
+        Blockiert den Start bewusst NICHT laenger - die Seite zeigt sofort,
+        was schon da ist. Statt dessen laeuft dieser Versuch im Hintergrund
+        weiter; findet er noch etwas, wird ein aktualisierter Heartbeat
+        nachgesendet und der Browser rendert von selbst neu (render()
+        reagiert auf jede neue heartbeat-Nachricht, siehe index.html).
+
+        hb_data wird als Parameter uebergeben statt aus dem umgebenden Scope
+        gelesen, weil die aeussere heartbeat_data-Variable bei jedem
+        Zustandswechsel (z. B. Matchende) durch ein neues Dict ersetzt wird -
+        ohne das wuerde dieser Thread nach einem Zustandswechsel plötzlich am
+        FALSCHEN (naechsten) heartbeat_data weiterschreiben.
+        """
+        remaining = set(missing_puuids)
+        for extra_delay in (12, 20, 30):
+            if not remaining:
+                return
+            time.sleep(extra_delay)
+            try:
+                if pregame.get_pregame_match_id() or coregame.get_coregame_match_id() != match_id:
+                    return  # Match ist vorbei (oder ein neues laeuft) - nichts mehr nachzutragen
+                _, refreshed = loadoutsClass.get_match_loadouts(
+                    match_id, players, weapon, valo_skins, names_map, state="game")
+            except Exception:
+                continue
+            found_any = False
+            for puuid in list(remaining):
+                entry = (refreshed.get("Players") or {}).get(puuid)
+                if not entry:
+                    continue
+                target = hb_data["players"].get(puuid)
+                if target is not None:
+                    target["agentImgLink"] = entry.get("Agent")
+                    target["team"] = entry.get("Team")
+                    target["sprays"] = entry.get("Sprays")
+                    target["title"] = entry.get("Title")
+                    target["playerCard"] = entry.get("PlayerCard")
+                    target["weapons"] = entry.get("Weapons")
+                    found_any = True
+                remaining.discard(puuid)
+            if found_any:
+                try:
+                    Server.send_payload("heartbeat", hb_data)
+                except Exception:
+                    pass
 
     print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
 
@@ -456,6 +509,13 @@ try:
                     if not loadouts_data.get("Players", {}).get(p["Subject"])
                 ]
                 _log_timing(f"Loadouts final ({len(_missing_final)} bleiben leer)" if _missing_final else "Loadouts vollstaendig")
+                if _missing_final:
+                    threading.Thread(
+                        target=refill_missing_loadouts,
+                        args=(coregame_match_id, Players, cfg.weapon, valoApiSkins, names,
+                              _missing_final, heartbeat_data),
+                        daemon=True,
+                    ).start()
                 # with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                 isRange = False
                 playersLoaded = 1
