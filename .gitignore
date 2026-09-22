@@ -25,6 +25,8 @@ config.json
 vry_*.json
 .rankyoinker_client_id
 .rankyoinker_matches_tracked_seen.json
+.rankyoinker_feature_counts.json
+.rankyoinker_last_report.json
 rankyoinker-heartbeat-error.txt
 rankyoinker-install-log.txt
 logs/

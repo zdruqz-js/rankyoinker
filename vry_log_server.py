@@ -431,13 +431,16 @@ def _follow_valorant():
 # ============================ RankYoinker-Erweiterung ============================
 # Sendet alle 60s einen anonymen "Ping" an rankyoinker.de, nur damit die Website
 # anzeigen kann, wie viele Leute das Tool gerade aktiv nutzen, und das Team per
-# Discord /stats grobe Versions-/Sprachverteilung sehen kann. Es wird dabei
-# nichts weiter als eine zufällige, pro Installation einmalig erzeugte ID plus
-# App-Version und UI-Sprache übertragen - keine Account-, Spiel- oder
-# sonstigen Daten.
+# Discord /stats grobe Versions-/Sprachverteilung sehen kann - nur die zufaellige,
+# pro Installation einmalig erzeugte Client-ID plus App-Version und UI-Sprache.
+# Alle 5 Minuten kommt zusaetzlich ein zweiter, selteneren Bericht dazu (siehe
+# _client_report_loop() weiter unten) mit dem verknuepften Riot-Account (Puuid +
+# Anzeigename) und lokalen Feature-Nutzungszaehlern, fuers interne, admin-only
+# Dashboard - siehe die Datenschutzerklaerung (Abschnitt "RankYoinker-Anwendung")
+# fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.3.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -624,6 +627,90 @@ def _active_user_heartbeat():
             except OSError:
                 pass
         time.sleep(HEARTBEAT_INTERVAL)
+
+
+# ---- Feature-Nutzung + Account-Bericht alle 5 Minuten ----
+# Getrennt vom 60s-Heartbeat oben, weil hier tatsaechlich der verknuepfte
+# Riot-Account mitgeschickt wird (Puuid + Anzeigename) - das gehoert nicht in
+# den haeufigen, bewusst minimalen Heartbeat. Nur fuers interne, admin-only
+# Dashboard (rankyoinker.de/dashboard) gedacht, nicht oeffentlich einsehbar.
+FEATURE_COUNTS_PATH = os.path.join(BASE, ".rankyoinker_feature_counts.json")
+CLIENT_REPORT_URL = "https://rankyoinker.de/api/client-report"
+CLIENT_REPORT_INTERVAL = 300
+_LAST_REPORT_PATH = os.path.join(BASE, ".rankyoinker_last_report.json")
+_feature_lock = threading.Lock()
+_feature_counts = None
+
+
+def _load_feature_counts():
+    global _feature_counts
+    if _feature_counts is None:
+        data = _load_json(FEATURE_COUNTS_PATH)
+        _feature_counts = data if isinstance(data, dict) else {}
+    return _feature_counts
+
+
+def record_feature(name):
+    """Zaehlt lokal, wie oft ein Feature benutzt wurde - reiner Zaehler pro
+    Name, kein Zeitpunkt, kein Zusammenhang mit einem bestimmten Match. Wird
+    NICHT bei jeder Nutzung einzeln verschickt, sondern gesammelt und alle
+    5 Minuten als Momentaufnahme mitgeschickt (siehe _client_report_loop)."""
+    try:
+        with _feature_lock:
+            counts = _load_feature_counts()
+            counts[name] = counts.get(name, 0) + 1
+            _save_json(FEATURE_COUNTS_PATH, counts)
+    except Exception:
+        pass
+
+
+def _current_riot_account():
+    """Bestmoegliches Wissen ueber den gerade eingeloggten Riot-Account - nur
+    Puuid und Anzeigename, sonst nichts. None, wenn kein Client laeuft/kein
+    Login erkennbar ist (siehe get_auth())."""
+    try:
+        auth = get_auth()
+        puuid = auth.get("puuid")
+        if not puuid:
+            return None
+        name_map = names_for([puuid])
+        return {"puuid": puuid, "name": name_map.get(puuid)}
+    except Exception:
+        return None
+
+
+def _client_report_loop():
+    client_id = _get_client_id()
+    while True:
+        try:
+            account = _current_riot_account()
+            with _feature_lock:
+                features = dict(_load_feature_counts())
+            snapshot = {"account": account, "features": features}
+            last = _load_json(_LAST_REPORT_PATH)
+            # Nur senden, wenn sich seit dem letzten Mal wirklich etwas
+            # geaendert hat (neuer Account, neue Feature-Nutzung) - ein
+            # unveraenderter Stand alle 5 Minuten erneut zu verschicken,
+            # waere reine Serverlast ohne neue Information.
+            if snapshot != last:
+                body = json.dumps({
+                    "clientId": client_id,
+                    "version": APP_VERSION,
+                    "lang": _heartbeat_lang(),
+                    "riotAccount": account,
+                    "features": features,
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    CLIENT_REPORT_URL,
+                    data=body,
+                    headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-ClientReport"},
+                    method="POST",
+                )
+                _urlopen_public(req, timeout=10).close()
+                _save_json(_LAST_REPORT_PATH, snapshot)
+        except Exception:
+            pass
+        time.sleep(CLIENT_REPORT_INTERVAL)
 
 
 # ---- Automatisches Update (mit Pflicht-Hash-Prüfung) ----
@@ -1690,6 +1777,7 @@ def put_loadout(body):
     status, j = riot_put("pd", "/personalization/v3/players/%s/playerloadout" % auth["puuid"],
                          json.dumps(payload))
     if status in (200, 204):
+        record_feature("skin_applied")
         return {"ok": True}
     if status == 400:
         return {"ok": False, "error": "Riot hat das Loadout abgelehnt — im laufenden Match "
@@ -2721,6 +2809,7 @@ def dodge_pregame():
         return {"ok": False, "error": "Keine Match-ID in der Agentenauswahl gefunden."}
     status, _ = riot_post("glz", "/pregame/v1/matches/%s/quit" % match_id)
     if status in (200, 204):
+        record_feature("dodge")
         return {"ok": True, "matchId": match_id}
     return {"ok": False, "error": "Verlassen fehlgeschlagen (Status %s)." % status}
 
@@ -2867,6 +2956,7 @@ def instalock_arm(body):
         })
         _il_save()
     _il_poll["ts"] = 0.0        # sofort nachsehen, nicht erst im naechsten Takt
+    record_feature("instalock_armed")
     return instalock_state()
 
 
@@ -3518,6 +3608,7 @@ def pair_claim(code, ua, ip):
                              "name": _ua_name(ua), "ip": ip,
                              "created": now, "seen": now})
         _pair_save(d)
+    record_feature("phone_paired")
     return token
 
 
@@ -3937,6 +4028,8 @@ def lol_set_auto_accept(on):
     with _lol_cfg_lock:
         _lol_cfg["autoAccept"] = bool(on)
     _lol_cfg_save()
+    if on:
+        record_feature("lol_auto_accept")
     return {"ok": True, "autoAccept": bool(on)}
 
 
@@ -4293,6 +4386,10 @@ def lol_presets_set_auto(ban=None, pick=None):
         if pick is not None:
             _lol_presets["autoPick"] = bool(pick)
     _lol_presets_save()
+    if ban:
+        record_feature("lol_auto_ban")
+    if pick:
+        record_feature("lol_auto_pick")
     return lol_presets_state()
 
 
@@ -5705,6 +5802,8 @@ if __name__ == "__main__":
     threading.Thread(target=_lol_watcher, daemon=True).start()
     # RankYoinker: anonymer Aktiv-Nutzer-Ping für die Website (siehe oben)
     threading.Thread(target=_active_user_heartbeat, daemon=True).start()
+    # RankYoinker: Account+Feature-Bericht alle 5 Minuten fürs Admin-Dashboard
+    threading.Thread(target=_client_report_loop, daemon=True).start()
     # System-Tray-Icon (Doppelklick öffnet die Seite, Rechtsklick zeigt ein
     # Menü) - siehe _run_tray_icon weiter oben für die Begründung, warum das
     # in einem eigenen Thread statt im Haupt-Thread läuft.
