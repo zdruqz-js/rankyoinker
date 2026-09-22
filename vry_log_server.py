@@ -437,7 +437,7 @@ def _follow_valorant():
 # sonstigen Daten.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.2.7-dev"
+APP_VERSION = "2.2.8-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1910,7 +1910,17 @@ def _lobby_roster():
         status, m = riot_get("glz", "/pregame/v1/matches/%s" % mid)
         if status == 200 and m:
             raw = (m.get("AllyTeam") or {}).get("Players") or []
-            roster = [{"puuid": p["Subject"], "team": "ally"} for p in raw if p.get("Subject")]
+            ally_puuids = [p["Subject"] for p in raw if p.get("Subject")]
+            roster = [{"puuid": u, "team": "ally"} for u in ally_puuids]
+            # Gegner-Puuids ueber denselben Loadouts-Endpunkt wie in _pregame_fetch
+            # (siehe _pregame_loadouts_by_puuid) - damit sehen Begegnungs-Abzeichen
+            # und Partyerkennung in der Agentenauswahl auch das gegnerische Team,
+            # nicht nur die eigene Seite.
+            loadouts_by_puuid = _pregame_loadouts_by_puuid(mid)
+            if loadouts_by_puuid:
+                skip = set(ally_puuids) | {auth["puuid"]}
+                roster += [{"puuid": u, "team": "enemy"}
+                           for u in loadouts_by_puuid if u not in skip]
             if roster:
                 return mid, "PREGAME", roster
     return None, "MENUS", []
@@ -2428,22 +2438,26 @@ def _pregame_fetch():
     raw = (m.get("AllyTeam") or {}).get("Players") or []
     ally_puuids = [p.get("Subject") for p in raw if p.get("Subject")]
     name_map = names_for(ally_puuids)
+    loadouts_by_puuid = _pregame_loadouts_by_puuid(mid)
     players = []
     for p in raw:
         sel = p.get("CharacterSelectionState") or ""
         ident = p.get("PlayerIdentity") or {}
+        subj = p.get("Subject")
+        lo = (loadouts_by_puuid or {}).get(subj) or {}
         players.append({
-            "puuid": p.get("Subject"),
-            "name": name_map.get(p.get("Subject")) or None,
+            "puuid": subj,
+            "name": name_map.get(subj) or None,
             "level": ident.get("AccountLevel"),
             "card": ident.get("PlayerCardID"),
             "agent": p.get("CharacterID") or None,
             # "" = nichts, "selected" = hovert nur, "locked" = fest gewählt
             "locked": sel == "locked",
             "hovering": sel == "selected",
+            "weapons": lo.get("weapons"),
         })
 
-    enemies = _pregame_loadouts_enemies(mid, ally_puuids)
+    enemies = _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid)
     if enemies is None:
         enemies = _pregame_enemies_best_effort(m, ally_puuids)
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
@@ -2478,9 +2492,99 @@ def _collect_strings(obj, out):
             _collect_strings(v, out)
 
 
-def _pregame_loadouts_enemies(mid, ally_puuids):
-    """Gegner-Puuids ueber /pregame/v1/matches/{id}/loadouts statt ueber den
-    Haupt-Match-Endpunkt (siehe _pregame_enemies_best_effort direkt darunter).
+# Feste Socket-Uuids fuer Skin/Chroma/Buddy in einem Waffen-Loadout-Eintrag -
+# identisch zu setup/build_source/src/constants.py "sockets" (dort fuer den
+# INGAME-Pfad in vry.exe), hier nochmal fuer die Agentenauswahl gebraucht.
+SOCKET_SKIN = "bcef87d6-209b-46c6-8b19-fbe40bd95abc"
+SOCKET_SKIN_CHROMA = "3ad1b2b2-acdb-4524-852f-954a76ddae0a"
+
+_weapons_cache = {"ts": 0.0, "data": None}
+WEAPONS_TTL = 21600   # 6h - Waffen/Skins aendern sich praktisch nie zur Laufzeit
+
+
+def _valo_weapons():
+    now = time.time()
+    if _weapons_cache["data"] and now - _weapons_cache["ts"] < WEAPONS_TTL:
+        return _weapons_cache["data"]
+    try:
+        _, j = _http("https://valorant-api.com/v1/weapons")
+        data = (j or {}).get("data") or []
+        if data:
+            _weapons_cache["data"] = data
+            _weapons_cache["ts"] = now
+        return data or _weapons_cache["data"] or []
+    except Exception:
+        return _weapons_cache["data"] or []
+
+
+def _parse_pregame_weapons(loadout_obj):
+    """Ein einzelnes Loadout (aus /pregame/v1/matches/{id}/loadouts) in die
+    gleiche Form bringen, die der Client schon von INGAME kennt (siehe
+    convertLoadoutToJsonArray in setup/build_source/src/Loadouts.py):
+    {skin_item_uuid: {weapon, skinDisplayName, skinDisplayIcon}}. primarySkin()
+    im Frontend pickt sich daraus selbst die konfigurierte Hauptwaffe raus,
+    hier wird bewusst alles mitgeschickt.
+
+    Die genaue Form eines Pregame-Loadout-Eintrags ist nirgends dokumentiert
+    (der INGAME-Pfad in main.py nutzt "Loadout" als Zwischenschluessel, ob das
+    fuer die Agentenauswahl genauso ist, war vorher nie getestet - siehe der
+    lange auskommentierte Aufruf dort). Darum hier beides versuchen und bei
+    jedem unerwarteten Fehler einfach nichts liefern statt das ganze Polling
+    mitzureissen - ein fehlender Skin ist unschoen, ein kaputtes Polling waere
+    schlimmer.
+    """
+    try:
+        items = (loadout_obj or {}).get("Items")
+        if not isinstance(items, dict):
+            items = ((loadout_obj or {}).get("Loadout") or {}).get("Items")
+        if not isinstance(items, dict):
+            return None
+        weapons = _valo_weapons()
+        if not weapons:
+            return None
+        by_uuid = {w["uuid"].lower(): w for w in weapons if w.get("uuid")}
+        out = {}
+        for weapon_uuid, item in items.items():
+            weapon = by_uuid.get(str(weapon_uuid).lower())
+            if not weapon:
+                continue
+            sockets_data = (item or {}).get("Sockets") or {}
+            skin_id = ((sockets_data.get(SOCKET_SKIN) or {}).get("Item") or {}).get("ID")
+            if not skin_id:
+                continue
+            skin = next((s for s in (weapon.get("skins") or [])
+                         if (s.get("uuid") or "").lower() == str(skin_id).lower()), None)
+            if not skin:
+                continue
+            weapon_name = weapon.get("displayName") or ""
+            entry = {
+                "weapon": weapon_name,
+                "skinDisplayName": (skin.get("displayName") or "").replace(
+                    " " + weapon_name, ""),
+            }
+            chroma_id = ((sockets_data.get(SOCKET_SKIN_CHROMA) or {}).get("Item") or {}).get("ID")
+            chroma = next((c for c in (skin.get("chromas") or [])
+                           if (c.get("uuid") or "").lower() == str(chroma_id or "").lower()), None)
+            icon = ((chroma or {}).get("displayIcon") or (chroma or {}).get("fullRender")
+                    or skin.get("displayIcon")
+                    or ((skin.get("levels") or [{}])[0]).get("displayIcon"))
+            if (skin.get("displayName") or "").startswith(("Standard", "Melee")):
+                icon = weapon.get("displayIcon")
+            if icon:
+                entry["skinDisplayIcon"] = icon
+            out[str(skin_id)] = entry
+        return out or None
+    except Exception:
+        return None
+
+
+_pregame_loadouts_cache = {"mid": None, "ts": 0.0, "data": None}
+PREGAME_LOADOUTS_TTL = 1.5   # etwas grosszuegiger als PREGAME_TTL - deutlich teurer pro Aufruf
+
+
+def _pregame_loadouts_by_puuid(mid):
+    """Ein Aufruf von /pregame/v1/matches/{id}/loadouts deckt BEIDE Teams ab -
+    liefert je Spieler-Puuid {"agent": <uuid-oder-None>, "weapons": <dict-oder-None>}.
 
     Dieser Endpunkt existiert, damit der offizielle Client schon waehrend der
     Agentenauswahl weiss, welche Waffen-Skins spaeter im Killfeed auftauchen -
@@ -2490,23 +2594,48 @@ def _pregame_loadouts_enemies(mid, ally_puuids):
     Spieler mit "Subject" (Puuid) und "CharacterID" (gewaehlter Agent) heraus.
     Ein Tipp aus der Community, danke dafuer.
 
+    Kurz gecacht, weil sowohl /api/pregame (1s-Polling) als auch /api/premades
+    ihn kurz hintereinander brauchen koennen. None bei jedem Fehler, damit
+    Aufrufer sauber auf ihre jeweilige Bestenfalls-Methode zurueckfallen.
+    """
+    now = time.time()
+    if (_pregame_loadouts_cache["mid"] == mid and _pregame_loadouts_cache["data"] is not None
+            and now - _pregame_loadouts_cache["ts"] < PREGAME_LOADOUTS_TTL):
+        return _pregame_loadouts_cache["data"]
+    try:
+        status, j = riot_get("glz", "/pregame/v1/matches/%s/loadouts" % mid)
+        if status != 200 or not isinstance(j, dict):
+            out = None
+        else:
+            out = {}
+            for entry in (j.get("Loadouts") or []):
+                subj = entry.get("Subject")
+                if subj:
+                    out[subj] = {
+                        "agent": entry.get("CharacterID") or None,
+                        "weapons": _parse_pregame_weapons(entry),
+                    }
+    except Exception:
+        out = None
+    _pregame_loadouts_cache.update({"mid": mid, "ts": now, "data": out})
+    return out
+
+
+def _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid=None):
+    """Gegnerliste (Rang+Agent+Skins) ueber _pregame_loadouts_by_puuid.
+
     Gibt bei Erfolg eine (moeglicherweise leere) Liste zurueck, bei jedem
     Fehler None - der Aufrufer faellt dann auf die bisherige Bestenfalls-
     Methode zurueck, statt den ganzen Aufruf scheitern zu lassen.
     """
     try:
-        status, j = riot_get("glz", "/pregame/v1/matches/%s/loadouts" % mid)
-        if status != 200 or not isinstance(j, dict):
+        if loadouts_by_puuid is None:
+            loadouts_by_puuid = _pregame_loadouts_by_puuid(mid)
+        if loadouts_by_puuid is None:
             return None
-        entries = j.get("Loadouts") or []
-        agent_by_puuid = {}
-        for entry in entries:
-            subj = entry.get("Subject")
-            if subj:
-                agent_by_puuid[subj] = entry.get("CharacterID") or None
 
         skip = set(ally_puuids) | {get_auth()["puuid"]}
-        candidates = [u for u in agent_by_puuid if u not in skip]
+        candidates = [u for u in loadouts_by_puuid if u not in skip]
         if not candidates:
             return []
 
@@ -2519,7 +2648,8 @@ def _pregame_loadouts_enemies(mid, ally_puuids):
         return [{
             "puuid": u,
             "name": name_map.get(u),
-            "agent": agent_by_puuid.get(u),
+            "agent": loadouts_by_puuid[u].get("agent"),
+            "weapons": loadouts_by_puuid[u].get("weapons"),
             "rank": ranks[u].get("rank"),
             "rr": ranks[u].get("rr"),
             "peakRank": ranks[u].get("peakRank"),

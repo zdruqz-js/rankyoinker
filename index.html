@@ -3355,13 +3355,16 @@
 
         // Gegner-Ränge — meist leer (siehe Kommentar bei der Deklaration oben)
         const enemies = j.enemies || [];
-        const enemySig = enemies.map(p => [p.puuid, p.rank, p.rr].join(':')).join(',');
+        // agent+Skin-Anzahl mit in die Signatur - sonst würde ein Agenten- oder
+        // Skinwechsel ohne Rangänderung nie ein Update auslösen.
+        const enemySig = enemies.map(p => [p.puuid, p.rank, p.rr, p.agent,
+          p.weapons ? Object.keys(p.weapons).length : 0].join(':')).join(',');
         if(enemySig !== pregameEnemiesSig){
           pregameEnemiesSig = enemySig; pregameEnemies = enemies;
           changed = true; cardsChanged = true;
         }
 
-        // Agenten in die Spielerkarten übernehmen — nur wenn die schon da sind
+        // Agenten+Skins in die Spielerkarten übernehmen — nur wenn die schon da sind
         if(live){
           (j.players || []).forEach(pp => {
             // RankYoinker keyed die Spieler nach puuid — zur Sicherheit trotzdem suchen
@@ -3370,11 +3373,17 @@
             if(!target) return;
             const name = pp.agent ? (agentById[String(pp.agent).toLowerCase()] || '') : '';
             const locked = !!pp.locked;
+            let touched = false;
             if(name !== (target.agent || '') || target.agentLocked !== locked){
               target.agent = name;
               target.agentLocked = locked;
-              changed = true; cardsChanged = true;
+              touched = true;
             }
+            if(pp.weapons && Object.keys(pp.weapons).length !== Object.keys(target.weapons || {}).length){
+              target.weapons = pp.weapons;
+              touched = true;
+            }
+            if(touched){ changed = true; cardsChanged = true; }
           });
         }
 
@@ -5169,6 +5178,10 @@
       </div>`;
 
     let bodyHtml = '';
+    // Nur fuer PREGAME befuellt (siehe unten) - "list" enthaelt dort anders als
+    // bei INGAME noch keine Gegner, die muessen fuer Begegnungen/Partyerkennung
+    // separat mitgegeben werden.
+    let pregameEnemiesForLoad = [];
 
     if(state === 'MENUS'){
       // RankYoinker sendet im Menü alle Party-Mitglieder (keyed by puuid), liest die
@@ -5218,7 +5231,9 @@
         // Anzeigenamen aufgeloest.
         enemies = pregameEnemies.map(p => ({puuid: p.puuid, name: p.name,
           agent: p.agent ? (agentById[String(p.agent).toLowerCase()] || null) : null,
+          weapons: p.weapons || null,
           rank: p.rank, rr: p.rr, peakRank: p.peakRank, peakRankAct: p.peakRankAct}));
+        pregameEnemiesForLoad = enemies;
       } else {
         allies = list;
         enemies = [];
@@ -5287,15 +5302,23 @@
     }
     bindCards(playersByKey);
     loadKda();
-    // Begegnungen nur bei echten Matches zählen, nicht im Menü
+    // Begegnungen nur bei echten Matches zählen, nicht im Menü. In PREGAME steckt
+    // "list" noch nur das eigene Team — die Gegner (falls vom Server gefunden,
+    // siehe pregameEnemiesForLoad) kommen als eigene, klar als "ally:false"
+    // markierte Einträge dazu, statt sie mit list zu vermischen (sonst würden
+    // sie über die generische ownTeam-Logik fälschlich als Verbündete zählen).
     if(state !== 'MENUS'){
       const ownTeam = own ? own.team : null;
-      loadEncounters(list.filter(p => p.puuid).map(p => ({
+      const ownRoster = list.filter(p => p.puuid).map(p => ({
         puuid: p.puuid, name: p.name,
         ally: !ownTeam || !p.team || p.team === ownTeam
-      })));
+      }));
+      const enemyRoster = pregameEnemiesForLoad.filter(p => p.puuid).map(p => ({
+        puuid: p.puuid, name: p.name, ally: false
+      }));
+      loadEncounters(ownRoster.concat(enemyRoster));
       // Partys der übrigen Spieler — kommt vom Proxy, nicht von RankYoinker
-      loadPremades(list.filter(p => p.puuid));
+      loadPremades(list.filter(p => p.puuid).concat(pregameEnemiesForLoad.filter(p => p.puuid)));
     }
     bindDodge();
     if(state === 'PREGAME'){ bindAgentPick(); startPregamePoll(); } else stopPregamePoll();
@@ -7047,7 +7070,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.2.7-dev";
+const CURRENT_VERSION = "2.2.8-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
