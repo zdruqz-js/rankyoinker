@@ -440,7 +440,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.2"
+APP_VERSION = "2.3.3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1420,62 +1420,28 @@ def player_stats(puuid, count=1):
     return out
 
 
-_recent_cache = {}
-
-
-def recent_results(puuid, count=5):
-    """Sieg/Niederlage der letzten Matches — fuer die Punktreihe auf der Karte.
-
-    Aus competitiveupdates ableitbar (Vorzeichen des RR-Gewinns), das kostet nur
-    EINE Anfrage pro Spieler statt einer pro Match. Ohne Competitive-Historie
-    fallen wir auf die allgemeine Match-Historie zurueck (teurer, daher weniger).
-    """
-    key = "r:%s:%d" % (puuid, count)
-    now = time.time()
-    with _cache_lock:
-        hit = _recent_cache.get(key)
-        if hit and now - hit[0] < STATS_TTL:
-            return hit[1]
-
-    res = []
-    try:
-        status, j = riot_get(
-            "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d&queue=competitive"
-            % (puuid, count))
-        if status == 200 and j:
-            for m in (j.get("Matches") or []):
-                rr = m.get("RankedRatingEarned")
-                if rr is None or not m.get("MatchID"):
-                    continue
-                # RR-Vorzeichen verraet Sieg/Niederlage guenstig ohne Match-
-                # Details zu laden - bei einem Unentschieden aendert sich die
-                # RR genau nicht, das ist hier der einzige Anhaltspunkt dafuer.
-                won = True if rr > 0 else ("draw" if rr == 0 else False)
-                res.append({"won": won, "rr": rr, "map": m.get("MapID"), "ranked": True})
-        if not res:
-            for mid in _recent_match_ids(puuid, min(count, 3)):
-                det = _match_details(mid)
-                if not det:
-                    continue
-                row = _extract(det, puuid)
-                if row:
-                    res.append({"won": row.get("won"), "rr": None,
-                                "map": row.get("map"), "ranked": False})
-    except Exception:
-        pass
-
-    res = res[:count]
-    with _cache_lock:
-        _recent_cache[key] = (now, res)
-    return res
-
-
 def card_data(puuid):
-    """Was die Spielerkarte braucht: Punktreihe + letztes Match fuer HS/KD-Luecken."""
-    st = player_stats(puuid, 1)
+    """Was die Spielerkarte braucht: Punktreihe (inkl. gespieltem Agent pro
+    Match) + letztes Match fuer HS/KD-Luecken.
+
+    Nutzt player_stats() fuer die "Last 5 Matches"-Reihe statt der frueheren,
+    guenstigeren Abschaetzung (nur Sieg/Niederlage aus dem RR-Vorzeichen,
+    kein Agent) - Community-Wunsch: die kleine Punktreihe auf der Karte soll
+    den gespielten Agenten je Match zeigen statt nur eine Farbe.
+    _match_details() (siehe player_stats/_extract) cacht pro Match dauerhaft
+    (ein Match-Ergebnis aendert sich im Nachhinein nie), player_stats() selbst
+    5 Minuten - kostet in der Praxis also nur beim allerersten Anblick eines
+    neuen Spielers wirklich mehr Riot-Anfragen als vorher, nicht bei jedem
+    Poll. Ersetzt auch den bisher separaten player_stats(puuid, 1)-Aufruf
+    fuer "last" - der erste der 5 Matches ist exakt dasselbe Match.
+    """
+    st = player_stats(puuid, 5)
+    matches = st.get("matches") or []
+    results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent")}
+               for m in matches]
     return {"puuid": puuid,
-            "results": recent_results(puuid, 5),
-            "last": (st.get("matches") or [None])[0]}
+            "results": results,
+            "last": (matches or [None])[0]}
 
 
 # ============================ Party / Agenten / Loadout / Shop ============================
@@ -3226,7 +3192,6 @@ def _clear_account_caches():
     _ent_cache["ts"] = 0.0
     with _cache_lock:
         _stats_cache.clear()
-        _recent_cache.clear()
         _match_cache.clear()
         _rr_cache.clear()
     _shop_cache["data"] = None
