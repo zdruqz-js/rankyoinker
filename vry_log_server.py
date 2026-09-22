@@ -440,7 +440,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.2-dev"
+APP_VERSION = "2.3.3-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -553,7 +553,7 @@ def _get_client_id():
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
 # Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
-_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr"}
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko"}
 
 
 def _detect_system_lang():
@@ -1883,7 +1883,7 @@ _presets_lock = threading.Lock()
 _store_lock = threading.Lock()
 _config_lock = threading.Lock()
 
-RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr")
+RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr", "ko")
 
 
 def set_rpc_lang(lang):
@@ -5700,6 +5700,25 @@ def _tray_setup_prototypes(user32, shell32, kernel32):
     shell32.Shell_NotifyIconW.argtypes = [ctypes.c_uint, ctypes.c_void_p]
 
 
+_TRAY_STRINGS = {
+    "de": {"open": "Website öffnen", "quit": "Programm schließen"},
+    "en": {"open": "Open website", "quit": "Quit program"},
+    "pl": {"open": "Otwórz stronę", "quit": "Zamknij program"},
+    "fr": {"open": "Ouvrir le site", "quit": "Quitter le programme"},
+    "es": {"open": "Abrir sitio web", "quit": "Cerrar programa"},
+    "tr": {"open": "Web sitesini aç", "quit": "Programı kapat"},
+    "ko": {"open": "웹사이트 열기", "quit": "프로그램 종료"},
+}
+
+
+def _tray_strings():
+    """Tray-Menuetexte in der eingestellten App-Sprache - waren bisher fest
+    auf Deutsch verdrahtet, unabhaengig davon, was in den Einstellungen
+    gewaehlt war. Gleiche Quelle wie Discord Rich Presence (config.json
+    "lang", siehe _heartbeat_lang())."""
+    return _TRAY_STRINGS.get(_heartbeat_lang(), _TRAY_STRINGS["de"])
+
+
 def _tray_open_overlay():
     try:
         webbrowser.open("http://localhost:1101/")
@@ -5723,8 +5742,9 @@ def _tray_wndproc_factory(user32, shell32, nid):
             return
         try:
             MF_STRING = 0x00000000
-            user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_OPEN, "Website öffnen")
-            user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_QUIT, "Programm schließen")
+            tray_strings = _tray_strings()
+            user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_OPEN, tray_strings["open"])
+            user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_QUIT, tray_strings["quit"])
             pt = _POINT()
             user32.GetCursorPos(ctypes.byref(pt))
             # Notwendig, damit sich das Menue bei einem Klick daneben wieder

@@ -114,6 +114,19 @@ RPC_STRINGS: Dict[str, Dict[str, str]] = {
         "on_the_range": "Atış Poligonunda",
         "custom_game": "Özel oyun",
     },
+    "ko": {
+        "whats_this": "이게 뭐야? 👀",
+        "in_party": "파티 중 ({size}/{max})",
+        "open_party": "열린 파티",
+        "closed_party": "닫힌 파티",
+        "count_suffix": "({size}/{max})",
+        "lobby_prefix": " 로비 - {gamemode}",
+        "agent_select_prefix": "요원 선택 - {gamemode}",
+        "valorant_away": "VALORANT - 자리 비움",
+        "valorant_online": "VALORANT - 온라인",
+        "on_the_range": "사격장에서",
+        "custom_game": "커스텀 게임",
+    },
 }
 
 
@@ -137,7 +150,7 @@ def _config_path() -> str:
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
 # Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
-_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr"}
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko"}
 
 
 def _detect_system_lang() -> str:
