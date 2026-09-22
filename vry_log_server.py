@@ -440,7 +440,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.3"
+APP_VERSION = "2.3.4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -1377,7 +1377,13 @@ def player_stats(puuid, count=1):
             if not m:
                 continue
             row = _extract(m, puuid)
-            if row and row.get("queue") == "competitive":
+            # Frueher wurde hier auf queue=="competitive" gefiltert - das hat den
+            # Nicht-Competitive-Fallback in _recent_match_ids() aber wirkungslos
+            # gemacht: fuer Spieler ohne Competitive-Historie kamen dort zwar
+            # echte Swiftplay/Unrated-Match-IDs zurueck, wurden hier aber sofort
+            # wieder verworfen -> "Last 5 Matches" blieb leer statt die
+            # tatsaechlich gespielten Modi zu zeigen (Community-Wunsch).
+            if row:
                 out["matches"].append(row)
     except RiotError as e:
         return {"puuid": puuid, "error": str(e), "matches": [], "totals": None}

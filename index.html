@@ -3122,6 +3122,11 @@
   const content = document.getElementById('content');
   const modalWrap = document.getElementById('modalWrap');
   const modalBox = document.getElementById('modalBox');
+  // Puuid/Key der gerade offenen Spieler-Detailkarte (openModal weiter unten) -
+  // damit render() das Loadout darin nachziehen kann, wenn es erst nach dem
+  // Oeffnen eintrudelt (siehe refreshOpenModalLoadout). Andere Modals (Presets,
+  // Pairing, Instalock-Risiko, ...) setzen das nie, closeModal() raeumt immer auf.
+  let openModalPlayerKey = null;
 
   function agentInfo(agentName){ return agentMap[String(agentName || '').toLowerCase()] || null; }
   function rankIcon(rankNum){
@@ -3417,12 +3422,18 @@
           });
         }
 
-        if(!changed) return;
+        if(cardsChanged) pregameCardsPending = true;
+        if(!changed && !pregameCardsPending) return;
         // Auswahl und Verbündeten-Reihe direkt im DOM nachziehen — kein Neuaufbau,
         // sonst rutscht das Agentenraster beim Klicken weg.
-        applyPregameToDom();
-        // Nur wenn sich die Spielerkarten selbst ändern, muss neu gerendert werden
-        if(cardsChanged && live && !loadingShown){ lastFullSig = ''; render(); }
+        if(changed) applyPregameToDom();
+        // Nur wenn sich die Spielerkarten selbst ändern, muss neu gerendert werden.
+        // Klappt live/loadingShown gerade nicht (siehe Deklaration von
+        // pregameCardsPending), bleibt die Karte offen "geschuldet" und wird beim
+        // naechsten 1s-Poll erneut versucht, statt bis zum Reload verloren zu gehen.
+        if(pregameCardsPending && live && !loadingShown){
+          lastFullSig = ''; render(); pregameCardsPending = false;
+        }
       })
       .catch(() => {});
   }
@@ -3557,42 +3568,46 @@
   }
 
   // ---------- modal ----------
-  function openModal(p, keyHint){
-    const [dispName, dispTag] = splitRiotId(p.name);
-    const info = agentInfo(p.agent);
-    const rNum = (typeof p.rank === 'number') ? p.rank : 0;
-    const peakNum = (typeof p.peakRank === 'number') ? p.peakRank : null;
-    const rr = (typeof p.rr === 'number') ? p.rr : null;
-
-    let skinsHtml;
+  // In eigene Funktionen ausgelagert (statt inline in openModal), damit
+  // refreshOpenModalLoadout() weiter unten dieselbe Logik erneut aufrufen kann,
+  // wenn das Loadout/die Sprays erst NACH dem Oeffnen des Modals eintrudeln
+  // (siehe refill_missing_loadouts in main.py) - openModal() selbst rendert
+  // nur einmalig einen Schnappschuss von p, hoert danach nicht mehr auf render().
+  function loadoutSkinsHtml(p){
     if(p.weapons && Object.values(p.weapons).some(w => w && w.weapon)){
       const entries = Object.values(p.weapons).filter(w => w && w.weapon);
       entries.sort((a,b) => WEAPON_ORDER.indexOf(a.weapon) - WEAPON_ORDER.indexOf(b.weapon));
-      skinsHtml = `<div class="mskin-grid">` + entries.map(w => `
+      return `<div class="mskin-grid">` + entries.map(w => `
         <div class="mskin-card ${w.weapon.toLowerCase() === primaryWeapon.toLowerCase() ? 'primary' : ''}">
           ${w.buddy_displayIcon ? `<img class="buddy" src="${esc(w.buddy_displayIcon)}" alt="" loading="lazy">` : ''}
           <div class="img-wrap">${w.skinDisplayIcon ? `<img class="sk" src="${esc(w.skinDisplayIcon)}" alt="" loading="lazy">` : '—'}</div>
           <div class="wn">${esc(w.weapon)}</div>
           <div class="sn">${esc(w.skinDisplayName || t('skin_default'))}</div>
         </div>`).join('') + `</div>`;
-    } else {
-      // Nicht mehr blind denselben Hinweis in jedem Zustand - "wird erst
-      // im laufenden Match uebertragen" ist irrefuehrend, wenn man das
-      // Match laengst laeuft und Riot das Loadout schlicht noch nicht
-      // nachgeliefert hat (siehe refill_missing_loadouts in main.py, das
-      // genau dafuer im Hintergrund weiter nachfragt und die Karte von
-      // selbst aktualisiert, sobald es etwas findet).
-      const alreadyIngame = latestData && latestData.state === 'INGAME';
-      skinsHtml = `<div class="loadout-empty">${t(alreadyIngame ? 'loadout_pending' : 'loadout_transferred_ingame')}</div>`;
     }
-
-    let spraysHtml = '';
-    if(p.sprays && Object.values(p.sprays).some(s => s && s.displayIcon)){
-      spraysHtml = `<div class="sec-title">${t('sprays_label')}</div><div class="mspray-row">` +
+    // Nicht mehr blind denselben Hinweis in jedem Zustand - "wird erst
+    // im laufenden Match uebertragen" ist irrefuehrend, wenn man das
+    // Match laengst laeuft und Riot das Loadout schlicht noch nicht
+    // nachgeliefert hat (siehe refill_missing_loadouts in main.py, das
+    // genau dafuer im Hintergrund weiter nachfragt und die Karte von
+    // selbst aktualisiert, sobald es etwas findet).
+    const alreadyIngame = latestData && latestData.state === 'INGAME';
+    return `<div class="loadout-empty">${t(alreadyIngame ? 'loadout_pending' : 'loadout_transferred_ingame')}</div>`;
+  }
+  function loadoutSpraysHtml(p){
+    if(!(p.sprays && Object.values(p.sprays).some(s => s && s.displayIcon))) return '';
+    return `<div class="sec-title">${t('sprays_label')}</div><div class="mspray-row">` +
         Object.values(p.sprays).filter(s => s && s.displayIcon).map(s => `
           <div class="mspray"><img src="${esc(s.displayIcon)}" alt="" loading="lazy"><div class="sn">${esc(s.displayName || '')}</div></div>
         `).join('') + `</div>`;
-    }
+  }
+
+  function openModal(p, keyHint){
+    const [dispName, dispTag] = splitRiotId(p.name);
+    const info = agentInfo(p.agent);
+    const rNum = (typeof p.rank === 'number') ? p.rank : 0;
+    const peakNum = (typeof p.peakRank === 'number') ? p.peakRank : null;
+    const rr = (typeof p.rr === 'number') ? p.rr : null;
 
     modalBox.innerHTML = `
       <button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
@@ -3640,13 +3655,31 @@
         <div class="sec-title">${t('performance_recent_matches')}</div>
         <div id="modalStats"></div>
         <div class="sec-title">${t('complete_loadout')}</div>
-        ${skinsHtml}
-        ${spraysHtml}
+        <div id="modalLoadout">${loadoutSkinsHtml(p)}</div>
+        <div id="modalSprays">${loadoutSpraysHtml(p)}</div>
       </div>`;
     modalWrap.classList.add('open');
+    openModalPlayerKey = p.puuid || keyHint || null;
     document.getElementById('modalClose').addEventListener('click', closeModal);
     loadModalStats(p.puuid || keyHint);
     loadModalMeta(p.puuid || keyHint);
+  }
+
+  // Zieht ein bereits offenes Spieler-Modal live nach, wenn Loadout/Sprays erst
+  // nach dem Oeffnen eintrudeln (z. B. refill_missing_loadouts im laufenden
+  // Match) - sonst blieb "Riot braucht noch einen Moment" stehen, obwohl die
+  // Daten laengst da waren, und erst ein Neuladen der Seite zeigte sie an.
+  function refreshOpenModalLoadout(playersByKey){
+    if(!openModalPlayerKey || !modalWrap.classList.contains('open')) return;
+    const p = playersByKey[openModalPlayerKey];
+    if(!p) return;
+    const loadoutEl = modalBox.querySelector('#modalLoadout');
+    const spraysEl = modalBox.querySelector('#modalSprays');
+    if(!loadoutEl || !spraysEl) return;   // anderes Modal (Presets/Pairing/...) offen
+    const newLoadout = loadoutSkinsHtml(p);
+    if(newLoadout !== loadoutEl.innerHTML) loadoutEl.innerHTML = newLoadout;
+    const newSprays = loadoutSpraysHtml(p);
+    if(newSprays !== spraysEl.innerHTML) spraysEl.innerHTML = newSprays;
   }
 
   // ---------- RR-Verlauf als kleine Kurve ----------
@@ -3911,7 +3944,7 @@
         box.innerHTML = `<div class="loadout-empty">${t('err_local_service_port')}<br>${t('stats_load_failed_hint')}</div>`;
       });
   }
-  function closeModal(){ modalWrap.classList.remove('open'); }
+  function closeModal(){ modalWrap.classList.remove('open'); openModalPlayerKey = null; }
   modalWrap.addEventListener('click', (e) => { if(e.target === modalWrap) closeModal(); });
   document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
@@ -3956,6 +3989,12 @@
   // dieses Array bleibt darum in aller Regel leer und füllt sich nur in
   // Sonderfällen, in denen der Proxy trotzdem etwas findet (siehe Server).
   let pregameEnemies = [], pregameEnemiesSig = '';
+  // Bleibt true, solange eine erkannte Aenderung an Spielerkarten (Gegner
+  // oder Skins/Agent) noch NICHT gerendert wurde, weil syncPregame() das
+  // beim Eintreffen gerade nicht durfte (live/loadingShown siehe unten) -
+  // ohne das haette der naechste Poll dieselbe Signatur gesehen ("nichts
+  // Neues") und das Update waere bis zum manuellen Neuladen verschwunden.
+  let pregameCardsPending = false;
 
   // Eigene puuid separat holen — im Ladezustand gibt es noch keinen Heartbeat
   function loadOwnPuuid(){
@@ -5347,6 +5386,7 @@
       content.querySelectorAll('.pcard').forEach(c => { c.style.animationDelay = Math.min(d, 650) + 'ms'; d += 55; });
     }
     bindCards(playersByKey);
+    refreshOpenModalLoadout(playersByKey);
     loadKda();
     // Begegnungen nur bei echten Matches zählen, nicht im Menü. In PREGAME steckt
     // "list" noch nur das eigene Team — die Gegner (falls vom Server gefunden,
@@ -7116,7 +7156,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.3";
+const CURRENT_VERSION = "2.3.4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
