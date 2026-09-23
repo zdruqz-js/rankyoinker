@@ -411,6 +411,8 @@
     "shop_items_remaining_html": "{n} eşya · kalan süre {time}",
     "shop_discount": "%{pct} indirim",
     "shop_included": "dahil",
-    "shop_no_image": "görsel yok"
+    "shop_no_image": "görsel yok",
+    "shop_item_not_cataloged": "Yeni öğe",
+    "shop_item_not_cataloged_tip": "Riot tarafından yeni eklendi — ad/görsel henüz veri kaynağımızda (valorant-api.com) yok, birkaç gün içinde kendiliğinden dolması bekleniyor."
   }
 }

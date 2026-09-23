@@ -411,6 +411,8 @@
     "shop_items_remaining_html": "{n} artículos · quedan {time}",
     "shop_discount": "{pct}% de descuento",
     "shop_included": "incluido",
-    "shop_no_image": "sin imagen"
+    "shop_no_image": "sin imagen",
+    "shop_item_not_cataloged": "Objeto nuevo",
+    "shop_item_not_cataloged_tip": "Recién añadido por Riot — el nombre/imagen aún no están en nuestra fuente de datos (valorant-api.com), debería completarse solo en unos días."
   }
 }

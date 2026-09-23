@@ -4993,14 +4993,20 @@
       })
       .catch(() => { currencyMap = currencyMap || {}; bundleMap = bundleMap || {}; itemMap = itemMap || {}; });
   }
-  // Ein Bundle-Bestandteil auflösen (Skin, Buddy, Spray, Karte oder Titel)
+  // Ein Bundle-Bestandteil auflösen (Skin, Buddy, Spray, Karte oder Titel).
+  // "notCataloged" statt "Unbekannt": ganz frischer Content (z.B. Skins zu
+  // einer Bundle, die erst mit dem aktuellen Patch kam) steht bei
+  // valorant-api.com oft ein paar Tage lang noch gar nicht drin - das ist
+  // kein kaputter/unbekannter Gegenstand, nur eine Datenquelle, die noch
+  // nachzieht. Eigene Kennzeichnung statt name_unknown, damit das im Shop
+  // nicht wie ein Fehler aussieht (siehe shop_item_not_cataloged*).
   function bundleItemInfo(it){
     const id = String(it.itemId || '').toLowerCase();
     if(String(it.typeId).toLowerCase() === ITEM_TYPE.SKIN){
       const sk = skinLevelMap && skinLevelMap[id];
       if(sk) return {name: sk.name, icon: sk.icon};
     }
-    return itemMap[id] || {name: t('name_unknown'), icon: null};
+    return itemMap[id] || {name: t('shop_item_not_cataloged'), icon: null, notCataloged: true};
   }
   function fmtDur(sec){
     if(sec == null) return '';
@@ -5138,7 +5144,12 @@
         const pct = (b.baseCost && b.cost && b.baseCost > b.cost)
           ? Math.round((1 - b.cost / b.baseCost) * 100) : Math.round(b.discount || 0);
         const art = info && (info.icon || info.promo);
-        return `<div class="bundle-card">
+        // Bundle selbst nicht bei valorant-api.com bekannt (frischer Content,
+        // valorant-api.com haengt bei brandneuen Patches oft ein paar Tage
+        // hinterher) - Titel + Tooltip erklaeren das statt einfach nur leer/
+        // "Unbekannt" auszusehen (siehe shop_item_not_cataloged_tip).
+        const bundleTip = info ? '' : ` title="${esc(t('shop_item_not_cataloged_tip'))}"`;
+        return `<div class="bundle-card"${bundleTip}>
           ${art ? `<div class="bbg" style="background-image:url('${esc(art)}');"></div>` : ''}
           <div class="bfade"></div>
           <div class="bin">
@@ -5156,7 +5167,8 @@
         ${(b.itemList || []).length ? `<div class="bundle-items">${b.itemList.map(it => {
           const info = bundleItemInfo(it);
           const has = ownsItem(it.typeId, it.itemId);
-          return `<div class="bi ${has ? 'owned' : ''}">
+          const itemTip = info.notCataloged ? ` title="${esc(t('shop_item_not_cataloged_tip'))}"` : '';
+          return `<div class="bi ${has ? 'owned' : ''}"${itemTip}>
             ${has ? ownedBadge : ''}
             <div class="bimg">${info.icon ? `<img src="${esc(info.icon)}" alt="" loading="lazy">` : `<span style="color:var(--text-faint);font-size:10px;">${t('shop_no_image')}</span>`}</div>
             <div class="bnm">${esc(info.name)}${it.amount > 1 ? ' ×' + it.amount : ''}</div>
@@ -7272,7 +7284,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.12-dev";
+const CURRENT_VERSION = "2.3.13-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
