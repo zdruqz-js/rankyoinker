@@ -668,6 +668,10 @@
   .team-section.faction .pcard-portrait{background:radial-gradient(130% 115% at 50% -10%, color-mix(in srgb, var(--team-accent, var(--team-ally)) 16%, transparent), transparent 62%), var(--panel-3);}
   .faction-grid{display:flex; flex-wrap:wrap; gap:20px 28px;}
   .faction-grid .team-section{flex:1 1 340px; min-width:300px;}
+  .faction-icon{width:34px; height:34px; flex-shrink:0; border-radius:50%; object-fit:cover;
+    background:color-mix(in srgb, var(--team-accent, var(--team-ally)) 22%, var(--panel-3));
+    border:1px solid color-mix(in srgb, var(--team-accent, var(--team-ally)) 55%, transparent);
+    padding:4px; box-sizing:border-box;}
 
   /* ================= PLAYER CARDS ================= */
   /* Karten mittig, höchstens 5 pro Reihe (Standard-Team), Rest bricht mittig um.
@@ -5208,12 +5212,27 @@
     </div>`;
   }
 
-  // Neutrale, gut unterscheidbare Akzentfarben fuer Modi mit mehr als 2 Teams
-  // (siehe factionSectionsHtml) - bewusst KEINE Ally/Enemy-Semantik, da bei
-  // z.B. 8 Teams jedes davon mal "die eigene" Fraktion sein kann. Riot liefert
-  // fuer diese Fraktionen aktuell weder Namen noch Farbe ueber die API, darum
-  // hier ein fester, eigener Farbsatz statt (moeglicherweise falscher) Raterei.
-  const FACTION_COLORS = ['#4a9eff', '#ff4655', '#f5a623', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#eab308'];
+  // TeamNumber (1-8) -> Fraktionsname/-farbe/-icon fuer Gauntlet: Glitched.
+  // Riot liefert das selbst nicht ueber die API - per Live-Abgleich in zwei
+  // unabhaengigen Matches bestaetigt (Community, 2026-09-23): Match 1 deckte
+  // 6 von 8 Nummern auf, Match 2 traf die beiden verbliebenen Unbekannten
+  // (2 und 5) exakt auf die beiden zu dem Zeitpunkt noch fehlenden Namen -
+  // bei einer pro Match neu gewuerfelten Zuordnung waere das extrem
+  // unwahrscheinlich gewesen. Icons offiziell bei Riot selbst gehostet
+  // (wiki.playvalorant.com). Falls sich doch mal ein Wert als falsch erweist:
+  // einfach den Eintrag anpassen, der Rest (factionSectionsHtml) braucht sich
+  // dann nicht zu aendern - und ohne Treffer faellt es automatisch auf ein
+  // neutrales "Team N" ohne Icon zurueck (siehe unten).
+  const FACTION_META = {
+    1: {name: 'Purple Corgis', color: '#a855f7', icon: 'https://wiki.playvalorant.com/en-us/images/Purple_Corgis.png'},
+    2: {name: 'Blue Penguins', color: '#4a9eff', icon: 'https://wiki.playvalorant.com/en-us/images/Blue_Penguins.png'},
+    3: {name: 'Cyan Sloths', color: '#06b6d4', icon: 'https://wiki.playvalorant.com/en-us/images/Cyan_Sloths.png'},
+    4: {name: 'Green Octopi', color: '#22c55e', icon: 'https://wiki.playvalorant.com/en-us/images/Green_Octopi.png'},
+    5: {name: 'Yellow Squirrels', color: '#eab308', icon: 'https://wiki.playvalorant.com/en-us/images/Yellow_Squirrels.png'},
+    6: {name: 'Orange Bears', color: '#f97316', icon: 'https://wiki.playvalorant.com/en-us/images/Orange_Bears.png'},
+    7: {name: 'Pink Rabbits', color: '#ec4899', icon: 'https://wiki.playvalorant.com/en-us/images/Pink_Rabbits.png'},
+    8: {name: 'Red Elephants', color: '#ff4655', icon: 'https://wiki.playvalorant.com/en-us/images/Red_Elephants.png'},
+  };
 
   function factionSectionsHtml(list, meKey, ownFaction){
     const groups = new Map();
@@ -5229,12 +5248,14 @@
       (a === ownFaction ? -1 : b === ownFaction ? 1 : a - b));
     const sections = numbers.map(n => {
       const teamPlayers = groups.get(n).slice().sort(sortFn);
-      const accent = FACTION_COLORS[(n - 1 + FACTION_COLORS.length) % FACTION_COLORS.length];
+      const meta = FACTION_META[n] || null;
+      const accent = meta ? meta.color : 'var(--text-faint)';
+      const label = meta ? esc(meta.name) : esc(t('team_number_label', {n}));
       return `
       <div class="team-section faction" style="--team-accent:${esc(accent)};">
         <div class="team-banner">
-          <div class="slash"></div>
-          <h2>${esc(t('team_number_label', {n}))}</h2>
+          ${meta ? `<img class="faction-icon" src="${esc(meta.icon)}" alt="" loading="lazy">` : `<div class="slash"></div>`}
+          <h2>${label}</h2>
           <div class="line"></div>
           <span class="cnt">${t(teamPlayers.length === 1 ? 'player_count_1' : 'player_count_n', {n: teamPlayers.length})}</span>
         </div>
@@ -7216,7 +7237,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.7";
+const CURRENT_VERSION = "2.3.8";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
