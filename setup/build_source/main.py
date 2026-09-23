@@ -791,7 +791,22 @@ try:
                             "puuid": player["Subject"],
                             "name": names[player["Subject"]],
                             "partyNumber": partyNum if party_icon != "" else 0,
-                            "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
+                            # "" statt "Unknown" als Fallback: in Modi ohne feste
+                            # Agentenwahl (z.B. Gauntlet: Glitched/Ability Draft -
+                            # dort tragen buchstaeblich alle 16 Spieler dieselbe
+                            # Platzhalter-CharacterID 773f0c78-...) will niemand
+                            # "UN" (die ersten 2 Buchstaben von "Unknown") auf der
+                            # Karte sehen - leer laesst das Frontend sauber auf "-"
+                            # bzw. das generische Fallback-Icon zurueckfallen.
+                            "agent": agent_dict.get(player["CharacterID"].lower(), ""),
+                            # Faction-Nummer (1-8) bei Modi mit mehr als 2 Teams
+                            # (z.B. Gauntlet: Glitched: 8x 2er-Teams) - TeamID
+                            # bleibt bei diesen Modi trotzdem nur "Blue"/"Red"
+                            # (Riot-Altlast), TeamNumber ist das eigentliche
+                            # Faction-Feld. Bei normalen 2-Team-Modi fehlt das
+                            # Feld meist -> None, Frontend faellt dann automatisch
+                            # auf die gewohnte Ally/Enemy-Ansicht zurueck.
+                            "factionNumber": player.get("TeamNumber"),
                             "rank": playerRank["rank"],
                             "peakRank": playerRank["peakrank"],
                             "peakRankAct": peakRankAct,
@@ -1058,7 +1073,11 @@ try:
                         heartbeat_data["players"][player["Subject"]] = {
                             "name": names[player["Subject"]],
                             "partyNumber": partyNum if party_icon != "" else 0,
-                            "agent": agent_dict.get(player["CharacterID"].lower(), "Unknown"),
+                            # siehe Kommentar bei der INGAME-Variante oben - "" statt
+                            # "Unknown", damit modi ohne feste Agentenwahl nicht als
+                            # "UN" auf der Karte auftauchen.
+                            "agent": agent_dict.get(player["CharacterID"].lower(), ""),
+                            "factionNumber": player.get("TeamNumber"),
                             "rank": playerRank["rank"],
                             "peakRank": playerRank["peakrank"],
                             "peakRankAct": peakRankAct,

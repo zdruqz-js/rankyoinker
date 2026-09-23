@@ -394,6 +394,7 @@
     "for_the_enemies": "상대 팀 기준",
     "your_team": "우리 팀",
     "enemies": "상대 팀",
+    "team_number_label": "팀 {n}",
     "from_n_rated_players": "랭크 정보가 있는 {n}명 기준",
     "shop_owned_badge": "보유 중",
     "shop_loading": "상점을 불러오는 중…",

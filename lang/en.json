@@ -394,6 +394,7 @@
     "for_the_enemies": "for the enemies",
     "your_team": "Your Team",
     "enemies": "Enemies",
+    "team_number_label": "Team {n}",
     "from_n_rated_players": "from {n} rated players",
     "shop_owned_badge": "Owned",
     "shop_loading": "Loading shop…",

@@ -658,6 +658,16 @@
   .team-section.enemy .team-banner h2{color:var(--team-enemy);}
   .team-banner .line{flex:1; height:1px; background:linear-gradient(90deg, var(--border-strong), transparent);}
   .team-banner .cnt{font-family:var(--font-display); font-weight:700; font-size:11.5px; color:var(--text-faint); letter-spacing:.12em;}
+  /* Modi mit mehr als 2 Teams (z.B. Gauntlet: Glitched: 8x 2er-Teams) - jede
+     Sektion bekommt statt der festen Ally/Enemy-Farbe ihre eigene, ueber
+     --team-accent inline gesetzte Akzentfarbe (siehe factionSectionsHtml()). */
+  .team-section.faction .slash{background:linear-gradient(135deg, var(--team-accent, var(--team-ally)), var(--team-accent, var(--team-ally)));}
+  .team-section.faction .team-banner h2{color:var(--team-accent, var(--team-ally));}
+  .team-section.faction .pcard::before{background:linear-gradient(90deg, var(--team-accent, var(--team-ally)), transparent 70%);}
+  .team-section.faction .pcard:hover{border-color:var(--team-accent, var(--team-ally));}
+  .team-section.faction .pcard-portrait{background:radial-gradient(130% 115% at 50% -10%, color-mix(in srgb, var(--team-accent, var(--team-ally)) 16%, transparent), transparent 62%), var(--panel-3);}
+  .faction-grid{display:flex; flex-wrap:wrap; gap:20px 28px;}
+  .faction-grid .team-section{flex:1 1 340px; min-width:300px;}
 
   /* ================= PLAYER CARDS ================= */
   /* Karten mittig, höchstens 5 pro Reihe (Standard-Team), Rest bricht mittig um.
@@ -5198,6 +5208,42 @@
     </div>`;
   }
 
+  // Neutrale, gut unterscheidbare Akzentfarben fuer Modi mit mehr als 2 Teams
+  // (siehe factionSectionsHtml) - bewusst KEINE Ally/Enemy-Semantik, da bei
+  // z.B. 8 Teams jedes davon mal "die eigene" Fraktion sein kann. Riot liefert
+  // fuer diese Fraktionen aktuell weder Namen noch Farbe ueber die API, darum
+  // hier ein fester, eigener Farbsatz statt (moeglicherweise falscher) Raterei.
+  const FACTION_COLORS = ['#4a9eff', '#ff4655', '#f5a623', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#eab308'];
+
+  function factionSectionsHtml(list, meKey, ownFaction){
+    const groups = new Map();
+    list.forEach(p => {
+      const n = p.factionNumber;
+      if(n == null) return;
+      if(!groups.has(n)) groups.set(n, []);
+      groups.get(n).push(p);
+    });
+    const sortFn = (a,b) => (b.rank ?? 0) - (a.rank ?? 0) || (b.rr ?? 0) - (a.rr ?? 0);
+    // Eigenes Team zuerst, Rest nach Team-Nummer sortiert.
+    const numbers = Array.from(groups.keys()).sort((a,b) =>
+      (a === ownFaction ? -1 : b === ownFaction ? 1 : a - b));
+    const sections = numbers.map(n => {
+      const teamPlayers = groups.get(n).slice().sort(sortFn);
+      const accent = FACTION_COLORS[(n - 1 + FACTION_COLORS.length) % FACTION_COLORS.length];
+      return `
+      <div class="team-section faction" style="--team-accent:${esc(accent)};">
+        <div class="team-banner">
+          <div class="slash"></div>
+          <h2>${esc(t('team_number_label', {n}))}</h2>
+          <div class="line"></div>
+          <span class="cnt">${t(teamPlayers.length === 1 ? 'player_count_1' : 'player_count_n', {n: teamPlayers.length})}</span>
+        </div>
+        <div class="card-grid" style="--card-grid-n:${Math.max(1, teamPlayers.length)};">${teamPlayers.map(p => playerCardHtml(p, (p.puuid || p.name) === meKey)).join('')}</div>
+      </div>`;
+    }).join('');
+    return `<div class="faction-grid">${sections}</div>`;
+  }
+
   function bindCards(playersByKey){
     content.querySelectorAll('.pcard').forEach(el => {
       el.addEventListener('click', () => {
@@ -5298,6 +5344,13 @@
       </div>
       <div id="partyControls"></div>`;
       bodyHtml = instalockPanelHtml() + bodyHtml;
+    } else if(state === 'INGAME' && new Set(list.map(p => p.factionNumber).filter(n => n != null)).size > 2){
+      // Modi mit mehr als 2 Teams (aktuell: Gauntlet: Glitched / Ability Draft,
+      // 8x 2er-Teams) - TeamID bleibt dort nur "Blue"/"Red" (Riot-Altlast),
+      // factionNumber (vom Server aus TeamNumber durchgereicht) ist das echte
+      // Gruppierungsfeld. Riot liefert dafuer keinen Namen/keine Farbe, darum
+      // hier bewusst neutrale "Team N"-Label statt geratener Fraktionsnamen.
+      bodyHtml = factionSectionsHtml(list, own ? (own.puuid || own.name) : null, own ? own.factionNumber : null);
     } else {
       const ownTeam = own ? own.team : null;
       let allies, enemies;
@@ -7163,7 +7216,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.6";
+const CURRENT_VERSION = "2.3.7";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
