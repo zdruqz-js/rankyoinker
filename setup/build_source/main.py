@@ -520,7 +520,12 @@ try:
                 isRange = False
                 playersLoaded = 1
 
-                heartbeat_data["map"] = (map_urls[coregame_stats["MapID"].lower()],)
+                # .get() statt [...]: neue Spielmodi (z.B. Ability Draft) laufen auf
+                # einer virtuellen "Karte" (/Game/Maps/AbilityDraft/AbilityDraft), die
+                # nie in valorant-api.com/v1/maps auftaucht - ein KeyError hier war
+                # bisher toedlich fuer den ganzen Loop (siehe except: unten), das
+                # Frontend kommt mit map=None bereits klar (kein Hintergrundbild).
+                heartbeat_data["map"] = (map_urls.get(coregame_stats["MapID"].lower()),)
                 with richConsole.status("Loading Players...") as status:
                     partyOBJ = menu.get_party_json(
                         namesClass.get_players_puuid(Players), presence
@@ -1289,5 +1294,15 @@ except:
             fore=(255, 0, 0),
         )
     )
-    input("press enter to exit...\n")
+    # vry_log_server.py startet uns immer mit CREATE_NO_WINDOW (kein Konsolenfenster,
+    # kein echtes Stdin) - dort wuerde input() fuer immer haengen, der Prozess bliebe
+    # als "laeuft noch" (tasklist-Check) stehen und der eingebaute Auto-Neustart
+    # (start_vry()/MAX_RESTARTS in vry_log_server.py) greift nie ein. Nur beim
+    # manuellen Start in einer echten Konsole (Entwicklung/Debugging) nachfragen.
+    try:
+        interactive = sys.stdin is not None and sys.stdin.isatty()
+    except Exception:
+        interactive = False
+    if interactive:
+        input("press enter to exit...\n")
     os._exit(1)

@@ -660,9 +660,12 @@
   .team-banner .cnt{font-family:var(--font-display); font-weight:700; font-size:11.5px; color:var(--text-faint); letter-spacing:.12em;}
 
   /* ================= PLAYER CARDS ================= */
-  /* Karten mittig, höchstens 5 pro Reihe, Rest bricht mittig um */
+  /* Karten mittig, höchstens 5 pro Reihe (Standard-Team), Rest bricht mittig um.
+     --card-grid-n wird pro Team-Grid gesetzt (siehe renderTeam() in render()) -
+     bei kleineren Teams (z.B. Ability Draft: 2v2) wachsen die Karten dann bis zur
+     tatsaechlichen Team-Groesse statt fest auf 1/5 gedeckelt zu bleiben. */
   .card-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:12px;}
-  .card-grid > *{flex:1 1 200px; min-width:180px; max-width:calc((100% - 48px) / 5);}
+  .card-grid > *{flex:1 1 200px; min-width:180px; max-width:calc((100% - 48px) / var(--card-grid-n, 5));}
 
   .pcard{
     position:relative; background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
@@ -5327,8 +5330,12 @@
       const sortFn = (a,b) => (b.rank ?? 0) - (a.rank ?? 0) || (b.rr ?? 0) - (a.rr ?? 0);
       allies.sort(sortFn); enemies.sort(sortFn);
 
+      // --card-grid-n steuert die Karten-Maximalbreite unten (siehe .card-grid > *) -
+      // ohne das war jede Karte fest auf 1/5 Breite gedeckelt, was bei kleineren
+      // Team-Groessen (z.B. Ability Draft: 2v2) einen grossen leeren Rest in der
+      // Reihe liess statt die Karten sauber aufzufuellen.
       const renderTeam = (players) =>
-        `<div class="card-grid">${players.map(p => playerCardHtml(p, (p.puuid || p.name) === meKey)).join('')}</div>`;
+        `<div class="card-grid" style="--card-grid-n:${Math.max(1, players.length)};">${players.map(p => playerCardHtml(p, (p.puuid || p.name) === meKey)).join('')}</div>`;
 
       // Kräfteverhältnis der beiden Teams ganz oben — nur wenn es Gegner gibt
       bodyHtml = (enemies.length ? teamCompareHtml(allies, enemies) : '') + `
@@ -7156,7 +7163,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.4";
+const CURRENT_VERSION = "2.3.5";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
