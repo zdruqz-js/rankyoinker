@@ -19,6 +19,12 @@ gamemodes = {
     "custom": "Custom",
     "snowball": "Snowball Fight",
     "valaram": "All Random One Site",
+    # Neuer Modus vom 13.06-Patch (2026-09-22/23) - Riot nennt die Queue intern
+    # "abilitydraftarena", oeffentlich heisst der Modus "Gauntlet: Glitched"
+    # (8 Teams a 2 Spieler, Karte /Game/Maps/AbilityDraft/AbilityDraft). Ohne
+    # diesen Eintrag kam hier vorher ein rohes "None" durch (siehe .get()
+    # unten ohne Treffer).
+    "abilitydraftarena": "Gauntlet: Glitched",
     "": "Custom",
 }
 
