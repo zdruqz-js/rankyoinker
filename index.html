@@ -2169,7 +2169,7 @@
     container.appendChild(frag);
   })();
 
-  const WEAPON_ORDER = ["Classic","Shorty","Frenzy","Ghost","Bandit","Sheriff","Stinger","Spectre","Bucky","Judge","Bulldog","Guardian","Phantom","Vandal","Marshal","Outlaw","Operator","Ares","Odin","Melee"];
+  const WEAPON_ORDER = ["Classic","Shorty","Frenzy","Ghost","Bandit","Sheriff","Stinger","Spectre","Bucky","Judge","Bulldog","Guardian","Phantom","Vandal","Warden","Marshal","Outlaw","Operator","Ares","Odin","Melee"];
   const RANK_NAMES = ["Unranked","Unranked","Unranked","Iron 1","Iron 2","Iron 3","Bronze 1","Bronze 2","Bronze 3","Silver 1","Silver 2","Silver 3","Gold 1","Gold 2","Gold 3","Platinum 1","Platinum 2","Platinum 3","Diamond 1","Diamond 2","Diamond 3","Ascendant 1","Ascendant 2","Ascendant 3","Immortal 1","Immortal 2","Immortal 3","Radiant"];
   const PARTY_COLORS = ["#e34343","#d843e3","#4346e3","#43e3d0","#5ee343","#e2ed39","#d452cf"];
 
@@ -4522,6 +4522,33 @@
   // /v1/weapons enthält je Waffe alle Skins samt Leveln und Chromas — eine Anfrage genügt.
   // Wichtig: hohe Level ("Level 4") haben oft KEIN eigenes Icon → dann das des Skins nehmen.
   let weaponsData = null;
+
+  // Warden (13.06-Patch, 2026-09-22/23) fehlt bei valorant-api.com noch (das ist
+  // ein Community-Projekt und haengt bei ganz neuen Inhalten regelmaessig ein
+  // paar Tage hinterher - dasselbe Muster wie zuvor bei Maps/Spielmodus/
+  // Fraktionen). IDs stammen aus einem echten Live-Loadout (Community,
+  // 2026-09-23); Standard-Skin ist bislang die einzige bestaetigte Option fuer
+  // diese Waffe - zwei unabhaengige Signale stimmen ueberein: weder in den
+  // Skin-Entitlements eines Accounts mit hunderten Skins sonst, noch auf der
+  // offiziellen Waffenseite taucht ein Kauf-Skin fuer Warden auf. Icon offiziell
+  // bei Riot selbst gehostet (wiki.playvalorant.com). Ergaenzt nur, ueberschreibt
+  // nie - sobald valorant-api.com die Waffe selbst listet, gewinnt automatisch
+  // die echte, vollstaendige Datenquelle (siehe "if(!weaponsData[...])" unten).
+  const WARDEN_UUID = '8db0a1bf-4a50-832a-4566-faaaa6d250ca';
+  const WARDEN_STANDARD_SKIN = '61d99a36-4033-0fa9-2c94-71aaf901e120';
+  const WARDEN_STANDARD_LEVEL = '45a2214f-4730-8c89-b0a4-a7a2b5125ac8';
+  const WARDEN_ICON = 'https://wiki.playvalorant.com/en-us/images/thumb/Warden.png/512px-Warden.png';
+  function addWardenFallback(){
+    if(weaponsData[WARDEN_UUID]) return;   // valorant-api.com hat nachgezogen - nichts zu tun
+    weaponNameMap[WARDEN_UUID] = 'Warden';
+    weaponsData[WARDEN_UUID] = {name: 'Warden', skins: [{
+      uuid: WARDEN_STANDARD_SKIN, displayName: 'Standard Warden', displayIcon: WARDEN_ICON,
+      levels: [{uuid: WARDEN_STANDARD_LEVEL, displayIcon: WARDEN_ICON}], chromas: [],
+    }]};
+    skinLevelMap[WARDEN_STANDARD_LEVEL] =
+      {name: 'Standard Warden', icon: WARDEN_ICON, level: 1, skin: WARDEN_STANDARD_SKIN};
+  }
+
   function loadSkinData(){
     if(skinLevelMap) return Promise.resolve();
     return fetch('https://valorant-api.com/v1/weapons').then(r => r.json()).then(wp => {
@@ -4551,7 +4578,11 @@
           });
         });
       });
-    }).catch(() => { skinLevelMap = {}; weaponNameMap = {}; chromaMap = {}; weaponsData = {}; });
+      addWardenFallback();
+    }).catch(() => {
+      skinLevelMap = {}; weaponNameMap = {}; chromaMap = {}; weaponsData = {};
+      addWardenFallback();
+    });
   }
 
   // Besitzstand (Skin-Level + Varianten) für die Auswahl
@@ -7241,7 +7272,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.10";
+const CURRENT_VERSION = "2.3.11-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

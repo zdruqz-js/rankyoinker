@@ -440,7 +440,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.10"
+APP_VERSION = "2.3.11-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
@@ -2652,6 +2652,34 @@ SOCKET_SKIN_CHROMA = "3ad1b2b2-acdb-4524-852f-954a76ddae0a"
 _weapons_cache = {"ts": 0.0, "data": None}
 WEAPONS_TTL = 21600   # 6h - Waffen/Skins aendern sich praktisch nie zur Laufzeit
 
+# Warden (13.06-Patch, 2026-09-22/23) fehlt bei valorant-api.com noch (Community-
+# Projekt, haengt bei ganz neuen Inhalten ein paar Tage hinterher - dasselbe
+# Muster wie zuvor bei Maps/Spielmodus/Fraktionen). IDs aus einem echten Live-
+# Loadout (Community, 2026-09-23); Standard-Skin ist bislang die einzige
+# bestaetigte Option - zwei unabhaengige Signale stimmen ueberein (weder in
+# den Skin-Entitlements eines Accounts mit hunderten Skins sonst, noch auf der
+# offiziellen Waffenseite taucht ein Kauf-Skin fuer Warden auf). Icon offiziell
+# bei Riot selbst gehostet. Siehe auch die JS-Entsprechung addWardenFallback()
+# in index.html - beide Stellen lesen von valorant-api.com und brauchen daher
+# dieselbe Ergaenzung, bis die Waffe dort selbst gelistet wird.
+WARDEN_UUID = "8db0a1bf-4a50-832a-4566-faaaa6d250ca"
+WARDEN_STANDARD_SKIN = "61d99a36-4033-0fa9-2c94-71aaf901e120"
+WARDEN_STANDARD_LEVEL = "45a2214f-4730-8c89-b0a4-a7a2b5125ac8"
+WARDEN_ICON = "https://wiki.playvalorant.com/en-us/images/thumb/Warden.png/512px-Warden.png"
+
+
+def _with_warden_fallback(weapons):
+    if any((w.get("uuid") or "").lower() == WARDEN_UUID for w in weapons):
+        return weapons   # valorant-api.com hat nachgezogen - nichts zu tun
+    return weapons + [{
+        "uuid": WARDEN_UUID, "displayName": "Warden", "displayIcon": WARDEN_ICON,
+        "skins": [{
+            "uuid": WARDEN_STANDARD_SKIN, "displayName": "Standard Warden",
+            "displayIcon": WARDEN_ICON, "chromas": [],
+            "levels": [{"uuid": WARDEN_STANDARD_LEVEL, "displayIcon": WARDEN_ICON}],
+        }],
+    }]
+
 
 def _valo_weapons():
     now = time.time()
@@ -2661,6 +2689,7 @@ def _valo_weapons():
         _, j = _http("https://valorant-api.com/v1/weapons")
         data = (j or {}).get("data") or []
         if data:
+            data = _with_warden_fallback(data)
             _weapons_cache["data"] = data
             _weapons_cache["ts"] = now
         return data or _weapons_cache["data"] or []
