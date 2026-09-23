@@ -4,6 +4,35 @@ from colr import color
 from src.constants import sockets, hide_names
 import json
 
+# Warden (13.06-Patch, 2026-09-22/23) fehlt bei valorant-api.com noch (Community-
+# Projekt, haengt bei ganz neuen Inhalten ein paar Tage hinterher - dasselbe
+# Muster wie zuvor bei Maps/Spielmodus/Fraktionen). IDs aus einem echten Live-
+# Loadout (Community, 2026-09-23); Standard-Skin ist bislang die einzige
+# bestaetigte Option (zwei unabhaengige Signale: weder in den Skin-
+# Entitlements eines Accounts mit hunderten Skins sonst, noch auf der
+# offiziellen Waffenseite taucht ein Kauf-Skin fuer Warden auf). Icon
+# offiziell bei Riot selbst gehostet. Analog zu addWardenFallback() in
+# index.html und _with_warden_fallback() in vry_log_server.py - drei
+# getrennte Stellen holen sich alle unabhaengig dieselben valorant-api.com-
+# Waffendaten, brauchen also alle dieselbe Ergaenzung.
+WARDEN_UUID = "8db0a1bf-4a50-832a-4566-faaaa6d250ca"
+WARDEN_STANDARD_SKIN = "61d99a36-4033-0fa9-2c94-71aaf901e120"
+WARDEN_STANDARD_LEVEL = "45a2214f-4730-8c89-b0a4-a7a2b5125ac8"
+WARDEN_ICON = "https://wiki.playvalorant.com/en-us/images/thumb/Warden.png/512px-Warden.png"
+
+
+def _weapons_with_warden(weapons_data):
+    if any((w.get("uuid") or "").lower() == WARDEN_UUID for w in weapons_data):
+        return weapons_data   # valorant-api.com hat nachgezogen - nichts zu tun
+    return weapons_data + [{
+        "uuid": WARDEN_UUID, "displayName": "Warden", "displayIcon": WARDEN_ICON,
+        "skins": [{
+            "uuid": WARDEN_STANDARD_SKIN, "displayName": "Standard Warden",
+            "displayIcon": WARDEN_ICON, "chromas": [],
+            "levels": [{"uuid": WARDEN_STANDARD_LEVEL, "displayIcon": WARDEN_ICON}],
+        }],
+    }]
+
 
 class Loadouts:
     def __init__(self, Requests, log, colors, Server, current_map):
@@ -217,7 +246,7 @@ class Loadouts:
                                     )
 
                     # append names to field
-                    for weapon in valoApiWeapons.json()["data"]:
+                    for weapon in _weapons_with_warden(valoApiWeapons.json()["data"]):
                         if skin == weapon["uuid"]:
                             final_json[subject]["Weapons"][skin].update(
                                 {
