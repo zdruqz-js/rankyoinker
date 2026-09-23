@@ -100,6 +100,19 @@ try:
 
     agent_dict = content.get_all_agents()
 
+    # Gauntlet: Glitched (Ability Draft) vergibt keinen echten Agenten - alle
+    # Spieler teilen dieselbe Platzhalter-CharacterID 773f0c78-... (per Live-
+    # Match bestaetigt, 2026-09-23). Bis Riot dafuer eigene Bilder/Namen pro
+    # Spieler ausliefert, zeigen wir stellvertretend KAYO (User-Wunsch) statt
+    # gar nichts - rein kosmetisch, keine echte Zuordnung zum Charakter.
+    GLITCHED_PLACEHOLDER_AGENT_ID = "773f0c78-4486-752b-68ef-4585d7f4b848"
+
+    def resolve_agent_name(character_id):
+        cid = (character_id or "").lower()
+        if cid == GLITCHED_PLACEHOLDER_AGENT_ID:
+            return "KAY/O"
+        return agent_dict.get(cid, "")
+
     map_info = content.get_all_maps()
     map_urls = content.get_map_urls(map_info)
     map_splashes = content.get_map_splashes(map_info)
@@ -791,14 +804,11 @@ try:
                             "puuid": player["Subject"],
                             "name": names[player["Subject"]],
                             "partyNumber": partyNum if party_icon != "" else 0,
-                            # "" statt "Unknown" als Fallback: in Modi ohne feste
-                            # Agentenwahl (z.B. Gauntlet: Glitched/Ability Draft -
-                            # dort tragen buchstaeblich alle 16 Spieler dieselbe
-                            # Platzhalter-CharacterID 773f0c78-...) will niemand
-                            # "UN" (die ersten 2 Buchstaben von "Unknown") auf der
-                            # Karte sehen - leer laesst das Frontend sauber auf "-"
-                            # bzw. das generische Fallback-Icon zurueckfallen.
-                            "agent": agent_dict.get(player["CharacterID"].lower(), ""),
+                            # Siehe resolve_agent_name() oben - "" statt "Unknown"
+                            # als Fallback fuer echte Unbekannte (niemand will "UN"
+                            # sehen), KAYO als temporaerer Platzhalter speziell fuer
+                            # Gauntlet: Glitched.
+                            "agent": resolve_agent_name(player["CharacterID"]),
                             # Faction-Nummer (1-8) bei Modi mit mehr als 2 Teams
                             # (z.B. Gauntlet: Glitched: 8x 2er-Teams) - TeamID
                             # bleibt bei diesen Modi trotzdem nur "Blue"/"Red"
@@ -1073,10 +1083,8 @@ try:
                         heartbeat_data["players"][player["Subject"]] = {
                             "name": names[player["Subject"]],
                             "partyNumber": partyNum if party_icon != "" else 0,
-                            # siehe Kommentar bei der INGAME-Variante oben - "" statt
-                            # "Unknown", damit modi ohne feste Agentenwahl nicht als
-                            # "UN" auf der Karte auftauchen.
-                            "agent": agent_dict.get(player["CharacterID"].lower(), ""),
+                            # siehe resolve_agent_name() oben.
+                            "agent": resolve_agent_name(player["CharacterID"]),
                             "factionNumber": player.get("TeamNumber"),
                             "rank": playerRank["rank"],
                             "peakRank": playerRank["peakrank"],
