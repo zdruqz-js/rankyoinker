@@ -131,21 +131,17 @@ RPC_STRINGS: Dict[str, Dict[str, str]] = {
 
 
 def _config_path() -> str:
-    """Absoluter Pfad zu config.json - bewusst NICHT relativ zum aktuellen
-    Arbeitsverzeichnis (das war der eigentliche Bug: config.json liegt neben
-    vry.exe, aber ein bloßes open("config.json", ...) haengt am Arbeits-
-    verzeichnis des Prozesses zum Zeitpunkt des Aufrufs. Weicht das auch nur
-    einmal vom erwarteten Fall ab, findet dieser Read die Datei nie und faellt
-    lautlos auf "de" zurueck, OHNE dass irgendwo ein Fehler sichtbar wird -
-    genau das Symptom "Discord Rich Presence bleibt immer Deutsch"). Im
-    gefrorenen vry.exe liegt config.json direkt neben der exe selbst
-    (sys.executable); beim Testen aus dem Quellcode (src/rpc.py) beim
-    Projekt-Root eine Ebene ueber src/."""
-    if getattr(sys, "frozen", False):
-        base = os.path.dirname(sys.executable)
-    else:
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, "config.json")
+    """Absoluter Pfad zu config.json - siehe src/paths.py::config_path() fuer
+    die vollstaendige Begruendung (urspruenglich hier entstanden: ein bloßes
+    open("config.json", ...) haengt vom Arbeitsverzeichnis des Prozesses
+    zum Aufrufzeitpunkt ab, weicht das auch nur einmal vom erwarteten Fall
+    ab, faellt das lautlos auf "de" zurueck - genau das Symptom "Discord
+    Rich Presence bleibt immer Deutsch"). Seit dem Sicherheitsfix vom
+    2026-09-28 zusaetzlich in %LOCALAPPDATA%\\RankYoinker statt neben der
+    exe, damit config.json nicht mehr in einem fuer alle lokalen Nutzer
+    beschreibbaren Programmordner liegen muss."""
+    from src.paths import config_path
+    return config_path()
 
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-

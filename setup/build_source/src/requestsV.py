@@ -69,7 +69,13 @@ class Requests:
     def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5, attempt=1):
         try:
             if url_type == "glz":
-                response = requests.request(method, self.glz_url + endpoint, headers=self.get_headers(), verify=False)
+                # glz-*.*.a.pvp.net is Riot's real cloud API (public, trusted
+                # cert) - verify=False here (like pd/custom below) had no
+                # legitimate reason and left every request open to a trivial
+                # MITM (see security report 2026-09-28). Only the genuinely
+                # self-signed local client API (url_type "local" below,
+                # get_headers()) skips verification.
+                response = requests.request(method, self.glz_url + endpoint, headers=self.get_headers(), verify=True)
                 self.log(f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
 
@@ -104,7 +110,8 @@ class Requests:
                     return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
                 return response.json()
             elif url_type == "pd":
-                response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=False)
+                # pd.*.a.pvp.net is Riot's real cloud API too - see comment above.
+                response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
@@ -132,9 +139,12 @@ class Requests:
                     return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
                 return response
             elif url_type == "local":
+                # 127.0.0.1 = the Riot Client's own local API, self-signed
+                # certificate by design - verification is intentionally off
+                # ONLY here and in get_headers() below, nowhere else.
                 local_headers = {'Authorization': 'Basic ' + base64.b64encode(
                     ('riot:' + self.lockfile['password']).encode()).decode()}
-                
+
                 max_retries = 3
                 for i in range(max_retries):
                     try:
@@ -157,7 +167,10 @@ class Requests:
                 self.log(f"Failed to connect to local client after {max_retries} attempts.")
                 return None
             elif url_type == "custom":
-                response = requests.request(method, f"{endpoint}", headers=self.get_headers(), verify=False)
+                # Only ever called with a hardcoded shared.*.a.pvp.net URL
+                # (see content.py) - a real, publicly-trusted endpoint, same
+                # as pd/glz above.
+                response = requests.request(method, f"{endpoint}", headers=self.get_headers(), verify=True)
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")

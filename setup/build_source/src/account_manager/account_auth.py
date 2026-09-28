@@ -133,14 +133,17 @@ class AccountAuth:
     def get_latest_season_id(self):
         self.log("get latest season id")
         if self.content is None:
-            self.content = requests.get(f"https://shared.{self.region}.a.pvp.net/content-service/v3/content", headers=self.auth_headers, verify=False)
+            # All *.a.pvp.net calls in this file are Riot's real, publicly-
+            # trusted cloud API (not the local client) - verify=True, see
+            # security report 2026-09-28.
+            self.content = requests.get(f"https://shared.{self.region}.a.pvp.net/content-service/v3/content", headers=self.auth_headers, verify=True)
         for season in self.content.json()["Seasons"]:
             if season["IsActive"]:
                 return season["ID"]
 
     def get_account_data(self):
         #if more advande account data wants to be supported requestsV needs to be edited so it can bue used with custom headers and not lockfile
-        r_mmr = requests.get(f"https://pd.{self.region}.a.pvp.net/mmr/v1/players/{self.puuid}", headers=self.auth_headers, verify=False)
+        r_mmr = requests.get(f"https://pd.{self.region}.a.pvp.net/mmr/v1/players/{self.puuid}", headers=self.auth_headers, verify=True)
         if r_mmr.json()["QueueSkills"]["competitive"].get("SeasonalInfoBySeasonID") is not None:
             season_info = r_mmr.json()["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"].get(self.get_latest_season_id())
             if season_info is not None:
@@ -152,12 +155,12 @@ class AccountAuth:
         rank = self.escape_ansi(self.NUMBERTORANKS[rank])
         name = requests.put(f"https://pd.{self.region}.a.pvp.net/name-service/v2/players", headers=self.auth_headers, json=[self.puuid]).json()
         name = name[0]["GameName"] + "#" + name[0]["TagLine"]
-        r_account_xp = requests.get(f"https://pd.{self.region}.a.pvp.net/account-xp/v1/players/{self.puuid}", headers=self.auth_headers, verify=False)
+        r_account_xp = requests.get(f"https://pd.{self.region}.a.pvp.net/account-xp/v1/players/{self.puuid}", headers=self.auth_headers, verify=True)
         level = r_account_xp.json()["Progress"]["Level"]
         contracts = requests.get("https://valorant-api.com/v1/contracts")
         contracts = [a for a in contracts.json()["data"] if a["content"]["relationType"] == "Season"]
         bp = contracts[-1]
-        r_contracts = requests.get(f"https://pd.{self.region}.a.pvp.net/contracts/v1/contracts/{self.puuid}", headers=self.auth_headers, verify=False)
+        r_contracts = requests.get(f"https://pd.{self.region}.a.pvp.net/contracts/v1/contracts/{self.puuid}", headers=self.auth_headers, verify=True)
         for contract in r_contracts.json()["Contracts"]:
             if contract["ContractDefinitionID"] == bp["uuid"]:
                 bp_level = contract["ProgressionLevelReached"]

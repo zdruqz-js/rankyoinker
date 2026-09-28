@@ -42,6 +42,7 @@ import os
 import random
 import re
 import secrets
+import shutil
 import socket
 import ssl
 import subprocess
@@ -55,7 +56,6 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-LOGDIR = os.path.join(BASE, "logs")
 # Eine .json pro Sprache (de.json, pl.json, ...) statt fest im JS eingebettet -
 # lassen sich so einzeln an Uebersetzer weitergeben, und eine neue Sprache
 # hinzuzufuegen heisst nur "eine weitere Datei reinlegen", kein Code-Aenderung.
@@ -68,6 +68,67 @@ CREATE_NO_WINDOW = 0x08000000
 LOCALAPPDATA = os.environ.get("LOCALAPPDATA", "")
 LOCKFILE = os.path.join(LOCALAPPDATA, "Riot Games", "Riot Client", "Config", "lockfile")
 SHOOTER_LOG = os.path.join(LOCALAPPDATA, "VALORANT", "Saved", "Logs", "ShooterGame.log")
+
+# Vom Programmordner (BASE = {app}, ProgramData) getrennter, garantiert vom
+# aktuell eingeloggten Nutzer OHNE Sonderrechte beschreibbarer Ordner fuer
+# alles, was zur Laufzeit entsteht (config.json, Presets, Kopplung, Logs,
+# der heruntergeladene Update-Installer, ...).
+#
+# Vorher lag all das direkt in BASE, mit "Permissions: users-modify" auf dem
+# GANZEN Ordner in RankYoinker.iss - also fuer JEDE lokal angemeldete Person
+# beschreibbar, nicht nur den Installierenden. Kombiniert mit dem admin-
+# elevierten Uninstaller, der python.exe/vry_log_server.py genau aus diesem
+# Ordner ausfuehrt (siehe [UninstallRun] in RankYoinker.iss), war das eine
+# echte Rechteausweitung: auf einer Mehrnutzer-Maschine konnte JEDE Person
+# mit einem gewoehnlichen Standardkonto dort Code platzieren, der beim
+# naechsten (admin-elevierten) Deinstallieren durch irgendjemand anderen mit
+# Adminrechten ausgefuehrt worden waere (Community-Sicherheitsbericht,
+# 2026-09-28). BASE ist seitdem nur noch fuer die eigentlichen Programm-
+# dateien gedacht (vry.exe, pythonw.exe, *.dll/*.pyd, lib/, index.html,
+# lang/, dieses Skript selbst) und hat KEINE "users-modify"-Berechtigung
+# mehr - siehe [Dirs] in RankYoinker.iss.
+DATA_DIR = os.path.join(LOCALAPPDATA or BASE, "RankYoinker")
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except OSError:
+    pass
+LOGDIR = os.path.join(DATA_DIR, "logs")
+
+
+def _migrate_legacy_data():
+    """Einmaliger Umzug: bestehende Installationen (vor dem Sicherheitsfix
+    2026-09-28) haben ihre Laufzeitdaten noch in BASE liegen. Kopiert jede
+    bekannte Datei/den logs-Ordner genau EINMAL nach DATA_DIR hinueber, wenn
+    sie dort noch fehlt - niemand soll seine gespeicherten Presets, die
+    Handy-Kopplung oder die Spracheinstellung durch dieses Update verlieren.
+    Loescht die alten Dateien bewusst NICHT (BASE ist fuer normale Nutzer ab
+    jetzt ohnehin nur noch lesbar, sie wuerden gleich wieder als "vorhanden,
+    aber nicht mehr benutzt" daliegen bleiben - kein Grund, das Loeschen zu
+    riskieren, falls beim Kopieren doch mal was schiefgeht)."""
+    legacy_names = [
+        ".rankyoinker_client_id", ".rankyoinker_feature_counts.json",
+        ".rankyoinker_last_report.json", ".rankyoinker_matches_tracked_seen.json",
+        "config.json", "vry_presets.json", "vry_encounters.json",
+        "vry_instalock.json", "vry_pair.json", "vry_lol.json",
+        "vry_lol_presets.json", "vry_lol_encounters.json",
+    ]
+    for name in legacy_names:
+        src = os.path.join(BASE, name)
+        dst = os.path.join(DATA_DIR, name)
+        if os.path.exists(src) and not os.path.exists(dst):
+            try:
+                shutil.copy2(src, dst)
+            except OSError:
+                pass
+    legacy_logs = os.path.join(BASE, "logs")
+    if os.path.isdir(legacy_logs) and not os.path.isdir(LOGDIR):
+        try:
+            shutil.copytree(legacy_logs, LOGDIR)
+        except OSError:
+            pass
+
+
+_migrate_legacy_data()
 
 # Standard-Plattform-Header des VALORANT-Clients (base64-JSON)
 CLIENT_PLATFORM = (
@@ -440,11 +501,11 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.13"
+APP_VERSION = "2.3.14-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
-_CLIENT_ID_PATH = os.path.join(BASE, ".rankyoinker_client_id")
-_HEARTBEAT_ERR_PATH = os.path.join(BASE, "rankyoinker-heartbeat-error.txt")
+_CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
+_HEARTBEAT_ERR_PATH = os.path.join(DATA_DIR, "rankyoinker-heartbeat-error.txt")
 
 # Anonymer "ein Match wurde getrackt"-Zaehler fuers oeffentliche Live-Stats-
 # Embed im Discord (siehe _game_watcher()/_lol_watcher() weiter unten, wo das
@@ -476,7 +537,7 @@ def _notify_match_tracked(game):
 # Nur die letzten MATCHES_TRACKED_SEEN_MAX IDs je Spiel - waechst dadurch
 # nicht unbegrenzt (Match-IDs kommen ohnehin nie wieder vor, mehr als 1-2
 # braeuchte es dafuer eigentlich nicht, aber ein kleiner Puffer schadet nicht).
-MATCHES_TRACKED_SEEN_FILE = os.path.join(BASE, ".rankyoinker_matches_tracked_seen.json")
+MATCHES_TRACKED_SEEN_FILE = os.path.join(DATA_DIR, ".rankyoinker_matches_tracked_seen.json")
 MATCHES_TRACKED_SEEN_MAX = 10
 _matches_tracked_seen_cache = None
 
@@ -634,10 +695,10 @@ def _active_user_heartbeat():
 # Riot-Account mitgeschickt wird (Puuid + Anzeigename) - das gehoert nicht in
 # den haeufigen, bewusst minimalen Heartbeat. Nur fuers interne, admin-only
 # Dashboard (rankyoinker.de/dashboard) gedacht, nicht oeffentlich einsehbar.
-FEATURE_COUNTS_PATH = os.path.join(BASE, ".rankyoinker_feature_counts.json")
+FEATURE_COUNTS_PATH = os.path.join(DATA_DIR, ".rankyoinker_feature_counts.json")
 CLIENT_REPORT_URL = "https://rankyoinker.de/api/client-report"
 CLIENT_REPORT_INTERVAL = 300
-_LAST_REPORT_PATH = os.path.join(BASE, ".rankyoinker_last_report.json")
+_LAST_REPORT_PATH = os.path.join(DATA_DIR, ".rankyoinker_last_report.json")
 _feature_lock = threading.Lock()
 _feature_counts = None
 
@@ -730,7 +791,7 @@ def _client_report_loop():
 # (z.B. innerhalb der elevierten Installer-Kette) anders auflösen als das
 # %TEMP%, das man selbst im Explorer nachschaut - die Datei existierte
 # dadurch scheinbar nie, obwohl der Code lief.
-_UPDATE_LOG_PATH = os.path.join(BASE, "rankyoinker-update-log.txt")
+_UPDATE_LOG_PATH = os.path.join(DATA_DIR, "rankyoinker-update-log.txt")
 
 
 def _ulog(msg):
@@ -745,14 +806,54 @@ def _ulog(msg):
         pass
 
 
-def trigger_self_update(download_url, expected_sha256):
-    _ulog(f"Update ausgeloest. downloadUrl={download_url!r} sha256={expected_sha256!r}")
+VERSION_CHECK_URL = "https://rankyoinker.de/api/version"
+GITHUB_RELEASE_BASE = "https://github.com/zdruqz-js/rankyoinker/releases/download"
 
-    if not download_url or not expected_sha256:
-        _ulog("Abgebrochen: Download-URL oder Hash fehlt.")
-        return {"ok": False, "error": "Download-URL oder Hash fehlt."}
 
-    tmp_path = os.path.join(BASE, "rankyoinker-update.exe")
+def _resolve_official_update():
+    """Ermittelt downloadUrl + Hash SELBST per eigenem, echtem HTTPS-Aufruf an
+    rankyoinker.de - nimmt sie NICHT mehr vom Aufrufer entgegen (der frueher
+    einfach body.get("downloadUrl")/body.get("sha256") direkt an
+    trigger_self_update() durchgereicht hat). Das war die eigentliche Luecke:
+    selbst mit _origin_ok_silent() als zusaetzlicher Absicherung waere es
+    unsauber, dem Browser hier weiter zu vertrauen - der Hash-Vergleich
+    unten ist nur noch sinnvoll, wenn beide Seiten (Soll UND Ist) wirklich
+    vom Server kommen, nicht wenn der Aufrufer beide frei waehlen kann
+    (Community-Sicherheitsbericht, 2026-09-28).
+    Zusaetzlich: downloadUrl wird nicht aus der JSON-Antwort uebernommen,
+    sondern selbst aus dem bekannten GitHub-Release-Muster gebaut (genau wie
+    server.js es fuer /download tut) - selbst wenn rankyoinker.de kompromittiert
+    waere und einen falschen Hash ausliefert, muesste ein Angreifer zusaetzlich
+    eine passende, signierte Datei tatsaechlich unter genau dieser GitHub-
+    Release-URL veroeffentlichen (siehe Sigstore-Attestation im Repo), statt
+    nur irgendeine beliebige URL angeben zu koennen.
+    """
+    channel = "stable"
+    try:
+        cfg = _load_json(CONFIG_JSON_FILE)
+        if str((cfg or {}).get("updateChannel", "stable")).lower() == "dev":
+            channel = "dev"
+    except Exception:
+        pass
+    url = VERSION_CHECK_URL + ("?channel=dev" if channel == "dev" else "")
+    status, j = _http(url, {"User-Agent": "RankYoinker-Updater"})
+    if status != 200 or not j or not j.get("version") or not j.get("sha256"):
+        return None
+    version = str(j["version"])
+    filename = "RankYoinker-SetupV%s.exe" % version
+    download_url = "%s/v%s/%s" % (GITHUB_RELEASE_BASE, version, filename)
+    return download_url, str(j["sha256"]).lower(), version
+
+
+def trigger_self_update():
+    resolved = _resolve_official_update()
+    if not resolved:
+        _ulog("Abgebrochen: konnte Versionsinfo nicht von rankyoinker.de laden.")
+        return {"ok": False, "error": "Konnte aktuelle Version nicht ermitteln."}
+    download_url, expected_sha256, version = resolved
+    _ulog(f"Update ausgeloest. version={version!r} downloadUrl={download_url!r} sha256={expected_sha256!r}")
+
+    tmp_path = os.path.join(DATA_DIR, "rankyoinker-update.exe")
 
     try:
         req = urllib.request.Request(download_url, headers={"User-Agent": "RankYoinker-Updater"})
@@ -801,7 +902,7 @@ def trigger_self_update(download_url, expected_sha256):
     # Fix: ein winziges Batch-Skript wartet aktiv (per tasklist-Polling), bis
     # DIESE PID wirklich weg ist, und startet den Installer erst danach.
     my_pid = os.getpid()
-    waiter_path = os.path.join(BASE, "rankyoinker-update-wait.bat")
+    waiter_path = os.path.join(DATA_DIR, "rankyoinker-update-wait.bat")
     # Protokolliert die Schritte NACH diesem Python-Prozess (der sich ja
     # gleich selbst beendet und darum ab hier nichts mehr sehen kann) -
     # insbesondere den Exit-Code des Installers. Ohne das war "es sieht aus
@@ -1033,15 +1134,38 @@ _auth_lock = threading.Lock()
 _auth = {"ts": 0.0, "data": None}
 
 
-def _http(url, headers=None, method="GET", body=None, timeout=12):
+def _http(url, headers=None, method="GET", body=None, timeout=12, local_unverified=False):
+    """local_unverified=True NUR fuer die lokale Riot-Client-API auf
+    127.0.0.1 (selbstsigniertes Zertifikat, Verifikation dort schlicht nicht
+    moeglich - siehe get_auth()/_peek_subject(), die einzigen beiden Aufrufer
+    mit dieser Flag). Jeder andere Aufruf (valorant-api.com, pd./glz.*.a.pvp.net
+    ueber riot_get/riot_post/riot_put, rankyoinker.de) verifiziert das
+    Zertifikat normal - frueher liefen ALLE Anfragen ueber denselben
+    unverifizierten Kontext (_SSL), was echte Man-in-the-Middle-Angriffe auf
+    JEDE Verbindung erlaubt haette, nicht nur auf die lokale (siehe
+    Community-Sicherheitsbericht 2026-09-28). Gleiches Certifi-Fallback-Muster
+    wie _urlopen_public(): Standard-Systemkontext zuerst, bei einem echten
+    TLS-Fehler einmal mit dem mitgelieferten certifi-Bundle erneut versuchen
+    (bestimmte eingebettete Python-Distributionen auf Windows finden das
+    Systemdepot nicht zuverlaessig) - beides verifiziert weiterhin voll,
+    nur die CA-Quelle unterscheidet sich.
+    """
     req = urllib.request.Request(url, method=method,
                                  data=(body.encode("utf-8") if body else None))
     for k, v in (headers or {}).items():
         req.add_header(k, v)
+    ctx = _SSL if local_unverified else None
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
-            raw = r.read()
-            return r.status, (json.loads(raw) if raw else None)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+                raw = r.read()
+                return r.status, (json.loads(raw) if raw else None)
+        except urllib.error.URLError as e:
+            if (not local_unverified) and _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
+                with urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX) as r:
+                    raw = r.read()
+                    return r.status, (json.loads(raw) if raw else None)
+            raise
     except urllib.error.HTTPError as e:
         raw = e.read()
         try:
@@ -1108,7 +1232,7 @@ def get_auth(force=False):
 
         basic = base64.b64encode(("riot:" + local_pw).encode()).decode()
         status, ent = _http("https://127.0.0.1:%s/entitlements/v1/token" % local_port,
-                            {"Authorization": "Basic " + basic})
+                            {"Authorization": "Basic " + basic}, local_unverified=True)
         if status != 200 or not ent or not ent.get("accessToken"):
             raise RiotError("Konnte keine Riot-Token holen (Status %s)." % status)
 
@@ -1848,9 +1972,9 @@ def put_loadout(body):
     return {"ok": False, "error": "Riot lehnte ab (Status %s)." % status}
 
 
-PRESETS_FILE = os.path.join(BASE, "vry_presets.json")
-ENCOUNTERS_FILE = os.path.join(BASE, "vry_encounters.json")
-CONFIG_JSON_FILE = os.path.join(BASE, "config.json")
+PRESETS_FILE = os.path.join(DATA_DIR, "vry_presets.json")
+ENCOUNTERS_FILE = os.path.join(DATA_DIR, "vry_encounters.json")
+CONFIG_JSON_FILE = os.path.join(DATA_DIR, "config.json")
 _presets_lock = threading.Lock()
 _store_lock = threading.Lock()
 _config_lock = threading.Lock()
@@ -2966,7 +3090,7 @@ IL_LOCKED_TIMEOUT = 180.0
 # (Absturz, Update, Neustart), war das Scharfschalten still weg — man merkt es
 # erst, wenn in der Agentenauswahl nichts passiert. Darum liegt der Stand jetzt
 # auf der Platte und wird beim Start zurückgeholt.
-INSTALOCK_FILE = os.path.join(BASE, "vry_instalock.json")
+INSTALOCK_FILE = os.path.join(DATA_DIR, "vry_instalock.json")
 IL_RESUME_MAX = 600      # Sekunden: aelteres Scharfschalten NICHT wiederbeleben
 
 
@@ -3210,7 +3334,7 @@ def _peek_subject():
             return None
         basic = base64.b64encode(("riot:" + parts[3]).encode()).decode()
         status, ent = _http("https://127.0.0.1:%s/entitlements/v1/token" % parts[2],
-                            {"Authorization": "Basic " + basic}, timeout=5)
+                            {"Authorization": "Basic " + basic}, timeout=5, local_unverified=True)
         if status == 200 and ent:
             return ent.get("subject")
     except Exception:
@@ -3564,7 +3688,7 @@ def _game_watcher():
 # verbraucht — ein zweites Handy braucht einen neuen. Entkoppeln löscht das
 # Token, das Gerät fliegt sofort raus.
 
-PAIR_FILE = os.path.join(BASE, "vry_pair.json")
+PAIR_FILE = os.path.join(DATA_DIR, "vry_pair.json")
 PAIR_COOKIE = "vry_dev"
 PAIR_TTL = 300                  # QR-Code laeuft nach 5 Minuten ab
 PAIR_MAX_AGE = 60 * 60 * 24 * 365
@@ -4109,7 +4233,7 @@ def lol_queue_action(action, payload=None):
 # verpasst. Anders als beim Instalock gibt es hier keinen Zielzustand zum
 # Konfigurieren — nur ein Ein/Aus, das über Neustarts hinweg gilt.
 
-LOL_FILE = os.path.join(BASE, "vry_lol.json")
+LOL_FILE = os.path.join(DATA_DIR, "vry_lol.json")
 _lol_cfg_lock = threading.Lock()
 _lol_cfg = {"autoAccept": True}
 
@@ -4329,7 +4453,7 @@ def lol_champ_action(action_id, champion_id, lock):
 # Wächter-Takt (_lol_watcher), damit auch hier ein Hintergrund-Tab nichts
 # verpasst.
 
-LOL_PRESETS_FILE = os.path.join(BASE, "vry_lol_presets.json")
+LOL_PRESETS_FILE = os.path.join(DATA_DIR, "vry_lol_presets.json")
 LOL_LANES = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
 # Modi ohne Lane (Arena, ARAM, ...) liefern kein assignedPosition — dafür gibt
 # es diesen zusätzlichen Slot als Ausweichlösung, siehe _lol_auto_tick().
@@ -4964,7 +5088,7 @@ def lol_live_game():
 # get_auth()/Lockfile, die puuid kommt hier von lol_current_summoner(). Statt
 # einer Karte (die es bei League nicht gibt) wird die Warteschlange notiert.
 
-LOL_ENCOUNTERS_FILE = os.path.join(BASE, "vry_lol_encounters.json")
+LOL_ENCOUNTERS_FILE = os.path.join(DATA_DIR, "vry_lol_encounters.json")
 _lol_enc_lock = threading.Lock()
 LOL_ENC_LOG_MAX = 20
 
@@ -5125,17 +5249,53 @@ class Handler(BaseHTTPRequestHandler):
                 return urllib.parse.unquote(val)
         return ""
 
-    def _local_only(self):
-        """Kopplung verwalten darf nur der PC selbst — sonst koennte sich ein
-        gekoppeltes Handy weitere Geraete dazuholen."""
-        if _is_local(self._client_ip()):
+    def _origin_ok_silent(self):
+        """Same-Origin-Pruefung OHNE eigene Fehlerantwort (Aufrufer entscheidet
+        selbst, was/ob geantwortet wird - siehe _origin_trusted() und
+        _authorized() unten). _is_local() (Quell-IP) allein reicht nicht als
+        Schutz: eine ganz normale, im selben Browser geoeffnete fremde
+        Webseite kann per fetch()/Formular problemlos einen POST gegen
+        http://localhost:1101 schicken - der kommt technisch genauso von
+        127.0.0.1 wie ein Aufruf von unserer eigenen Seite. _cors() half
+        hier nicht: das steuert nur, ob der Aufrufer die ANTWORT lesen darf,
+        nicht ob der Request ueberhaupt ausgefuehrt wird. Ohne diese Pruefung
+        liess sich z.B. /api/rankyoinker/self-update von JEDER geoeffneten
+        Webseite aus missbrauchen, praktisch Remote Code Execution
+        (Community-Sicherheitsbericht, 2026-09-28).
+        Erlaubt: kein Origin-Header (kommt von einem echten Browser-POST
+        praktisch nie vor, nur von curl/Tools), "null" (index.html per
+        file:// geoeffnet, siehe _cors()), und unsere eigenen Origins
+        (_ORIGIN_OK - localhost/127.0.0.1/vry, jeder Port)."""
+        origin = self.headers.get("Origin")
+        return (not origin) or origin == "null" or bool(_ORIGIN_OK.match(origin))
+
+    def _origin_trusted(self):
+        if self._origin_ok_silent():
             return True
-        self._json({"ok": False, "error": "Nur am PC selbst möglich."}, 403)
+        self._json({"ok": False, "error": "Anfrage nicht von dieser Seite - abgelehnt."}, 403)
         return False
 
+    def _local_only(self):
+        """Kopplung verwalten und sicherheitskritische PC-Aktionen (Self-
+        Update!) duerfen nur vom PC selbst UND von unserer eigenen Seite aus
+        kommen — sonst koennte sich ein gekoppeltes Handy weitere Geraete
+        dazuholen, oder schlimmer, jede beliebige im Browser offene
+        Webseite den PC fernsteuern (siehe _origin_ok_silent())."""
+        if not _is_local(self._client_ip()):
+            self._json({"ok": False, "error": "Nur am PC selbst möglich."}, 403)
+            return False
+        return self._origin_trusted()
+
     def _authorized(self):
+        """Fuer LOKALE Aufrufer zusaetzlich zur IP auch die Herkunft pruefen
+        (siehe _origin_ok_silent()) - sonst koennte jede im Browser offene
+        fremde Webseite genau wie unsere eigene Seite Aktionen ausloesen
+        (Instalock, Loadout aendern, Dodge, ...). Gekoppelte Handys sind
+        davon nicht betroffen: die authentifizieren sich ueber das
+        Kopplungs-Cookie (pair_check), nicht ueber die Quell-IP, und deren
+        Origin ist ohnehin die tatsaechliche LAN-Adresse, nicht localhost."""
         if _is_local(self._client_ip()):
-            return True
+            return self._origin_ok_silent()
         return pair_check(self._cookie(PAIR_COOKIE), self._client_ip())
 
     def _deny(self, msg, page):
@@ -5259,9 +5419,15 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: lol_presets_set_auto(body.get("ban"), body.get("pick")))
 
         elif path == "/api/rankyoinker/self-update":
-            # Nur vom PC selbst - nicht über ein gekoppeltes Handy auslösbar.
+            # Nur vom PC selbst UND von unserer eigenen Seite - nicht über ein
+            # gekoppeltes Handy auslösbar (_local_only()). Nimmt bewusst KEINE
+            # downloadUrl/sha256 mehr aus dem Request entgegen - siehe
+            # trigger_self_update()/_resolve_official_update(): die holt
+            # beides selbst per eigenem HTTPS-Aufruf, damit der Aufrufer
+            # (frueher: einfach das Request-Body) nicht mehr bestimmen kann,
+            # welche Datei als "verifiziert" gilt.
             if self._local_only():
-                self._safe(lambda: trigger_self_update(body.get("downloadUrl"), body.get("sha256")))
+                self._safe(trigger_self_update)
         else:
             self._json({"ok": False, "error": "unbekannter Endpunkt"}, 404)
 

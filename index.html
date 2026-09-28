@@ -7276,15 +7276,17 @@
 // Prüft still im Hintergrund, ob rankyoinker.de eine neuere Version listet als diese
 // hier eingebaute. Ist eine neuere Version da UND der Spieler gerade nicht im Match
 // (weder INGAME noch PREGAME), zeigt sich ein zentriertes Popup im bestehenden
-// Modal-System. "Jetzt installieren" ruft den lokalen Log-Server auf, der die Datei
-// herunterlädt, ihren SHA256-Hash gegen den von der Website gemeldeten Wert prüft
-// (nur bei exakter Übereinstimmung wird überhaupt etwas ausgeführt - siehe
-// trigger_self_update() in vry_log_server.py) und sie dann still installiert. Die
+// Modal-System. "Jetzt installieren" ruft den lokalen Log-Server auf, der SELBST
+// (nicht der Client hier) nochmal https://rankyoinker.de/api/version abfragt, sich
+// daraus die GitHub-Release-URL + den SHA256-Hash holt und nur bei exakter
+// Hash-Übereinstimmung überhaupt etwas ausführt (siehe trigger_self_update() /
+// _resolve_official_update() in vry_log_server.py - Sicherheitsfix 2026-09-28:
+// der Log-Server vertraut dabei keinen vom Client mitgeschickten Werten mehr). Die
 // App startet danach automatisch neu (siehe RankYoinker.iss).
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.3.13";
+const CURRENT_VERSION = "2.3.14-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -7361,9 +7363,13 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
 
   function closeUpdatePopup() {
     hideUpdatePopup();
-    // Weggeklickt heisst "jetzt nicht" - 15 Minuten in Ruhe lassen. Die
-    // automatische Installation nach 5 Minuten ohne Match läuft trotzdem
-    // weiter im Hintergrund, das ist ein bewusst getrennter Mechanismus.
+    // Weggeklickt heisst "jetzt nicht" - 15 Minuten in Ruhe lassen, danach
+    // zeigt checkForUpdate() das Popup wieder. Installiert wird NUR, wenn
+    // die Person selbst auf "Jetzt installieren" klickt (siehe runInstall())
+    // - es gibt keinen automatischen Install-Mechanismus. (Ein aelterer
+    // Kommentar hier hatte faelschlich einen "automatischen Install nach 5
+    // Minuten" behauptet, den es im Code nie gab - korrigiert 2026-09-28,
+    // siehe Community-Sicherheitsbericht.)
     snoozeUntil = Date.now() + SNOOZE_MS;
   }
 
@@ -7371,10 +7377,15 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     if (btn) { btn.disabled = true; btn.textContent = window.ryT('installing'); }
     status.textContent = window.ryT('download_in_progress');
 
+    // Kein Body mehr noetig: der lokale Dienst holt sich downloadUrl+Hash
+    // jetzt selbst direkt von rankyoinker.de statt sie hier entgegenzunehmen
+    // (siehe trigger_self_update()/_resolve_official_update() in
+    // vry_log_server.py - Sicherheitsfix 2026-09-28, ein Request-Body von
+    // HIER war nie vertrauenswuerdig genug fuer "welche Datei ausfuehren").
     fetch("/api/rankyoinker/self-update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ downloadUrl: pending.downloadUrl, sha256: pending.sha256 }),
+      body: "{}",
     })
       .then(r => r.json())
       .then(res => {

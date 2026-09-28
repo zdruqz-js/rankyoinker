@@ -5,6 +5,7 @@ import requests
 import os
 
 from src.constants import DEFAULT_CONFIG
+from src.paths import config_path
 
 def apply_defaults(cls):
     for name, value in DEFAULT_CONFIG.items():
@@ -15,14 +16,20 @@ def apply_defaults(cls):
 class Config:
     def __init__(self, log):
         self.log = log
+        # Absoluter Pfad statt der frueheren bloss-relativen "config.json"
+        # (haengte vom Arbeitsverzeichnis zum Aufrufzeitpunkt ab - siehe
+        # rpc.py._config_path()-Kommentar fuer den Bug, den das schon mal
+        # verursacht hat) UND jetzt in %LOCALAPPDATA%\RankYoinker statt neben
+        # der exe (Sicherheitsfix 2026-09-28, siehe src/paths.py).
+        cfg_path = config_path()
 
-        if not os.path.exists("config.json"):
+        if not os.path.exists(cfg_path):
             self.log("config.json not found, creating new one")
-            with open("config.json", "w") as file:
+            with open(cfg_path, "w") as file:
                 config = self.config_dialog(file)
-            
+
         try:
-            with open("config.json", "r") as file:
+            with open(cfg_path, "r") as file:
                 self.log("config opened")
                 config = json.load(file)
 
@@ -32,17 +39,17 @@ class Config:
 
                 if len(missingkeys) > 0:
                     self.log("config.json is missing keys")
-                    with open("config.json", 'w') as w:
+                    with open(cfg_path, 'w') as w:
                         self.log(f"missing keys: " + str(missingkeys))
-                        for key in missingkeys:   
+                        for key in missingkeys:
                             config[key] = DEFAULT_CONFIG[key]
 
                         self.log("Succesfully added missing keys")
                         json.dump(config, w, indent=4)
-    
+
         except (JSONDecodeError):
             self.log("invalid file")
-            with open("config.json", "w") as file:
+            with open(cfg_path, "w") as file:
                 config = self.config_dialog(file)
         finally:
             config = DEFAULT_CONFIG | config

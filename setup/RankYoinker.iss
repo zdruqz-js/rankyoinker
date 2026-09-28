@@ -24,7 +24,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.3.13"
+#define MyAppVersion "2.3.14-dev"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -147,12 +147,27 @@ korean.OpenOverlayNowDesc=지금 브라우저에서 RankYoinker 오버레이 열
 Name: "desktopicon"; Description: "{cm:DesktopIconDesc}"; GroupDescription: "{cm:AdditionalIconsGroup}"
 
 [Dirs]
-; ProgramData-Unterordner sind für normale Nutzer standardmässig nur
-; lesbar - die App schreibt zur Laufzeit aber eigene Dateien (config.json,
-; logs\, vry_pair.json, ...) direkt neben vry.exe. "users-modify" gibt der
-; eingeloggten Nutzergruppe Schreibrechte, ohne den ganzen ProgramData-Ordner
-; für alle anderen Programme aufzuweichen.
-Name: "{app}"; Permissions: users-modify
+; SICHERHEITSFIX (2026-09-28, siehe Community-Sicherheitsbericht): {app} hatte
+; hier vorher "Permissions: users-modify" - jede lokal angemeldete Person
+; (nicht nur die installierende) konnte damit Dateien in diesem Ordner
+; ersetzen, u.a. vry_log_server.py, python.exe und die *.dll/*.pyd-Dateien
+; selbst. Kombiniert mit [UninstallRun] unten (fuehrt python.exe aus GENAU
+; diesem Ordner mit Adminrechten aus, da PrivilegesRequired=admin) war das
+; eine echte Rechteausweitung auf Mehrnutzer-Maschinen: ein gewoehnliches
+; Standardkonto haette dort Code platzieren koennen, der beim naechsten
+; admin-elevierten Deinstallieren durch irgendjemand anderen ausgefuehrt
+; worden waere.
+; {app} ist jetzt Standard-ProgramData-Berechtigung (nur Administratoren
+; schreibend, alle lesend) und enthaelt NUR NOCH Programmdateien. Alles, was
+; die App zur Laufzeit selbst schreibt (config.json, Presets, Kopplung,
+; Logs, der heruntergeladene Update-Installer, ...) liegt seitdem in
+; %LOCALAPPDATA%\RankYoinker (siehe src/paths.py bzw. DATA_DIR in
+; vry_log_server.py) - das ist bereits nutzerspezifisch beschreibbar, ganz
+; ohne eine Berechtigung hier vergeben zu muessen, die sich falsch
+; konfigurieren liesse. Bestehende Installationen ziehen ihre Daten beim
+; ersten Start nach dem Update automatisch dorthin um (_migrate_legacy_data()
+; in vry_log_server.py).
+Name: "{app}"
 
 [Files]
 ; Programmdateien - alles ausser Logs/Cache/persönlichen Presets und
@@ -178,11 +193,12 @@ Source: "..\index.html"; DestDir: "{app}"; Flags: ignoreversion
 ; eingebettet - siehe /api/languages + /lang/<code>.json in vry_log_server.py.
 ; Neue Sprache = neue Datei hier reinlegen, kein Code-Update noetig.
 Source: "..\lang\*"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs createallsubdirs
-; config.default.json ist im Repo versioniert (das *Standard*-Template) -
-; "..\config.json" waere die tatsaechliche Laufzeit-Konfiguration dieser
-; Maschine (siehe .gitignore) und existiert deshalb in einem frischen CI-
-; Checkout gar nicht.
-Source: "config.default.json"; DestDir: "{app}"; DestName: "config.json"; Flags: onlyifdoesntexist
+; config.json wird seit dem Sicherheitsfix 2026-09-28 nicht mehr hierher
+; kopiert - es lebt jetzt in %LOCALAPPDATA%\RankYoinker (DATA_DIR, siehe
+; [Dirs] oben) und wird von Config.__init__() (src/config.py) beim ersten
+; Start automatisch mit denselben Standardwerten angelegt, die vorher aus
+; config.default.json kamen (DEFAULT_CONFIG in src/constants.py - inhaltlich
+; identisch, nur eine Python- statt JSON-Quelle).
 Source: "..\LIESMICH.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry.vbs"; DestDir: "{app}"; Flags: ignoreversion
@@ -242,3 +258,13 @@ Filename: "{app}\python.exe"; Parameters: """{app}\setup\uninstall_all.py"""; \
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\__pycache__"
+; Logs UND die transienten Update-Dateien (heruntergeladener Installer, Warte-
+; Skript, Update-Log) leben seit dem Sicherheitsfix 2026-09-28 in
+; %LOCALAPPDATA%\RankYoinker (DATA_DIR) statt in {app} - wie die Zeilen oben
+; bewusst nur diese, keine persoenlichen Daten (config.json, Presets,
+; Kopplung): die sollen ein Uninstall/Reinstall weiterhin ueberleben, genau
+; wie es fuer {app} schon vorher der Fall war.
+Type: filesandordirs; Name: "{localappdata}\RankYoinker\logs"
+Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update.exe"
+Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-log.txt"
+Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-wait.bat"
