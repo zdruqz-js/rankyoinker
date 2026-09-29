@@ -501,7 +501,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.3.14"
+APP_VERSION = "2.3.15-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5428,6 +5428,38 @@ class Handler(BaseHTTPRequestHandler):
             # welche Datei als "verifiziert" gilt.
             if self._local_only():
                 self._safe(trigger_self_update)
+
+        # /start, /shutdown, /stop waren frueher GET-Endpunkte - fuer den
+        # lokalen PC-Aufrufer inzwischen egal (der braucht seit dem 2026-09-28
+        # Fix ohnehin einen vertrauenswuerdigen Origin), aber fuer ein
+        # gekoppeltes Handy pruefte _authorized() hier nur das Pairing-Cookie,
+        # ohne Origin-Check. Das Cookie ist SameSite=Lax, wird also auch bei
+        # einer normalen (Top-Level-)Navigation zu einer fremden Seite noch
+        # mitgeschickt - als GET reichte z.B. ein simples <img src="http://
+        # <im-LAN-erreichbarer-PC>:1101/shutdown"> auf einer beliebigen
+        # Webseite, um den PC des gekoppelten Handys stumm herunterzufahren.
+        # Als POST verschickt kein Browser das Cookie mehr cross-site (Lax
+        # deckt nur Top-Level-GET-Navigationen ab), was genau diese Luecke
+        # schliesst (Community-Sicherheitsbericht, 2026-09-29).
+        elif path == "/start":
+            res = start_vry()
+            res.setdefault("ok", True)
+            res["running"] = vry_running() or res.get("running", False)
+            self._json(res)
+        elif path == "/shutdown":
+            # Alles beenden, auch dieser Dienst (nur über stop_vry.bat)
+            self._json({"ok": True, "running": False, "shuttingDown": True})
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
+            stop_everything()
+        elif path == "/stop":
+            res = stop_vry_only() or {}
+            res.setdefault("ok", True)
+            res["running"] = vry_running()
+            self._json(res)
+
         else:
             self._json({"ok": False, "error": "unbekannter Endpunkt"}, 404)
 
@@ -5541,27 +5573,6 @@ class Handler(BaseHTTPRequestHandler):
             out.update(proc_state())
             out.update(account_state())
             self._json(out)
-
-        elif path.startswith("/start"):
-            res = start_vry()
-            res.setdefault("ok", True)
-            res["running"] = vry_running() or res.get("running", False)
-            self._json(res)
-
-        elif path.startswith("/shutdown"):
-            # Alles beenden, auch dieser Dienst (nur über stop_vry.bat)
-            self._json({"ok": True, "running": False, "shuttingDown": True})
-            try:
-                self.wfile.flush()
-            except Exception:
-                pass
-            stop_everything()
-
-        elif path.startswith("/stop"):
-            res = stop_vry_only() or {}
-            res.setdefault("ok", True)
-            res["running"] = vry_running()
-            self._json(res)
 
         elif path == "/api/local-config":
             # Liest ausschliesslich fuer den Update-Check gedachte, lokale

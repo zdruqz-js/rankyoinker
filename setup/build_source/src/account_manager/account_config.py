@@ -1,4 +1,26 @@
-import yaml, json, os, subprocess, time
+import yaml, json, os, subprocess, time, base64
+from src import dpapi
+
+# Security fix 2026-09-29: accounts.json used to store each account's Riot
+# session cookies (ssid/clid/csid/tdid/sub) in plaintext - those are
+# equivalent to a persistent login token, readable by any other process/tool
+# running as the same Windows user. Cookies are now DPAPI-encrypted (tied to
+# the current Windows user account) before ever touching disk, and decrypted
+# right after loading - every other method in this class still works with
+# plain dicts in memory exactly as before, only the on-disk shape changed.
+# _load_legacy_plaintext keeps existing installs' already-saved accounts
+# readable (and silently re-saves them encrypted on next write) instead of
+# discarding them.
+def _encrypt_cookies(cookies: dict) -> str:
+    raw = json.dumps(cookies).encode("utf-8")
+    return base64.b64encode(dpapi.protect(raw)).decode("ascii")
+
+
+def _decrypt_cookies(blob_b64: str) -> dict:
+    raw = dpapi.unprotect(base64.b64decode(blob_b64))
+    return json.loads(raw.decode("utf-8"))
+
+
 class AccountConfig:
     def __init__(self, log):
         self.log = log
@@ -25,6 +47,17 @@ class AccountConfig:
                 self.accounts_data = json.load(f)
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             self.accounts_data = {}
+        for entry in self.accounts_data.values():
+            protected = entry.pop("cookies_protected", None)
+            if protected is not None:
+                try:
+                    entry["cookies"] = _decrypt_cookies(protected)
+                except Exception:
+                    self.log("Could not decrypt stored account cookies (different Windows user/profile?) - account needs re-adding")
+                    entry["cookies"] = {}
+            # else: legacy plaintext "cookies" from before this fix - used
+            # as-is, gets re-saved encrypted the next time this account is
+            # written (save_account_to_config/remove_account below).
         return self.accounts_data
 
     def load_current_account_cookies(self):
@@ -138,20 +171,31 @@ class AccountConfig:
                 "bp_level": data.get("bp_level"),
                 "expire_in": authdata.get("expire_in"),
                 "lol_region": authdata.get("lol_region"),
-                #convert to base64 maybe in future        
             }
         }
         updated_data[authdata.get("cookies").get("sub")].update(cookies_dict)
         self.accounts_data.update(updated_data)
-        with open(os.path.join(os.getenv('APPDATA'), "vry/accounts.json"), "w") as f:
-            json.dump(self.accounts_data, f)
+        self._write_accounts_data()
         return updated_data
 
     def remove_account(self, puuid):
         self.load_accounts_config()
         del self.accounts_data[puuid]
+        self._write_accounts_data()
+
+    def _write_accounts_data(self):
+        # self.accounts_data stays plaintext in memory for the rest of the
+        # app (account_manager.py reads entry["cookies"] directly) - only
+        # what actually reaches disk gets its cookies DPAPI-encrypted.
+        on_disk = {}
+        for puuid, entry in self.accounts_data.items():
+            entry_copy = dict(entry)
+            cookies = entry_copy.pop("cookies", None)
+            if cookies:
+                entry_copy["cookies_protected"] = _encrypt_cookies(cookies)
+            on_disk[puuid] = entry_copy
         with open(os.path.join(os.getenv('APPDATA'), "vry/accounts.json"), "w") as f:
-            json.dump(self.accounts_data, f)
+            json.dump(on_disk, f)
         
     def add_account_with_client(self):
         subprocess.call("TASKKILL /F /IM RiotClientUx.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -9,7 +9,9 @@ rem Nur vRY beenden und die Seite erreichbar lassen: stop_vry_hidden.vbs
 echo Beende vRY und den Log-Server...
 
 rem Zuerst freundlich ueber den Dienst (beendet sich danach selbst)
-powershell -NoProfile -Command "try { Invoke-WebRequest 'http://127.0.0.1:1101/shutdown' -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}" >nul 2>&1
+rem -Method Post seit 2026-09-29: /shutdown ist jetzt POST-only (CSRF-Fix,
+rem siehe vry_log_server.py do_POST)
+powershell -NoProfile -Command "try { Invoke-WebRequest 'http://127.0.0.1:1101/shutdown' -Method Post -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}" >nul 2>&1
 
 timeout /t 2 >nul
 
