@@ -501,7 +501,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.4.0.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -727,17 +727,33 @@ def record_feature(name):
 
 def _current_riot_account():
     """Bestmoegliches Wissen ueber den gerade eingeloggten Riot-Account - nur
-    Puuid und Anzeigename, sonst nichts. None, wenn kein Client laeuft/kein
-    Login erkennbar ist (siehe get_auth())."""
+    Puuid und Anzeigename, sonst nichts. Versucht zuerst VALORANT (get_auth()),
+    das aber zwingend ShooterGame.log braucht (siehe dortigen RiotError) - ein
+    Account, der ausschliesslich League spielt und VALORANT nie gestartet hat,
+    kam darueber nie durch und wurde im Dashboard faelschlich als "kein Account
+    verknuepft" gefuehrt. Faellt deshalb seit 2026-09-29 auf den League Client
+    (lol_current_summoner(), voellig unabhaengig von VALORANT/ShooterGame.log)
+    zurueck, wenn der VALORANT-Weg nichts liefert. None, wenn ueber KEINEN der
+    beiden Wege ein Login erkennbar ist."""
     try:
         auth = get_auth()
         puuid = auth.get("puuid")
-        if not puuid:
-            return None
-        name_map = names_for([puuid])
-        return {"puuid": puuid, "name": name_map.get(puuid)}
+        if puuid:
+            name_map = names_for([puuid])
+            return {"puuid": puuid, "name": name_map.get(puuid)}
     except Exception:
-        return None
+        pass
+    try:
+        summoner = lol_current_summoner()
+        puuid = summoner.get("puuid")
+        if puuid:
+            game_name = summoner.get("gameName") or summoner.get("displayName")
+            tag_line = summoner.get("tagLine")
+            name = "%s#%s" % (game_name, tag_line) if game_name and tag_line else game_name
+            return {"puuid": puuid, "name": name}
+    except Exception:
+        pass
+    return None
 
 
 def _client_report_loop():
