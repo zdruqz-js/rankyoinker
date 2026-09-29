@@ -24,7 +24,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.3.15-dev"
+#define MyAppVersion "2.4.0"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
