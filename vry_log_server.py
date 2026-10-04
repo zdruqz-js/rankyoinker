@@ -501,7 +501,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.0.1"
+APP_VERSION = "2.4.0.2-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1151,10 +1151,14 @@ _auth = {"ts": 0.0, "data": None}
 
 
 def _http(url, headers=None, method="GET", body=None, timeout=12, local_unverified=False):
-    """local_unverified=True NUR fuer die lokale Riot-Client-API auf
-    127.0.0.1 (selbstsigniertes Zertifikat, Verifikation dort schlicht nicht
-    moeglich - siehe get_auth()/_peek_subject(), die einzigen beiden Aufrufer
-    mit dieser Flag). Jeder andere Aufruf (valorant-api.com, pd./glz.*.a.pvp.net
+    """local_unverified=True NUR fuer Riot-APIs auf 127.0.0.1 mit
+    selbstsigniertem Zertifikat (Verifikation dort schlicht nicht moeglich):
+    die Riot-Client-API (get_auth()/_peek_subject()), die League-Client-API
+    (lcu_req()) und die League Live Client Data API auf Port 2999
+    (_live_get()). Die beiden League-Aufrufer hatten die Flag beim
+    Sicherheitsfix vom 2026-09-28 zunaechst nicht bekommen - dadurch schlug
+    JEDER LoL-Endpunkt mit CERTIFICATE_VERIFY_FAILED fehl (behoben
+    2026-10-04). Jeder andere Aufruf (valorant-api.com, pd./glz.*.a.pvp.net
     ueber riot_get/riot_post/riot_put, rankyoinker.de) verifiziert das
     Zertifikat normal - frueher liefen ALLE Anfragen ueber denselben
     unverifizierten Kontext (_SSL), was echte Man-in-the-Middle-Angriffe auf
@@ -3953,13 +3957,27 @@ def lcu_auth(force=False):
         return dict(_lcu)
 
 
+_LCU_ERR_PATH = os.path.join(DATA_DIR, "rankyoinker-lcu-error.txt")
+
+
+def _note_lcu_error(url, exc):
+    # lcu_req() turns every failure into the same generic LcuError for the UI;
+    # keep the real cause on disk so a broken LCU connection is diagnosable.
+    try:
+        with open(_LCU_ERR_PATH, "w", encoding="utf-8") as f:
+            f.write("%s: %s -> %r\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), url, exc))
+    except OSError:
+        pass
+
+
 def lcu_req(method, path, body=None, _retry=True):
     auth = lcu_auth()
     url = "https://127.0.0.1:%s%s" % (auth["port"], path)
     data = json.dumps(body) if body is not None else None
     try:
-        status, j = _http(url, auth["headers"], method=method, body=data)
-    except Exception:
+        status, j = _http(url, auth["headers"], method=method, body=data, local_unverified=True)
+    except Exception as e:
+        _note_lcu_error(url, e)
         raise LcuError("League Client nicht erreichbar.")
     if status in (401, 403) and _retry:
         lcu_auth(force=True)
@@ -4983,7 +5001,7 @@ LIVE_URL = "https://127.0.0.1:2999/liveclientdata"
 
 def _live_get(path):
     try:
-        status, j = _http(LIVE_URL + path, {}, timeout=4)
+        status, j = _http(LIVE_URL + path, {}, timeout=4, local_unverified=True)
     except Exception:
         return None
     return j if status == 200 else None
