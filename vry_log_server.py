@@ -596,21 +596,36 @@ def _urlopen_public(req, timeout):
         raise
 
 
+_client_id_lock = threading.Lock()
+_client_id_cache = None
+
+
 def _get_client_id():
-    try:
-        with open(_CLIENT_ID_PATH, "r", encoding="utf-8") as f:
-            existing = f.read().strip()
-            if existing:
-                return existing
-    except OSError:
-        pass
-    new_id = secrets.token_hex(16)
-    try:
-        with open(_CLIENT_ID_PATH, "w", encoding="utf-8") as f:
-            f.write(new_id)
-    except OSError:
-        pass
-    return new_id
+    # Heartbeat- und Report-Thread starten direkt nacheinander und fragen beide
+    # sofort nach der ID. Ohne Sperre fanden beim allerersten Start beide noch
+    # keine Datei und erzeugten je eine EIGENE ID - eine Installation meldete
+    # sich dann bis zum nächsten Neustart unter zwei IDs (doppelt gezählt,
+    # Heartbeat und Report im Dashboard nie zusammengeführt).
+    global _client_id_cache
+    with _client_id_lock:
+        if _client_id_cache:
+            return _client_id_cache
+        try:
+            with open(_CLIENT_ID_PATH, "r", encoding="utf-8") as f:
+                existing = f.read().strip()
+                if existing:
+                    _client_id_cache = existing
+                    return existing
+        except OSError:
+            pass
+        new_id = secrets.token_hex(16)
+        try:
+            with open(_CLIENT_ID_PATH, "w", encoding="utf-8") as f:
+                f.write(new_id)
+        except OSError:
+            pass
+        _client_id_cache = new_id
+        return new_id
 
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
