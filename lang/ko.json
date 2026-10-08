@@ -414,6 +414,7 @@
     "shop_included": "포함",
     "shop_no_image": "이미지 없음",
     "shop_item_not_cataloged": "새 아이템",
-    "shop_item_not_cataloged_tip": "Riot에서 방금 추가됨 — 이름/이미지가 아직 데이터 소스(valorant-api.com)에 없습니다. 며칠 내로 자동으로 채워질 예정입니다."
+    "shop_item_not_cataloged_tip": "Riot에서 방금 추가됨 — 이름/이미지가 아직 데이터 소스(valorant-api.com)에 없습니다. 며칠 내로 자동으로 채워질 예정입니다.",
+    "lol_auto_no_pick_left": "저장된 픽이 모두 사용할 수 없습니다 – 시간이 끝나기 전에 직접 선택하세요!"
   }
 }

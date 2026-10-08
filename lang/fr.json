@@ -413,6 +413,7 @@
     "shop_included": "inclus",
     "shop_no_image": "aucune image",
     "shop_item_not_cataloged": "Nouvel objet",
-    "shop_item_not_cataloged_tip": "Tout juste ajouté par Riot — le nom/l'image ne sont pas encore dans notre source de données (valorant-api.com), ça devrait se remplir tout seul d'ici quelques jours."
+    "shop_item_not_cataloged_tip": "Tout juste ajouté par Riot — le nom/l'image ne sont pas encore dans notre source de données (valorant-api.com), ça devrait se remplir tout seul d'ici quelques jours.",
+    "lol_auto_no_pick_left": "Aucun de tes picks enregistrés n'est encore disponible – choisis toi-même avant la fin du timer !"
   }
 }

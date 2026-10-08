@@ -37,6 +37,7 @@ import ctypes
 import glob
 import hashlib
 import hmac
+import collections
 import json
 import os
 import random
@@ -501,7 +502,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.0.2"
+APP_VERSION = "2.4.0.3-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4462,22 +4463,22 @@ def lol_champ_action(action_id, champion_id, lock):
             # aber nie — der Spieler stand die ganze Auswahlzeit nur gehovert).
             status, _ = lcu_patch(path, {"championId": champ_id, "completed": True})
             if status in (200, 204):
-                return {"ok": True}
+                return {"ok": True, "status": status}
             # Ältere LCU-Versionen wollen stattdessen zwei getrennte Aufrufe:
             # erst hovern, dann über einen eigenen /complete-Aufruf sperren.
             status, _ = lcu_patch(path, {"championId": champ_id})
             if status not in (200, 204):
-                return {"ok": False, "error": "Riot lehnte ab (Status %s)." % status}
-            status2, _ = lcu_post(path + "/complete", {"championId": champ_id})
-            if status2 not in (200, 204):
-                return {"ok": False, "error": "Sperren fehlgeschlagen (Status %s)." % status2}
+                return {"ok": False, "status": status, "error": "Riot lehnte ab (Status %s)." % status}
+            status, _ = lcu_post(path + "/complete", {"championId": champ_id})
+            if status not in (200, 204):
+                return {"ok": False, "status": status, "error": "Sperren fehlgeschlagen (Status %s)." % status}
         else:
             status, _ = lcu_patch(path, {"championId": champ_id})
             if status not in (200, 204):
-                return {"ok": False, "error": "Riot lehnte ab (Status %s)." % status}
+                return {"ok": False, "status": status, "error": "Riot lehnte ab (Status %s)." % status}
     except LcuError as e:
-        return {"ok": False, "error": str(e)}
-    return {"ok": True}
+        return {"ok": False, "status": None, "error": str(e)}
+    return {"ok": True, "status": status}
 
 
 # ---- Presets: automatisches Bannen und Wählen nach Lane ----
@@ -4517,15 +4518,40 @@ LOL_AUTO_JITTER = 1.2
 # ein einzelner abgelehnter Sperrversuch (z. B. weil die LCU kurz nach dem
 # Hovern noch nicht so weit ist) darf nicht dauerhaft aufgeben. Erst nach
 # LOL_AUTO_MAX_ATTEMPTS Sekunden ohne Erfolg wird's dem manuellen Klicken
-# überlassen.
+# überlassen. Gezaehlt wird nur ausserhalb der Planungsphase - siehe
+# _lol_auto_tick(): dort ist Sperren grundsaetzlich nicht moeglich, und
+# frueher verbrannte eine lange Planungsphase das ganze Budget, bevor
+# Sperren ueberhaupt erlaubt war.
 LOL_AUTO_MAX_ATTEMPTS = 15
+LOL_AUTO_HISTORY_MAX = 20
 
 _lol_auto = {"actionId": None, "hoveredChampionId": None, "fireAt": 0.0, "attempts": 0,
-             "lastResult": None, "lastSkip": None}
+             "lastResult": None, "lastSkip": None,
+             # Vorab-Pick (Absicht) auf der eigenen, noch NICHT laufenden Pick-Aktion
+             "intentKey": None, "intentFailed": set(),
+             "phase": None, "alert": None}
+_lol_auto_history = collections.deque(maxlen=LOL_AUTO_HISTORY_MAX)
+_lol_auto_history_lock = threading.Lock()
 
 
 def _lol_auto_reset():
     _lol_auto.update({"actionId": None, "hoveredChampionId": None, "fireAt": 0.0, "attempts": 0})
+
+
+def _lol_auto_session_reset():
+    """Champion-Auswahl vorbei/nicht aktiv: auch Absicht, Phase und Hinweis vergessen."""
+    _lol_auto_reset()
+    _lol_auto.update({"intentKey": None, "intentFailed": set(), "phase": None, "alert": None})
+
+
+def _lol_auto_log(kind, action_type, action_id, champion_id, result, phase):
+    """Jeder Hover/Absicht/Sperrversuch landet hier - lastResult allein zeigte
+    nur den jeweils letzten Versuch, fruehere Fehlschlaege waren unsichtbar."""
+    entry = {"at": time.time(), "kind": kind, "actionType": action_type, "actionId": action_id,
+             "championId": champion_id, "ok": bool(result.get("ok")),
+             "status": result.get("status"), "error": result.get("error"), "phase": phase}
+    with _lol_auto_history_lock:
+        _lol_auto_history.append(entry)
 
 
 def _lol_priority_slots(entries):
@@ -4587,13 +4613,17 @@ def _lol_presets_save():
 
 
 def lol_presets_state():
+    with _lol_auto_history_lock:
+        history = list(_lol_auto_history)
     with _lol_presets_lock:
         return {"ok": True, "autoBan": _lol_presets["autoBan"], "autoPick": _lol_presets["autoPick"],
                 "ban": _lol_presets["ban"], "picks": _lol_presets["picks"],
                 "lastAutoHover": _lol_auto.get("lastHover"),
                 "lastAutoResult": _lol_auto.get("lastResult"),
                 "lastAutoSkip": _lol_auto.get("lastSkip"),
-                "lastAutoCrash": _lol_auto.get("lastCrash")}
+                "lastAutoCrash": _lol_auto.get("lastCrash"),
+                "autoHistory": history,
+                "autoAlert": _lol_auto.get("alert")}
 
 
 def lol_presets_set_ban(position, slot, champion_id, name):
@@ -4698,14 +4728,23 @@ def _lol_champ_select_for_auto():
     enemy_champs = {c.get("championId") for c in (j.get("theirTeam") or []) if c.get("championId")}
 
     my_action = None
+    # Die eigene Pick-Aktion auch dann, wenn sie (noch) NICHT laeuft - in der
+    # Planungsphase und waehrend fremder Zuege ist sie nicht isInProgress, und
+    # nur ueber sie laesst sich vorab eine Absicht (Pre-Pick) setzen.
+    my_pick_action = None
     banned_ids = set()
+    locked_picks = set()
     for group in (j.get("actions") or []):
         for a in group:
-            if (a.get("actorCellId") == local_cell and a.get("isInProgress")
-                    and a.get("type") in ("pick", "ban")):
+            mine = a.get("actorCellId") == local_cell
+            if mine and a.get("isInProgress") and a.get("type") in ("pick", "ban"):
                 my_action = {"id": a.get("id"), "type": a.get("type"), "completed": bool(a.get("completed"))}
+            if mine and a.get("type") == "pick" and not a.get("completed") and my_pick_action is None:
+                my_pick_action = {"id": a.get("id"), "isInProgress": bool(a.get("isInProgress"))}
             if a.get("type") == "ban" and a.get("completed") and a.get("championId"):
                 banned_ids.add(a["championId"])
+            if a.get("type") == "pick" and a.get("completed") and a.get("championId"):
+                locked_picks.add(a["championId"])
 
     pickable, bannable = [], []
     try:
@@ -4721,85 +4760,166 @@ def _lol_champ_select_for_auto():
     except LcuError:
         pass
 
-    return {"ok": True, "myAction": my_action, "pickable": pickable, "bannable": bannable,
-            "bannedChampionIds": sorted(banned_ids), "mateChamps": mate_champs, "enemyChamps": enemy_champs,
+    return {"ok": True, "myAction": my_action, "myPickAction": my_pick_action,
+            "phase": (j.get("timer") or {}).get("phase"),
+            "pickable": pickable, "bannable": bannable,
+            "bannedChampionIds": sorted(banned_ids), "lockedPicks": locked_picks,
+            "mateChamps": mate_champs, "enemyChamps": enemy_champs,
             "myPosition": (me_raw.get("assignedPosition") or "").upper() or None if me_raw else None}
 
 
+def _lol_ban_choice(bans, lane, cs):
+    """(Ziel-ID oder None, Grund falls None) fuer die eigene Bann-Aktion."""
+    candidates = _lol_auto_lane_candidates(bans, lane)
+    bannable = set(cs.get("bannable") or [])
+    # Ausserhalb eines beschränkten Champion-Pools (Turnier-Modus o.ä.)
+    # liefert die LCU hier nur den Platzhalter [-1] statt einer echten
+    # Liste - als Verbotsliste ausgelegt bannte Auto-Bann dann NIE
+    # etwas, obwohl ganz normal gebannt werden kann. In dem Fall zählt
+    # nur, was in dieser Session schon gebannt wurde.
+    if bannable in (set(), {-1}):
+        banned_ids = set(cs.get("bannedChampionIds") or [])
+        bannable = set(_lol_champion_catalog()["byId"]) - banned_ids
+    mate_champs = cs.get("mateChamps") or set()
+    desired = next((cid for cid in candidates if cid in bannable and cid not in mate_champs), None)
+    if desired is not None:
+        return desired, None
+    return None, (
+        "Keiner der hinterlegten Bann-Champions fuer diese Lane ist gerade bannbar "
+        "(schon gebannt oder von einem Team-Mitglied gehovert)." if candidates
+        else "Kein Bann-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
+
+
+def _lol_pick_choice(picks, lane, cs):
+    """(Ziel-ID oder None, Grund falls None, ob ueberhaupt Presets hinterlegt
+    sind) - gemeinsam fuer den Vorab-Pick (Absicht) und den eigenen Zug, damit
+    beide exakt dieselbe Verfuegbarkeit pruefen."""
+    candidates = _lol_auto_lane_candidates(picks, lane)
+    banned_ids = set(cs.get("bannedChampionIds") or [])
+    locked = set(cs.get("lockedPicks") or set())
+    mate_champs = cs.get("mateChamps") or set()
+    enemy_champs = cs.get("enemyChamps") or set()
+    pickable = set(cs.get("pickable") or [])
+    # Dieselbe Riot-Eigenheit wie bei "bannable": ausserhalb eines
+    # beschraenkten Champion-Pools liefert die LCU "pickable-champion-ids"
+    # nach einem Bann manchmal nur kurz den Platzhalter [-1] oder eine
+    # leere Liste statt der echten, aktualisierten Liste. Ohne diesen
+    # Fallback war dann PLOETZLICH JEDER Kandidat "nicht pickbar", auch
+    # der eigentlich freie 2./3. Ausweich. Fallback zaehlt nur, was WIRKLICH weg ist.
+    if pickable in (set(), {-1}):
+        pickable = set(_lol_champion_catalog()["byId"]) - banned_ids - mate_champs - enemy_champs
+    avail = [cid for cid in candidates
+             if cid in pickable and cid not in banned_ids and cid not in locked]
+    # Erst den Ausweich bevorzugen, der nicht schon beim Gegner hängt (kein
+    # Mirror-Match); hängt der Gegner an ALLEN hinterlegten Kandidaten,
+    # lieber den bestplatzierten davon nehmen als am Ende gar nichts zu picken.
+    desired = next((cid for cid in avail if cid not in enemy_champs), None)
+    if desired is None and avail:
+        desired = avail[0]
+    if desired is not None:
+        return desired, None, True
+    return None, (
+        "Keiner der hinterlegten Ausweichchampions fuer diese Lane ist gerade waehlbar." if candidates
+        else "Kein Pick-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt")
+    ), bool(candidates)
+
+
+def _lol_auto_set_alert(reason, action_id):
+    """Alle hinterlegten Picks sind weg - deutlich im UI melden (inkl. Ton),
+    damit der Spieler rechtzeitig selbst waehlt, statt beim Timer-Ablauf aus
+    der Lobby zu fliegen. Bleibt stehen, solange der Zustand anhaelt."""
+    alert = _lol_auto.get("alert")
+    if alert and alert.get("actionId") == action_id and alert.get("reason") == reason:
+        return
+    _lol_auto["alert"] = {"type": "pick", "reason": reason, "actionId": action_id, "at": time.time()}
+
+
+def _lol_auto_intent(picks, lane, cs, phase):
+    """Vorab-Pick: solange die eigene Pick-Aktion noch NICHT laeuft (Planungs-
+    phase, fremde Zuege), das beste verfuegbare Preset als Absicht setzen
+    (PATCH ohne completed) - und umstellen, sobald es weggebannt/-gepickt wird.
+    Gibt False zurueck, wenn kein hinterlegter Pick mehr verfuegbar ist."""
+    pa = cs.get("myPickAction")
+    if not pa or pa.get("isInProgress"):
+        return True     # eigener Zug laeuft (oder es gibt keinen) - das macht der Rest von _lol_auto_tick
+    desired, reason, had_candidates = _lol_pick_choice(picks, lane, cs)
+    if desired is None:
+        if had_candidates:
+            _lol_auto_set_alert(reason, pa["id"])
+            return False
+        return True
+    key = (pa["id"], desired)
+    if _lol_auto.get("intentKey") == key or key in _lol_auto["intentFailed"]:
+        return True
+    result = lol_champ_action(pa["id"], desired, False)
+    _lol_auto_log("intent", "pick", pa["id"], desired, result, phase)
+    if result.get("ok"):
+        _lol_auto["intentKey"] = key
+    else:
+        # Nicht jede Sekunde erneut gegen dieselbe Ablehnung anrennen - ein
+        # neues Ziel (z. B. nach einem Bann) wird trotzdem wieder versucht.
+        # Ungetestet ist, ob die LCU die Absicht auch waehrend BAN_PICK auf
+        # einer nicht laufenden Aktion annimmt; dann steht hier der Status.
+        _lol_auto["intentFailed"].add(key)
+    return True
+
+
 def _lol_auto_tick():
-    """Einmal je Watcher-Takt: laufende eigene Aktion mit dem passenden Preset
-    abgleichen. Sobald ein Ziel feststeht, wird SOFORT gehovert (zeigt die
-    Absicht direkt an); gesperrt wird erst nach kurzer, menschlich wirkender
-    Verzoegerung — und die Wahl wird bis dahin bei jedem Takt neu geprueft, ein
-    Bann bricht also ab, sobald ein Team-Mitglied den Ziel-Champion hovert, und
-    ein Pick wechselt automatisch auf den naechsten Ausweichchampion, falls der
-    Hauptpick inzwischen weg ist."""
+    """Einmal je Watcher-Takt.
+
+    1. Vorab-Pick: Absicht auf der eigenen, noch nicht laufenden Pick-Aktion
+       setzen (siehe _lol_auto_intent).
+    2. Laufende eigene Aktion (Bann oder Pick): sofort hovern; gesperrt wird
+       erst nach kurzer, menschlich wirkender Verzoegerung und NUR ausserhalb
+       der Planungsphase. In PLANNING kann die LCU nicht sperren - frueher
+       wurde dort trotzdem jede Sekunde ein Sperrversuch gemacht, das
+       verbrauchte LOL_AUTO_MAX_ATTEMPTS, bevor Sperren ueberhaupt ging
+       (dann wurde nie gebannt/gepickt). Beim Wechsel aus PLANNING beginnt
+       Verzoegerung und Zaehler neu.
+    Die Wahl wird bei jedem Takt neu geprueft: ein Bann bricht ab, sobald ein
+    Team-Mitglied den Ziel-Champion hovert, ein Pick wechselt auf den
+    naechsten Ausweich, falls der Hauptpick inzwischen weg ist."""
     with _lol_presets_lock:
         auto_ban, auto_pick = _lol_presets["autoBan"], _lol_presets["autoPick"]
         bans = {k: list(v) for k, v in _lol_presets["ban"].items()}
         picks = {k: list(v) for k, v in _lol_presets["picks"].items()}
     if not auto_ban and not auto_pick:
+        _lol_auto_session_reset()
         return
 
     cs = _lol_champ_select_for_auto()
     if not cs.get("ok"):
-        _lol_auto_reset()
+        _lol_auto_session_reset()
         return
+
+    phase = cs.get("phase")
+    prev_phase = _lol_auto.get("phase")
+    _lol_auto["phase"] = phase
+    if prev_phase == "PLANNING" and phase != "PLANNING" and _lol_auto["actionId"] is not None:
+        wait = max(0.0, LOL_AUTO_DELAY + random.uniform(-LOL_AUTO_JITTER, LOL_AUTO_JITTER))
+        _lol_auto.update({"fireAt": time.time() + wait, "attempts": 0})
+
+    lane = cs.get("myPosition")
+    picks_available = _lol_auto_intent(picks, lane, cs, phase) if auto_pick else True
+
     action = cs.get("myAction")
     if not action or action.get("completed"):
         _lol_auto_reset()
+        if picks_available:
+            _lol_auto["alert"] = None
         return
 
-    mate_champs = cs.get("mateChamps") or set()
-    enemy_champs = cs.get("enemyChamps") or set()
-
     desired, skip_reason = None, None
-    lane = cs.get("myPosition")
     if action.get("type") == "ban":
         if auto_ban:
-            candidates = _lol_auto_lane_candidates(bans, lane)
-            bannable = set(cs.get("bannable") or [])
-            # Ausserhalb eines beschränkten Champion-Pools (Turnier-Modus o.ä.)
-            # liefert die LCU hier nur den Platzhalter [-1] statt einer echten
-            # Liste - als Verbotsliste ausgelegt bannte Auto-Bann dann NIE
-            # etwas, obwohl ganz normal gebannt werden kann. In dem Fall zählt
-            # nur, was in dieser Session schon gebannt wurde.
-            if bannable in (set(), {-1}):
-                banned_ids = set(cs.get("bannedChampionIds") or [])
-                bannable = set(_lol_champion_catalog()["byId"]) - banned_ids
-            desired = next((cid for cid in candidates
-                            if cid in bannable and cid not in mate_champs), None)
-            if desired is None:
-                skip_reason = (
-                    "Keiner der hinterlegten Bann-Champions fuer diese Lane ist gerade bannbar "
-                    "(schon gebannt oder von einem Team-Mitglied gehovert)." if candidates
-                    else "Kein Bann-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
+            desired, skip_reason = _lol_ban_choice(bans, lane, cs)
     elif action.get("type") == "pick" and auto_pick:
-        candidates = _lol_auto_lane_candidates(picks, lane)
-        banned_ids = set(cs.get("bannedChampionIds") or [])
-        pickable = set(cs.get("pickable") or [])
-        # Dieselbe Riot-Eigenheit wie bei "bannable" oben: ausserhalb eines
-        # beschraenkten Champion-Pools liefert die LCU "pickable-champion-ids"
-        # nach einem Bann manchmal nur kurz den Platzhalter [-1] oder eine
-        # leere Liste statt der echten, aktualisierten Liste. Ohne diesen
-        # Fallback war dann PLOETZLICH JEDER Kandidat "nicht pickbar", auch
-        # der eigentlich freie 2./3. Ausweich - berichtetes Symptom: der
-        # Fallback auf Ausweich N griff, wenn ein Mitspieler den Hauptpick
-        # wegpickte (pickable blieb dabei meist eine echte Liste), aber nicht,
-        # wenn er gebannt wurde. Fallback zaehlt nur, was WIRKLICH weg ist.
-        if pickable in (set(), {-1}):
-            pickable = set(_lol_champion_catalog()["byId"]) - banned_ids - mate_champs - enemy_champs
-        avail = [cid for cid in candidates if cid in pickable and cid not in banned_ids]
-        # Erst den Ausweich bevorzugen, der nicht schon beim Gegner hängt (kein
-        # Mirror-Match); hängt der Gegner an ALLEN hinterlegten Kandidaten,
-        # lieber den bestplatzierten davon nehmen als am Ende gar nichts zu picken.
-        desired = next((cid for cid in avail if cid not in enemy_champs), None)
-        if desired is None and avail:
-            desired = avail[0]
-        if desired is None:
-            skip_reason = (
-                "Keiner der hinterlegten Ausweichchampions fuer diese Lane ist gerade waehlbar." if candidates
-                else "Kein Pick-Preset fuer Lane '%s' (und auch keins unter 'Andere Modi') hinterlegt." % (lane or "unbekannt"))
+        desired, skip_reason, had_candidates = _lol_pick_choice(picks, lane, cs)
+        if desired is None and had_candidates:
+            _lol_auto_set_alert(skip_reason, action.get("id"))
+            picks_available = False
+    if picks_available:
+        _lol_auto["alert"] = None
 
     if skip_reason and (_lol_auto.get("lastSkip") or {}).get("actionId") != action.get("id"):
         _lol_auto["lastSkip"] = {"actionId": action.get("id"), "type": action.get("type"),
@@ -4813,23 +4933,22 @@ def _lol_auto_tick():
     # jetzt Ausweich 1 dran) -> sofort hovern, Sperr-Timer neu setzen.
     if _lol_auto["actionId"] != action.get("id") or _lol_auto["hoveredChampionId"] != desired:
         hover_result = lol_champ_action(action.get("id"), desired, False)
-        # Auch hier merken statt nur abschicken — sonst sieht ein stumm
-        # abgelehntes Hovern von aussen genauso aus wie gar keins.
         _lol_auto["lastHover"] = {"ok": bool(hover_result.get("ok")), "error": hover_result.get("error"),
                                    "championId": desired, "actionId": action.get("id"), "at": time.time()}
+        _lol_auto_log("hover", action.get("type"), action.get("id"), desired, hover_result, phase)
         wait = max(0.0, LOL_AUTO_DELAY + random.uniform(-LOL_AUTO_JITTER, LOL_AUTO_JITTER))
         _lol_auto.update({"actionId": action.get("id"), "hoveredChampionId": desired,
                           "fireAt": time.time() + wait, "attempts": 0})
         return
+    if phase == "PLANNING":
+        return
     if time.time() < _lol_auto["fireAt"] or _lol_auto["attempts"] >= LOL_AUTO_MAX_ATTEMPTS:
         return
     _lol_auto["attempts"] += 1
-    # Ergebnis merken (nicht nur zurückgeben) — sonst lässt sich ein
-    # wiederholt scheiterndes Sperren nur während des laufenden Matches live
-    # beobachten. So bleibt der letzte Versuch bis zum nächsten auch danach
-    # über /api/lol/presets sichtbar.
     result = lol_champ_action(action.get("id"), desired, True)
+    _lol_auto_log("lock", action.get("type"), action.get("id"), desired, result, phase)
     _lol_auto["lastResult"] = {"ok": bool(result.get("ok")), "error": result.get("error"),
+                                "status": result.get("status"), "phase": phase,
                                 "at": time.time(), "championId": desired, "attempts": _lol_auto["attempts"]}
 
 

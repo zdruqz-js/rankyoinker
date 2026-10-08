@@ -6557,13 +6557,19 @@
     if(banToggle) banToggle.addEventListener('click', () => {
       const next = !banToggle.classList.contains('on');
       banToggle.classList.toggle('on', next);
-      api('/api/lol/presets/auto', {ban: next}).then(j => { if(j && j.ok) lolPresets = j; }).catch(() => {});
+      // Bei Fehlschlag den Schalter zurückstellen - sonst sah er "an" aus,
+      // obwohl der Dienst die Einstellung nie gespeichert hatte.
+      api('/api/lol/presets/auto', {ban: next})
+        .then(j => { if(j && j.ok) lolPresets = j; else banToggle.classList.toggle('on', !next); })
+        .catch(() => banToggle.classList.toggle('on', !next));
     });
     const pickToggle = document.getElementById('lolAutoPickToggle');
     if(pickToggle) pickToggle.addEventListener('click', () => {
       const next = !pickToggle.classList.contains('on');
       pickToggle.classList.toggle('on', next);
-      api('/api/lol/presets/auto', {pick: next}).then(j => { if(j && j.ok) lolPresets = j; }).catch(() => {});
+      api('/api/lol/presets/auto', {pick: next})
+        .then(j => { if(j && j.ok) lolPresets = j; else pickToggle.classList.toggle('on', !next); })
+        .catch(() => pickToggle.classList.toggle('on', !next));
     });
     document.querySelectorAll('.lp-tile[data-lp-open]').forEach(tile => {
       tile.addEventListener('click', () => openLolPresetPicker(tile.getAttribute('data-lp-open')));
@@ -6870,10 +6876,18 @@
     const now = Date.now() / 1000;
     const recent = (x) => x && x.at && (now - x.at) < 20;
     const rows = [];
-    if(recent(p.lastAutoHover)){
+    // Die letzten Versuche mit HTTP-Status und Phase - lastAutoResult allein
+    // zeigte nur den jeweils letzten, frühere Fehlschläge waren unsichtbar.
+    const kindLabel = {hover: 'Hover', intent: 'Absicht', lock: 'Sperren'};
+    const history = (p.autoHistory || []).filter(h => (now - h.at) < 120).slice(-6);
+    history.forEach(h => {
+      rows.push(`${h.ok ? '✅' : '❌'} ${kindLabel[h.kind] || esc(h.kind)} ${esc(h.actionType || '')} ${h.championId ?? '?'}`
+        + ` · ${esc(h.phase || '?')} · HTTP ${h.status ?? '–'}${h.error ? ' – ' + esc(h.error) : ''}`);
+    });
+    if(!history.length && recent(p.lastAutoHover)){
       rows.push(`${p.lastAutoHover.ok ? '✅' : '❌'} Hover ${p.lastAutoHover.championId ?? '?'}${p.lastAutoHover.error ? ' – ' + esc(p.lastAutoHover.error) : ''}`);
     }
-    if(recent(p.lastAutoResult)){
+    if(!history.length && recent(p.lastAutoResult)){
       rows.push(`${p.lastAutoResult.ok ? '✅' : '❌'} Sperren ${p.lastAutoResult.championId ?? '?'} (Versuch ${p.lastAutoResult.attempts})${p.lastAutoResult.error ? ' – ' + esc(p.lastAutoResult.error) : ''}`);
     }
     if(recent(p.lastAutoSkip)){
@@ -6886,6 +6900,36 @@
     return `<div class="lol-card" id="lolAutoDebug" style="font-size:11px; color:var(--text-dim); line-height:1.6;">
       <div class="panel-head" style="font-size:11px;">Auto-Ban/-Pick<span class="line"></span></div>
       ${rows.join('<br>')}
+    </div>`;
+  }
+
+  // ---- Hinweis, wenn kein hinterlegter Pick mehr verfügbar ist (alle
+  // gebannt/gepickt): deutlich sichtbar plus kurzer Ton, damit der Spieler
+  // rechtzeitig selbst wählt - sonst droht beim Timer-Ablauf ein Dodge. ----
+  let lolAlertSeenAt = null;
+  function lolAlertBeep(){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    try{
+      const ctx = new AC();
+      [0, 0.22].forEach(off => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + off);
+        g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + off + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + off + 0.18);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime + off); o.stop(ctx.currentTime + off + 0.2);
+      });
+      setTimeout(() => { try{ ctx.close(); }catch(e){} }, 800);
+    }catch(e){}
+  }
+  function lolAutoAlertHtml(p){
+    const a = p && p.autoAlert;
+    if(!a) return '';
+    if(lolAlertSeenAt !== a.at){ lolAlertSeenAt = a.at; lolAlertBeep(); }
+    return `<div class="lol-card" style="border:1px solid #ff4655; background:rgba(255,70,85,.12); font-weight:600; text-align:center;">
+      ⚠️ ${esc(t('lol_auto_no_pick_left'))}
     </div>`;
   }
 
@@ -6913,10 +6957,12 @@
     // Wechsel aus der Lobby) — danach wird nur noch gezielt gepatcht.
     let teamsBox = document.getElementById('lolCsTeams');
     if(!teamsBox){
-      el.innerHTML = lolHead(state) + `<div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
+      el.innerHTML = lolHead(state) + `<div id="lolAutoAlertBox"></div><div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
     }
+    const alertBox = document.getElementById('lolAutoAlertBox');
+    if(alertBox) alertBox.innerHTML = lolAutoAlertHtml(lolPresets);
     const debugBox = document.getElementById('lolAutoDebugBox');
     if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
@@ -7286,7 +7332,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.0.2";
+const CURRENT_VERSION = "2.4.0.3-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

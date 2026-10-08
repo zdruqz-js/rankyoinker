@@ -414,6 +414,7 @@
     "shop_included": "w zestawie",
     "shop_no_image": "brak obrazu",
     "shop_item_not_cataloged": "Nowy przedmiot",
-    "shop_item_not_cataloged_tip": "Właśnie dodane przez Riot — nazwa/obraz nie są jeszcze w naszym źródle danych (valorant-api.com), powinno uzupełnić się samo w ciągu kilku dni."
+    "shop_item_not_cataloged_tip": "Właśnie dodane przez Riot — nazwa/obraz nie są jeszcze w naszym źródle danych (valorant-api.com), powinno uzupełnić się samo w ciągu kilku dni.",
+    "lol_auto_no_pick_left": "Żaden z Twoich zapisanych wyborów nie jest już dostępny – wybierz sam, zanim skończy się czas!"
   }
 }
