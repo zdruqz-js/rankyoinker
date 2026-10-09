@@ -1236,38 +1236,6 @@
   }
   .stats-loading{display:flex; align-items:center; gap:10px; color:var(--text-faint); font-size:12px; padding:16px 2px; text-transform:none; letter-spacing:0;}
 
-  /* ================= Fortschritt ================= */
-  #panelProgress{--accent:var(--ally); --accent-deep:var(--ally-deep);}
-  .prog-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-bottom:16px;}
-  .prog-card{background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%); border:1px solid var(--border); border-radius:var(--r); padding:18px 20px;}
-  .prog-card .panel-head{margin-bottom:14px;}
-  .ses-top{display:flex; align-items:center; gap:18px; margin-bottom:14px;}
-  .ses-delta{font-family:var(--font-big); font-size:54px; font-weight:600; line-height:1; letter-spacing:.01em;}
-  .ses-delta span{font-size:20px; margin-left:4px; color:var(--text-faint);}
-  .ses-delta.up{color:var(--green);} .ses-delta.down{color:var(--loss);}
-  .ses-record{font-family:var(--font-display); font-weight:700; font-size:15px;}
-  .ses-sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
-  .ses-dots{margin-top:8px; flex-wrap:wrap;}
-  .ses-note{margin-top:10px; font-size:11px; color:var(--text-faint);}
-  .pg-track{height:8px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden;}
-  .pg-fill{height:100%; border-radius:99px; background:linear-gradient(90deg, var(--accent-deep, var(--red-deep)), var(--accent, var(--red))); transition:width .5s cubic-bezier(.22,1,.36,1);}
-  .bp-name{font-size:12px; color:var(--text-faint); margin-bottom:4px;}
-  .bp-level{font-family:var(--font-big); font-size:30px; font-weight:600; margin-bottom:8px;}
-  .bp-level b{font-size:44px;}
-  .bp-level span{font-family:var(--font-display); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-left:10px;}
-  .bp-next{font-size:12px; color:var(--text-dim); margin:12px 0 6px;}
-  .acc-level{display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text-dim);}
-  .acc-level b{font-family:var(--font-big); font-size:24px; color:var(--text); font-weight:600;}
-  .mission-list{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;}
-  .mission{padding:12px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--panel-3);}
-  .mission.done{opacity:.6;}
-  .mi-top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .mi-kind{font-family:var(--font-display); font-weight:700; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint);}
-  .mi-title{font-weight:600; font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .mi-ok{color:var(--green); display:flex;}
-  .mi-xp{font-size:11px; color:var(--gold); font-weight:700; white-space:nowrap;}
-  .mi-num{font-size:11px; color:var(--text-faint); margin-top:5px; text-align:right; font-variant-numeric:tabular-nums;}
-
   /* ================= TABS ================= */
   .tabs{
     position:relative; display:flex; gap:4px; margin:0 auto 26px; padding:5px;
@@ -2159,12 +2127,10 @@
     <button class="tab active" data-tab="match">Match</button>
     <button class="tab" data-tab="skins">Skins</button>
     <button class="tab" data-tab="shop">Shop</button>
-    <button class="tab" data-tab="progress" data-i18n="tab_progress">Progress</button>
   </nav>
   <div id="content" class="tabpanel active"></div>
   <div id="panelSkins" class="tabpanel"></div>
   <div id="panelShop" class="tabpanel"></div>
-  <div id="panelProgress" class="tabpanel"></div>
 </div>
 
 <div id="lolStatusOverlay">
@@ -4126,7 +4092,7 @@
 
 
   // ================= TABS =================
-  const PANELS = {match:'content', skins:'panelSkins', shop:'panelShop', progress:'panelProgress'};
+  const PANELS = {match:'content', skins:'panelSkins', shop:'panelShop'};
   let activeTab = 'match';
 
   function movePill(){
@@ -4145,7 +4111,6 @@
     if(name !== 'shop') stopShopTick();
     if(name === 'skins') renderSkins();
     else if(name === 'shop') renderShop(false);
-    else if(name === 'progress') renderProgress();
   }
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
   window.addEventListener('resize', movePill);
@@ -4878,89 +4843,6 @@
       }
       return j;
     });
-  }
-
-  // ---------- Fortschritt: Ranked-Sitzung, Battlepass, Missionen ----------
-  function progBar(value, max){
-    const pct = max ? Math.max(0, Math.min(100, value / max * 100)) : 0;
-    return `<div class="pg-track"><div class="pg-fill" style="width:${pct}%"></div></div>`;
-  }
-  function fmtTime(ms){ return ms ? new Date(ms).toLocaleTimeString(LOCALE, {hour:'2-digit', minute:'2-digit'}) : '—'; }
-  function fmtUntil(iso){
-    const ms = Date.parse(iso || '') - Date.now();
-    if(!(ms > 0)) return '';
-    const h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
-    return d >= 1 ? t('time_days_hours', {d, h: h % 24}) : t('time_hours', {h: Math.max(1, h)});
-  }
-
-  function sessionCardHtml(s){
-    const head = `<div class="panel-head sub">${s && s.ok && s.games && !s.active ? t('session_last') : t('session_current')}<span class="line"></span></div>`;
-    if(!s || !s.ok) return `<div class="prog-card">${head}<div class="panel-empty">${esc((s && s.error) || t('generic_error'))}</div></div>`;
-    if(!s.games) return `<div class="prog-card">${head}<div class="panel-empty">${t('session_none')}</div></div>`;
-    const up = s.rrDelta >= 0;
-    const dots = s.matches.map(m => {
-      const cls = m.result === 'win' ? 'w' : m.result === 'loss' ? 'l' : 'd';
-      return `<span class="dot ${cls} solid" title="${esc((m.earned > 0 ? '+' : '') + m.earned + ' RR · ' + fmtTime(m.at))}"></span>`;
-    }).join('');
-    return `<div class="prog-card">${head}
-      <div class="ses-top">
-        <div class="ses-delta ${up ? 'up' : 'down'}">${up ? '+' : ''}${esc(String(s.rrDelta))}<span>RR</span></div>
-        <div class="ses-meta">
-          <div class="ses-record">${t('session_record', {w: s.wins, l: s.losses, d: s.draws})}</div>
-          <div class="ses-sub">${t('session_since', {time: fmtTime(s.startedAt), n: s.games})}</div>
-          <div class="dots ses-dots">${dots}</div>
-        </div>
-      </div>
-      <div class="rank-duo">
-        ${rankTileHtml(t('session_start'), s.startTier, {rr: s.startRr})}
-        ${rankTileHtml(t('session_now'), s.tier, {rr: s.rr})}
-      </div>
-      <div class="ses-note">${t('session_note')}</div>
-    </div>`;
-  }
-
-  function battlepassCardHtml(p){
-    const head = `<div class="panel-head sub">${t('bp_title')}<span class="line"></span></div>`;
-    if(!p || !p.ok) return `<div class="prog-card">${head}<div class="panel-empty">${esc((p && p.error) || t('generic_error'))}</div></div>`;
-    const bp = p.battlepass, acc = p.account;
-    const bpHtml = bp ? `
-      <div class="bp-name">${esc(bp.name || '')}</div>
-      <div class="bp-level"><b>${bp.level}</b> / ${bp.total}<span>${t('bp_level')}</span></div>
-      ${progBar(bp.level, bp.total)}
-      ${bp.xpNeeded ? `<div class="bp-next">${t('bp_xp_next', {xp: numFmt(bp.xp), need: numFmt(bp.xpNeeded)})}</div>${progBar(bp.xp, bp.xpNeeded)}` : `<div class="bp-next">${t('bp_done')}</div>`}`
-      : `<div class="panel-empty">${t('bp_none')}</div>`;
-    return `<div class="prog-card">${head}${bpHtml}
-      ${acc && acc.level ? `<div class="acc-level"><span>${t('account_level')}</span><b>${acc.level}</b></div>` : ''}
-    </div>`;
-  }
-
-  function missionsCardHtml(p){
-    const head = `<div class="panel-head sub">${t('missions_title')}<span class="line"></span>${p && p.weeklyRefill && fmtUntil(p.weeklyRefill) ? `<span>${t('missions_refill', {left: fmtUntil(p.weeklyRefill)})}</span>` : ''}</div>`;
-    if(!p || !p.ok) return '';
-    const list = p.missions || [];
-    if(!list.length) return `<div class="prog-card">${head}<div class="panel-empty">${t('missions_none')}</div></div>`;
-    return `<div class="prog-card">${head}<div class="mission-list">${list.map(m => `
-      <div class="mission${m.complete ? ' done' : ''}">
-        <div class="mi-top">
-          <span class="mi-kind">${m.kind === 'daily' ? t('missions_daily') : t('missions_weekly')}</span>
-          <span class="mi-title">${esc(m.title)}</span>
-          ${m.complete ? `<span class="mi-ok">${svgIcon('check', 12)}</span>` : ''}
-          <span class="mi-xp">${m.xp ? '+' + numFmt(m.xp) + ' XP' : ''}</span>
-        </div>
-        ${progBar(m.progress, m.target)}
-        <div class="mi-num">${numFmt(m.progress)} / ${numFmt(m.target)}</div>
-      </div>`).join('')}</div></div>`;
-  }
-
-  let progressLoading = false;
-  function renderProgress(){
-    const el = document.getElementById('panelProgress');
-    if(progressLoading) return;
-    if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader',15,'spin')} ${t('loading')}</div>`;
-    progressLoading = true;
-    Promise.all([api('/api/session-stats').catch(apiFail), api('/api/progress').catch(apiFail)]).then(([s, p]) => {
-      el.innerHTML = `<div class="prog-grid">${sessionCardHtml(s)}${battlepassCardHtml(p)}</div>${missionsCardHtml(p)}`;
-    }).finally(() => { progressLoading = false; });
   }
 
   function renderSkins(){
