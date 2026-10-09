@@ -502,7 +502,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.0.4"
+APP_VERSION = "2.4.1-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -693,6 +693,7 @@ def _active_user_heartbeat():
             except OSError:
                 pass
         except Exception as e:
+            report_error("heartbeat", e)
             # Früher komplett verschluckt - ohne das war "warum zeigt die
             # Website 0 an, obwohl das Tool läuft" nicht diagnostizierbar.
             # Nur der letzte Fehler wird gehalten (überschrieben), damit die
@@ -772,6 +773,50 @@ def _current_riot_account():
     return None
 
 
+# ---- Fehler-Telemetrie fürs Admin-Dashboard ----
+# Unerwartete Fehler (kaputte LCU-Verbindung, abgestürzte Automatik,
+# fehlgeschlagenes Update, Ausnahmen in Endpunkten) gehen still mit dem
+# Client-Report an rankyoinker.de, damit Ausfälle wie "League komplett tot
+# nach 2.3.14" im Dashboard auffallen statt erst durch Zufall. Erwartete
+# Zustände ("Riot Client läuft nicht") werden bewusst NICHT gemeldet.
+# Nur im Speicher, je App-Start eigene Sitzungs-ID; Windows-Benutzernamen in
+# Pfaden werden vor dem Senden entfernt.
+TELEMETRY_MAX = 20
+_telemetry_lock = threading.Lock()
+_telemetry = {}
+_TELEMETRY_SESSION = secrets.token_hex(6)
+_USER_PATH_RE = re.compile(r"([A-Za-z]:[\\/]+Users[\\/]+)[^\\/'\"\r\n]+", re.IGNORECASE)
+
+
+def _scrub(text):
+    return _USER_PATH_RE.sub(r"\1<user>", str(text))[:300]
+
+
+def report_error(source, err):
+    try:
+        etype = type(err).__name__ if isinstance(err, BaseException) else "Error"
+        msg = _scrub(err)
+        key = "%s|%s|%s" % (source, etype, msg[:120])
+        now = int(time.time() * 1000)
+        with _telemetry_lock:
+            e = _telemetry.get(key)
+            if e:
+                e["count"] += 1
+                e["lastAt"] = now
+                return
+            if len(_telemetry) >= TELEMETRY_MAX:
+                del _telemetry[min(_telemetry, key=lambda k: _telemetry[k]["lastAt"])]
+            _telemetry[key] = {"source": str(source)[:40], "type": etype[:60], "message": msg,
+                               "count": 1, "firstAt": now, "lastAt": now}
+    except Exception:
+        pass
+
+
+def _telemetry_snapshot():
+    with _telemetry_lock:
+        return sorted((dict(v) for v in _telemetry.values()), key=lambda e: -e["lastAt"])
+
+
 def _client_report_loop():
     client_id = _get_client_id()
     while True:
@@ -779,7 +824,8 @@ def _client_report_loop():
             account = _current_riot_account()
             with _feature_lock:
                 features = dict(_load_feature_counts())
-            snapshot = {"account": account, "features": features}
+            errors = _telemetry_snapshot()
+            snapshot = {"account": account, "features": features, "errors": errors}
             last = _load_json(_LAST_REPORT_PATH)
             # Nur senden, wenn sich seit dem letzten Mal wirklich etwas
             # geaendert hat (neuer Account, neue Feature-Nutzung) - ein
@@ -792,6 +838,8 @@ def _client_report_loop():
                     "lang": _heartbeat_lang(),
                     "riotAccount": account,
                     "features": features,
+                    "session": _TELEMETRY_SESSION,
+                    "errors": errors,
                 }).encode("utf-8")
                 req = urllib.request.Request(
                     CLIENT_REPORT_URL,
@@ -878,6 +926,13 @@ def _resolve_official_update():
 
 
 def trigger_self_update():
+    res = _trigger_self_update()
+    if isinstance(res, dict) and not res.get("ok"):
+        report_error("self-update", res.get("error") or "unbekannt")
+    return res
+
+
+def _trigger_self_update():
     resolved = _resolve_official_update()
     if not resolved:
         _ulog("Abgebrochen: konnte Versionsinfo nicht von rankyoinker.de laden.")
@@ -1605,9 +1660,23 @@ def card_data(puuid):
     matches = st.get("matches") or []
     results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent")}
                for m in matches]
+    # Grundlage für den Smurf-Hinweis (smurfHint() in index.html): NUR
+    # Ranked-Matches. player_stats() fällt ohne Ranked-Historie auf alle Modi
+    # zurück - Deathmatch & Co. hätten mit ihrer aufgeblähten K/D sonst
+    # massenhaft Fehlalarme ausgelöst.
+    comp = [m for m in matches if m.get("queue") == "competitive"]
+    comp_totals = None
+    if comp:
+        k, d = sum(m.get("kills") or 0 for m in comp), sum(m.get("deaths") or 0 for m in comp)
+        hs = sum(m.get("headshots") or 0 for m in comp)
+        shots = hs + sum((m.get("bodyshots") or 0) + (m.get("legshots") or 0) for m in comp)
+        comp_totals = {"games": len(comp), "kd": round(k / (d or 1), 2),
+                       "hsPercent": round(hs / shots * 100, 1) if shots else None,
+                       "wins": sum(1 for m in comp if m.get("won") is True)}
     return {"puuid": puuid,
             "results": results,
-            "last": (matches or [None])[0]}
+            "last": (matches or [None])[0],
+            "rankedTotals": comp_totals}
 
 
 # ============================ Party / Agenten / Loadout / Shop ============================
@@ -2435,6 +2504,131 @@ def rr_history(puuid, count=15):
         if len(_rr_cache) > 60:
             _rr_cache.clear()
         _rr_cache[key] = (now, out)
+    return out
+
+
+# ============================ Fortschritt: Sitzung, Battlepass, Missionen ============================
+
+SESSION_GAP_MS = 3 * 3600 * 1000      # mehr Pause zwischen zwei Matches = neue Sitzung
+SESSION_ACTIVE_MS = 2 * 3600 * 1000   # letztes Match jünger als das = Sitzung läuft noch
+
+
+def session_stats():
+    """Aktuelle (bzw. letzte) Ranked-Sitzung des eigenen Accounts. Sieg/
+    Niederlage kommt aus dem Vorzeichen der RR-Änderung - kostet keine einzige
+    Match-Details-Abfrage, ist bei Ranked aber praktisch immer richtig (ein
+    Sieg bringt RR, eine Niederlage kostet RR, 0 = Unentschieden)."""
+    puuid = get_auth()["puuid"]
+    status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=20&queue=competitive" % puuid)
+    if status != 200 or not j:
+        return {"ok": False, "error": "Competitive-Verlauf nicht lesbar (Status %s)." % status}
+    ms = sorted((m for m in (j.get("Matches") or []) if m.get("MatchStartTime")),
+                key=lambda m: -m["MatchStartTime"])
+    if not ms:
+        return {"ok": True, "games": 0, "matches": []}
+    session = [ms[0]]
+    for prev, m in zip(ms, ms[1:]):
+        if prev["MatchStartTime"] - m["MatchStartTime"] > SESSION_GAP_MS:
+            break
+        session.append(m)
+    rows = []
+    for m in reversed(session):
+        earned = m.get("RankedRatingEarned") or 0
+        rows.append({"at": m["MatchStartTime"], "map": m.get("MapID"), "earned": earned,
+                     "result": "win" if earned > 0 else "loss" if earned < 0 else "draw",
+                     "tier": m.get("TierAfterUpdate"), "rr": m.get("RankedRatingAfterUpdate")})
+    first, last = session[-1], session[0]
+    return {"ok": True,
+            "active": time.time() * 1000 - last["MatchStartTime"] < SESSION_ACTIVE_MS,
+            "games": len(rows),
+            "wins": sum(1 for r in rows if r["result"] == "win"),
+            "losses": sum(1 for r in rows if r["result"] == "loss"),
+            "draws": sum(1 for r in rows if r["result"] == "draw"),
+            "rrDelta": sum(r["earned"] for r in rows),
+            "startTier": first.get("TierBeforeUpdate"), "startRr": first.get("RankedRatingBeforeUpdate"),
+            "tier": last.get("TierAfterUpdate"), "rr": last.get("RankedRatingAfterUpdate"),
+            "startedAt": first["MatchStartTime"], "lastAt": last["MatchStartTime"],
+            "matches": rows}
+
+
+_valapi_cache = {}
+_valapi_lock = threading.Lock()
+VALAPI_TTL = 6 * 3600
+
+
+def _valapi(path):
+    """Statische Spieldaten von valorant-api.com (Missionen, Verträge, Seasons),
+    6 h gecacht - die Dateien sind mehrere hundert KB groß. Bei einem Ausfall
+    lieber veraltete Daten als gar keine."""
+    now = time.time()
+    with _valapi_lock:
+        hit = _valapi_cache.get(path)
+        if hit and now - hit[0] < VALAPI_TTL:
+            return hit[1]
+    status, j = _http("https://valorant-api.com/v1/" + path, timeout=20)
+    data = (j or {}).get("data") if status == 200 and isinstance(j, dict) else None
+    if not isinstance(data, list):
+        if hit:
+            return hit[1]
+        raise RiotError("valorant-api.com nicht erreichbar (%s)." % path)
+    with _valapi_lock:
+        _valapi_cache[path] = (now, data)
+    return data
+
+
+def val_progress():
+    """Account-Level, Battlepass des laufenden Acts und aktive Missionen."""
+    puuid = get_auth()["puuid"]
+    status, c = riot_get("pd", "/contracts/v1/contracts/%s" % puuid)
+    if status != 200 or not isinstance(c, dict):
+        return {"ok": False, "error": "Fortschritt nicht lesbar (Status %s)." % status}
+    out = {"ok": True, "account": None, "battlepass": None, "missions": []}
+
+    st, xp = riot_get("pd", "/account-xp/v1/players/%s" % puuid)
+    if st == 200 and isinstance(xp, dict):
+        prog = xp.get("Progress") or {}
+        out["account"] = {"level": prog.get("Level"), "xp": prog.get("XP")}
+
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+    acts = {s.get("uuid") for s in _valapi("seasons")
+            if s.get("type") == "EAresSeasonType::Act"
+            and (s.get("startTime") or "")[:19] <= now_iso < (s.get("endTime") or "9999")[:19]}
+    bp_def = next((x for x in _valapi("contracts")
+                   if (x.get("content") or {}).get("relationType") == "Season"
+                   and (x.get("content") or {}).get("relationUuid") in acts), None)
+    if bp_def:
+        chapters = (bp_def.get("content") or {}).get("chapters") or []
+        levels = [lv for ch in chapters for lv in (ch.get("levels") or [])]
+        main_total = sum(len(ch.get("levels") or []) for ch in chapters if not ch.get("isEpilogue"))
+        mine = next((x for x in (c.get("Contracts") or [])
+                     if x.get("ContractDefinitionID") == bp_def.get("uuid")), {})
+        level = mine.get("ProgressionLevelReached") or 0
+        out["battlepass"] = {
+            "name": bp_def.get("displayName"), "level": level,
+            "total": len(levels), "mainTotal": main_total,
+            "xp": mine.get("ProgressionTowardsNextLevel") or 0,
+            "xpNeeded": levels[level].get("xp") if level < len(levels) else None,
+        }
+
+    defs = {m.get("uuid"): m for m in _valapi("missions")}
+    for m in (c.get("Missions") or []):
+        d = defs.get(m.get("ID"))
+        if not d:
+            continue
+        kind = (d.get("type") or "").split("::")[-1].lower()
+        if kind not in ("weekly", "daily"):
+            continue
+        target = d.get("progressToComplete") or sum(o.get("value") or 0 for o in (d.get("objectives") or [])) or 1
+        progress = sum(v for v in (m.get("Objectives") or {}).values() if isinstance(v, (int, float)))
+        out["missions"].append({
+            "id": m.get("ID"), "kind": kind, "title": d.get("title") or d.get("displayName") or "?",
+            "progress": min(progress, target), "target": target, "xp": max(0, d.get("xpGrant") or 0),
+            "complete": bool(m.get("Complete")) or progress >= target,
+            "expires": m.get("ExpirationTime"),
+        })
+    out["missions"].sort(key=lambda x: (x["complete"], x["kind"] != "weekly", -x["progress"] / x["target"]))
+    meta = c.get("MissionMetadata") or {}
+    out["weeklyRefill"] = meta.get("WeeklyRefillTime")
     return out
 
 
@@ -3979,6 +4173,7 @@ _LCU_ERR_PATH = os.path.join(DATA_DIR, "rankyoinker-lcu-error.txt")
 def _note_lcu_error(url, exc):
     # lcu_req() turns every failure into the same generic LcuError for the UI;
     # keep the real cause on disk so a broken LCU connection is diagnosable.
+    report_error("lcu", exc)
     try:
         with open(_LCU_ERR_PATH, "w", encoding="utf-8") as f:
             f.write("%s: %s -> %r\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), url, exc))
@@ -4355,6 +4550,11 @@ def _lol_watcher():
             # sah bisher von aussen exakt so aus wie "tut einfach nichts" —
             # ohne Spur war das nur noch Raten.
             _lol_auto["lastCrash"] = {"error": "%s: %s" % (type(e).__name__, e), "at": time.time()}
+            report_error("lol-auto", e)
+        try:
+            _lol_setup_tick()
+        except Exception as e:
+            report_error("lol-setup", e)
         try:
             if lol_gamestate().get("state") == "INGAME":
                 _lol_record_encounter_now()
@@ -4967,6 +5167,235 @@ def _lol_auto_tick():
                                 "at": time.time(), "championId": desired, "attempts": _lol_auto["attempts"]}
 
 
+# ---- Champion-Setups: Runen, Beschwörerzauber und Item-Set pro Champion ----
+# Vom Nutzer selbst hinterlegt (kein Build-Dienst - Riots Entwicklerrichtlinie
+# verbietet Apps, die Spielentscheidungen vorgeben). Sobald der eigene Pick
+# gelockt ist (ARAM: sobald ein Champion zugewiesen ist), schreibt der Wächter
+# alles per LCU in den Client. Item-Sets erscheinen dadurch im Shop im Spiel,
+# ganz ohne Overlay.
+
+LOL_SETUPS_FILE = os.path.join(DATA_DIR, "vry_lol_setups.json")
+LOL_SETUP_PAGE_PREFIX = "RankYoinker"
+_lol_setups_lock = threading.Lock()
+_lol_setups = {"auto": True, "champions": {}}     # champions: {"<champId>": setup}
+_lol_setup_state = {"applied": None, "last": None}
+
+
+def _pos_int(v):
+    try:
+        v = int(v)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def _clean_setup(raw):
+    """Prüft ein Setup und gibt die bereinigte Fassung zurück (ValueError mit
+    verständlicher Meldung, wenn etwas nicht passt)."""
+    if not isinstance(raw, dict):
+        raise ValueError("Ungültiges Setup.")
+    spells = [s for s in (_pos_int(x) for x in (raw.get("spells") or [])[:2]) if s]
+    if len(spells) == 2 and spells[0] == spells[1]:
+        raise ValueError("Zweimal derselbe Beschwörerzauber.")
+    runes = None
+    r = raw.get("runes")
+    if isinstance(r, dict):
+        perks = [_pos_int(x) for x in (r.get("selectedPerkIds") or [])]
+        ps, ss = _pos_int(r.get("primaryStyleId")), _pos_int(r.get("subStyleId"))
+        if len(perks) != 9 or not all(perks) or not ps or not ss or ps == ss:
+            raise ValueError("Runenseite unvollständig (9 Runen aus zwei verschiedenen Bäumen).")
+        runes = {"primaryStyleId": ps, "subStyleId": ss, "selectedPerkIds": perks}
+    blocks = []
+    for b in (raw.get("items") or [])[:6]:
+        if not isinstance(b, dict):
+            continue
+        ids = [i for i in (_pos_int(x) for x in (b.get("items") or [])[:12]) if i]
+        if ids:
+            blocks.append({"type": str(b.get("type") or "")[:40], "items": ids})
+    return {"name": str(raw.get("name") or "")[:40],
+            "spells": spells if len(spells) == 2 else [],
+            "runes": runes, "items": blocks}
+
+
+def _lol_setups_restore():
+    data = _load_json(LOL_SETUPS_FILE)
+    if not isinstance(data, dict):
+        return
+    champs = {}
+    for cid, raw in (data.get("champions") or {}).items():
+        if _pos_int(cid):
+            try:
+                champs[str(int(cid))] = _clean_setup(raw)
+            except ValueError:
+                pass
+    with _lol_setups_lock:
+        _lol_setups["auto"] = bool(data.get("auto", True))
+        _lol_setups["champions"] = champs
+
+
+def _lol_setups_save():
+    with _lol_setups_lock:
+        _save_json(LOL_SETUPS_FILE, {"auto": _lol_setups["auto"], "champions": dict(_lol_setups["champions"])})
+
+
+def lol_setups_state():
+    with _lol_setups_lock:
+        return {"ok": True, "auto": _lol_setups["auto"], "champions": dict(_lol_setups["champions"]),
+                "last": _lol_setup_state["last"]}
+
+
+def lol_setups_save(champion_id, raw):
+    cid = _pos_int(champion_id)
+    if not cid:
+        return {"ok": False, "error": "Kein Champion gewählt."}
+    try:
+        setup = _clean_setup(raw)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    if not (setup["spells"] or setup["runes"] or setup["items"]):
+        return {"ok": False, "error": "Leeres Setup - mindestens Runen, Zauber oder Items hinterlegen."}
+    with _lol_setups_lock:
+        _lol_setups["champions"][str(cid)] = setup
+    _lol_setups_save()
+    record_feature("lol_setup_saved")
+    return lol_setups_state()
+
+
+def lol_setups_delete(champion_id):
+    cid = _pos_int(champion_id)
+    with _lol_setups_lock:
+        _lol_setups["champions"].pop(str(cid), None)
+    _lol_setups_save()
+    return lol_setups_state()
+
+
+def lol_setups_set_auto(on):
+    with _lol_setups_lock:
+        _lol_setups["auto"] = bool(on)
+    _lol_setups_save()
+    return lol_setups_state()
+
+
+def lol_setups_apply_again():
+    """Setzt das "schon angewendet"-Merkmal zurück - der nächste Wächter-Takt
+    wendet das Setup des aktuellen Champions erneut an (z. B. nach einer
+    Änderung mitten im Champ Select)."""
+    _lol_setup_state["applied"] = None
+    return {"ok": True}
+
+
+def lol_current_runes():
+    """Aktive Runenseite aus dem Client - zum Übernehmen in ein Setup."""
+    try:
+        st, page = lcu_get("/lol-perks/v1/currentpage")
+    except LcuError as e:
+        return {"ok": False, "error": str(e)}
+    if st != 200 or not isinstance(page, dict) or not page.get("primaryStyleId"):
+        return {"ok": False, "error": "Keine aktive Runenseite im Client gefunden."}
+    return {"ok": True, "name": page.get("name"),
+            "runes": {"primaryStyleId": page.get("primaryStyleId"), "subStyleId": page.get("subStyleId"),
+                      "selectedPerkIds": page.get("selectedPerkIds") or []}}
+
+
+def _lol_apply_runes(champ_name, runes):
+    page = dict(runes, name=("%s: %s" % (LOL_SETUP_PAGE_PREFIX, champ_name))[:30], current=True)
+    st, pages = lcu_get("/lol-perks/v1/pages")
+    if st != 200 or not isinstance(pages, list):
+        return {"ok": False, "status": st, "error": "Runenseiten nicht lesbar."}
+    # Ausschließlich die eigene Seite anfassen - Seiten des Spielers bleiben tabu.
+    own = next((p for p in pages if p.get("isEditable")
+                and str(p.get("name") or "").startswith(LOL_SETUP_PAGE_PREFIX)), None)
+    page_id = None
+    if own:
+        st, _ = lcu_put("/lol-perks/v1/pages/%s" % own.get("id"), page)
+        if st in (200, 201, 204):
+            page_id = own.get("id")
+        else:
+            lcu_delete("/lol-perks/v1/pages/%s" % own.get("id"))
+    if page_id is None:
+        st, created = lcu_post("/lol-perks/v1/pages", page)
+        if st not in (200, 201, 204):
+            return {"ok": False, "status": st,
+                    "error": "Keine freie Runenseite - im Client eine löschen oder eine Seite „RankYoinker“ nennen."}
+        page_id = (created or {}).get("id") if isinstance(created, dict) else None
+    if page_id is not None:
+        lcu_put("/lol-perks/v1/currentpage", page_id)
+    return {"ok": True, "status": st}
+
+
+def _lol_apply_spells(spells):
+    st, _ = lcu_patch("/lol-champ-select/v1/session/my-selection", {"spell1Id": spells[0], "spell2Id": spells[1]})
+    return {"ok": st in (200, 204), "status": st, "error": None if st in (200, 204) else "Riot lehnte ab (Status %s)." % st}
+
+
+def _lol_apply_itemset(champ_id, champ_name, blocks):
+    summoner = lol_current_summoner()
+    path = "/lol-item-sets/v1/item-sets/%s/sets" % summoner.get("summonerId")
+    st, data = lcu_get(path)
+    if st != 200 or not isinstance(data, dict):
+        return {"ok": False, "status": st, "error": "Item-Sets nicht lesbar."}
+    uid = "rankyoinker-%d" % champ_id
+    sets = [s for s in (data.get("itemSets") or []) if s.get("uid") != uid]
+    sets.append({
+        "uid": uid, "title": ("RankYoinker: %s" % champ_name)[:40], "type": "custom",
+        "map": "any", "mode": "any", "sortrank": 0, "startedFrom": "blank",
+        "associatedChampions": [champ_id], "associatedMaps": [11, 12], "preferredItemSlots": [],
+        "blocks": [{"type": b["type"] or "Items", "items": [{"id": str(i), "count": 1} for i in b["items"]]}
+                   for b in blocks],
+    })
+    data["itemSets"] = sets
+    st, _ = lcu_put(path, data)
+    return {"ok": st in (200, 201, 204), "status": st,
+            "error": None if st in (200, 201, 204) else "Riot lehnte ab (Status %s)." % st}
+
+
+def _lol_setup_tick():
+    with _lol_setups_lock:
+        auto = _lol_setups["auto"]
+        champs = dict(_lol_setups["champions"])
+    if not auto or not champs:
+        return
+    try:
+        st, j = lcu_get("/lol-champ-select/v1/session")
+    except LcuError:
+        return
+    if st != 200 or not isinstance(j, dict):
+        _lol_setup_state["applied"] = None
+        return
+    local = j.get("localPlayerCellId")
+    me = next((c for c in (j.get("myTeam") or []) if c.get("cellId") == local), {})
+    champ = me.get("championId") or 0
+    # Solange die eigene Pick-Aktion noch offen ist, ist der Champion nur
+    # gehovert - erst nach dem Locken anwenden (ARAM hat keine Pick-Aktion).
+    pick_open = any(a.get("actorCellId") == local and a.get("type") == "pick" and not a.get("completed")
+                    for g in (j.get("actions") or []) for a in g)
+    setup = champs.get(str(champ))
+    if not champ or pick_open or not setup:
+        return
+    key = (j.get("gameId"), champ)
+    if _lol_setup_state["applied"] == key:
+        return
+    _lol_setup_state["applied"] = key
+    phase = (j.get("timer") or {}).get("phase")
+    name = setup.get("name") or str(champ)
+    results = {}
+    for what, fn in (("runes", lambda: _lol_apply_runes(name, setup["runes"]) if setup["runes"] else None),
+                     ("spells", lambda: _lol_apply_spells(setup["spells"]) if setup["spells"] else None),
+                     ("items", lambda: _lol_apply_itemset(champ, name, setup["items"]) if setup["items"] else None)):
+        try:
+            res = fn()
+        except LcuError as e:
+            res = {"ok": False, "status": None, "error": str(e)}
+        if res is None:
+            continue
+        results[what] = res
+        _lol_auto_log(what, "setup", None, champ, res, phase)
+        if not res.get("ok"):
+            report_error("lol-setup", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
+    _lol_setup_state["last"] = {"championId": champ, "name": name, "at": time.time(), "results": results}
+    record_feature("lol_setup_applied")
+
+
 # ---- Match-Verlauf (eigene puuid, lokale LCU-Historie — kein API-Key nötig) ----
 
 def _lol_extract(game, puuid):
@@ -5501,6 +5930,7 @@ class Handler(BaseHTTPRequestHandler):
         except RiotError as e:
             self._json({"ok": False, "error": str(e)})
         except Exception as e:
+            report_error("api " + urllib.parse.urlparse(self.path).path, e)
             self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
 
     def do_OPTIONS(self):
@@ -5583,6 +6013,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/presets/pick":
             self._safe(lambda: lol_presets_set_pick(body.get("position"), body.get("slot", 0),
                                                      body.get("championId"), body.get("name")))
+        elif path == "/api/lol/setups/save":
+            self._safe(lambda: lol_setups_save(body.get("championId"), body.get("setup")))
+        elif path == "/api/lol/setups/delete":
+            self._safe(lambda: lol_setups_delete(body.get("championId")))
+        elif path == "/api/lol/setups/auto":
+            self._safe(lambda: lol_setups_set_auto(body.get("on", True)))
+        elif path == "/api/lol/setups/apply":
+            self._safe(lol_setups_apply_again)
         elif path == "/api/lol/presets/auto":
             self._safe(lambda: lol_presets_set_auto(body.get("ban"), body.get("pick")))
 
@@ -5819,6 +6257,12 @@ class Handler(BaseHTTPRequestHandler):
             # Was Riot sagt — unabhängig davon, was vry.exe gerade anzeigt
             self._json(dict(game_state(), ok=True))
 
+        elif path == "/api/session-stats":
+            self._safe(session_stats)
+
+        elif path == "/api/progress":
+            self._safe(val_progress)
+
         elif path == "/api/rrhistory":
             puuid = q.get("puuid", [""])[0]
             try:
@@ -5927,6 +6371,12 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/lol/presets":
             self._json(lol_presets_state())
+
+        elif path == "/api/lol/setups":
+            self._json(lol_setups_state())
+
+        elif path == "/api/lol/currentrunes":
+            self._safe(lol_current_runes)
 
         else:
             self._json({}, 404)
@@ -6265,6 +6715,7 @@ if __name__ == "__main__":
     # vom VALORANT-Zweig oben — gleiches Prinzip wie der Instalock.
     _lol_cfg_restore()
     _lol_presets_restore()
+    _lol_setups_restore()
     threading.Thread(target=_lol_watcher, daemon=True).start()
     # RankYoinker: anonymer Aktiv-Nutzer-Ping für die Website (siehe oben)
     threading.Thread(target=_active_user_heartbeat, daemon=True).start()

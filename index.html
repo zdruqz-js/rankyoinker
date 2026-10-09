@@ -578,6 +578,99 @@
   .lp-tile.small .lp-tile-name{font-size:9px; max-width:60px;}
   .lp-tile.filled .lp-tile-name{color:var(--text);}
 
+  /* ---- League: aufgeräumte Lobby ---- */
+  .lobby-head{display:flex; align-items:center; gap:18px; margin-bottom:16px;}
+  .lobby-head .panel-head{flex:1; margin-bottom:0;}
+  .lobby-controls{display:grid; grid-template-columns:minmax(200px, 1.4fr) repeat(2, minmax(140px, 1fr)) auto; gap:12px; align-items:end; margin-bottom:18px;}
+  @media (max-width:760px){ .lobby-controls{grid-template-columns:1fr 1fr;} .lc-queue, .lc-action{grid-column:1 / -1;} }
+  .lc-field{display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .lc-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase;}
+  .lc-action{display:flex; align-items:center; gap:10px;}
+  .lc-action .pbtn{white-space:nowrap;}
+  .lp-summary{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:14px 20px;}
+  .lps-items{display:flex; gap:22px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);}
+  .lps-items b{font-family:var(--font-display); font-weight:700; color:var(--text-faint); margin-left:3px;}
+  .lps-items b.on{color:var(--lol);}
+
+  /* ---- League: Tab Presets ---- */
+  .lp-section{padding:22px 24px;}
+  .lp-desc{margin:-6px 0 16px; font-size:12.5px; color:var(--text-faint); line-height:1.5; max-width:70ch;}
+  .lp-toggles{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:18px;}
+  .lane-seg{display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--panel-3); border:1px solid var(--border); width:fit-content; max-width:100%; overflow-x:auto; margin-bottom:20px;}
+  .lane-btn{position:relative; border:0; background:transparent; color:var(--text-faint); cursor:pointer; padding:8px 16px; border-radius:999px;
+    font-family:var(--font-display); font-weight:700; font-size:11px; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; transition:.15s ease;}
+  .lane-btn:hover{color:var(--text-dim);}
+  .lane-btn.on{background:linear-gradient(135deg, var(--lol), var(--lol-deep)); color:#0a0a0b;}
+  .lane-btn i{position:absolute; top:6px; right:7px; width:5px; height:5px; border-radius:50%; background:var(--lol);}
+  .lane-btn.on i{background:#0a0a0b;}
+  .lp-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;}
+  .lp-col{padding:16px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--panel-3);}
+  .lp-col-title{font-family:var(--font-display); font-weight:700; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--lol); margin-bottom:12px;}
+  .lp-col-title.ban{color:#ff7580;}
+  .lp-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
+  .setup-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;}
+  .setup-card{display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--r-sm); border:1px solid var(--border); background:var(--panel-3);
+    color:var(--text); cursor:pointer; text-align:left; font-family:var(--font-body); transition:.16s ease;}
+  .setup-card:hover{border-color:rgba(10,200,185,.45); transform:translateY(-2px);}
+  .setup-card .sc-champ{width:52px; height:52px; border-radius:10px; flex-shrink:0;}
+  .sc-body{min-width:0; flex:1;}
+  .sc-name{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sc-icons{display:flex; align-items:center; gap:4px; margin:6px 0 4px; min-height:22px;}
+  .sc-icons img{width:22px; height:22px; border-radius:6px; background:var(--panel-2);}
+  .sc-icons .sc-key{width:26px; height:26px; border-radius:50%;}
+  .sc-icons .sc-sub{width:18px; height:18px; margin-right:6px; background:none;}
+  .sc-meta{font-size:11px; color:var(--text-faint);}
+  .setup-card.add{justify-content:center; flex-direction:column; gap:6px; min-height:78px; border-style:dashed; color:var(--text-faint); font-weight:600; font-size:12px;}
+  .setup-card.add .sc-plus{font-size:24px; line-height:1;}
+  .setup-last{margin-top:14px; font-size:12px; color:var(--text-dim); display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .setup-last .ok{color:var(--green); font-weight:700;} .setup-last .bad{color:#ff7580; font-weight:700;}
+  .setup-err{flex-basis:100%; color:#ff7580; font-size:11.5px;}
+  .setup-status{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 18px;}
+  .setup-status .setup-last{margin-top:0;}
+
+  /* ---- Setup-Editor ---- */
+  .setup-editor{padding-top:6px;}
+  .se-head{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+  .se-head img{width:58px; height:58px; border-radius:12px;}
+  .se-title{font-family:var(--font-big); font-size:28px; font-weight:600; letter-spacing:.03em; line-height:1;}
+  .se-sub{font-size:12px; color:var(--text-faint); margin-top:4px;}
+  .se-sec{padding:16px 0; border-top:1px solid var(--border);}
+  .se-sec-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:.1em; text-transform:uppercase;}
+  .se-sec-head span{font-family:var(--font-body); font-weight:500; font-size:11.5px; letter-spacing:0; text-transform:none; color:var(--text-faint);}
+  .se-sec-head .pbtn{padding:6px 11px; font-size:11px;}
+  .se-sec-head .pbtn:first-of-type{margin-left:auto;}
+  .sp-grid{display:flex; gap:6px; flex-wrap:wrap;}
+  .sp-btn, .rn-perk, .ib-item{position:relative; border:1px solid var(--border); background:var(--panel-3); cursor:pointer; padding:0; transition:.14s ease;}
+  .sp-btn{width:42px; height:42px; border-radius:9px; overflow:hidden; opacity:.55;}
+  .sp-btn img, .ib-item img{width:100%; height:100%; display:block;}
+  .sp-btn:hover, .rn-perk:hover, .ib-item:hover{opacity:1; border-color:var(--border-strong);}
+  .sp-btn.on{opacity:1; border-color:var(--lol); box-shadow:0 0 0 2px rgba(10,200,185,.35);}
+  .sp-btn b{position:absolute; right:2px; bottom:1px; font-size:10px; font-family:var(--font-display); color:#fff; text-shadow:0 1px 3px #000;}
+  .rn-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;}
+  .rn-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px;}
+  .rn-styles{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+  .rn-style{display:flex; align-items:center; gap:6px; padding:5px 10px 5px 6px; border-radius:999px; border:1px solid var(--border); background:var(--panel-3);
+    color:var(--text-faint); cursor:pointer; font-size:11px; font-weight:600; transition:.14s ease;}
+  .rn-style img{width:20px; height:20px;}
+  .rn-style.on{border-color:var(--lol); color:var(--text); background:rgba(10,200,185,.1);}
+  .rn-row{display:flex; gap:8px; margin-bottom:8px;}
+  .rn-perk{width:38px; height:38px; border-radius:50%; overflow:hidden; opacity:.4; filter:grayscale(.7);}
+  .rn-perk.key{width:48px; height:48px;}
+  .rn-row.shards .rn-perk{width:28px; height:28px;}
+  .rn-perk img{width:100%; height:100%; display:block;}
+  .rn-perk.on{opacity:1; filter:none; border-color:var(--lol); box-shadow:0 0 0 2px rgba(10,200,185,.35);}
+  .ib-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .ib-tab{border:1px solid var(--border); background:var(--panel-3); color:var(--text-dim); border-radius:999px; padding:6px 13px; cursor:pointer; font-size:11.5px; font-weight:600;}
+  .ib-tab span{color:var(--text-faint); margin-left:4px;}
+  .ib-tab.on{border-color:var(--lol); color:var(--text);}
+  .ib-current{display:flex; gap:6px; flex-wrap:wrap; min-height:44px; align-items:center; padding:8px; border-radius:var(--r-sm); border:1px dashed var(--border-strong); margin-bottom:12px;}
+  .ib-empty{font-size:12px; color:var(--text-faint);}
+  .ib-item{width:38px; height:38px; border-radius:8px; overflow:hidden; opacity:.85;}
+  .ib-item.on{opacity:1; border-color:var(--lol);}
+  .ib-search{margin:0 0 10px !important; text-align:left !important;}
+  .ib-pool{display:flex; gap:5px; flex-wrap:wrap; max-height:220px; overflow-y:auto; padding:2px;}
+  .se-actions{justify-content:space-between !important; margin-top:6px;}
+
   /* Umschalten zwischen den beiden Spiel-Ansichten — eigene, von der
      Valorant-Zustandsmaschine (.show/.hidden) unabhängige Ebene. */
   /* Gleiches Kastenmodell wie #app, sonst sitzen die League-Tabs ohne das
@@ -767,6 +860,11 @@
     animation:encPop .45s cubic-bezier(.2,1.3,.4,1) both;
   }
   .pcard-portrait .name-stack{position:absolute; left:14px; right:12px; bottom:8px; z-index:4;}
+  .smurf-badge{
+    display:inline-flex; align-items:center; margin-left:7px; padding:2px 7px; border-radius:999px; vertical-align:1px;
+    font-family:var(--font-display); font-weight:700; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:#ffd6a0; background:rgba(233,132,74,.22); border:1px solid rgba(233,132,74,.55); cursor:help;
+  }
   .pcard-portrait .pname{
     font-family:var(--font-display); font-weight:700; font-size:14.5px; letter-spacing:0; text-transform:none;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 10px rgba(0,0,0,0.8);
@@ -1137,6 +1235,38 @@
     .match-row .mr-stats{margin-left:0; width:100%; justify-content:flex-start;}
   }
   .stats-loading{display:flex; align-items:center; gap:10px; color:var(--text-faint); font-size:12px; padding:16px 2px; text-transform:none; letter-spacing:0;}
+
+  /* ================= Fortschritt ================= */
+  #panelProgress{--accent:var(--ally); --accent-deep:var(--ally-deep);}
+  .prog-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-bottom:16px;}
+  .prog-card{background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%); border:1px solid var(--border); border-radius:var(--r); padding:18px 20px;}
+  .prog-card .panel-head{margin-bottom:14px;}
+  .ses-top{display:flex; align-items:center; gap:18px; margin-bottom:14px;}
+  .ses-delta{font-family:var(--font-big); font-size:54px; font-weight:600; line-height:1; letter-spacing:.01em;}
+  .ses-delta span{font-size:20px; margin-left:4px; color:var(--text-faint);}
+  .ses-delta.up{color:var(--green);} .ses-delta.down{color:var(--loss);}
+  .ses-record{font-family:var(--font-display); font-weight:700; font-size:15px;}
+  .ses-sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
+  .ses-dots{margin-top:8px; flex-wrap:wrap;}
+  .ses-note{margin-top:10px; font-size:11px; color:var(--text-faint);}
+  .pg-track{height:8px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden;}
+  .pg-fill{height:100%; border-radius:99px; background:linear-gradient(90deg, var(--accent-deep, var(--red-deep)), var(--accent, var(--red))); transition:width .5s cubic-bezier(.22,1,.36,1);}
+  .bp-name{font-size:12px; color:var(--text-faint); margin-bottom:4px;}
+  .bp-level{font-family:var(--font-big); font-size:30px; font-weight:600; margin-bottom:8px;}
+  .bp-level b{font-size:44px;}
+  .bp-level span{font-family:var(--font-display); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-left:10px;}
+  .bp-next{font-size:12px; color:var(--text-dim); margin:12px 0 6px;}
+  .acc-level{display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text-dim);}
+  .acc-level b{font-family:var(--font-big); font-size:24px; color:var(--text); font-weight:600;}
+  .mission-list{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;}
+  .mission{padding:12px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--panel-3);}
+  .mission.done{opacity:.6;}
+  .mi-top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .mi-kind{font-family:var(--font-display); font-weight:700; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint);}
+  .mi-title{font-weight:600; font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mi-ok{color:var(--green); display:flex;}
+  .mi-xp{font-size:11px; color:var(--gold); font-weight:700; white-space:nowrap;}
+  .mi-num{font-size:11px; color:var(--text-faint); margin-top:5px; text-align:right; font-variant-numeric:tabular-nums;}
 
   /* ================= TABS ================= */
   .tabs{
@@ -2029,10 +2159,12 @@
     <button class="tab active" data-tab="match">Match</button>
     <button class="tab" data-tab="skins">Skins</button>
     <button class="tab" data-tab="shop">Shop</button>
+    <button class="tab" data-tab="progress" data-i18n="tab_progress">Progress</button>
   </nav>
   <div id="content" class="tabpanel active"></div>
   <div id="panelSkins" class="tabpanel"></div>
   <div id="panelShop" class="tabpanel"></div>
+  <div id="panelProgress" class="tabpanel"></div>
 </div>
 
 <div id="lolStatusOverlay">
@@ -2047,9 +2179,11 @@
   <nav class="tabs" id="lolTabs">
     <span class="tab-pill" id="lolTabPill"></span>
     <button class="tab active" data-ltab="live" data-i18n="tab_lol_live">Spiel</button>
+    <button class="tab" data-ltab="presets" data-i18n="tab_lol_presets">Presets</button>
     <button class="tab" data-ltab="history" data-i18n="tab_lol_history">Verlauf</button>
   </nav>
   <div id="lolContent" class="tabpanel active"></div>
+  <div id="lolPanelPresets" class="tabpanel"></div>
   <div id="lolPanelHistory" class="tabpanel"></div>
 </div>
 
@@ -2312,6 +2446,7 @@
     check: '<polyline points="20 6 9 17 4 12"/>',
     chevron: '<polyline points="6 9 12 15 18 9"/>',
     refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+    download: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
     zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
     crosshair: '<circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>',
     clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
@@ -3341,6 +3476,30 @@
       if(tmp.firstElementChild) el.replaceWith(tmp.firstElementChild);
     });
     fillMissingStats();
+    paintSmurf();
+  }
+
+  // ---------- Smurf-Hinweis ----------
+  // Bewusst sehr streng (lieber nie anschlagen als falsch): niedriges Account-
+  // Level UND in allen letzten 5 RANKED-Matches dominant (K/D, Headshots,
+  // fast nur Siege). Ein ehrlicher Neuling kommt da praktisch nie hin. Das
+  // Level kann versteckt sein (0) - dann gibt es nie einen Hinweis.
+  const SMURF = {maxLevel: 40, games: 5, minKd: 1.5, minHs: 24, minWins: 4};
+  function smurfHint(level, tot){
+    if(!tot || !(level >= 1 && level <= SMURF.maxLevel)) return null;
+    if(tot.games < SMURF.games || !(tot.kd >= SMURF.minKd) || !(tot.hsPercent >= SMURF.minHs) || !(tot.wins >= SMURF.minWins)) return null;
+    return tot;
+  }
+  function paintSmurf(){
+    content.querySelectorAll('.pcard[data-puuid]').forEach(card => {
+      const slot = card.querySelector('.smurf-slot');
+      if(!slot || slot.childElementCount || card.hasAttribute('data-me')) return;
+      const d = kdaCache[card.getAttribute('data-puuid')];
+      const level = Number(card.getAttribute('data-level'));
+      const hit = smurfHint(level, d && d.rankedTotals);
+      if(!hit) return;
+      slot.innerHTML = `<span class="smurf-badge" title="${esc(t('smurf_tip', {level, kd: hit.kd.toFixed(2), hs: Math.round(hit.hsPercent), wins: hit.wins, games: hit.games}))}">${esc(t('smurf_badge'))}</span>`;
+    });
   }
 
   // RankYoinker liefert "N/A", wenn ein Spieler in dieser Act noch kein gewertetes Spiel
@@ -3502,7 +3661,7 @@
     const skin = primarySkin(p.weapons);
 
     return `
-    <div class="pcard ${isMe ? 'me' : ''}${p.agent && p.agentLocked === false ? ' hovering' : ''}" data-key="${esc(key)}" data-puuid="${esc(p.puuid || '')}" data-vryparty="${p.partyNumber > 0 ? p.partyNumber : 0}">
+    <div class="pcard ${isMe ? 'me' : ''}${p.agent && p.agentLocked === false ? ' hovering' : ''}" data-key="${esc(key)}" data-puuid="${esc(p.puuid || '')}" data-vryparty="${p.partyNumber > 0 ? p.partyNumber : 0}" data-level="${typeof p.level === 'number' ? p.level : ''}"${isMe ? ' data-me="1"' : ''}>
       <div class="pcard-portrait">
         ${isMe ? `<span class="you-badge">${t('pregame_you')}</span>` : ''}
         ${partyFlagHtml(p)}
@@ -3513,7 +3672,7 @@
         <div class="por-fade"></div>
         <div class="name-stack">
           <div class="pname">${esc(dispName || t('name_unknown'))} <span class="tag">${esc(dispTag)}</span></div>
-          <div class="agent-tag">${esc(p.agent || '—')}${info && info.role ? ' · ' + esc(info.role) : ''}${p.agent && p.agentLocked === false ? ` · <span class="hov">${t('hovering_lowercase')}</span>` : ''}</div>
+          <div class="agent-tag">${esc(p.agent || '—')}${info && info.role ? ' · ' + esc(info.role) : ''}${p.agent && p.agentLocked === false ? ` · <span class="hov">${t('hovering_lowercase')}</span>` : ''}<span class="smurf-slot"></span></div>
           ${p.mostPlayedAgent && p.mostPlayedAgent.toLowerCase() !== String(p.agent || '').toLowerCase()
             ? `<div class="most-played">${t('most_played_agent_label', {agent: esc(p.mostPlayedAgent), n: p.mostPlayedAgentCount, total: p.mostPlayedAgentGames})}</div>`
             : ''}
@@ -3967,7 +4126,7 @@
 
 
   // ================= TABS =================
-  const PANELS = {match:'content', skins:'panelSkins', shop:'panelShop'};
+  const PANELS = {match:'content', skins:'panelSkins', shop:'panelShop', progress:'panelProgress'};
   let activeTab = 'match';
 
   function movePill(){
@@ -3986,6 +4145,7 @@
     if(name !== 'shop') stopShopTick();
     if(name === 'skins') renderSkins();
     else if(name === 'shop') renderShop(false);
+    else if(name === 'progress') renderProgress();
   }
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
   window.addEventListener('resize', movePill);
@@ -4718,6 +4878,89 @@
       }
       return j;
     });
+  }
+
+  // ---------- Fortschritt: Ranked-Sitzung, Battlepass, Missionen ----------
+  function progBar(value, max){
+    const pct = max ? Math.max(0, Math.min(100, value / max * 100)) : 0;
+    return `<div class="pg-track"><div class="pg-fill" style="width:${pct}%"></div></div>`;
+  }
+  function fmtTime(ms){ return ms ? new Date(ms).toLocaleTimeString(LOCALE, {hour:'2-digit', minute:'2-digit'}) : '—'; }
+  function fmtUntil(iso){
+    const ms = Date.parse(iso || '') - Date.now();
+    if(!(ms > 0)) return '';
+    const h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
+    return d >= 1 ? t('time_days_hours', {d, h: h % 24}) : t('time_hours', {h: Math.max(1, h)});
+  }
+
+  function sessionCardHtml(s){
+    const head = `<div class="panel-head sub">${s && s.ok && s.games && !s.active ? t('session_last') : t('session_current')}<span class="line"></span></div>`;
+    if(!s || !s.ok) return `<div class="prog-card">${head}<div class="panel-empty">${esc((s && s.error) || t('generic_error'))}</div></div>`;
+    if(!s.games) return `<div class="prog-card">${head}<div class="panel-empty">${t('session_none')}</div></div>`;
+    const up = s.rrDelta >= 0;
+    const dots = s.matches.map(m => {
+      const cls = m.result === 'win' ? 'w' : m.result === 'loss' ? 'l' : 'd';
+      return `<span class="dot ${cls} solid" title="${esc((m.earned > 0 ? '+' : '') + m.earned + ' RR · ' + fmtTime(m.at))}"></span>`;
+    }).join('');
+    return `<div class="prog-card">${head}
+      <div class="ses-top">
+        <div class="ses-delta ${up ? 'up' : 'down'}">${up ? '+' : ''}${esc(String(s.rrDelta))}<span>RR</span></div>
+        <div class="ses-meta">
+          <div class="ses-record">${t('session_record', {w: s.wins, l: s.losses, d: s.draws})}</div>
+          <div class="ses-sub">${t('session_since', {time: fmtTime(s.startedAt), n: s.games})}</div>
+          <div class="dots ses-dots">${dots}</div>
+        </div>
+      </div>
+      <div class="rank-duo">
+        ${rankTileHtml(t('session_start'), s.startTier, {rr: s.startRr})}
+        ${rankTileHtml(t('session_now'), s.tier, {rr: s.rr})}
+      </div>
+      <div class="ses-note">${t('session_note')}</div>
+    </div>`;
+  }
+
+  function battlepassCardHtml(p){
+    const head = `<div class="panel-head sub">${t('bp_title')}<span class="line"></span></div>`;
+    if(!p || !p.ok) return `<div class="prog-card">${head}<div class="panel-empty">${esc((p && p.error) || t('generic_error'))}</div></div>`;
+    const bp = p.battlepass, acc = p.account;
+    const bpHtml = bp ? `
+      <div class="bp-name">${esc(bp.name || '')}</div>
+      <div class="bp-level"><b>${bp.level}</b> / ${bp.total}<span>${t('bp_level')}</span></div>
+      ${progBar(bp.level, bp.total)}
+      ${bp.xpNeeded ? `<div class="bp-next">${t('bp_xp_next', {xp: numFmt(bp.xp), need: numFmt(bp.xpNeeded)})}</div>${progBar(bp.xp, bp.xpNeeded)}` : `<div class="bp-next">${t('bp_done')}</div>`}`
+      : `<div class="panel-empty">${t('bp_none')}</div>`;
+    return `<div class="prog-card">${head}${bpHtml}
+      ${acc && acc.level ? `<div class="acc-level"><span>${t('account_level')}</span><b>${acc.level}</b></div>` : ''}
+    </div>`;
+  }
+
+  function missionsCardHtml(p){
+    const head = `<div class="panel-head sub">${t('missions_title')}<span class="line"></span>${p && p.weeklyRefill && fmtUntil(p.weeklyRefill) ? `<span>${t('missions_refill', {left: fmtUntil(p.weeklyRefill)})}</span>` : ''}</div>`;
+    if(!p || !p.ok) return '';
+    const list = p.missions || [];
+    if(!list.length) return `<div class="prog-card">${head}<div class="panel-empty">${t('missions_none')}</div></div>`;
+    return `<div class="prog-card">${head}<div class="mission-list">${list.map(m => `
+      <div class="mission${m.complete ? ' done' : ''}">
+        <div class="mi-top">
+          <span class="mi-kind">${m.kind === 'daily' ? t('missions_daily') : t('missions_weekly')}</span>
+          <span class="mi-title">${esc(m.title)}</span>
+          ${m.complete ? `<span class="mi-ok">${svgIcon('check', 12)}</span>` : ''}
+          <span class="mi-xp">${m.xp ? '+' + numFmt(m.xp) + ' XP' : ''}</span>
+        </div>
+        ${progBar(m.progress, m.target)}
+        <div class="mi-num">${numFmt(m.progress)} / ${numFmt(m.target)}</div>
+      </div>`).join('')}</div></div>`;
+  }
+
+  let progressLoading = false;
+  function renderProgress(){
+    const el = document.getElementById('panelProgress');
+    if(progressLoading) return;
+    if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader',15,'spin')} ${t('loading')}</div>`;
+    progressLoading = true;
+    Promise.all([api('/api/session-stats').catch(apiFail), api('/api/progress').catch(apiFail)]).then(([s, p]) => {
+      el.innerHTML = `<div class="prog-grid">${sessionCardHtml(s)}${battlepassCardHtml(p)}</div>${missionsCardHtml(p)}`;
+    }).finally(() => { progressLoading = false; });
   }
 
   function renderSkins(){
@@ -5516,6 +5759,7 @@
     bindCards(playersByKey);
     refreshOpenModalLoadout(playersByKey);
     loadKda();
+    paintSmurf();
     // Begegnungen nur bei echten Matches zählen, nicht im Menü. In PREGAME steckt
     // "list" noch nur das eigene Team — die Gegner (falls vom Server gefunden,
     // siehe pregameEnemiesForLoad) kommen als eigene, klar als "ally:false"
@@ -6123,7 +6367,7 @@
   window.addEventListener('resize', moveGswPill);
 
   // ---- Tabs (Spiel / Verlauf) ----
-  const LOL_PANELS = {live:'lolContent', history:'lolPanelHistory'};
+  const LOL_PANELS = {live:'lolContent', presets:'lolPanelPresets', history:'lolPanelHistory'};
   function moveLolPill(){
     const btn = document.querySelector('#lolTabs .tab.active');
     const pill = document.getElementById('lolTabPill');
@@ -6138,6 +6382,7 @@
     Object.entries(LOL_PANELS).forEach(([k, id]) => document.getElementById(id).classList.toggle('active', k === name));
     moveLolPill();
     if(name === 'history') renderLolHistory();
+    else if(name === 'presets') renderLolPresetsTab();
   }
   document.querySelectorAll('#lolTabs .tab').forEach(b => b.addEventListener('click', () => setLolTab(b.getAttribute('data-ltab'))));
   window.addEventListener('resize', moveLolPill);
@@ -6552,6 +6797,390 @@
     </div>`;
   }
 
+  // ---- Kompakte Presets-Zusammenfassung in der Lobby (Details im Tab "Presets") ----
+  let lolSetups = null;                   // {auto, champions:{id: setup}, last}
+  function loadLolSetups(){
+    return api('/api/lol/setups').then(j => { if(j && j.ok) lolSetups = j; return lolSetups; }).catch(() => lolSetups);
+  }
+  function lolPresetsSummaryHtml(){
+    const p = lolPresets || {};
+    const n = lolSetups ? Object.keys(lolSetups.champions || {}).length : 0;
+    const st = (on) => `<b class="${on ? 'on' : ''}">${on ? t('on_word') : t('off_word')}</b>`;
+    return `<div class="lol-card lp-summary">
+      <div class="lps-items">
+        <span>${t('lol_auto_ban_short')} ${st(p.autoBan)}</span>
+        <span>${t('lol_auto_pick_short')} ${st(p.autoPick)}</span>
+        <span>${t('lol_presets_summary_setups', {n})}</span>
+      </div>
+      <button class="pbtn" id="lolGoPresets">${svgIcon('gear', 12)}${t('lol_presets_edit')}</button>
+    </div>`;
+  }
+  function bindLolPresetsSummary(root){
+    const b = root.querySelector('#lolGoPresets');
+    if(b) b.addEventListener('click', () => setLolTab('presets'));
+    if(!lolSetups) loadLolSetups().then(() => {
+      const box = root.querySelector('.lp-summary');
+      if(box){ box.outerHTML = lolPresetsSummaryHtml(); bindLolPresetsSummary(root); }
+    });
+  }
+
+  // ---- Spieldaten für Runen/Zauber/Items (Community Dragon, CORS-offen) ----
+  const CDRAGON_GD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
+  function cdAsset(path){ return path ? CDRAGON_GD + String(path).replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : ''; }
+  let lolGameData = null, lolGameDataPromise = null;
+  function loadLolGameData(){
+    if(lolGameData) return Promise.resolve(lolGameData);
+    if(lolGameDataPromise) return lolGameDataPromise;
+    const get = (f) => fetch(CDRAGON_GD + 'v1/' + f, {cache:'force-cache'}).then(r => { if(!r.ok) throw new Error(f); return r.json(); });
+    lolGameDataPromise = Promise.all([get('perkstyles.json'), get('perks.json'), get('summoner-spells.json'), get('items.json')])
+      .then(([ps, perks, spells, items]) => {
+        const perkById = {}; perks.forEach(x => { perkById[x.id] = x; });
+        lolGameData = {
+          styles: (ps.styles || []).slice().sort((a, b) => a.id - b.id),
+          perkById,
+          spells: spells.filter(x => x.name && (x.gameModes || []).some(m => m === 'CLASSIC' || m === 'ARAM'))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+          spellById: Object.fromEntries(spells.map(x => [x.id, x])),
+          items: items.filter(i => i.inStore && i.priceTotal > 0 && i.id < 10000 && !i.requiredChampion && !i.requiredAlly)
+            .sort((a, b) => a.name.localeCompare(b.name)),
+          itemById: Object.fromEntries(items.map(i => [i.id, i])),
+        };
+        return lolGameData;
+      }).catch(e => { lolGameDataPromise = null; throw e; });
+    return lolGameDataPromise;
+  }
+
+  // ---- Tab "Presets": Auto-Ban/-Pick je Lane + Champion-Setups ----
+  let lolPresetLane = null;
+  const LOL_LANE_ORDER = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'OTHER'];
+
+  async function renderLolPresetsTab(){
+    const el = document.getElementById('lolPanelPresets');
+    if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader',15,'spin')} ${t('loading')}</div>`;
+    const [, , , gd] = await Promise.all([loadLolChampions(), loadLolPresets(), loadLolSetups(), loadLolGameData().catch(() => null)]);
+    const p = lolPresets || {autoBan:false, autoPick:false, ban:{}, picks:{}};
+    if(!lolPresetLane){
+      lolPresetLane = LOL_LANE_ORDER.find(l => ((p.picks || {})[l] || []).some(Boolean) || ((p.ban || {})[l] || []).some(Boolean)) || 'TOP';
+    }
+    const lane = lolPresetLane;
+    const has = (l) => ((p.picks || {})[l] || []).some(Boolean) || ((p.ban || {})[l] || []).some(Boolean);
+    const laneSeg = LOL_LANE_ORDER.map(l => `<button type="button" class="lane-btn ${l === lane ? 'on' : ''}" data-lane="${l}">${esc(LOL_LANE_LABELS[l])}${has(l) ? '<i></i>' : ''}</button>`).join('');
+    const row = (kind) => {
+      const slots = ((kind === 'ban' ? p.ban : p.picks) || {})[lane] || [null, null, null];
+      return [0, 1, 2].map(i => lolPresetTileHtml(`${kind}:${lane}:${i}`, i === 0 ? t('lol_main_choice') : LOL_FALLBACK_LABELS[i], slots[i], i > 0)).join('');
+    };
+    el.innerHTML = `
+      <div class="lol-card lp-section">
+        <div class="panel-head">${t('lol_presets_autos_head')}<span class="line"></span></div>
+        <p class="lp-desc">${t('lol_presets_autos_desc')}</p>
+        <div class="lp-toggles">
+          <div class="lol-toggle ${p.autoBan ? 'on' : ''}" id="lolAutoBanToggle"><span class="sw"></span><span class="lbl">${t('lol_auto_ban_toggle')}</span></div>
+          <div class="lol-toggle ${p.autoPick ? 'on' : ''}" id="lolAutoPickToggle"><span class="sw"></span><span class="lbl">${t('lol_auto_pick_toggle')}</span></div>
+        </div>
+        <div class="lane-seg">${laneSeg}</div>
+        <div class="lp-cols">
+          <div class="lp-col"><div class="lp-col-title ban">${t('lol_ban_col')}</div><div class="lp-row">${row('ban')}</div></div>
+          <div class="lp-col"><div class="lp-col-title">${t('lol_pick_col')}</div><div class="lp-row">${row('pick')}</div></div>
+        </div>
+      </div>
+      <div class="lol-card lp-section">
+        <div class="panel-head">${t('lol_setups_head')}<span class="line"></span></div>
+        <p class="lp-desc">${t('lol_setups_desc')}</p>
+        <div class="lp-toggles"><div class="lol-toggle ${!lolSetups || lolSetups.auto ? 'on' : ''}" id="lolSetupAutoToggle"><span class="sw"></span><span class="lbl">${t('lol_setups_auto')}</span></div></div>
+        ${gd ? '' : `<div class="panel-empty" style="margin-bottom:12px;">${t('lol_setup_data_failed')}</div>`}
+        <div class="setup-grid">${lolSetupCardsHtml(gd)}</div>
+        ${lolSetupLastHtml()}
+      </div>`;
+    bindLolPresets();
+    el.querySelectorAll('.lane-btn').forEach(b => b.addEventListener('click', () => { lolPresetLane = b.getAttribute('data-lane'); renderLolPresetsTab(); }));
+    const st = el.querySelector('#lolSetupAutoToggle');
+    if(st) st.addEventListener('click', () => {
+      const next = !st.classList.contains('on');
+      st.classList.toggle('on', next);
+      api('/api/lol/setups/auto', {on: next}).then(j => { if(j && j.ok) lolSetups = j; else st.classList.toggle('on', !next); })
+        .catch(() => st.classList.toggle('on', !next));
+    });
+    el.querySelectorAll('[data-setup]').forEach(c => c.addEventListener('click', () => gd && openLolSetupEditor(Number(c.getAttribute('data-setup')))));
+    const add = el.querySelector('#lolSetupAdd');
+    if(add) add.addEventListener('click', () => gd && openLolSetupChampionPicker());
+  }
+
+  function lolChampName(id){
+    const c = (lolChampCatalog || []).find(x => x.id === id);
+    return c ? c.name : String(id);
+  }
+  function lolSetupCardsHtml(gd){
+    const champs = (lolSetups && lolSetups.champions) || {};
+    const cards = Object.entries(champs).sort((a, b) => lolChampName(Number(a[0])).localeCompare(lolChampName(Number(b[0])))).map(([id, su]) => {
+      const spells = (su.spells || []).map(sid => {
+        const sp = gd && gd.spellById[sid];
+        return sp ? `<img src="${esc(cdAsset(sp.iconPath))}" alt="" title="${esc(sp.name)}">` : '';
+      }).join('');
+      const r = su.runes;
+      const key = r && gd && gd.perkById[r.selectedPerkIds[0]];
+      const sub = r && gd && gd.styles.find(x => x.id === r.subStyleId);
+      const itemCount = (su.items || []).reduce((n, b) => n + b.items.length, 0);
+      return `<button type="button" class="setup-card" data-setup="${esc(id)}">
+        <img class="sc-champ" src="https://cdn.communitydragon.org/latest/champion/${esc(id)}/square" alt="" loading="lazy">
+        <div class="sc-body">
+          <div class="sc-name">${esc(su.name || lolChampName(Number(id)))}</div>
+          <div class="sc-icons">
+            ${key ? `<img class="sc-key" src="${esc(cdAsset(key.iconPath))}" alt="" title="${esc(key.name)}">` : ''}
+            ${sub ? `<img class="sc-sub" src="${esc(cdAsset(sub.iconPath))}" alt="" title="${esc(sub.name)}">` : ''}
+            ${spells}
+          </div>
+          <div class="sc-meta">${itemCount ? t('lol_setup_items_count', {n: itemCount}) : t('lol_setup_no_items')}</div>
+        </div>
+      </button>`;
+    }).join('');
+    return cards + `<button type="button" class="setup-card add" id="lolSetupAdd"><span class="sc-plus">+</span><span>${t('lol_setup_add')}</span></button>`;
+  }
+  function lolSetupLastHtml(){
+    const last = lolSetups && lolSetups.last;
+    if(!last || !last.results) return '';
+    const mark = (k) => last.results[k] ? `<span class="${last.results[k].ok ? 'ok' : 'bad'}">${last.results[k].ok ? '✓' : '✕'} ${t('lol_setup_' + k)}</span>` : '';
+    const errs = Object.values(last.results).filter(r => !r.ok && r.error).map(r => esc(r.error)).join(' · ');
+    return `<div class="setup-last">${t('lol_setup_last', {champ: esc(last.name || lolChampName(last.championId))})} ${mark('runes')}${mark('spells')}${mark('items')}${errs ? `<div class="setup-err">${errs}</div>` : ''}</div>`;
+  }
+
+  // ---- Setup-Editor ----
+  async function openLolSetupChampionPicker(){
+    const champs = await loadLolChampions();
+    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
+      <div class="modal-body">
+        <div class="skinpick-head"><span class="wn">${t('lol_setup_choose_champ')}</span></div>
+        <input class="lol-champ-filter" id="lolSetupFilter" type="text" placeholder="${t('champion_search_placeholder')}" autocomplete="off" style="margin-top:16px;">
+        <div class="agent-grid" id="lolSetupGrid" style="max-height:52vh; overflow-y:auto; padding:2px 4px 2px 2px; margin-top:14px;">${champs.map(c => lolChampCellHtml(c, !!(lolSetups && lolSetups.champions && lolSetups.champions[c.id]), false)).join('')}</div>
+      </div>`;
+    modalWrap.classList.add('open');
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    const f = document.getElementById('lolSetupFilter');
+    f.focus();
+    f.addEventListener('input', () => {
+      const q = f.value.toLowerCase();
+      document.querySelectorAll('#lolSetupGrid .agent-cell').forEach(c => { c.style.display = !q || (c.getAttribute('title') || '').toLowerCase().includes(q) ? '' : 'none'; });
+    });
+    document.querySelectorAll('#lolSetupGrid .agent-cell').forEach(c => c.addEventListener('click', () => openLolSetupEditor(Number(c.getAttribute('data-champ')))));
+  }
+
+  function runeStateFrom(runes, gd){
+    const st = {primary: 8000, sub: 8100, prim: [null, null, null, null], sec: {}, secOrder: [], shards: [null, null, null]};
+    if(!runes || !Array.isArray(runes.selectedPerkIds) || runes.selectedPerkIds.length !== 9) return st;
+    st.primary = runes.primaryStyleId; st.sub = runes.subStyleId;
+    st.prim = runes.selectedPerkIds.slice(0, 4);
+    const subStyle = gd.styles.find(x => x.id === st.sub);
+    runes.selectedPerkIds.slice(4, 6).forEach(pid => {
+      const row = subStyle ? subStyle.slots.findIndex((sl, i) => i >= 1 && i <= 3 && sl.perks.includes(pid)) : -1;
+      if(row > 0){ st.sec[row] = pid; st.secOrder.push(row); }
+    });
+    st.shards = runes.selectedPerkIds.slice(6, 9);
+    return st;
+  }
+  // null = keine Runen hinterlegt; 'incomplete' = angefangen, aber nicht fertig
+  function runePayload(st){
+    const rows = [1, 2, 3].filter(r => st.sec[r]);
+    const any = st.prim.some(Boolean) || rows.length || st.shards.some(Boolean);
+    if(!any) return null;
+    if(!st.prim.every(Boolean) || rows.length !== 2 || !st.shards.every(Boolean)) return 'incomplete';
+    return {primaryStyleId: st.primary, subStyleId: st.sub, selectedPerkIds: [...st.prim, ...rows.map(r => st.sec[r]), ...st.shards]};
+  }
+
+  async function openLolSetupEditor(champId){
+    const gd = await loadLolGameData().catch(() => null);
+    if(!gd){ toast('error', t('generic_error'), t('lol_setup_data_failed')); return; }
+    const existing = (lolSetups && lolSetups.champions && lolSetups.champions[champId]) || null;
+    const name = (existing && existing.name) || lolChampName(champId);
+    const state = {
+      spells: existing ? (existing.spells || []).slice() : [],
+      runes: runeStateFrom(existing && existing.runes, gd),
+      blocks: [t('lol_setup_block_start'), t('lol_setup_block_core'), t('lol_setup_block_situational')].map((label, i) => {
+        const b = existing && existing.items && existing.items[i];
+        return {type: (b && b.type) || label, items: b ? b.items.slice() : []};
+      }),
+      activeBlock: 0, itemQuery: '',
+    };
+
+    const styleBtn = (sty, sel, attr) => `<button type="button" class="rn-style ${sel ? 'on' : ''}" ${attr}="${sty.id}" title="${esc(sty.name)}"><img src="${esc(cdAsset(sty.iconPath))}" alt=""><span>${esc(sty.name)}</span></button>`;
+    const perkBtn = (pid, sel, attrs, keystone) => {
+      const pk = gd.perkById[pid];
+      if(!pk) return '';
+      return `<button type="button" class="rn-perk ${keystone ? 'key' : ''} ${sel ? 'on' : ''}" ${attrs} title="${esc(pk.name)}"><img src="${esc(cdAsset(pk.iconPath))}" alt=""></button>`;
+    };
+
+    function runesHtml(){
+      const r = state.runes;
+      const prim = gd.styles.find(x => x.id === r.primary) || gd.styles[0];
+      const sub = gd.styles.find(x => x.id === r.sub) || gd.styles.find(x => x.id !== prim.id);
+      const shardSlots = prim.slots.filter(sl => sl.type === 'kStatMod');
+      return `
+        <div class="rn-cols">
+          <div class="rn-col">
+            <div class="rn-lbl">${t('lol_setup_primary')}</div>
+            <div class="rn-styles">${gd.styles.map(x => styleBtn(x, x.id === prim.id, 'data-prim-style')).join('')}</div>
+            ${prim.slots.slice(0, 4).map((sl, row) => `<div class="rn-row">${sl.perks.map(pid => perkBtn(pid, r.prim[row] === pid, `data-prim-row="${row}" data-perk="${pid}"`, row === 0)).join('')}</div>`).join('')}
+          </div>
+          <div class="rn-col">
+            <div class="rn-lbl">${t('lol_setup_secondary')}</div>
+            <div class="rn-styles">${gd.styles.filter(x => x.id !== prim.id).map(x => styleBtn(x, x.id === sub.id, 'data-sub-style')).join('')}</div>
+            ${sub.slots.slice(1, 4).map((sl, i) => `<div class="rn-row">${sl.perks.map(pid => perkBtn(pid, r.sec[i + 1] === pid, `data-sec-row="${i + 1}" data-perk="${pid}"`)).join('')}</div>`).join('')}
+            <div class="rn-lbl" style="margin-top:12px;">${t('lol_setup_shards')}</div>
+            ${shardSlots.map((sl, i) => `<div class="rn-row shards">${sl.perks.map(pid => perkBtn(pid, r.shards[i] === pid, `data-shard-row="${i}" data-perk="${pid}"`)).join('')}</div>`).join('')}
+          </div>
+        </div>`;
+    }
+    function spellsHtml(){
+      return `<div class="sp-grid">${gd.spells.map(sp => {
+        const idx = state.spells.indexOf(sp.id);
+        return `<button type="button" class="sp-btn ${idx >= 0 ? 'on' : ''}" data-spell="${sp.id}" title="${esc(sp.name)}"><img src="${esc(cdAsset(sp.iconPath))}" alt="">${idx >= 0 ? `<b>${idx === 0 ? 'D' : 'F'}</b>` : ''}</button>`;
+      }).join('')}</div>`;
+    }
+    function itemsHtml(){
+      const q = state.itemQuery.toLowerCase();
+      const pool = gd.items.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0, q ? 80 : 400);
+      return `
+        <div class="ib-tabs">${state.blocks.map((b, i) => `<button type="button" class="ib-tab ${i === state.activeBlock ? 'on' : ''}" data-block="${i}">${esc(b.type)} <span>${b.items.length}</span></button>`).join('')}</div>
+        <div class="ib-current">${state.blocks[state.activeBlock].items.map((id, i) => {
+          const it = gd.itemById[id];
+          return `<button type="button" class="ib-item on" data-remove="${i}" title="${esc(it ? it.name : id)} – ${t('lol_setup_remove_hint')}"><img src="${esc(cdAsset(it && it.iconPath))}" alt=""></button>`;
+        }).join('') || `<span class="ib-empty">${t('lol_setup_items_hint')}</span>`}</div>
+        <input class="lol-champ-filter ib-search" id="lolItemSearch" type="text" placeholder="${t('lol_setup_item_search')}" autocomplete="off" value="${esc(state.itemQuery)}">
+        <div class="ib-pool">${pool.map(it => `<button type="button" class="ib-item" data-add="${it.id}" title="${esc(it.name)} · ${it.priceTotal}g"><img src="${esc(cdAsset(it.iconPath))}" alt="" loading="lazy"></button>`).join('')}</div>`;
+    }
+
+    function draw(){
+      modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
+        <div class="modal-body setup-editor">
+          <div class="se-head">
+            <img src="https://cdn.communitydragon.org/latest/champion/${champId}/square" alt="">
+            <div><div class="se-title">${esc(name)}</div><div class="se-sub">${t('lol_setups_desc_short')}</div></div>
+          </div>
+          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_spells')}<span>${t('lol_setup_spells_hint')}</span></div><div id="seSpells">${spellsHtml()}</div></div>
+          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_runes')}<button type="button" class="pbtn" id="seImportRunes">${svgIcon('download', 12)}${t('lol_setup_import_runes')}</button><button type="button" class="pbtn" id="seClearRunes">${svgIcon('x', 11)}${t('reset_btn')}</button></div><div id="seRunes">${runesHtml()}</div></div>
+          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_items')}<span>${t('lol_setup_items_where')}</span></div><div id="seItems">${itemsHtml()}</div></div>
+          <div class="skinpick-actions se-actions">
+            ${existing ? `<button class="pbtn halt" id="seDelete">${svgIcon('x', 12)}${t('lol_setup_delete')}</button>` : ''}
+            <button class="pbtn go" id="seSave">${svgIcon('check', 12)}${t('save')}</button>
+          </div>
+        </div>`;
+      document.getElementById('modalClose').addEventListener('click', closeModal);
+      bind();
+    }
+    function redraw(id, html){ const box = document.getElementById(id); if(box){ box.innerHTML = html; bind(); } }
+
+    function bind(){
+      modalBox.querySelectorAll('[data-spell]').forEach(b => b.onclick = () => {
+        const id = Number(b.getAttribute('data-spell'));
+        const i = state.spells.indexOf(id);
+        if(i >= 0) state.spells.splice(i, 1);
+        else if(state.spells.length < 2) state.spells.push(id);
+        else state.spells[1] = id;
+        redraw('seSpells', spellsHtml());
+      });
+      const r = state.runes;
+      modalBox.querySelectorAll('[data-prim-style]').forEach(b => b.onclick = () => {
+        const id = Number(b.getAttribute('data-prim-style'));
+        if(id === r.primary) return;
+        r.primary = id; r.prim = [null, null, null, null];
+        if(r.sub === id){ r.sub = gd.styles.find(x => x.id !== id).id; r.sec = {}; r.secOrder = []; }
+        redraw('seRunes', runesHtml());
+      });
+      modalBox.querySelectorAll('[data-sub-style]').forEach(b => b.onclick = () => {
+        const id = Number(b.getAttribute('data-sub-style'));
+        if(id === r.sub) return;
+        r.sub = id; r.sec = {}; r.secOrder = [];
+        redraw('seRunes', runesHtml());
+      });
+      modalBox.querySelectorAll('[data-prim-row]').forEach(b => b.onclick = () => {
+        const row = Number(b.getAttribute('data-prim-row')), pid = Number(b.getAttribute('data-perk'));
+        r.prim[row] = r.prim[row] === pid ? null : pid;
+        redraw('seRunes', runesHtml());
+      });
+      modalBox.querySelectorAll('[data-sec-row]').forEach(b => b.onclick = () => {
+        const row = Number(b.getAttribute('data-sec-row')), pid = Number(b.getAttribute('data-perk'));
+        r.secOrder = r.secOrder.filter(x => x !== row);
+        if(r.sec[row] === pid){ delete r.sec[row]; }
+        else {
+          r.sec[row] = pid; r.secOrder.push(row);
+          // Nur zwei Nebenbaum-Reihen erlaubt - die älteste Wahl fällt raus
+          while(r.secOrder.length > 2){ delete r.sec[r.secOrder.shift()]; }
+        }
+        redraw('seRunes', runesHtml());
+      });
+      modalBox.querySelectorAll('[data-shard-row]').forEach(b => b.onclick = () => {
+        const row = Number(b.getAttribute('data-shard-row')), pid = Number(b.getAttribute('data-perk'));
+        r.shards[row] = r.shards[row] === pid ? null : pid;
+        redraw('seRunes', runesHtml());
+      });
+      modalBox.querySelectorAll('[data-block]').forEach(b => b.onclick = () => { state.activeBlock = Number(b.getAttribute('data-block')); redraw('seItems', itemsHtml()); });
+      modalBox.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+        const blk = state.blocks[state.activeBlock];
+        if(blk.items.length >= 12){ toast('warn', t('lol_setup_block_full'), ''); return; }
+        blk.items.push(Number(b.getAttribute('data-add')));
+        redraw('seItems', itemsHtml());
+      });
+      modalBox.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
+        state.blocks[state.activeBlock].items.splice(Number(b.getAttribute('data-remove')), 1);
+        redraw('seItems', itemsHtml());
+      });
+      const search = document.getElementById('lolItemSearch');
+      if(search) search.oninput = () => {
+        state.itemQuery = search.value;
+        const pos = search.selectionStart;
+        redraw('seItems', itemsHtml());
+        const s2 = document.getElementById('lolItemSearch');
+        if(s2){ s2.focus(); s2.setSelectionRange(pos, pos); }
+      };
+      const imp = document.getElementById('seImportRunes');
+      if(imp) imp.onclick = () => api('/api/lol/currentrunes').then(j => {
+        if(!j || !j.ok){ toast('error', t('lol_setup_import_failed'), (j && j.error) || ''); return; }
+        state.runes = runeStateFrom(j.runes, gd);
+        redraw('seRunes', runesHtml());
+        toast('success', t('lol_setup_imported_toast'), j.name || '');
+      }).catch(() => toast('error', t('generic_error'), t('err_local_service_port')));
+      const clr = document.getElementById('seClearRunes');
+      if(clr) clr.onclick = () => { state.runes = runeStateFrom(null, gd); state.runes.primary = r.primary; state.runes.sub = r.sub; redraw('seRunes', runesHtml()); };
+      const save = document.getElementById('seSave');
+      if(save) save.onclick = () => {
+        const runes = runePayload(state.runes);
+        if(runes === 'incomplete'){ toast('warn', t('lol_setup_runes_incomplete'), t('lol_setup_runes_incomplete_hint')); return; }
+        if(state.spells.length === 1){ toast('warn', t('lol_setup_spells_incomplete'), t('lol_setup_spells_hint')); return; }
+        save.disabled = true;
+        api('/api/lol/setups/save', {championId: champId, setup: {name, spells: state.spells, runes, items: state.blocks}}).then(j => {
+          if(!j || !j.ok){ toast('error', t('lol_setup_save_failed'), (j && j.error) || ''); save.disabled = false; return; }
+          lolSetups = j;
+          toast('success', t('lol_setup_saved_toast', {champ: name}), '');
+          closeModal();
+          if(lolTab === 'presets') renderLolPresetsTab();
+        }).catch(() => { toast('error', t('generic_error'), t('err_local_service_port')); save.disabled = false; });
+      };
+      const del = document.getElementById('seDelete');
+      if(del) del.onclick = () => api('/api/lol/setups/delete', {championId: champId}).then(j => {
+        if(j && j.ok) lolSetups = j;
+        closeModal();
+        if(lolTab === 'presets') renderLolPresetsTab();
+      }).catch(() => {});
+    }
+
+    draw();
+    modalWrap.classList.add('open');
+  }
+
+  // ---- Champ Select: Status des Champion-Setups ----
+  function lolSetupStatusHtml(setups, cs){
+    if(!setups || !setups.auto) return '';
+    const me = (cs.myTeam || []).find(m => m.me);
+    const champ = me && me.championId;
+    const su = champ && setups.champions && setups.champions[champ];
+    if(!su) return '';
+    const last = setups.last;
+    const applied = last && last.championId === champ && (Date.now() / 1000 - last.at) < 900;
+    const body = applied
+      ? `${t('lol_setup_last', {champ: esc(su.name || lolChampName(champ))})} ${['runes', 'spells', 'items'].filter(k => last.results[k]).map(k => `<span class="${last.results[k].ok ? 'ok' : 'bad'}">${last.results[k].ok ? '✓' : '✕'} ${t('lol_setup_' + k)}</span>`).join('')}`
+      : t('lol_setup_status_pending', {champ: esc(su.name || lolChampName(champ))});
+    return `<div class="lol-card setup-status"><div class="setup-last">${body}</div>
+      <button class="pbtn" id="lolSetupApply">${svgIcon('refresh', 12)}${t('lol_setup_apply_again')}</button></div>`;
+  }
+
   function bindLolPresets(){
     const banToggle = document.getElementById('lolAutoBanToggle');
     if(banToggle) banToggle.addEventListener('click', () => {
@@ -6607,7 +7236,7 @@
         : api('/api/lol/presets/pick', {position: lane, slot, championId: id, name: name || ''});
       call.then(j => { if(j && j.ok) lolPresets = j; }).catch(() => {}).then(() => {
         closeModal();
-        refreshLol();
+        if(lolTab === 'presets') renderLolPresetsTab(); else refreshLol();
       });
     };
 
@@ -6727,9 +7356,8 @@
 
     if(state === 'OFFLINE'){
       el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">
-        ${t('league_client_closed_hint')}</div></div>` +
-        lolPresetsPanelHtml();
-      bindLolPresets();
+        ${t('league_client_closed_hint')}</div></div>` + lolPresetsSummaryHtml();
+      bindLolPresetsSummary(el);
       return;
     }
     const [lobby, search, rc, queues] = await Promise.all([
@@ -6773,29 +7401,27 @@
     // <select> - Platzhalter-Divs, per makeDropdown() gleich nach dem
     // Einfuegen ins DOM befuellt (siehe unten).
     const queuePicker = `
-      <div style="display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:10px;">
-        <div class="cdrop" id="lolQueuePick" style="width:210px;"></div>
-        ${searching
-          ? `<button class="pbtn halt" id="lolCancelBtn">${t('lol_cancel_search')}</button><span class="searching">${svgIcon('clock', 13)}${t('lol_searching')}</span>`
-          : `<button class="pbtn go" id="lolSearchBtn" ${currentQueueId ? '' : 'disabled'}>${t('lol_start_queue')}</button>`}
-      </div>
-      <div style="display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:16px;">
-        <span style="font-size:10.5px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.08em; text-transform:uppercase;">${t('lol_lane')}</span>
-        <div class="cdrop" id="lolPrimaryPick" style="width:150px;"></div>
-        <span style="font-size:10.5px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.08em; text-transform:uppercase;">${t('lol_lane_2nd')}</span>
-        <div class="cdrop" id="lolSecondaryPick" style="width:150px;"></div>
+      <div class="lobby-controls">
+        <div class="lc-field lc-queue"><span class="lc-lbl">${t('lol_queue')}</span><div class="cdrop" id="lolQueuePick"></div></div>
+        <div class="lc-field"><span class="lc-lbl">${t('lol_lane')}</span><div class="cdrop" id="lolPrimaryPick"></div></div>
+        <div class="lc-field"><span class="lc-lbl">${t('lol_lane_2nd')}</span><div class="cdrop" id="lolSecondaryPick"></div></div>
+        <div class="lc-action">
+          ${searching
+            ? `<button class="pbtn halt" id="lolCancelBtn">${t('lol_cancel_search')}</button><span class="searching">${svgIcon('clock', 13)}${t('lol_searching')}</span>`
+            : `<button class="pbtn go" id="lolSearchBtn" ${currentQueueId ? '' : 'disabled'}>${t('lol_start_queue')}</button>`}
+        </div>
       </div>`;
 
     el.innerHTML =
-      `<div class="lol-card">
-         <div class="lol-toggle ${auto ? 'on' : ''}" id="lolAutoToggle">
-           <span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span>
+      `<div class="lol-card lobby-card">
+         <div class="lobby-head">
+           <div class="panel-head">${t('lol_lobby')}<span class="line"></span></div>
+           <div class="lol-toggle ${auto ? 'on' : ''}" id="lolAutoToggle"><span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span></div>
          </div>
-       </div>` +
-      `<div class="lol-card"><div class="panel-head">${t('lol_lobby')}<span class="line"></span></div>${queuePicker}${membersHtml}</div>` +
-      lolPresetsPanelHtml();
+         ${queuePicker}${membersHtml}
+       </div>` + lolPresetsSummaryHtml();
     bindLolCardClicks(el);
-    bindLolPresets();
+    bindLolPresetsSummary(el);
 
     const queueOpts = [{value:'', label: t('lol_pick_queue')}].concat(
       ((queues && queues.queues) || []).map(q => ({value: String(q.id), label: q.name})));
@@ -6935,10 +7561,12 @@
 
   async function renderLolChampSelect(state){
     const el = document.getElementById('lolContent');
-    const [cs, presetsForDebug] = await Promise.all([
+    const [cs, presetsForDebug, setupsForStatus] = await Promise.all([
       api('/api/lol/champselect').catch(() => ({ok:false})),
       api('/api/lol/presets').catch(() => null),
+      api('/api/lol/setups').catch(() => null),
     ]);
+    if(setupsForStatus && setupsForStatus.ok) lolSetups = setupsForStatus;
     if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(!cs || !cs.ok){
       el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">${esc((cs && cs.error) || t('lol_champselect_unreadable'))}</div></div>`;
@@ -6957,12 +7585,21 @@
     // Wechsel aus der Lobby) — danach wird nur noch gezielt gepatcht.
     let teamsBox = document.getElementById('lolCsTeams');
     if(!teamsBox){
-      el.innerHTML = lolHead(state) + `<div id="lolAutoAlertBox"></div><div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
+      el.innerHTML = lolHead(state) + `<div id="lolAutoAlertBox"></div><div id="lolSetupBox"></div><div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
     }
     const alertBox = document.getElementById('lolAutoAlertBox');
     if(alertBox) alertBox.innerHTML = lolAutoAlertHtml(lolPresets);
+    const setupBox = document.getElementById('lolSetupBox');
+    if(setupBox){
+      const html = lolSetupStatusHtml(setupsForStatus, cs);
+      if(setupBox.innerHTML !== html){
+        setupBox.innerHTML = html;
+        const b = setupBox.querySelector('#lolSetupApply');
+        if(b) b.addEventListener('click', () => { b.disabled = true; api('/api/lol/setups/apply', {}).catch(() => {}); });
+      }
+    }
     const debugBox = document.getElementById('lolAutoDebugBox');
     if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
@@ -7332,7 +7969,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.0.4";
+const CURRENT_VERSION = "2.4.1-dev";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
