@@ -1071,9 +1071,17 @@ def _trigger_self_update():
     try:
         with open(waiter_path, "w", encoding="utf-8") as f:
             f.write(waiter_script)
+        # NUR CREATE_NO_WINDOW, kein DETACHED_PROCESS: laut Windows-Doku wird
+        # CREATE_NO_WINDOW zusammen mit DETACHED_PROCESS ignoriert - cmd lief
+        # dann ganz ohne Konsole, und JEDES Konsolenprogramm im Warte-Skript
+        # (tasklist, find, timeout, powershell) bekam ein eigenes, sichtbar
+        # aufblitzendes Fenster ("5 cmd-Fenster beim Update", Nutzer-Meldung
+        # 2026-10-10). So bekommt cmd eine unsichtbare Konsole, die alle
+        # Kindprozesse erben. CREATE_NEW_PROCESS_GROUP entkoppelt das Skript
+        # trotzdem vom gleich endenden Dienst-Prozess.
         subprocess.Popen(
             ["cmd", "/c", waiter_path],
-            creationflags=CREATE_NO_WINDOW | getattr(subprocess, "DETACHED_PROCESS", 0),
+            creationflags=CREATE_NO_WINDOW | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200),
             close_fds=True,
         )
         _ulog(f"Warte-Skript gestartet ({waiter_path}), beende mich selbst gleich.")
