@@ -502,7 +502,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.1.1"
+APP_VERSION = "2.4.1.2-dev"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -742,6 +742,31 @@ def record_feature(name):
         pass
 
 
+def _riot_client_account():
+    """Puuid + Riot-ID direkt aus dem lokalen Riot Client (Chat-Sitzung) -
+    funktioniert, sobald man im Riot-Launcher eingeloggt ist, unabhaengig
+    davon, ob VALORANT oder League laufen. None, wenn nicht ermittelbar."""
+    try:
+        if not os.path.exists(LOCKFILE):
+            return None
+        with open(LOCKFILE, "r", encoding="utf-8", errors="replace") as fh:
+            parts = fh.read().strip().split(":")
+        if len(parts) < 5:
+            return None
+        basic = base64.b64encode(("riot:" + parts[3]).encode()).decode()
+        status, j = _http("https://127.0.0.1:%s/chat/v1/session" % parts[2],
+                          {"Authorization": "Basic " + basic}, local_unverified=True)
+        if status != 200 or not isinstance(j, dict):
+            return None
+        puuid = j.get("puuid")
+        if not _is_puuid(puuid or ""):
+            return None
+        gn, tag = j.get("game_name"), j.get("game_tag")
+        return {"puuid": puuid, "name": "%s#%s" % (gn, tag) if gn and tag else (gn or None)}
+    except Exception:
+        return None
+
+
 def _current_riot_account():
     """Bestmoegliches Wissen ueber den gerade eingeloggten Riot-Account - nur
     Puuid und Anzeigename, sonst nichts. Versucht zuerst VALORANT (get_auth()),
@@ -756,10 +781,25 @@ def _current_riot_account():
         auth = get_auth()
         puuid = auth.get("puuid")
         if puuid:
-            name_map = names_for([puuid])
-            return {"puuid": puuid, "name": name_map.get(puuid)}
+            name = None
+            try:
+                name = names_for([puuid]).get(puuid)
+            except Exception:
+                pass
+            if not name:
+                rc = _riot_client_account()
+                if rc and rc["puuid"] == puuid:
+                    name = rc["name"]
+            return {"puuid": puuid, "name": name}
     except Exception:
         pass
+    # Riot Client allein reicht: eingeloggt im Launcher, aber (noch) kein
+    # Spiel gestartet bzw. VALORANT nie gestartet (get_auth() braucht
+    # ShooterGame.log fuer die Region). Vorher landeten solche Installationen
+    # im Dashboard als "kein Account".
+    rc = _riot_client_account()
+    if rc:
+        return rc
     try:
         summoner = lol_current_summoner()
         puuid = summoner.get("puuid")
@@ -792,8 +832,32 @@ def _scrub(text):
     return _USER_PATH_RE.sub(r"\1<user>", str(text))[:300]
 
 
+def _telemetry_noise(source, err):
+    """Erwartbare Netz-Aussetzer, die nichts über einen Fehler in RankYoinker
+    aussagen und das Dashboard nur zumüllen (Stand 2026-10-11 die Mehrheit
+    aller Einträge):
+    * Browser/Handy hat die Verbindung geschlossen, bevor die Antwort raus
+      war (WinError 10053/10054, Broken Pipe) - z. B. Tab gewechselt.
+    * Heartbeat erreicht rankyoinker.de kurz nicht (Timeout, 5xx, DNS) -
+      fehlende Heartbeats sieht man im Dashboard ohnehin.
+    * League Client lehnt die Verbindung ab (WinError 10061) - passiert beim
+      Schliessen/Neustarten des Clients, bevor das Lockfile weg ist."""
+    if isinstance(err, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+        return True
+    reason = getattr(err, "reason", None)
+    if source == "heartbeat":
+        if isinstance(err, urllib.error.HTTPError):
+            return err.code >= 500
+        return isinstance(err, (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError))
+    if source == "lcu":
+        return isinstance(err, ConnectionRefusedError) or isinstance(reason, ConnectionRefusedError)
+    return False
+
+
 def report_error(source, err):
     try:
+        if _telemetry_noise(source, err):
+            return
         etype = type(err).__name__ if isinstance(err, BaseException) else "Error"
         msg = _scrub(err)
         key = "%s|%s|%s" % (source, etype, msg[:120])
@@ -826,12 +890,21 @@ def _client_report_loop():
                 features = dict(_load_feature_counts())
             errors = _telemetry_snapshot()
             snapshot = {"account": account, "features": features, "errors": errors}
-            last = _load_json(_LAST_REPORT_PATH)
+            last = _load_json(_LAST_REPORT_PATH) or {}
+            sent_at = last.pop("_sentAt", 0) if isinstance(last, dict) else 0
             # Nur senden, wenn sich seit dem letzten Mal wirklich etwas
             # geaendert hat (neuer Account, neue Feature-Nutzung) - ein
             # unveraenderter Stand alle 5 Minuten erneut zu verschicken,
-            # waere reine Serverlast ohne neue Information.
-            if snapshot != last:
+            # waere reine Serverlast ohne neue Information. Spaetestens alle
+            # 6 h aber trotzdem: Ging der Eintrag auf dem Server verloren
+            # (Aufraeumen, abgelehnter Report), haette die App sonst nie
+            # wieder etwas geschickt und der Account fehlte dauerhaft.
+            # Einen schon bekannten Account nicht durch "gerade kein Riot
+            # Client offen" (None) ersetzen - das ist keine Aenderung.
+            if account is None and isinstance(last, dict) and last.get("account"):
+                account = last["account"]
+                snapshot["account"] = account
+            if snapshot != last or time.time() - sent_at > 6 * 3600:
                 body = json.dumps({
                     "clientId": client_id,
                     "version": APP_VERSION,
@@ -848,7 +921,7 @@ def _client_report_loop():
                     method="POST",
                 )
                 _urlopen_public(req, timeout=10).close()
-                _save_json(_LAST_REPORT_PATH, snapshot)
+                _save_json(_LAST_REPORT_PATH, dict(snapshot, _sentAt=time.time()))
         except Exception:
             pass
         time.sleep(CLIENT_REPORT_INTERVAL)
@@ -2469,6 +2542,13 @@ def current_match_id():
 
 _rr_cache = {}          # "puuid:n" -> (ts, result)
 RR_TTL = 180
+
+
+_PUUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def _is_puuid(value):
+    return bool(value) and bool(_PUUID_RE.match(value))
 
 
 def rr_history(puuid, count=15):
@@ -6146,8 +6226,11 @@ class Handler(BaseHTTPRequestHandler):
                 n = max(3, min(20, int(q.get("n", ["15"])[0])))
             except ValueError:
                 n = 15
-            self._safe(lambda: rr_history(puuid, n) if puuid
-                       else {"ok": False, "error": "puuid fehlt."})
+            # Ohne Puuid (manche Heartbeat-Eintraege sind nur nach Namen
+            # verschluesselt) kam hier frueher der Spielername an und landete
+            # roh in der Riot-URL -> InvalidURL / UnicodeEncodeError.
+            self._safe(lambda: rr_history(puuid, n) if _is_puuid(puuid)
+                       else {"ok": False, "error": "Keine Spieler-ID verfügbar."})
 
         elif path == "/api/player":
             puuid = q.get("puuid", [""])[0]
@@ -6155,8 +6238,8 @@ class Handler(BaseHTTPRequestHandler):
                 count = max(1, min(50, int(q.get("n", ["5"])[0])))
             except ValueError:
                 count = 5
-            if not puuid:
-                self._json({"ok": False, "error": "puuid fehlt"})
+            if not _is_puuid(puuid):
+                self._json({"ok": False, "error": "Keine Spieler-ID verfügbar."})
                 return
             data = player_stats(puuid, count)
             data["ok"] = "error" not in data
