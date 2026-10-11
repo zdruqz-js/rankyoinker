@@ -1119,7 +1119,7 @@ try:
                     seen = []
                     for player in Players:
 
-                        if player not in seen:
+                        if player["Subject"] not in seen:
                             status.update(
                                 f"Loading players... [{playersLoaded}/{len(Players)}]"
                             )
@@ -1248,7 +1248,12 @@ try:
                             }
 
                             # bar()
-                    seen.append(player["Subject"])
+                        # Gehoert IN die Schleife (stand vorher eine Ebene zu weit
+                        # links, also nach der Schleife): Bei leerer Party-Liste
+                        # (eigene Presence noch nicht da, z. B. direkt nach dem
+                        # Login) war "player" nie gesetzt -> NameError, vry.exe
+                        # stuerzte im Menue ab.
+                        seen.append(player["Subject"])
             if (title := game_state_dict.get(game_state)) is None:
                 # program_exit(1)
                 time.sleep(9)
