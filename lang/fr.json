@@ -474,7 +474,6 @@
     "mu_path": "Parcours d'achat",
     "mu_path_item": "Parcours objet {n}",
     "mu_path_boots": "Parcours bottes",
-    "mu_apply_items": "Appliquer le set d'objets",
-    "mu_apply_items_hint": "En jeu, seuls les objets peuvent encore être changés, pas les runes ni les sorts. Écrit le set d'objets pour l'adversaire choisi dans le client."
+    "mu_live_note": "League ne charge plus de nouveau set d'objets en partie – sers-toi de ce build comme référence."
   }
 }

@@ -474,7 +474,6 @@
     "mu_path": "Satın alma yolu",
     "mu_path_item": "Yol eşya {n}",
     "mu_path_boots": "Yol botlar",
-    "mu_apply_items": "Eşya setini uygula",
-    "mu_apply_items_hint": "Oyun içinde artık sadece eşyalar değiştirilebilir, rünler ve büyüler değil. Seçilen rakip için eşya setini istemciye yazar."
+    "mu_live_note": "League oyun sırasında yeni eşya seti yüklemez – bu buildi rehber olarak kullan."
   }
 }

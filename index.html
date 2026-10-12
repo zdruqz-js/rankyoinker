@@ -642,6 +642,7 @@
   .mu-opp.any{width:auto; padding:0 12px; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;}
   .mu-opp.any.on{border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.3); color:var(--text);}
   .mu-note{margin-top:12px; padding:9px 12px; border-radius:var(--r-sm); font-size:12px; color:var(--text-dim); background:rgba(201,168,105,.08); border:1px solid rgba(201,168,105,.22);}
+  .mu-live-note{font-size:11.5px; color:var(--text-faint); max-width:52ch; text-align:right;}
   .mu-auto{display:flex; align-items:center; gap:8px; margin-top:12px; padding:8px 12px; border-radius:var(--r-sm); font-size:12px;}
   .mu-auto.ok{color:#4ade80; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.28);}
   .mu-auto.bad{color:#ff7580; background:rgba(255,70,85,.08); border:1px solid rgba(255,70,85,.3);}
@@ -6903,11 +6904,9 @@
     ].filter(x => x.items.length);
     return {name: lolChampName(champ), spells: (b.spells || []).length === 2 ? b.spells : [], runes: b.runes || null, items: blocks};
   }
-  // itemsOnly: im laufenden Spiel lassen sich Runen und Zauber nicht mehr ändern
-  function lolMuApply(champ, b, btn, itemsOnly){
+  function lolMuApply(champ, b, btn){
     btn.disabled = true;
     const setup = lolBuildToSetup(champ, b);
-    if(itemsOnly){ setup.runes = null; setup.spells = []; }
     api('/api/lol/build/apply', {championId: champ, setup}).then(j => {
       btn.disabled = false;
       const res = (j && j.results) || {};
@@ -7023,7 +7022,9 @@
         </div>
         <div class="mu-foot">
           <div class="mu-source">${t('mu_source', {src: esc(data.source || ''), patch: esc(data.patch || '?')})}</div>
-          <button type="button" class="pbtn go" data-mu-apply title="${esc(t(ctx.mode === 'live' ? 'mu_apply_items_hint' : 'mu_apply_hint'))}">${svgIcon('check', 12)}${t(ctx.mode === 'live' ? 'mu_apply_items' : 'mu_apply')}</button>
+          ${ctx.mode === 'live'
+            ? `<span class="mu-live-note">${t('mu_live_note')}</span>`
+            : `<button type="button" class="pbtn go" data-mu-apply title="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>`}
         </div>`;
     }
     return `<div class="lol-card mu-card">
@@ -7055,7 +7056,7 @@
     });
     const build = data && data.ok && data.builds && data.builds[Math.min(ui.opt || 0, data.builds.length - 1)];
     const ap = box.querySelector('[data-mu-apply]');
-    if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap, ctx.mode === 'live'));
+    if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap));
   }
 
   // ---- Matchup-Karte im Champ Select ----
@@ -7633,8 +7634,9 @@
 
     loadLolEncounters(players);
 
-    // Build-Karte im Spiel (nicht in Arena): echter Lane-Gegner aus den Live-
-    // Positionen, Gegner umschaltbar, "Item-Set übernehmen" schreibt nur Items.
+    // Build-Karte im Spiel (nicht in Arena) zum Nachschlagen: echter Lane-Gegner
+    // aus den Live-Positionen, umschaltbar. Kein Übernehmen - League lädt
+    // Item-Sets nur beim Spielstart (Nutzertest 2026-10-12).
     const mu = document.getElementById('lolMuBox');
     if(mu){
       if(live.arena || !meEntry || !meEntry.championId){ mu.innerHTML = ''; mu.dataset.sig = ''; }
@@ -7938,7 +7940,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev11";
+const CURRENT_VERSION = "2.4.2-dev12";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

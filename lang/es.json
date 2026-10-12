@@ -474,7 +474,6 @@
     "mu_path": "Ruta de compra",
     "mu_path_item": "Ruta objeto {n}",
     "mu_path_boots": "Ruta botas",
-    "mu_apply_items": "Aplicar set de objetos",
-    "mu_apply_items_hint": "En partida solo se pueden cambiar los objetos, no las runas ni los hechizos. Escribe el set de objetos para el rival elegido en el cliente."
+    "mu_live_note": "En partida League ya no carga un set de objetos nuevo: usa este build como referencia."
   }
 }

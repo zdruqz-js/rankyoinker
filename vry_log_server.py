@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev11"
+APP_VERSION = "2.4.2-dev12"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5486,60 +5486,6 @@ def _lol_gameflow():
     return j if st == 200 and isinstance(j, dict) else None
 
 
-_lol_autobuild_ingame_ts = [0.0]
-
-
-def _lol_autobuild_ingame():
-    """Im laufenden Spiel kennt die Live-Client-API die echten Positionen. War
-    der im Champ Select geschätzte Lane-Gegner falsch (oder noch unbekannt),
-    das Item-Set gegen den echten Gegner neu schreiben - nur Items, Runen und
-    Zauber lassen sich im Spiel nicht mehr ändern. Höchstens alle 5 s."""
-    now = time.time()
-    if now - _lol_autobuild_ingame_ts[0] < 5:
-        return
-    _lol_autobuild_ingame_ts[0] = now
-    gf = _lol_gameflow()
-    if not gf or gf.get("phase") != "InProgress":
-        return
-    gd = gf.get("gameData") or {}
-    game = gd.get("gameId")
-    if not game or (gd.get("queue") or {}).get("id") in LOL_AUTOBUILD_SKIP_QUEUES or _lol_autobuild["manualGame"] == game:
-        return
-    players, active = _live_get("/playerlist"), _live_get("/activeplayer")
-    if not players or not active:
-        return
-    me_id = active.get("riotId") or active.get("summonerName")
-    me = next((p for p in players if (p.get("riotId") or p.get("summonerName")) == me_id), None)
-    pos = ((me or {}).get("position") or "").upper()
-    if not me or pos not in LOL_LANES:
-        return
-    by_name = _lol_champion_by_name()
-    champ = by_name.get((me.get("championName") or "").lower())
-    opp = next((p for p in players if p.get("team") != me.get("team")
-                and (p.get("position") or "").upper() == pos), None)
-    vs = by_name.get(((opp or {}).get("championName") or "").lower())
-    if not champ or not vs:
-        return
-    key = ("ingame", game, champ, vs, pos)
-    if _lol_autobuild["applied"] == key:
-        return
-    last = _lol_autobuild["last"] or {}
-    if last.get("gameId") == game and last.get("championId") == champ and last.get("vs") == vs:
-        _lol_autobuild["applied"] = key      # Schätzung war richtig - nichts zu tun
-        return
-    data = _lol_fetch_matchup(champ, vs, pos)
-    if not data:
-        return
-    _lol_autobuild["applied"] = key
-    b = data["builds"][0]
-    setup = _lol_build_to_setup(_lol_champion_catalog()["byId"].get(champ) or str(champ), b)
-    setup["runes"], setup["spells"] = None, []
-    res = lol_apply_build(champ, setup, manual=False)
-    _lol_autobuild["last"] = {"gameId": game, "championId": champ, "vs": vs if not data.get("general") else None,
-                              "guessedVs": vs, "pos": pos, "option": b.get("id"), "at": time.time(), "ingame": True,
-                              "ok": bool(res.get("ok")), "results": res.get("results") or {}, "error": res.get("error")}
-
-
 def _lol_autobuild_tick():
     with _lol_cfg_lock:
         if not _lol_cfg.get("autoBuild", True):
@@ -5549,7 +5495,8 @@ def _lol_autobuild_tick():
     except LcuError:
         return
     if st != 200 or not isinstance(j, dict):
-        _lol_autobuild_ingame()
+        # Kein Nachziehen im laufenden Spiel: League lädt Item-Sets nur beim
+        # Spielstart, eine Änderung danach kommt im Shop nicht an (Test 2026-10-12).
         return
     game = j.get("gameId")
     if _lol_autobuild["manualGame"] == game or j.get("queueId") in LOL_AUTOBUILD_SKIP_QUEUES:
