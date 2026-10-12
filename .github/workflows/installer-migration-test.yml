@@ -22,6 +22,7 @@ on:
 jobs:
   migrate:
     runs-on: windows-latest
+    timeout-minutes: 25
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OLD_TAG: ${{ inputs.old_tag || 'v2.4.2-dev1' }}
@@ -44,7 +45,10 @@ jobs:
             if ($cond) { Write-Host "PASS $msg" } else { Write-Host "FAIL $msg"; $script:fail++ }
           }
           function Install($exe) {
-            $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -PassThru -Wait
+            # Kein -Wait: das wartet auch auf alle Kindprozesse, also auf den
+            # Dienst, den der Installer startet und der weiterlaeuft.
+            $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -PassThru
+            if (-not $p.WaitForExit(300000)) { throw "Installer haengt: $exe" }
             Write-Host "Installer $exe exit $($p.ExitCode)"
             Start-Sleep -Seconds 15
           }
@@ -94,7 +98,8 @@ jobs:
           Check ($apps.Count -eq 1) "genau ein Eintrag unter Apps ($($apps.Count))"
 
           # --- 3. Deinstallation ---
-          $p = Start-Process -FilePath "$new\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru -Wait
+          $p = Start-Process -FilePath "$new\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru
+          [void]$p.WaitForExit(300000)
           Start-Sleep -Seconds 15
           Check (-not (Test-Path "$new\vry_log_server.py")) "Deinstallation entfernt Program Files\RankYoinker"
           Check (-not (Test-Path $key64)) "Deinstallation entfernt den Eintrag"
