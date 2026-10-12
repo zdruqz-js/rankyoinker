@@ -502,7 +502,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.1.3"
+APP_VERSION = "2.4.2-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5247,6 +5247,58 @@ def lol_setups_apply_again():
     return {"ok": True}
 
 
+def lol_apply_build(champion_id, raw):
+    """Wendet einen Build sofort an - Runen, Item-Set und (nur im Champ Select)
+    Beschwörerzauber. Kommt aus den Matchup-Builds im Overlay: der Spieler
+    wählt dort selbst einen von mehreren Vorschlägen und klickt auf
+    "Übernehmen", es wird nichts automatisch erzwungen."""
+    cid = _pos_int(champion_id)
+    if not cid:
+        return {"ok": False, "error": "Kein Champion gewählt."}
+    try:
+        setup = _clean_setup(raw)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    name = setup.get("name") or str(cid)
+    session = None
+    try:
+        st, j = lcu_get("/lol-champ-select/v1/session")
+        if st == 200 and isinstance(j, dict):
+            session = j
+    except LcuError as e:
+        return {"ok": False, "error": str(e)}
+    spells = list(setup["spells"])
+    if session and len(spells) == 2:
+        # Flash & Co. bleiben auf der Taste, auf der der Spieler sie gerade hat
+        local = session.get("localPlayerCellId")
+        me = next((c for c in (session.get("myTeam") or []) if c.get("cellId") == local), {})
+        cur = (me.get("spell1Id"), me.get("spell2Id"))
+        if spells[1] == cur[0] or spells[0] == cur[1]:
+            spells.reverse()
+    results = {}
+    for what, fn in (("runes", lambda: _lol_apply_runes(name, setup["runes"]) if setup["runes"] else None),
+                     ("spells", lambda: _lol_apply_spells(spells) if (spells and session) else None),
+                     ("items", lambda: _lol_apply_itemset(cid, name, setup["items"]) if setup["items"] else None)):
+        try:
+            res = fn()
+        except LcuError as e:
+            res = {"ok": False, "status": None, "error": str(e)}
+        if res is None:
+            continue
+        results[what] = res
+        if not res.get("ok"):
+            report_error("lol-build", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
+    if not results:
+        return {"ok": False, "error": "Nichts zum Übernehmen."}
+    # Sonst überschreibt der Setup-Wächter den gewählten Build direkt nach dem
+    # Locken wieder mit dem gespeicherten Champion-Setup.
+    if session:
+        _lol_setup_state["applied"] = (session.get("gameId"), cid)
+    _lol_setup_state["last"] = {"championId": cid, "name": name, "at": time.time(), "results": results}
+    record_feature("lol_build_applied")
+    return {"ok": all(r.get("ok") for r in results.values()), "results": results}
+
+
 def lol_current_runes():
     """Aktive Runenseite aus dem Client - zum Übernehmen in ein Setup."""
     try:
@@ -5984,6 +6036,8 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: lol_setups_set_auto(body.get("on", True)))
         elif path == "/api/lol/setups/apply":
             self._safe(lol_setups_apply_again)
+        elif path == "/api/lol/build/apply":
+            self._safe(lambda: lol_apply_build(body.get("championId"), body.get("setup")))
         elif path == "/api/lol/presets/auto":
             self._safe(lambda: lol_presets_set_auto(body.get("ban"), body.get("pick")))
 

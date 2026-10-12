@@ -5,7 +5,7 @@ name: Build & release installer
 # damit jede/r nachvollziehen kann, dass die veroeffentlichte .exe wirklich
 # aus diesem Repo/Commit stammt, statt es dem manuellen Wine-Build auf einem
 # privaten Server glauben zu muessen. Tag-Konvention: "vX.Y.Z" fuer stable,
-# "vX.Y.Z-dev" fuer den dev-Kanal (wird als GitHub-"prerelease" markiert).
+# "vX.Y.Z-devN" (z.B. v2.4.2-dev1) fuer den dev-Kanal (wird als GitHub-"prerelease" markiert).
 on:
   push:
     tags:
@@ -100,9 +100,9 @@ jobs:
         id: artifact
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"                  # z.B. v2.2.0 oder v2.2.0-dev
+          $tag = "${{ github.ref_name }}"                  # z.B. v2.4.2 oder v2.4.2-dev1
           $version = $tag.TrimStart("v")                    # 2.2.0 / 2.2.0-dev
-          $isDev = $tag -like "*-dev"
+          $isDev = $tag -like "*-dev*"
           $finalName = "RankYoinker-SetupV$version.exe"
           Copy-Item "setup/Output/RankYoinker-Setup.exe" -Destination $finalName -Force
           $hash = (Get-FileHash -Algorithm SHA256 $finalName).Hash.ToLower()

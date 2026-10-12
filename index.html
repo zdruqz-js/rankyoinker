@@ -122,7 +122,7 @@
     transition:left .28s cubic-bezier(.22,1,.36,1), width .28s cubic-bezier(.22,1,.36,1), background .28s ease;}
   .gsw-pill.auto{background:rgba(255,255,255,0.14);}
   .gsw-pill.val{background:linear-gradient(135deg,var(--red),var(--red-deep)); box-shadow:0 4px 14px -5px rgba(201,168,105,.7);}
-  .gsw-pill.lol{background:linear-gradient(135deg,var(--lol),var(--lol-deep)); box-shadow:0 4px 14px -5px rgba(10,200,185,.55);}
+  .gsw-pill.lol{background:linear-gradient(135deg,var(--lol),var(--lol-deep)); box-shadow:0 4px 14px -5px rgba(201,168,105,.55);}
   .gsw-btn{position:relative; z-index:1; border:0; background:transparent; cursor:pointer; padding:10px 8px; border-radius:999px;
     flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
     font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.1em;
@@ -491,7 +491,6 @@
   .state-pill.OFFLINE{background:rgba(201,168,105,0.1); color:#ff7580; border:1px solid rgba(201,168,105,0.3);}
 
   /* ================= League ================= */
-  .lol-panel-head{display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:20px;}
   .lol-card{background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%); --accent:var(--lol); --accent-deep:var(--lol-deep);
     border:1px solid var(--border); border-radius:var(--r); padding:18px 20px; margin-bottom:16px;}
   .lol-card h3{font-family:var(--font-big); font-size:20px; font-weight:600; letter-spacing:.04em;
@@ -502,7 +501,7 @@
   .lol-list{display:flex; flex-direction:column; gap:8px;}
   .lol-member{display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--r-sm);
     background:var(--panel-3); border:1px solid var(--border);}
-  .lol-member.me{border-color:rgba(10,200,185,0.4);}
+  .lol-member.me{border-color:rgba(201,168,105,0.4);}
   .lol-member .lm-name{font-family:var(--font-display); font-weight:700; font-size:12.5px; flex:1; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .lol-member .lm-name .tag{color:var(--text-faint); font-weight:500; font-size:11px;}
@@ -526,7 +525,7 @@
     border:1px solid var(--border-strong); position:relative; transition:.18s ease; flex-shrink:0;}
   .lol-toggle .sw::after{content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%;
     background:var(--text-dim); transition:.18s ease;}
-  .lol-toggle.on .sw{background:rgba(10,200,185,0.3); border-color:rgba(10,200,185,0.5);}
+  .lol-toggle.on .sw{background:rgba(201,168,105,0.3); border-color:rgba(201,168,105,0.5);}
   .lol-toggle.on .sw::after{left:18px; background:var(--lol);}
   .lol-toggle .lbl{font-size:11px; font-family:var(--font-display); font-weight:700; letter-spacing:.06em; color:var(--text-dim);}
 
@@ -559,7 +558,7 @@
     transition:.16s ease;
   }
   .lp-tile:hover{border-color:var(--border-strong); transform:translateY(-2px);}
-  .lp-tile.filled{border-color:rgba(10,200,185,.4);}
+  .lp-tile.filled{border-color:rgba(201,168,105,.4);}
   .lp-tile.ban.filled{border-color:rgba(201,168,105,.45);}
   .lp-tile.small{width:68px; padding:8px 5px 7px; gap:5px;}
   .lp-tile-img{
@@ -587,10 +586,103 @@
   .lc-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase;}
   .lc-action{display:flex; align-items:center; gap:10px;}
   .lc-action .pbtn{white-space:nowrap;}
-  .lp-summary{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:14px 20px;}
-  .lps-items{display:flex; gap:22px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);}
-  .lps-items b{font-family:var(--font-display); font-weight:700; color:var(--text-faint); margin-left:3px;}
-  .lps-items b.on{color:var(--lol);}
+  .rc-card{text-align:center; padding:34px 20px;}
+
+  /* ---- League: Kopfleiste (Status + Schnellschalter) ---- */
+  .lol-bar{display:flex; align-items:center; justify-content:space-between; gap:12px 18px; flex-wrap:wrap;
+    padding:10px 12px 10px 14px; margin-bottom:16px; border:1px solid var(--border); border-radius:var(--r);
+    background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);}
+  .lb-state{display:flex; align-items:center; gap:12px; min-width:0;}
+  .lb-ctx{font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:.08em; color:var(--text-dim); font-variant-numeric:tabular-nums;}
+  .lb-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .lb-chip{display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--border-strong); background:var(--panel-3); color:var(--text-faint);
+    font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; transition:.15s ease;}
+  .lb-chip i{width:7px; height:7px; border-radius:50%; background:var(--text-faint); transition:.15s ease;}
+  .lb-chip:hover{color:var(--text-dim); border-color:rgba(255,255,255,.26);}
+  .lb-chip.on{color:var(--text); border-color:rgba(201,168,105,.45); background:rgba(201,168,105,.1);}
+  .lb-chip.on i{background:var(--lol); box-shadow:0 0 0 3px rgba(201,168,105,.2);}
+  @media (max-width:640px){ .lol-bar{flex-direction:column; align-items:flex-start;} }
+
+  /* ---- League: Champ Select - Raster links, Matchup-Build rechts ---- */
+  .cs-grid{display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; margin-bottom:16px;}
+  .cs-grid.has-picker{grid-template-columns:minmax(0, 1.05fr) minmax(0, 1fr); align-items:start;}
+  .cs-grid #lolCsPicker:empty{display:none;}
+  .cs-grid .lol-card, .cs-grid .agentpick{margin-bottom:0;}
+  @media (max-width:1020px){ .cs-grid.has-picker{grid-template-columns:minmax(0, 1fr);} }
+
+  /* ---- Matchup-Build-Karte ---- */
+  .mu-card{padding:18px 20px 16px;}
+  .mu-top{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .mu-top .panel-head{flex:1; margin-bottom:0;}
+  .mu-tier{background:var(--panel-3); color:var(--text-dim); border:1px solid var(--border-strong); border-radius:999px; padding:6px 10px;
+    font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.06em; cursor:pointer;}
+  .mu-tier:focus{outline:none; border-color:var(--lol);}
+  .mu-lanes{margin-bottom:14px;}
+  .mu-head{display:flex; align-items:center; gap:14px; padding:12px 14px; border-radius:var(--r-sm); background:var(--panel-3); border:1px solid var(--border); flex-wrap:wrap;}
+  .mu-champ{display:flex; align-items:center; gap:10px; min-width:0;}
+  .mu-champ img, .mu-anyone{width:44px; height:44px; border-radius:10px; flex-shrink:0; border:1px solid rgba(201,168,105,.4);}
+  .mu-champ.enemy img, .mu-champ.enemy .mu-anyone{border-color:rgba(255,70,85,.45);}
+  .mu-champ[data-mu-pickvs]{cursor:pointer; padding:4px 8px 4px 4px; margin:-4px; border-radius:12px; transition:.15s ease;}
+  .mu-champ[data-mu-pickvs]:hover{background:rgba(255,255,255,.05);}
+  .mu-anyone{display:flex; align-items:center; justify-content:center; font-family:var(--font-big); font-size:24px; color:var(--text-faint); background:var(--panel-2);}
+  .mu-cname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mu-lane{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
+  .mu-vs{font-family:var(--font-big); font-size:22px; color:var(--text-faint); letter-spacing:.06em;}
+  .mu-stats{margin-left:auto; text-align:right; display:flex; flex-direction:column; gap:2px;}
+  .mu-stats b{font-family:var(--font-big); font-size:24px; font-weight:600; line-height:1; color:var(--lol);}
+  .mu-stats span{font-size:11px; color:var(--text-faint);}
+  .mu-opp-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:12px;}
+  .mu-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px;}
+  .mu-opp-row .mu-lbl{margin:0 6px 0 0;}
+  .mu-opp{width:34px; height:34px; padding:0; border-radius:9px; overflow:hidden; cursor:pointer; border:1px solid var(--border); background:var(--panel-3); opacity:.55; transition:.15s ease;}
+  .mu-opp img{width:100%; height:100%; display:block;}
+  .mu-opp:hover{opacity:1;}
+  .mu-opp.on{opacity:1; border-color:#ff4655; box-shadow:0 0 0 2px rgba(255,70,85,.3);}
+  .mu-opp.any{width:auto; padding:0 12px; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;}
+  .mu-opp.any.on{border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.3); color:var(--text);}
+  .mu-note{margin-top:12px; padding:9px 12px; border-radius:var(--r-sm); font-size:12px; color:var(--text-dim); background:rgba(201,168,105,.08); border:1px solid rgba(201,168,105,.22);}
+  .mu-msg{padding:28px 0 18px; text-align:center; color:var(--text-faint); font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px;}
+  .mu-opts{display:flex; gap:6px; margin:14px 0 4px; flex-wrap:wrap;}
+  .mu-opt{flex:1; min-width:120px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:9px 12px; border-radius:var(--r-sm); cursor:pointer;
+    border:1px solid var(--border); background:var(--panel-3); color:var(--text-dim); text-align:left; transition:.15s ease;}
+  .mu-opt:hover{border-color:var(--border-strong);}
+  .mu-opt.on{border-color:rgba(201,168,105,.55); background:rgba(201,168,105,.1); color:var(--text);}
+  .mu-opt-name{font-family:var(--font-display); font-weight:700; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;}
+  .mu-opt-meta{font-size:11px; color:var(--text-faint); font-variant-numeric:tabular-nums;}
+  .mu-opt.on .mu-opt-meta{color:var(--lol);}
+  .mu-body{display:grid; grid-template-columns:auto minmax(0, 1fr); gap:16px 30px; padding:16px 2px 4px; align-items:start;}
+  .mu-sec-items{grid-column:1 / -1; padding-top:14px; border-top:1px solid var(--border);}
+  @media (max-width:520px){ .mu-body{grid-template-columns:minmax(0, 1fr);} }
+  .mu-runes{display:flex; align-items:center; gap:10px;}
+  .mu-key{width:52px; height:52px; border-radius:50%; background:var(--panel-2); border:1px solid rgba(201,168,105,.45); padding:2px;}
+  .mu-rune-tree{display:flex; flex-direction:column; gap:6px;}
+  .mu-rune-row{display:flex; align-items:center; gap:4px;}
+  .mu-rune-row img{width:26px; height:26px; border-radius:50%; background:var(--panel-2);}
+  .mu-rune-row img.mu-style{width:20px; height:20px; background:none; margin-right:3px;}
+  .mu-shards{display:inline-flex; gap:2px; margin-left:8px; padding-left:8px; border-left:1px solid var(--border);}
+  .mu-shards img{width:18px; height:18px;}
+  .mu-spells{display:flex; gap:5px;}
+  .mu-spell{width:34px; height:34px; border-radius:8px; border:1px solid var(--border);}
+  .mu-skills{display:flex; align-items:center; gap:5px; flex-wrap:wrap;}
+  .mu-key-cap{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px;
+    background:var(--panel-3); border:1px solid var(--border-strong); font-family:var(--font-display); font-weight:700; font-size:12px; color:var(--text);}
+  .mu-key-cap:first-child{border-color:rgba(201,168,105,.55); color:var(--lol);}
+  .mu-skill-start{flex-basis:100%; font-size:10.5px; color:var(--text-faint); margin-top:4px; letter-spacing:.04em;}
+  .mu-sec-items{display:flex; flex-direction:column; gap:10px; min-width:0;}
+  .mu-item-row{display:grid; grid-template-columns:78px minmax(0, 1fr); align-items:center; gap:10px;}
+  .mu-item-row .mu-lbl{margin:0;}
+  .mu-items{display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
+  .mu-item{position:relative; display:inline-flex;}
+  .mu-item img{width:32px; height:32px; border-radius:7px; border:1px solid var(--border); background:var(--panel-2);}
+  .mu-item b{position:absolute; right:1px; bottom:0; font-size:10px; font-family:var(--font-display); color:#fff; text-shadow:0 1px 3px #000;}
+  .mu-sep{color:var(--text-faint); font-size:13px; margin:0 1px;}
+  .mu-plus{color:var(--text-faint); font-size:13px; margin:0 4px;}
+  .mu-none{color:var(--text-faint); font-size:12px;}
+  .mu-foot{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
+  .mu-source{margin-right:auto; font-size:10.5px; color:var(--text-faint);}
+  .bt-intro{display:flex; align-items:center; gap:18px; justify-content:space-between; flex-wrap:wrap;}
+  .bt-intro > div{flex:1; min-width:240px;}
 
   /* ---- League: Tab Presets ---- */
   .lp-section{padding:22px 24px;}
@@ -611,7 +703,7 @@
   .setup-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;}
   .setup-card{display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--r-sm); border:1px solid var(--border); background:var(--panel-3);
     color:var(--text); cursor:pointer; text-align:left; font-family:var(--font-body); transition:.16s ease;}
-  .setup-card:hover{border-color:rgba(10,200,185,.45); transform:translateY(-2px);}
+  .setup-card:hover{border-color:rgba(201,168,105,.45); transform:translateY(-2px);}
   .setup-card .sc-champ{width:52px; height:52px; border-radius:10px; flex-shrink:0;}
   .sc-body{min-width:0; flex:1;}
   .sc-name{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -644,7 +736,7 @@
   .sp-btn{width:42px; height:42px; border-radius:9px; overflow:hidden; opacity:.55;}
   .sp-btn img, .ib-item img{width:100%; height:100%; display:block;}
   .sp-btn:hover, .rn-perk:hover, .ib-item:hover{opacity:1; border-color:var(--border-strong);}
-  .sp-btn.on{opacity:1; border-color:var(--lol); box-shadow:0 0 0 2px rgba(10,200,185,.35);}
+  .sp-btn.on{opacity:1; border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.35);}
   .sp-btn b{position:absolute; right:2px; bottom:1px; font-size:10px; font-family:var(--font-display); color:#fff; text-shadow:0 1px 3px #000;}
   .rn-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;}
   .rn-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px;}
@@ -652,13 +744,13 @@
   .rn-style{display:flex; align-items:center; gap:6px; padding:5px 10px 5px 6px; border-radius:999px; border:1px solid var(--border); background:var(--panel-3);
     color:var(--text-faint); cursor:pointer; font-size:11px; font-weight:600; transition:.14s ease;}
   .rn-style img{width:20px; height:20px;}
-  .rn-style.on{border-color:var(--lol); color:var(--text); background:rgba(10,200,185,.1);}
+  .rn-style.on{border-color:var(--lol); color:var(--text); background:rgba(201,168,105,.1);}
   .rn-row{display:flex; gap:8px; margin-bottom:8px;}
   .rn-perk{width:38px; height:38px; border-radius:50%; overflow:hidden; opacity:.4; filter:grayscale(.7);}
   .rn-perk.key{width:48px; height:48px;}
   .rn-row.shards .rn-perk{width:28px; height:28px;}
   .rn-perk img{width:100%; height:100%; display:block;}
-  .rn-perk.on{opacity:1; filter:none; border-color:var(--lol); box-shadow:0 0 0 2px rgba(10,200,185,.35);}
+  .rn-perk.on{opacity:1; filter:none; border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.35);}
   .ib-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
   .ib-tab{border:1px solid var(--border); background:var(--panel-3); color:var(--text-dim); border-radius:999px; padding:6px 13px; cursor:pointer; font-size:11.5px; font-weight:600;}
   .ib-tab span{color:var(--text-faint); margin-left:4px;}
@@ -2145,10 +2237,12 @@
   <nav class="tabs" id="lolTabs">
     <span class="tab-pill" id="lolTabPill"></span>
     <button class="tab active" data-ltab="live" data-i18n="tab_lol_live">Spiel</button>
+    <button class="tab" data-ltab="builds" data-i18n="tab_lol_builds">Builds</button>
     <button class="tab" data-ltab="presets" data-i18n="tab_lol_presets">Presets</button>
-    <button class="tab" data-ltab="history" data-i18n="tab_lol_history">Verlauf</button>
+    <button class="tab" data-ltab="history" data-i18n="tab_lol_history">Profil</button>
   </nav>
   <div id="lolContent" class="tabpanel active"></div>
+  <div id="lolPanelBuilds" class="tabpanel"></div>
   <div id="lolPanelPresets" class="tabpanel"></div>
   <div id="lolPanelHistory" class="tabpanel"></div>
 </div>
@@ -6199,8 +6293,56 @@
   function lolStatePillHtml(state){
     return `<span class="state-pill ${state}">${LOL_STATE_LABEL[state] || state}</span>`;
   }
-  function lolHead(state){
-    return `<div class="lol-panel-head">${lolStatePillHtml(state)}</div>`;
+  // ---- Gerüst des Tabs "Spiel": Kopfleiste (Status + Schnellschalter) und
+  // darunter der Inhalt der jeweiligen Phase. Die Leiste sieht in jeder Phase
+  // gleich aus; der Inhalt wird nur neu angelegt, wenn die Phase wechselt.
+  let lolAutoAccept = null;               // Stand von "Automatisch annehmen" (null = unbekannt)
+  function lolLayout(kind){
+    const el = document.getElementById('lolContent');
+    if(el.dataset.kind !== kind || !document.getElementById('lolBody')){
+      el.innerHTML = `<div id="lolBarBox"></div><div id="lolBody"></div>`;
+      el.dataset.kind = kind;
+    }
+    return document.getElementById('lolBody');
+  }
+  function lolBarHtml(state){
+    const p = lolPresets || {};
+    const chip = (id, on, label, tip) => `<button type="button" class="lb-chip ${on ? 'on' : ''}" data-chip="${id}" title="${esc(tip || label)}"><i></i>${esc(label)}</button>`;
+    return `<div class="lol-bar">
+      <div class="lb-state">${lolStatePillHtml(state)}<span class="lb-ctx" id="lolBarCtx"></span></div>
+      <div class="lb-chips">
+        ${chip('accept', lolAutoAccept !== false, t('lol_chip_accept'), t('lol_auto_accept'))}
+        ${chip('ban', !!p.autoBan, t('lol_auto_ban_short'), t('lol_auto_ban_toggle'))}
+        ${chip('pick', !!p.autoPick, t('lol_auto_pick_short'), t('lol_auto_pick_toggle'))}
+        ${chip('setups', !lolSetups || lolSetups.auto, t('lol_chip_setups'), t('lol_setups_auto'))}
+      </div>
+    </div>`;
+  }
+  // ctx = kurzer Zusatz neben dem Status (Timer, "Suche läuft" ...) - nur der
+  // Text wird ersetzt, damit die Leiste nicht jede Sekunde neu gebaut wird.
+  function lolSetBar(state, ctx){
+    const box = document.getElementById('lolBarBox');
+    if(!box) return;
+    const html = lolBarHtml(state);
+    if(box.dataset.html !== html){
+      box.dataset.html = html;
+      box.innerHTML = html;
+      box.querySelectorAll('[data-chip]').forEach(b => b.addEventListener('click', () => lolToggleChip(b)));
+    }
+    const c = document.getElementById('lolBarCtx');
+    if(c && c.textContent !== (ctx || '')) c.textContent = ctx || '';
+  }
+  function lolToggleChip(btn){
+    const kind = btn.getAttribute('data-chip');
+    const next = !btn.classList.contains('on');
+    btn.classList.toggle('on', next);
+    const undo = () => btn.classList.toggle('on', !next);
+    let call;
+    if(kind === 'accept') call = api('/api/lol/autoaccept', {on: next}).then(j => { lolAutoAccept = next; return j; });
+    else if(kind === 'ban') call = api('/api/lol/presets/auto', {ban: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
+    else if(kind === 'pick') call = api('/api/lol/presets/auto', {pick: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
+    else call = api('/api/lol/setups/auto', {on: next}).then(j => { if(j && j.ok) lolSetups = j; else undo(); });
+    call.catch(undo);
   }
 
   // ---- Umschalter (Auto/Valorant/League) ----
@@ -6249,7 +6391,7 @@
   window.addEventListener('resize', moveGswPill);
 
   // ---- Tabs (Spiel / Verlauf) ----
-  const LOL_PANELS = {live:'lolContent', presets:'lolPanelPresets', history:'lolPanelHistory'};
+  const LOL_PANELS = {live:'lolContent', builds:'lolPanelBuilds', presets:'lolPanelPresets', history:'lolPanelHistory'};
   function moveLolPill(){
     const btn = document.querySelector('#lolTabs .tab.active');
     const pill = document.getElementById('lolTabPill');
@@ -6265,6 +6407,7 @@
     moveLolPill();
     if(name === 'history') renderLolHistory();
     else if(name === 'presets') renderLolPresetsTab();
+    else if(name === 'builds') renderLolBuildsTab();
   }
   document.querySelectorAll('#lolTabs .tab').forEach(b => b.addEventListener('click', () => setLolTab(b.getAttribute('data-ltab'))));
   window.addEventListener('resize', moveLolPill);
@@ -6315,6 +6458,12 @@
     // ein eigenes Overlay, genau wie bei Valorant über #statusOverlay.
     document.getElementById('lolStatusOverlay').classList.toggle('open', state === 'OFFLINE');
     if(!lolSelfPuuid) loadLolSelf();
+    // Stände für die Schnellschalter in der Kopfleiste
+    if(state !== 'OFFLINE'){
+      if(!lolPresets) loadLolPresets();
+      if(!lolSetups) loadLolSetups();
+      if(lolAutoAccept === null) api('/api/lol/readycheck').then(j => { if(j && typeof j.autoAccept === 'boolean') lolAutoAccept = j.autoAccept; }).catch(() => {});
+    }
 
     if(lolTab !== 'live') return;   // Verlauf holt sich seine Daten selbst beim Tab-Wechsel
     if(lolUserIsInteracting()) return;
@@ -6679,33 +6828,10 @@
     </div>`;
   }
 
-  // ---- Kompakte Presets-Zusammenfassung in der Lobby (Details im Tab "Presets") ----
   let lolSetups = null;                   // {auto, champions:{id: setup}, last}
   function loadLolSetups(){
     return api('/api/lol/setups').then(j => { if(j && j.ok) lolSetups = j; return lolSetups; }).catch(() => lolSetups);
   }
-  function lolPresetsSummaryHtml(){
-    const p = lolPresets || {};
-    const n = lolSetups ? Object.keys(lolSetups.champions || {}).length : 0;
-    const st = (on) => `<b class="${on ? 'on' : ''}">${on ? t('on_word') : t('off_word')}</b>`;
-    return `<div class="lol-card lp-summary">
-      <div class="lps-items">
-        <span>${t('lol_auto_ban_short')} ${st(p.autoBan)}</span>
-        <span>${t('lol_auto_pick_short')} ${st(p.autoPick)}</span>
-        <span>${t('lol_presets_summary_setups', {n})}</span>
-      </div>
-      <button class="pbtn" id="lolGoPresets">${svgIcon('gear', 12)}${t('lol_presets_edit')}</button>
-    </div>`;
-  }
-  function bindLolPresetsSummary(root){
-    const b = root.querySelector('#lolGoPresets');
-    if(b) b.addEventListener('click', () => setLolTab('presets'));
-    if(!lolSetups) loadLolSetups().then(() => {
-      const box = root.querySelector('.lp-summary');
-      if(box){ box.outerHTML = lolPresetsSummaryHtml(); bindLolPresetsSummary(root); }
-    });
-  }
-
   // ---- Spieldaten für Runen/Zauber/Items (Community Dragon, CORS-offen) ----
   const CDRAGON_GD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
   function cdAsset(path){ return path ? CDRAGON_GD + String(path).replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : ''; }
@@ -6730,6 +6856,294 @@
         return lolGameData;
       }).catch(e => { lolGameDataPromise = null; throw e; });
     return lolGameDataPromise;
+  }
+
+  // ---- Matchup-Builds (Daten über rankyoinker.de, Quelle op.gg/lolalytics) ----
+  // Der Spieler sieht 2-3 Vorschläge und übernimmt selbst einen davon - es wird
+  // nichts automatisch angewendet (Riot: mehrere Optionen zeigen ist erlaubt,
+  // Entscheidungen vorgeben nicht).
+  const RY_SITE = 'https://rankyoinker.de';
+  const LOL_MU_LANES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+  const LOL_MU_TIERS = [['emerald_plus', 'Emerald+'], ['platinum_plus', 'Platinum+'], ['diamond_plus', 'Diamond+'],
+                        ['master_plus', 'Master+'], ['all', t('mu_tier_all')]];
+  let lolMuTier = 'emerald_plus';
+  try{ const v = localStorage.getItem('ryLolMuTier'); if(LOL_MU_TIERS.some(x => x[0] === v)) lolMuTier = v; }catch(e){}
+  const lolMuCache = new Map();           // "champ:vs:pos:tier" -> Promise
+  function lolFetchMatchup(champ, vs, pos, tier){
+    const key = [champ, vs || 0, pos, tier].join(':');
+    if(!lolMuCache.has(key)){
+      const p = fetch(`${RY_SITE}/api/lol/matchup?champ=${champ}&pos=${pos}&tier=${tier}${vs ? '&vs=' + vs : ''}`, {cache:'no-store'})
+        .then(r => r.json()).catch(() => ({ok:false}));
+      // Fehlschläge nicht ewig merken - nach 30 s darf's erneut versucht werden
+      p.then(j => { if(!j || !j.ok) setTimeout(() => lolMuCache.delete(key), 30000); });
+      lolMuCache.set(key, p);
+    }
+    return lolMuCache.get(key);
+  }
+  let lolRolesPromise = null;
+  function lolRoles(){
+    if(!lolRolesPromise){
+      lolRolesPromise = fetch(RY_SITE + '/api/lol/roles', {cache:'no-store'}).then(r => r.json())
+        .then(j => (j && j.ok && j.roles) || {}).catch(() => { lolRolesPromise = null; return {}; });
+    }
+    return lolRolesPromise;
+  }
+  function lolMainRole(roles, champ){
+    const r = roles[champ] || {};
+    return LOL_MU_LANES.slice().sort((a, b) => (r[b] || 0) - (r[a] || 0))[0];
+  }
+  // Im Ranked-Champ-Select verrät der Client die Rollen der Gegner nicht -
+  // also die wahrscheinlichste Verteilung der bekannten Gegner-Champions auf
+  // die fünf Lanes suchen (max. 5! = 120 Möglichkeiten) und schauen, wer
+  // dabei auf der eigenen Lane landet.
+  function lolGuessOpponent(myPos, enemies, roles){
+    const known = enemies.filter(e => e.championId);
+    const direct = known.find(e => e.position === myPos);
+    if(direct) return direct.championId;
+    if(known.some(e => e.position)) return null;
+    const ids = known.slice(0, 5).map(e => e.championId);
+    const rate = (id, l) => Math.log(((roles[id] || {})[l] || 0) + 0.002);
+    let best = null, bestScore = -Infinity;
+    (function walk(i, used, score, assign){
+      if(i === ids.length){ if(score > bestScore){ bestScore = score; best = assign.slice(); } return; }
+      LOL_MU_LANES.forEach(l => {
+        if(used.has(l)) return;
+        used.add(l); assign.push(l);
+        walk(i + 1, used, score + rate(ids[i], l), assign);
+        assign.pop(); used.delete(l);
+      });
+    })(0, new Set(), 0, []);
+    const idx = best ? best.indexOf(myPos) : -1;
+    return idx >= 0 ? ids[idx] : null;
+  }
+
+  function lolBuildToSetup(champ, b){
+    const blocks = [
+      {type: t('lol_setup_block_start'), items: b.start || []},
+      {type: t('lol_setup_block_core'), items: (b.core || []).concat(b.boots ? [b.boots] : [])},
+      {type: t('lol_setup_block_situational'), items: b.situational || []},
+    ].filter(x => x.items.length);
+    return {name: lolChampName(champ), spells: (b.spells || []).length === 2 ? b.spells : [], runes: b.runes || null, items: blocks};
+  }
+  function lolMuApply(champ, b, btn){
+    btn.disabled = true;
+    api('/api/lol/build/apply', {championId: champ, setup: lolBuildToSetup(champ, b)}).then(j => {
+      btn.disabled = false;
+      const res = (j && j.results) || {};
+      const done = Object.keys(res).filter(k => res[k].ok).map(k => t('lol_setup_' + k)).join(', ');
+      const errs = Object.values(res).filter(r => !r.ok && r.error).map(r => r.error).join(' · ');
+      if(j && j.ok) toast('success', t('mu_applied_toast'), done);
+      else toast('error', t('mu_apply_failed'), errs || (j && j.error) || '', {dur: 7000});
+    }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
+  }
+  function lolMuSaveSetup(champ, b, btn){
+    btn.disabled = true;
+    api('/api/lol/setups/save', {championId: champ, setup: lolBuildToSetup(champ, b)}).then(j => {
+      btn.disabled = false;
+      if(j && j.ok){ lolSetups = j; toast('success', t('lol_setup_saved_toast', {champ: lolChampName(champ)}), ''); }
+      else toast('error', t('lol_setup_save_failed'), (j && j.error) || '');
+    }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
+  }
+
+  const LOL_MU_OPT = {popular: 'mu_opt_popular', winrate: 'mu_opt_winrate', alternative: 'mu_opt_alternative'};
+  function lolMuNum(n){ return numFmt(n || 0); }
+  function lolMuWr(w){ return w == null ? '–' : (Math.round(w * 10) / 10).toLocaleString(LOCALE) + ' %'; }
+  function lolIcon(url, title, cls){ return url ? `<img class="${cls || ''}" src="${esc(url)}" alt="" title="${esc(title || '')}" loading="lazy">` : ''; }
+  function lolItemIcons(gd, ids, sep){
+    // Gleiche Items nebeneinander zusammenfassen (2x Heiltrank -> ein Icon mit "2")
+    const groups = [];
+    (ids || []).forEach(id => { const g = groups[groups.length - 1]; if(g && g.id === id) g.n++; else groups.push({id, n: 1}); });
+    return groups.map(g => {
+      const it = gd.itemById[g.id];
+      return `<span class="mu-item">${lolIcon(cdAsset(it && it.iconPath), it ? it.name : g.id)}${g.n > 1 ? `<b>${g.n}</b>` : ''}</span>`;
+    }).join(sep ? '<span class="mu-sep">›</span>' : '');
+  }
+  function lolMuRunesHtml(gd, r){
+    if(!r) return `<span class="mu-none">–</span>`;
+    const pk = (id) => gd.perkById[id];
+    const prim = gd.styles.find(x => x.id === r.primaryStyleId), sub = gd.styles.find(x => x.id === r.subStyleId);
+    const ids = r.selectedPerkIds;
+    const key = pk(ids[0]);
+    return `<div class="mu-runes">
+      ${lolIcon(cdAsset(key && key.iconPath), key && key.name, 'mu-key')}
+      <div class="mu-rune-tree">
+        <div class="mu-rune-row">${lolIcon(cdAsset(prim && prim.iconPath), prim && prim.name, 'mu-style')}${ids.slice(1, 4).map(id => lolIcon(cdAsset(pk(id) && pk(id).iconPath), pk(id) && pk(id).name)).join('')}</div>
+        <div class="mu-rune-row">${lolIcon(cdAsset(sub && sub.iconPath), sub && sub.name, 'mu-style')}${ids.slice(4, 6).map(id => lolIcon(cdAsset(pk(id) && pk(id).iconPath), pk(id) && pk(id).name)).join('')}
+          <span class="mu-shards">${ids.slice(6, 9).map(id => lolIcon(cdAsset(pk(id) && pk(id).iconPath), pk(id) && pk(id).name)).join('')}</span></div>
+      </div>
+    </div>`;
+  }
+  function lolMuSkillsHtml(b){
+    const prio = (b.skillPriority || '').split('').filter(Boolean);
+    if(!prio.length) return `<span class="mu-none">–</span>`;
+    const first = (b.skillOrder || []).slice(0, 3);
+    return `<div class="mu-skills">${prio.map(k => `<span class="mu-key-cap">${esc(k)}</span>`).join('<span class="mu-sep">›</span>')}
+      ${first.length ? `<span class="mu-skill-start">${t('mu_skill_start')} ${first.map(esc).join(' ')}</span>` : ''}</div>`;
+  }
+
+  // ctx: {champ, vs, pos, opt, mode:'cs'|'browse', guessed, enemies:[ids], showLanes}
+  function lolMuCardHtml(ctx, data, gd){
+    const champName = lolChampName(ctx.champ);
+    const vsName = ctx.vs ? lolChampName(ctx.vs) : null;
+    const head = `<div class="mu-head">
+      <div class="mu-champ">${lolIcon(champIconUrl(ctx.champ), champName)}<div><div class="mu-cname">${esc(champName)}</div><div class="mu-lane">${esc(LOL_LANE_LABELS[ctx.pos] || '')}</div></div></div>
+      <div class="mu-vs">VS</div>
+      <div class="mu-champ enemy" ${ctx.mode === 'browse' ? 'data-mu-pickvs' : ''}>${ctx.vs ? lolIcon(champIconUrl(ctx.vs), vsName) : `<span class="mu-anyone">?</span>`}
+        <div><div class="mu-cname">${esc(vsName || t('mu_any_opponent'))}</div><div class="mu-lane">${ctx.vs && ctx.guessed ? t('mu_guessed') : (ctx.mode === 'browse' ? t('mu_choose_opponent') : '')}</div></div></div>
+      <div class="mu-stats">${data && data.ok && data.vs ? `<b>${lolMuWr(data.winrate)}</b><span>${t('mu_games', {n: lolMuNum(data.games)})}</span>` : ''}</div>
+    </div>`;
+    const enemyChips = ctx.mode === 'cs' && ctx.enemies.length ? `<div class="mu-opp-row"><span class="mu-lbl">${t('mu_opponent')}</span>
+      ${ctx.enemies.map(id => `<button type="button" class="mu-opp ${id === ctx.vs ? 'on' : ''}" data-mu-vs="${id}" title="${esc(lolChampName(id))}">${lolIcon(champIconUrl(id))}</button>`).join('')}
+      <button type="button" class="mu-opp any ${!ctx.vs ? 'on' : ''}" data-mu-vs="0">${t('mu_any_opponent')}</button></div>` : '';
+    const lanes = ctx.showLanes ? `<div class="lane-seg mu-lanes">${LOL_MU_LANES.map(l => `<button type="button" class="lane-btn ${l === ctx.pos ? 'on' : ''}" data-mu-lane="${l}">${esc(LOL_LANE_LABELS[l])}</button>`).join('')}</div>` : '';
+    const tierSel = `<select class="mu-tier" data-mu-tier title="${esc(t('mu_tier'))}">${LOL_MU_TIERS.map(([v, l]) => `<option value="${v}" ${v === lolMuTier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+
+    let main;
+    if(!data){
+      main = `<div class="mu-msg">${svgIcon('loader', 15, 'spin')} ${t('mu_loading')}</div>`;
+    } else if(!data.ok || !gd){
+      main = `<div class="mu-msg">${t('mu_unavailable')}</div>`;
+    } else if(!data.builds || !data.builds.length){
+      main = `<div class="mu-msg">${t('mu_no_build_data')}</div>`;
+    } else {
+      const opt = Math.min(ctx.opt || 0, data.builds.length - 1);
+      const b = data.builds[opt];
+      const note = data.vs && data.general ? `<div class="mu-note">${t('mu_general_note', {n: lolMuNum(data.games)})}</div>`
+        : (!data.vs && ctx.mode === 'cs' ? `<div class="mu-note">${t('mu_no_opponent')}</div>` : '');
+      const spells = (b.spells || []).map(id => { const sp = gd.spellById[id]; return lolIcon(cdAsset(sp && sp.iconPath), sp && sp.name, 'mu-spell'); }).join('');
+      main = `${note}
+        <div class="mu-opts">${data.builds.map((x, i) => `<button type="button" class="mu-opt ${i === opt ? 'on' : ''}" data-mu-opt="${i}" title="${esc(t('mu_build_wr_tip'))}">
+          <span class="mu-opt-name">${t(LOL_MU_OPT[x.id] || 'mu_opt_popular')}</span><span class="mu-opt-meta">${lolMuWr(x.winrate)} · ${lolMuNum(x.games)}</span></button>`).join('')}</div>
+        <div class="mu-body">
+          <div class="mu-sec mu-sec-runes"><div class="mu-lbl">${t('lol_setup_runes')}</div>${lolMuRunesHtml(gd, b.runes)}</div>
+          <div class="mu-sec"><div class="mu-lbl">${t('lol_setup_spells')}</div><div class="mu-spells">${spells || '<span class="mu-none">–</span>'}</div>
+            <div class="mu-lbl" style="margin-top:14px;">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>
+          <div class="mu-sec mu-sec-items">
+            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_start')}</div><div class="mu-items">${lolItemIcons(gd, b.start)}</div></div>
+            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_core')}</div><div class="mu-items">${lolItemIcons(gd, b.core, true)}${b.boots ? `<span class="mu-plus">+</span>${lolItemIcons(gd, [b.boots])}` : ''}</div></div>
+            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_situational')}</div><div class="mu-items">${lolItemIcons(gd, b.situational) || '<span class="mu-none">–</span>'}</div></div>
+          </div>
+        </div>
+        <div class="mu-foot">
+          <div class="mu-source">${t('mu_source', {src: esc(data.source || ''), patch: esc(data.patch || '?')})}</div>
+          <button type="button" class="pbtn" data-mu-save>${svgIcon('download', 12)}${t('mu_save_setup')}</button>
+          <button type="button" class="pbtn go" data-mu-apply title="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>
+        </div>`;
+    }
+    return `<div class="lol-card mu-card">
+      <div class="mu-top"><div class="panel-head">${t('mu_title')}<span class="line"></span></div>${tierSel}</div>
+      ${lanes}${head}${enemyChips}${main}
+    </div>`;
+  }
+  // Gemeinsame Klick-Logik; ui = veränderlicher Zustand der jeweiligen Karte
+  function bindLolMuCard(box, ctx, data, ui, rerender){
+    box.querySelectorAll('[data-mu-opt]').forEach(b => b.addEventListener('click', () => { ui.opt = Number(b.getAttribute('data-mu-opt')); rerender(); }));
+    box.querySelectorAll('[data-mu-vs]').forEach(b => b.addEventListener('click', () => { ui.vs = Number(b.getAttribute('data-mu-vs')); ui.opt = 0; rerender(); }));
+    box.querySelectorAll('[data-mu-lane]').forEach(b => b.addEventListener('click', () => { ui.pos = b.getAttribute('data-mu-lane'); ui.opt = 0; rerender(); }));
+    const tier = box.querySelector('[data-mu-tier]');
+    if(tier) tier.addEventListener('change', () => {
+      lolMuTier = tier.value;
+      try{ localStorage.setItem('ryLolMuTier', lolMuTier); }catch(e){}
+      tier.blur();
+      ui.opt = 0; rerender();
+    });
+    const build = data && data.ok && data.builds && data.builds[Math.min(ui.opt || 0, data.builds.length - 1)];
+    const ap = box.querySelector('[data-mu-apply]');
+    if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap));
+    const sv = box.querySelector('[data-mu-save]');
+    if(sv && build) sv.addEventListener('click', () => lolMuSaveSetup(ctx.champ, build, sv));
+  }
+
+  // ---- Matchup-Karte im Champ Select ----
+  const lolMuCs = {sig: '', champ: null, ui: {opt: 0, vs: undefined, pos: undefined}};
+  async function lolUpdateMatchupBox(cs){
+    const box = document.getElementById('lolMuBox');
+    if(!box) return;
+    const me = (cs.myTeam || []).find(m => m.me) || {};
+    const hovering = cs.myAction && cs.myAction.type === 'pick' && !cs.myAction.completed;
+    const champ = (hovering && lolPickLocalId) || me.championId || null;
+    if(!champ){
+      const html = `<div class="lol-card mu-card mu-empty"><div class="mu-top"><div class="panel-head">${t('mu_title')}<span class="line"></span></div></div><div class="mu-msg">${t('mu_hover_hint')}</div></div>`;
+      if(box.dataset.sig !== 'empty'){ box.dataset.sig = 'empty'; box.innerHTML = html; }
+      return;
+    }
+    if(lolMuCs.champ !== champ){ lolMuCs.champ = champ; lolMuCs.ui = {opt: 0, vs: undefined, pos: undefined}; }
+    const ui = lolMuCs.ui;
+    const roles = await lolRoles();
+    const lanesKnown = !!me.position && LOL_MU_LANES.includes(me.position);
+    const pos = ui.pos || (lanesKnown ? me.position : lolMainRole(roles, champ));
+    const theirTeam = cs.theirTeam || [];
+    const enemies = theirTeam.map(e => e.championId).filter(Boolean);
+    const guess = lolGuessOpponent(pos, theirTeam, roles);
+    const vs = ui.vs !== undefined ? (ui.vs || null) : guess;
+    const ctx = {champ, vs: vs && vs !== champ ? vs : null, pos, opt: ui.opt, mode: 'cs', guessed: ui.vs === undefined && !!guess,
+                 enemies, showLanes: !lanesKnown};
+    const sig = JSON.stringify([champ, ctx.vs, pos, lolMuTier, ui.opt, enemies, ctx.guessed]);
+    if(box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    const rerender = () => { box.dataset.sig = ''; lolUpdateMatchupBox(cs); };
+    const pending = lolFetchMatchup(champ, ctx.vs, pos, lolMuTier);
+    if(!box.querySelector('.mu-body')) box.innerHTML = lolMuCardHtml(ctx, null, null);
+    const [data, gd] = await Promise.all([pending, loadLolGameData().catch(() => null), loadLolChampions()]);
+    if(box.dataset.sig !== sig) return;   // inzwischen anderer Champion/Gegner
+    box.innerHTML = lolMuCardHtml(ctx, data, gd);
+    bindLolMuCard(box, ctx, data, ui, rerender);
+  }
+
+  // ---- Tab "Builds": Matchups unabhängig vom Champ Select nachschlagen ----
+  const lolBrowse = {champ: null, vs: null, pos: null, opt: 0};
+  async function renderLolBuildsTab(){
+    const el = document.getElementById('lolPanelBuilds');
+    if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader', 15, 'spin')} ${t('loading')}</div>`;
+    const [, roles] = await Promise.all([loadLolChampions(), lolRoles()]);
+    const intro = `<div class="lol-card bt-intro">
+      <div><div class="panel-head">${t('tab_lol_builds')}<span class="line"></span></div><p class="lp-desc" style="margin:0;">${t('mu_intro')}</p></div>
+      <button type="button" class="pbtn go" id="lolBrowsePick">${svgIcon('target', 12)}${t('mu_pick_champ')}</button>
+    </div>`;
+    if(!lolBrowse.champ){
+      el.innerHTML = intro + `<div class="lol-card"><div class="lol-empty">${t('mu_browse_empty')}</div></div>`;
+      el.querySelector('#lolBrowsePick').addEventListener('click', () => lolOpenChampChooser(t('mu_pick_champ'), false, id => { Object.assign(lolBrowse, {champ: id, vs: null, pos: null, opt: 0}); renderLolBuildsTab(); }));
+      return;
+    }
+    const pos = lolBrowse.pos || lolMainRole(roles, lolBrowse.champ);
+    const ctx = {champ: lolBrowse.champ, vs: lolBrowse.vs, pos, opt: lolBrowse.opt, mode: 'browse', guessed: false, enemies: [], showLanes: true};
+    const ui = {opt: lolBrowse.opt, vs: undefined, pos: undefined};
+    const rerender = () => {
+      Object.assign(lolBrowse, {opt: ui.opt, pos: ui.pos || lolBrowse.pos});
+      renderLolBuildsTab();
+    };
+    const sig = JSON.stringify([ctx.champ, ctx.vs, pos, lolMuTier, ctx.opt]);
+    el.dataset.sig = sig;
+    if(!el.querySelector('.mu-body')) el.innerHTML = intro + lolMuCardHtml(ctx, null, null);
+    const [data, gd] = await Promise.all([lolFetchMatchup(ctx.champ, ctx.vs, pos, lolMuTier), loadLolGameData().catch(() => null)]);
+    if(el.dataset.sig !== sig) return;
+    el.innerHTML = intro + lolMuCardHtml(ctx, data, gd);
+    bindLolMuCard(el, ctx, data, ui, rerender);
+    el.querySelector('#lolBrowsePick').addEventListener('click', () => lolOpenChampChooser(t('mu_pick_champ'), false, id => { Object.assign(lolBrowse, {champ: id, vs: id === lolBrowse.vs ? null : lolBrowse.vs, opt: 0, pos: null}); renderLolBuildsTab(); }));
+    const vsBtn = el.querySelector('[data-mu-pickvs]');
+    if(vsBtn) vsBtn.addEventListener('click', () => lolOpenChampChooser(t('mu_choose_opponent'), true, id => { lolBrowse.vs = id && id !== lolBrowse.champ ? id : null; lolBrowse.opt = 0; renderLolBuildsTab(); }));
+  }
+  // Champion-Auswahl als Popup; allowAny = zusätzlich "Alle Gegner" (liefert null)
+  async function lolOpenChampChooser(title, allowAny, onPick){
+    const champs = await loadLolChampions();
+    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
+      <div class="modal-body">
+        <div class="skinpick-head"><span class="wn">${esc(title)}</span></div>
+        <input class="lol-champ-filter" id="lolChooseFilter" type="text" placeholder="${t('champion_search_placeholder')}" autocomplete="off" style="margin-top:16px;">
+        <div class="agent-grid" id="lolChooseGrid" style="max-height:52vh; overflow-y:auto; padding:2px 4px 2px 2px; margin-top:14px;">${champs.map(c => lolChampCellHtml(c, false, false)).join('')}</div>
+        ${allowAny ? `<div class="skinpick-actions"><button class="pbtn" id="lolChooseAny">${t('mu_any_opponent')}</button></div>` : ''}
+      </div>`;
+    modalWrap.classList.add('open');
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    const f = document.getElementById('lolChooseFilter');
+    f.focus();
+    f.addEventListener('input', () => {
+      const q = f.value.toLowerCase();
+      document.querySelectorAll('#lolChooseGrid .agent-cell').forEach(c => { c.style.display = !q || (c.getAttribute('title') || '').toLowerCase().includes(q) ? '' : 'none'; });
+    });
+    document.querySelectorAll('#lolChooseGrid .agent-cell').forEach(c => c.addEventListener('click', () => { closeModal(); onPick(Number(c.getAttribute('data-champ'))); }));
+    const any = document.getElementById('lolChooseAny');
+    if(any) any.addEventListener('click', () => { closeModal(); onPick(null); });
   }
 
   // ---- Tab "Presets": Auto-Ban/-Pick je Lane + Champion-Setups ----
@@ -7228,7 +7642,6 @@
   }
 
   async function renderLolLobby(state){
-    const el = document.getElementById('lolContent');
     // Champion-Katalog vorwärmen (für den Preset-Picker im Popup), Ergebnis
     // selbst wird hier nicht mehr gebraucht — die Kacheln zeigen nur Namen/Icons.
     const [, presetsData] = await Promise.all([
@@ -7237,9 +7650,9 @@
     lolPresets = presetsData || lolPresets;
 
     if(state === 'OFFLINE'){
-      el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">
-        ${t('league_client_closed_hint')}</div></div>` + lolPresetsSummaryHtml();
-      bindLolPresetsSummary(el);
+      const body = lolLayout('offline');
+      lolSetBar(state);
+      body.innerHTML = `<div class="lol-card"><div class="lol-empty">${t('league_client_closed_hint')}</div></div>`;
       return;
     }
     const [lobby, search, rc, queues] = await Promise.all([
@@ -7251,7 +7664,7 @@
     if(queues && queues.ok) lolQueuesCache = queues;
 
     const searching = !!(search && search.searching);
-    const auto = rc && typeof rc.autoAccept === 'boolean' ? rc.autoAccept : true;
+    if(rc && typeof rc.autoAccept === 'boolean') lolAutoAccept = rc.autoAccept;
 
     // Der Picker steht bewusst AUSSERHALB des "Lobby existiert schon"-Zweigs:
     // ohne bestehende Lobby wäre er sonst nie zu sehen und man könnte nie
@@ -7294,16 +7707,14 @@
         </div>
       </div>`;
 
-    el.innerHTML =
+    const body = lolLayout('lobby');
+    lolSetBar(state, searching ? t('lol_searching') : '');
+    body.innerHTML =
       `<div class="lol-card lobby-card">
-         <div class="lobby-head">
-           <div class="panel-head">${t('lol_lobby')}<span class="line"></span></div>
-           <div class="lol-toggle ${auto ? 'on' : ''}" id="lolAutoToggle"><span class="sw"></span><span class="lbl">${t('lol_auto_accept')}</span></div>
-         </div>
+         <div class="panel-head">${t('lol_lobby')}<span class="line"></span></div>
          ${queuePicker}${membersHtml}
-       </div>` + lolPresetsSummaryHtml();
-    bindLolCardClicks(el);
-    bindLolPresetsSummary(el);
+       </div>`;
+    bindLolCardClicks(body);
 
     const queueOpts = [{value:'', label: t('lol_pick_queue')}].concat(
       ((queues && queues.queues) || []).map(q => ({value: String(q.id), label: q.name})));
@@ -7339,20 +7750,16 @@
     });
     const cancelBtn = document.getElementById('lolCancelBtn');
     if(cancelBtn) cancelBtn.addEventListener('click', () => { api('/api/lol/queue/cancel', {}).catch(() => {}); });
-    const toggle = document.getElementById('lolAutoToggle');
-    if(toggle) toggle.addEventListener('click', () => {
-      const next = !toggle.classList.contains('on');
-      toggle.classList.toggle('on', next);
-      api('/api/lol/autoaccept', {on: next}).catch(() => {});
-    });
   }
 
   async function renderLolReadyCheck(state){
-    const el = document.getElementById('lolContent');
     let rc;
     try{ rc = await api('/api/lol/readycheck'); }catch(e){ rc = {}; }
     const accepted = rc && rc.playerResponse === 'Accepted';
-    el.innerHTML = lolHead(state) + `<div class="lol-card" style="text-align:center;">
+    if(rc && typeof rc.autoAccept === 'boolean') lolAutoAccept = rc.autoAccept;
+    const body = lolLayout('readycheck');
+    lolSetBar(state);
+    body.innerHTML = `<div class="lol-card rc-card">
       <h3>${t('lol_game_found')}</h3>
       ${accepted
         ? `<div class="lol-empty">${t('lol_accepted_waiting')}</div>`
@@ -7442,7 +7849,6 @@
   }
 
   async function renderLolChampSelect(state){
-    const el = document.getElementById('lolContent');
     const [cs, presetsForDebug, setupsForStatus] = await Promise.all([
       api('/api/lol/champselect').catch(() => ({ok:false})),
       api('/api/lol/presets').catch(() => null),
@@ -7451,7 +7857,9 @@
     if(setupsForStatus && setupsForStatus.ok) lolSetups = setupsForStatus;
     if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(!cs || !cs.ok){
-      el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">${esc((cs && cs.error) || t('lol_champselect_unreadable'))}</div></div>`;
+      const body = lolLayout('cs-error');
+      lolSetBar(state);
+      body.innerHTML = `<div class="lol-card"><div class="lol-empty">${esc((cs && cs.error) || t('lol_champselect_unreadable'))}</div></div>`;
       return;
     }
     const timeLeft = cs.timeLeft != null ? Math.max(0, Math.round(cs.timeLeft / 1000)) : null;
@@ -7465,11 +7873,19 @@
 
     // Grundgerüst nur anlegen, wenn es nicht schon da ist (z. B. frischer
     // Wechsel aus der Lobby) — danach wird nur noch gezielt gepatcht.
+    // Oben nebeneinander: Champion-Raster (nur während der eigenen Aktion) und
+    // der Matchup-Build, darunter Setup-Status und die beiden Teams.
+    const body = lolLayout('champselect');
+    const phaseLabel = {PLANNING: t('lol_phase_planning'), BAN_PICK: '', FINALIZATION: t('lol_phase_final')}[cs.phase] || '';
+    lolSetBar(state, [phaseLabel, timeLeft != null ? timeLeft + ' s' : ''].filter(Boolean).join(' · '));
     let teamsBox = document.getElementById('lolCsTeams');
     if(!teamsBox){
-      el.innerHTML = lolHead(state) + `<div id="lolAutoAlertBox"></div><div id="lolSetupBox"></div><div id="lolCsPicker"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
+      body.innerHTML = `<div id="lolAutoAlertBox"></div>
+        <div class="cs-grid" id="lolCsGrid"><div id="lolCsPicker"></div><div id="lolMuBox"></div></div>
+        <div id="lolSetupBox"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
+      lolMuCs.sig = '';
     }
     const alertBox = document.getElementById('lolAutoAlertBox');
     if(alertBox) alertBox.innerHTML = lolAutoAlertHtml(lolPresets);
@@ -7485,25 +7901,16 @@
     const debugBox = document.getElementById('lolAutoDebugBox');
     if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
-    let timerEl = document.getElementById('lolTimer');
-    if(timeLeft != null){
-      if(timerEl) timerEl.textContent = timeLeft + 's';
-      else{
-        const head = document.querySelector('#lolContent .lol-panel-head');
-        if(head) head.insertAdjacentHTML('afterend',
-          `<div class="lol-empty" id="lolTimer" style="text-align:center; margin-bottom:-4px;">${timeLeft}s</div>`);
-      }
-    } else if(timerEl){
-      timerEl.remove();
-    }
-
     const pickerSig = lolPickerSigOf(cs);
     if(pickerSig !== lolCsPickerSig){
       lolCsPickerSig = pickerSig;
       lolPickLocalId = null;
       const box = document.getElementById('lolCsPicker');
       if(box){ box.innerHTML = await lolPickerHtml(cs); bindLolPicker(cs); }
+      const grid = document.getElementById('lolCsGrid');
+      if(grid) grid.classList.toggle('has-picker', !!(box && box.innerHTML.trim()));
     }
+    lolUpdateMatchupBox(cs);
 
     lolPatchTeamSection(teamsBox, 'lolCsAlly', 'ally', t('your_team'), myTeam, 'champselect');
     lolPatchTeamSection(teamsBox, 'lolCsEnemy', 'enemy', t('enemies'), theirTeam, 'champselect');
@@ -7511,20 +7918,23 @@
   }
 
   async function renderLolLive(state){
-    const el = document.getElementById('lolContent');
     let live;
     try{ live = await api('/api/lol/live'); }catch(e){ live = {ok:false}; }
     if(!live || !live.ok){
-      el.innerHTML = lolHead(state) + `<div class="lol-card"><div class="lol-empty">${t('lol_live_unreachable')}</div></div>`;
+      const body = lolLayout('live-error');
+      lolSetBar(state);
+      body.innerHTML = `<div class="lol-card"><div class="lol-empty">${t('lol_live_unreachable')}</div></div>`;
       return;
     }
     const players = live.players || [];
     const meEntry = players.find(p => p.me);
     if(meEntry) meEntry.mastery = live.myMastery;
 
+    const body = lolLayout('live');
+    lolSetBar(state);
     let teamsBox = document.getElementById('lolLiveTeams');
     if(!teamsBox){
-      el.innerHTML = lolHead(state) + `<div id="lolLiveTeams"></div>`;
+      body.innerHTML = `<div id="lolLiveTeams"></div>`;
       teamsBox = document.getElementById('lolLiveTeams');
     }
 
@@ -7851,7 +8261,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.1.3";
+const CURRENT_VERSION = "2.4.2-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -7882,18 +8292,26 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     return Array.isArray(list) ? list : (list ? [list] : []);
   }
 
+  // Schema ab 2.4.2: Dev-Builds heißen wie die kommende Version plus fortlaufende
+  // Nummer ("2.4.2-dev1", "2.4.2-dev2" ...), danach kommt "2.4.2" als stable.
+  // Reihenfolge: 2.4.2-dev1 < 2.4.2-dev2 < 2.4.2. Ältere Dev-Builds ohne Nummer
+  // ("2.4.1-dev") zählen als dev0.
   function parseVersion(v) {
-    return String(v || "0").split(".").map(n => parseInt(n, 10) || 0);
+    const m = /^([0-9.]+)(?:-dev(\d*))?/.exec(String(v || "0").trim()) || [null, "0"];
+    return {
+      nums: m[1].split(".").map(n => parseInt(n, 10) || 0),
+      dev: m[2] === undefined ? Infinity : (parseInt(m[2], 10) || 0),
+    };
   }
 
   function isNewer(remote, local) {
     const r = parseVersion(remote), l = parseVersion(local);
-    for (let i = 0; i < Math.max(r.length, l.length); i++) {
-      const rv = r[i] || 0, lv = l[i] || 0;
+    for (let i = 0; i < Math.max(r.nums.length, l.nums.length); i++) {
+      const rv = r.nums[i] || 0, lv = l.nums[i] || 0;
       if (rv > lv) return true;
       if (rv < lv) return false;
     }
-    return false;
+    return r.dev > l.dev;
   }
 
   function currentlyInMatch() {
@@ -8057,7 +8475,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
           // Bei einem echten Kanalwechsel (laufende Version ist/ist-nicht
           // "-dev", der jetzt geprüfte Kanal aber anders) gilt daher jede
           // andere Versionsnummer als Angebot, nicht nur eine höhere.
-          const runningIsDev = /-dev$/.test(CURRENT_VERSION);
+          const runningIsDev = /-dev\d*$/.test(CURRENT_VERSION);
           const channelMismatch = runningIsDev !== (channel === "dev");
           const isOffer = data && data.version && data.version !== CURRENT_VERSION
             && (channelMismatch || isNewer(data.version, CURRENT_VERSION));
