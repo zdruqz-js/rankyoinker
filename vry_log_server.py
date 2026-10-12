@@ -507,7 +507,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev3"
+APP_VERSION = "2.4.2-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4575,6 +4575,9 @@ def lol_champ_select():
             "name": info.get("name") or ("—" if with_name else None),
             "tagLine": info.get("tagLine"),
             "championId": c.get("championId") or None,
+            # Hover in der Planungsphase bzw. während fremder Züge (Pick-Absicht) -
+            # in der eigenen Pick-Phase steht der Hover dagegen in der Aktion.
+            "pickIntent": c.get("championPickIntent") or None,
             # Grossschreiben: normale/Ranked-Queues liefern "TOP", Custom-Spiele
             # können es klein liefern ("top") — sonst griff weder die
             # Preset-Auswahl (Schlüssel sind gross) noch die Lane-Anzeige.

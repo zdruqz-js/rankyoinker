@@ -7080,8 +7080,11 @@
     const box = document.getElementById('lolMuBox');
     if(!box) return;
     const me = (cs.myTeam || []).find(m => m.me) || {};
-    const hovering = cs.myAction && cs.myAction.type === 'pick' && !cs.myAction.completed;
-    const champ = (hovering && lolPickLocalId) || me.championId || null;
+    // Gehoverter Champion zählt genauso wie ein fester Pick: eigener Klick im
+    // Overlay, Hover im Client während des eigenen Zugs (steht in der Aktion),
+    // Pick-Absicht aus Planungsphase/fremden Zügen, zuletzt der feste Pick.
+    const pickTurn = cs.myAction && cs.myAction.type === 'pick' && !cs.myAction.completed;
+    const champ = (pickTurn && (lolPickLocalId || cs.myAction.championId)) || me.championId || me.pickIntent || null;
     if(!champ){
       const html = `<div class="lol-card mu-card mu-empty"><div class="mu-top"><div class="panel-head">${t('mu_title')}<span class="line"></span></div></div><div class="mu-msg">${t('mu_hover_hint')}</div></div>`;
       if(box.dataset.sig !== 'empty'){ box.dataset.sig = 'empty'; box.innerHTML = html; }
@@ -8281,7 +8284,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev3";
+const CURRENT_VERSION = "2.4.2-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
