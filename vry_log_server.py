@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev12"
+APP_VERSION = "2.4.2-dev13"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5363,6 +5363,10 @@ def _lol_apply_itemset(champ_id, champ_name, blocks):
 # überschrieben.
 
 LOL_MATCHUP_URL = "https://rankyoinker.de/api/lol/matchup"
+# Ohne eigenen User-Agent ("Python-urllib/x.y") antwortet Cloudflare mit 403 -
+# deshalb kam in dev8-dev12 nie ein Auto-Build an (Telemetrie: kein einziges
+# lol_build_auto). Gleiches Muster wie Heartbeat/Client-Report.
+LOL_BUILDS_HEADERS = {"User-Agent": "RankYoinker-Builds"}
 LOL_ROLES_URL = "https://rankyoinker.de/api/lol/roles"
 LOL_LANES = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
 # ARAM, Clash-ARAM, Arena, ARAM Mayhem: andere Builds, die Statistik passt nicht
@@ -5403,9 +5407,12 @@ def _lol_roles():
     if _lol_roles_cache["data"] and now - _lol_roles_cache["ts"] < 12 * 3600:
         return _lol_roles_cache["data"]
     try:
-        st, j = _http(LOL_ROLES_URL, timeout=8)
-    except Exception:
+        st, j = _http(LOL_ROLES_URL, LOL_BUILDS_HEADERS, timeout=8)
+    except Exception as e:
         st, j = None, None
+        report_error("lol-builds", e)
+    if st not in (200, None):
+        report_error("lol-builds", "roles HTTP %s" % st)
     if st == 200 and isinstance(j, dict) and j.get("ok"):
         roles = {}
         for k, v in (j.get("roles") or {}).items():
@@ -5424,11 +5431,14 @@ def _lol_fetch_matchup(champ, vs, pos):
     url = "%s?champ=%d&pos=%s%s" % (LOL_MATCHUP_URL, champ, pos, "&vs=%d" % vs if vs else "")
     data = None
     try:
-        st, j = _http(url, timeout=10)
+        st, j = _http(url, LOL_BUILDS_HEADERS, timeout=10)
         if st == 200 and isinstance(j, dict) and j.get("ok") and j.get("builds"):
             data = j
-    except Exception:
+        elif st != 200:
+            report_error("lol-builds", "matchup HTTP %s" % st)
+    except Exception as e:
         data = None
+        report_error("lol-builds", e)
     if len(_lol_mu_cache) > 300:
         _lol_mu_cache.clear()
     _lol_mu_cache[key] = (now, data)
