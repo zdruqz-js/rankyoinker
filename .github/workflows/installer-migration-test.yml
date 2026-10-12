@@ -59,8 +59,17 @@ jobs:
           $new = "C:\Program Files\RankYoinker"
           $startup = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\vRY Log-Server.vbs"
 
+          function DumpKeys($when) {
+            foreach ($root in "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall") {
+              Get-ChildItem $root -ErrorAction SilentlyContinue | ForEach-Object {
+                $pr = Get-ItemProperty $_.PSPath
+                if ($pr.DisplayName -like "RankYoinker*") { Write-Host "KEY [$when] $($_.Name) | App Path=$($pr.'Inno Setup: App Path')" }
+              }
+            }
+          }
           # --- 1. alte Version ---
           Install (Get-ChildItem old\*.exe)[0].FullName
+          DumpKeys "alt"
           Check (Test-Path "$old\vry_log_server.py") "alte Version liegt in ProgramData"
           Check (Test-Path $key32) "alte Version hat 32-Bit-Deinstallationseintrag"
           '{"x":1}' | Set-Content "$old\vry_pair.json"
@@ -68,6 +77,7 @@ jobs:
 
           # --- 2. neue Version darueber ---
           Install (Get-ChildItem new\*.exe)[0].FullName
+          DumpKeys "neu"
           Check (Test-Path "$new\vry_log_server.py") "neue Version liegt in Program Files"
           Check (Test-Path "$new\pythonw.exe") "pythonw.exe in Program Files"
           Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
