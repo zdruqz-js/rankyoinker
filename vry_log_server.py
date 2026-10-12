@@ -70,7 +70,7 @@ LOCALAPPDATA = os.environ.get("LOCALAPPDATA", "")
 LOCKFILE = os.path.join(LOCALAPPDATA, "Riot Games", "Riot Client", "Config", "lockfile")
 SHOOTER_LOG = os.path.join(LOCALAPPDATA, "VALORANT", "Saved", "Logs", "ShooterGame.log")
 
-# Vom Programmordner (BASE = {app}, ProgramData) getrennter, garantiert vom
+# Vom Programmordner (BASE = {app}, seit 2.4.2 Program Files) getrennter, garantiert vom
 # aktuell eingeloggten Nutzer OHNE Sonderrechte beschreibbarer Ordner fuer
 # alles, was zur Laufzeit entsteht (config.json, Presets, Kopplung, Logs,
 # der heruntergeladene Update-Installer, ...).
@@ -113,14 +113,19 @@ def _migrate_legacy_data():
         "vry_instalock.json", "vry_pair.json", "vry_lol.json",
         "vry_lol_presets.json", "vry_lol_encounters.json",
     ]
+    # Seit 2.4.2 liegt das Programm in Program Files; der Installer räumt den
+    # alten Ordner C:\ProgramData\RankYoinker beim Umzug leer, lässt genau
+    # diese Altdaten aber liegen - also dort ebenfalls nachsehen.
+    legacy_dirs = [BASE, os.path.join(os.environ.get("ProgramData") or r"C:\ProgramData", "RankYoinker")]
     for name in legacy_names:
-        src = os.path.join(BASE, name)
         dst = os.path.join(DATA_DIR, name)
-        if os.path.exists(src) and not os.path.exists(dst):
-            try:
-                shutil.copy2(src, dst)
-            except OSError:
-                pass
+        for d in legacy_dirs:
+            src = os.path.join(d, name)
+            if os.path.exists(src) and not os.path.exists(dst):
+                try:
+                    shutil.copy2(src, dst)
+                except OSError:
+                    pass
     legacy_logs = os.path.join(BASE, "logs")
     if os.path.isdir(legacy_logs) and not os.path.isdir(LOGDIR):
         try:
@@ -502,7 +507,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev1"
+APP_VERSION = "2.4.2-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")

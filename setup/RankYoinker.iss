@@ -7,11 +7,9 @@
 ; Skripte (Einrichtung/Deinstallation, laufen ueber das eingebettete
 ; Python - siehe Begruendung in install_all.py) in einen echten
 ; Windows-Installer, der:
-;   1. alle Programmdateien nach %LocalAppData%\RankYoinker kopiert
-;      (bewusst NICHT Program Files - die App schreibt zur Laufzeit
-;      eigene Config-/Log-Dateien neben vry.exe, das braucht ohne
-;      Admin-Rechte einen Ordner, in den der aktuelle Nutzer schreiben
-;      darf),
+;   1. alle Programmdateien nach C:\Program Files\RankYoinker kopiert
+;      (bis 2.4.1 ProgramData, siehe DefaultDirName unten; Laufzeitdaten
+;      liegen seit 2.3.14 ohnehin in %LOCALAPPDATA%\RankYoinker),
 ;   2. danach automatisch setup\install_all.py ausführt (Start/Stop-
 ;      Buttons, Autostart des Log-Servers, http://vry + Firewall-
 ;      Freigabe fürs Handy - siehe LIESMICH.txt),
@@ -24,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.4.2-dev1"
+#define MyAppVersion "2.4.2-dev2"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -47,11 +45,20 @@ AppUpdatesURL={#MyAppURL}
 ; Schritt direkt aus, ganz ohne diese fehleranfällige verschachtelte
 ; Selbst-Erhebung.
 PrivilegesRequired=admin
-; {localappdata} ist bei einem erhöhten Installer nicht zuverlässig
-; auflösbar (siehe Inno-Setup-Warnung "UsedUserAreasWarning") - könnte je
-; nach Art der Erhebung auf den falschen Benutzerordner zeigen.
-; {commonappdata} (ProgramData) ist eindeutig, unabhängig von Elevation.
-DefaultDirName={commonappdata}\RankYoinker
+; Seit 2.4.2 Program Files statt ProgramData (Nutzerfrage 2026-10-12):
+; In Unterordnern von C:\ProgramData dürfen normale Benutzer laut Windows-
+; Standardrechten NEUE Dateien anlegen. Weil der Uninstaller python.exe aus
+; {app} mit Adminrechten startet, hätte ein Standardkonto dort vorher z. B.
+; eine DLL ablegen können (Rechteausweitung). Program Files erlaubt das nicht.
+; Die App schreibt seit 2.3.14 nichts mehr in {app}, es braucht also keine
+; Schreibrechte dort. Alte Installationen in ProgramData zieht [Code] unten
+; beim Update um; ein selbst gewählter anderer Ordner bleibt erhalten.
+; 64-Bit-Modus, damit {autopf} "C:\Program Files" ist und nicht "(x86)" -
+; das eingebettete Python ist ohnehin amd64.
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+DefaultDirName={code:GetInstallDir}
+UsePreviousAppDir=no
 DefaultGroupName=RankYoinker
 DisableProgramGroupPage=yes
 OutputBaseFilename=RankYoinker-Setup
@@ -157,8 +164,8 @@ Name: "desktopicon"; Description: "{cm:DesktopIconDesc}"; GroupDescription: "{cm
 ; Standardkonto haette dort Code platzieren koennen, der beim naechsten
 ; admin-elevierten Deinstallieren durch irgendjemand anderen ausgefuehrt
 ; worden waere.
-; {app} ist jetzt Standard-ProgramData-Berechtigung (nur Administratoren
-; schreibend, alle lesend) und enthaelt NUR NOCH Programmdateien. Alles, was
+; {app} hat jetzt Standardrechte (seit 2.4.2 Program Files: nur
+; Administratoren schreibend, alle lesend) und enthaelt NUR NOCH Programmdateien. Alles, was
 ; die App zur Laufzeit selbst schreibt (config.json, Presets, Kopplung,
 ; Logs, der heruntergeladene Update-Installer, ...) liegt seitdem in
 ; %LOCALAPPDATA%\RankYoinker (siehe src/paths.py bzw. DATA_DIR in
@@ -268,3 +275,103 @@ Type: filesandordirs; Name: "{localappdata}\RankYoinker\logs"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update.exe"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-log.txt"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-wait.bat"
+
+[Code]
+// ---- Umzug ProgramData -> Program Files (2.4.2) ----
+// Bis 2.4.1 lag RankYoinker in C:\ProgramData\RankYoinker und wurde im
+// 32-Bit-Modus installiert (Deinstallations-Eintrag in der 32-Bit-Ansicht der
+// Registry). Beim ersten Update auf 2.4.2+:
+//   1. vor dem Kopieren die laufenden RankYoinker-Prozesse aus dem alten
+//      Ordner beenden,
+//   2. nach der Installation den alten Ordner leeren - bis auf Laufzeitdaten
+//      von Installationen vor 2.3.14, die der Dienst beim ersten Start noch
+//      nach %LOCALAPPDATA% kopiert (_migrate_legacy_data),
+//   3. den alten 32-Bit-Deinstallations-Eintrag löschen, sonst stünde
+//      RankYoinker zweimal unter "Apps & Features".
+const
+  UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}_is1';
+  LegacyData = '|.rankyoinker_client_id|.rankyoinker_feature_counts.json|.rankyoinker_last_report.json|.rankyoinker_matches_tracked_seen.json|config.json|vry_presets.json|vry_encounters.json|vry_instalock.json|vry_pair.json|vry_lol.json|vry_lol_presets.json|vry_lol_encounters.json|';
+
+var
+  PrevDir: String;
+
+function OldDefaultDir(): String;
+begin
+  Result := ExpandConstant('{commonappdata}\RankYoinker');
+end;
+
+function SameDir(A, B: String): Boolean;
+begin
+  Result := CompareText(RemoveBackslashUnlessRoot(A), RemoveBackslashUnlessRoot(B)) = 0;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  PrevDir := '';
+  if not RegQueryStringValue(HKLM64, UninstKey, 'Inno Setup: App Path', PrevDir) then
+    if not RegQueryStringValue(HKLM32, UninstKey, 'Inno Setup: App Path', PrevDir) then
+      PrevDir := '';
+  Result := True;
+end;
+
+// Ziel: ein bewusst anders gewählter Ordner bleibt, der alte ProgramData-
+// Standard wird durch Program Files ersetzt.
+function GetInstallDir(Param: String): String;
+begin
+  if (PrevDir <> '') and (not SameDir(PrevDir, OldDefaultDir())) and DirExists(PrevDir) then
+    Result := PrevDir
+  else
+    Result := ExpandConstant('{autopf}\RankYoinker');
+end;
+
+function MigratingFromProgramData(): Boolean;
+begin
+  Result := (PrevDir <> '') and SameDir(PrevDir, OldDefaultDir())
+    and (not SameDir(ExpandConstant('{app}'), OldDefaultDir())) and DirExists(OldDefaultDir());
+end;
+
+procedure StopOldProcesses();
+var
+  RC: Integer;
+begin
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { ($_.Name -eq ''pythonw.exe'' -or $_.Name -eq ''python.exe'') -and $_.CommandLine -like ''*vry_log_server.py*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
+    '', SW_HIDE, ewWaitUntilTerminated, RC);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM vry.exe /T', '', SW_HIDE, ewWaitUntilTerminated, RC);
+end;
+
+procedure CleanOldDir(Dir: String);
+var
+  FR: TFindRec;
+begin
+  if FindFirst(Dir + '\*', FR) then
+  begin
+    try
+      repeat
+        if (FR.Name <> '.') and (FR.Name <> '..') and (Pos('|' + Lowercase(FR.Name) + '|', LegacyData) = 0) then
+        begin
+          if (FR.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
+            DelTree(Dir + '\' + FR.Name, True, True, True)
+          else
+            DeleteFile(Dir + '\' + FR.Name);
+        end;
+      until not FindNext(FR);
+    finally
+      FindClose(FR);
+    end;
+  end;
+  RemoveDir(Dir);   // klappt nur, wenn keine Altdaten mehr drinliegen
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssInstall) and MigratingFromProgramData() then
+    StopOldProcesses();
+  if CurStep = ssPostInstall then
+  begin
+    if MigratingFromProgramData() then
+      CleanOldDir(OldDefaultDir());
+    if RegKeyExists(HKLM32, UninstKey) then
+      RegDeleteKeyIncludingSubkeys(HKLM32, UninstKey);
+  end;
+end;
