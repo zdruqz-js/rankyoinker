@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev13"
+APP_VERSION = "2.4.2-dev14"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5284,7 +5284,7 @@ def lol_apply_build(champion_id, raw, manual=True):
         try:
             res = fn()
         except LcuError as e:
-            res = {"ok": False, "status": None, "error": str(e)}
+            res = {"ok": False, "status": None, "code": "client", "error": str(e)}
         if res is None:
             continue
         results[what] = res
@@ -5306,7 +5306,7 @@ def _lol_apply_runes(champ_name, runes):
     page = dict(runes, name=("%s: %s" % (LOL_SETUP_PAGE_PREFIX, champ_name))[:30], current=True)
     st, pages = lcu_get("/lol-perks/v1/pages")
     if st != 200 or not isinstance(pages, list):
-        return {"ok": False, "status": st, "error": "Runenseiten nicht lesbar."}
+        return {"ok": False, "status": st, "code": "runes_unreadable", "error": "Runenseiten nicht lesbar."}
     # Ausschließlich die eigene Seite anfassen - Seiten des Spielers bleiben tabu.
     own = next((p for p in pages if p.get("isEditable")
                 and str(p.get("name") or "").startswith(LOL_SETUP_PAGE_PREFIX)), None)
@@ -5320,7 +5320,7 @@ def _lol_apply_runes(champ_name, runes):
     if page_id is None:
         st, created = lcu_post("/lol-perks/v1/pages", page)
         if st not in (200, 201, 204):
-            return {"ok": False, "status": st,
+            return {"ok": False, "status": st, "code": "no_rune_page",
                     "error": "Keine freie Runenseite - im Client eine löschen oder eine Seite „RankYoinker“ nennen."}
         page_id = (created or {}).get("id") if isinstance(created, dict) else None
     if page_id is not None:
@@ -5330,7 +5330,8 @@ def _lol_apply_runes(champ_name, runes):
 
 def _lol_apply_spells(spells):
     st, _ = lcu_patch("/lol-champ-select/v1/session/my-selection", {"spell1Id": spells[0], "spell2Id": spells[1]})
-    return {"ok": st in (200, 204), "status": st, "error": None if st in (200, 204) else "Riot lehnte ab (Status %s)." % st}
+    return {"ok": st in (200, 204), "status": st, "code": None if st in (200, 204) else "rejected",
+            "error": None if st in (200, 204) else "Riot lehnte ab (Status %s)." % st}
 
 
 def _lol_apply_itemset(champ_id, champ_name, blocks):
@@ -5338,7 +5339,7 @@ def _lol_apply_itemset(champ_id, champ_name, blocks):
     path = "/lol-item-sets/v1/item-sets/%s/sets" % summoner.get("summonerId")
     st, data = lcu_get(path)
     if st != 200 or not isinstance(data, dict):
-        return {"ok": False, "status": st, "error": "Item-Sets nicht lesbar."}
+        return {"ok": False, "status": st, "code": "itemsets_unreadable", "error": "Item-Sets nicht lesbar."}
     uid = "rankyoinker-%d" % champ_id
     sets = [s for s in (data.get("itemSets") or []) if s.get("uid") != uid]
     sets.append({
@@ -5350,7 +5351,7 @@ def _lol_apply_itemset(champ_id, champ_name, blocks):
     })
     data["itemSets"] = sets
     st, _ = lcu_put(path, data)
-    return {"ok": st in (200, 201, 204), "status": st,
+    return {"ok": st in (200, 201, 204), "status": st, "code": None if st in (200, 201, 204) else "rejected",
             "error": None if st in (200, 201, 204) else "Riot lehnte ab (Status %s)." % st}
 
 

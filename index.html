@@ -3646,7 +3646,7 @@
         <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">—</div></div></div>
       </div>`;
     }
-    const name = RANK_NAMES[rankNum] || 'Unranked';
+    const name = RANK_NAMES[rankNum] || t('unranked_label');
     const icon = rankIcon(rankNum);
     const color = tierColor(rankNum);
     const rr = (typeof opts.rr === 'number') ? opts.rr : null;
@@ -6241,12 +6241,12 @@
   let lolChampFilterText = '';
   let lolPresets = null;                  // {autoBan, autoPick, ban, picks}, vom Dienst
 
-  const LOL_POSITIONS = {TOP:'Top', JUNGLE:'Jungle', MIDDLE:'Mid', BOTTOM:'Bot',
-                         UTILITY:'Support', FILL:'Fill', UNSELECTED:''};
-  const LOL_LANE_LABELS = {TOP:'Top', JUNGLE:'Jungle', MIDDLE:'Mid', BOTTOM:'Bot', UTILITY:'Support', OTHER: t('lol_other_modes')};
-  const LOL_TIER_LABEL = {IRON:'Iron', BRONZE:'Bronze', SILVER:'Silver', GOLD:'Gold',
-                          PLATINUM:'Platinum', EMERALD:'Emerald', DIAMOND:'Diamond',
-                          MASTER:'Master', GRANDMASTER:'Grandmaster', CHALLENGER:'Challenger'};
+  const LOL_POSITIONS = {TOP:t('lol_lane_top'), JUNGLE:t('lol_lane_jungle'), MIDDLE:t('lol_lane_mid'), BOTTOM:t('lol_lane_bot'),
+                         UTILITY:t('lol_lane_support'), FILL:t('lol_lane_fill'), UNSELECTED:''};
+  const LOL_LANE_LABELS = {TOP:t('lol_lane_top'), JUNGLE:t('lol_lane_jungle'), MIDDLE:t('lol_lane_mid'), BOTTOM:t('lol_lane_bot'),
+                           UTILITY:t('lol_lane_support'), OTHER: t('lol_other_modes')};
+  const LOL_TIER_LABEL = Object.fromEntries(['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND',
+                          'MASTER', 'GRANDMASTER', 'CHALLENGER'].map(k => [k, t('lol_tier_' + k.toLowerCase())]));
   const LOL_STATE_LABEL = {OFFLINE:t('state_client_closed'), NONE:t('state_menu'), LOBBY:t('state_menu'),
                            QUEUE:t('state_queue_searching'), READYCHECK:t('state_game_found'),
                            CHAMPSELECT:t('state_champ_select'), INGAME:t('state_live'),
@@ -6496,7 +6496,7 @@
   function lolRankTileHtml(label, r){
     if(!r || !r.tier){
       return `<div class="rank-tile"><div class="rt-label">${esc(label)}</div>
-        <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">Unranked</div></div></div></div>`;
+        <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">${t('unranked_label')}</div></div></div></div>`;
     }
     const color = lolTierColor(r.tier);
     const name = `${LOL_TIER_LABEL[r.tier] || r.tier}${r.division && r.division !== 'NA' ? ' ' + r.division : ''}`;
@@ -6561,7 +6561,7 @@
         </div>
       </div>
       <div class="pcard-body">
-        ${showRanks ? `<div class="rank-duo">${lolRankTileHtml('Solo/Duo', p.rankSolo)}${lolRankTileHtml('Flex', p.rankFlex)}</div>` : ''}
+        ${showRanks ? `<div class="rank-duo">${lolRankTileHtml(t('lol_queue_solo'), p.rankSolo)}${lolRankTileHtml(t('lol_queue_flex'), p.rankFlex)}</div>` : ''}
         ${mode === 'live' ? `<div class="stat-strip" style="grid-template-columns:repeat(3,1fr);">
           <div class="s"><div class="v">${p.kills ?? 0}/${p.deaths ?? 0}/${p.assists ?? 0}</div><div class="l">KDA</div></div>
           <div class="s"><div class="v">${p.cs ?? '—'}</div><div class="l">CS</div></div>
@@ -6660,12 +6660,12 @@
   function lolPeakLabel(prevSeason){
     if(!prevSeason || !prevSeason.tier) return '';
     const name = `${LOL_TIER_LABEL[prevSeason.tier] || prevSeason.tier}${prevSeason.division && prevSeason.division !== 'NA' ? ' ' + prevSeason.division : ''}`;
-    return `Peak Vorsaison ${esc(name)}`;
+    return t('lol_peak_prev', {rank: esc(name)});
   }
   function lolMrankTileHtml(label, r){
     if(!r || !r.tier){
       const peak = lolPeakLabel(r && r.prevSeason);
-      return `<div class="mrank-tile"><div><div class="lab">${esc(label)}</div><div class="val" style="color:var(--text-faint);">Unranked</div>
+      return `<div class="mrank-tile"><div><div class="lab">${esc(label)}</div><div class="val" style="color:var(--text-faint);">${t('unranked_label')}</div>
         ${peak ? `<div class="extra">${peak}</div>` : ''}</div></div>`;
     }
     const color = lolTierColor(r.tier);
@@ -6673,7 +6673,7 @@
     const peak = lolPeakLabel(r.prevSeason);
     return `<div class="mrank-tile"><img src="${lolRankIconUrl(r.tier)}" alt="" loading="lazy"><div><div class="lab">${esc(label)}</div>
       <div class="val" style="color:${color};">${esc(name)}</div>
-      <div class="extra">${r.lp ?? 0} LP · ${r.wins ?? 0}S/${r.losses ?? 0}N${peak ? ' · ' + peak : ''}</div></div></div>`;
+      <div class="extra">${r.lp ?? 0} LP · ${t('wins_losses_short', {w: r.wins ?? 0, l: r.losses ?? 0})}${peak ? ' · ' + peak : ''}</div></div></div>`;
   }
 
   function openLolModal(p){
@@ -6691,8 +6691,8 @@
       </div>
       <div class="modal-body">
         <div class="modal-ranks">
-          ${lolMrankTileHtml('Solo/Duo', p.rankSolo)}
-          ${lolMrankTileHtml('Flex', p.rankFlex)}
+          ${lolMrankTileHtml(t('lol_queue_solo'), p.rankSolo)}
+          ${lolMrankTileHtml(t('lol_queue_flex'), p.rankFlex)}
         </div>
         <div id="lolModalStats"></div>
       </div>`;
@@ -6799,12 +6799,17 @@
 
   // ---- Spieldaten für Runen/Zauber/Items (Community Dragon, CORS-offen) ----
   const CDRAGON_GD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
+  const CDRAGON_LOCALES = {de:'de_de', pl:'pl_pl', fr:'fr_fr', es:'es_es', tr:'tr_tr', ko:'ko_kr'};
+  const CDRAGON_LOCALE_GD = CDRAGON_LOCALES[LANG] ? CDRAGON_GD.replace('/global/default/', '/global/' + CDRAGON_LOCALES[LANG] + '/') : CDRAGON_GD;
   function cdAsset(path){ return path ? CDRAGON_GD + String(path).replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : ''; }
   let lolGameData = null, lolGameDataPromise = null;
   function loadLolGameData(){
     if(lolGameData) return Promise.resolve(lolGameData);
     if(lolGameDataPromise) return lolGameDataPromise;
-    const get = (f) => fetch(CDRAGON_GD + 'v1/' + f, {cache:'force-cache'}).then(r => { if(!r.ok) throw new Error(f); return r.json(); });
+    // Namen (Items, Runen, Zauber) in der App-Sprache; Icons bleiben global
+    const get = (f) => fetch(CDRAGON_LOCALE_GD + 'v1/' + f, {cache:'force-cache'})
+      .then(r => { if(!r.ok) throw new Error(f); return r.json(); })
+      .catch(() => fetch(CDRAGON_GD + 'v1/' + f, {cache:'force-cache'}).then(r => { if(!r.ok) throw new Error(f); return r.json(); }));
     lolGameDataPromise = Promise.all([get('perkstyles.json'), get('perks.json'), get('summoner-spells.json'), get('items.json')])
       .then(([ps, perks, spells, items]) => {
         const perkById = {}; perks.forEach(x => { perkById[x.id] = x; });
@@ -6829,8 +6834,8 @@
   // Entscheidungen vorgeben nicht).
   const RY_SITE = 'https://rankyoinker.de';
   const LOL_MU_LANES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
-  const LOL_MU_TIERS = [['emerald_plus', 'Emerald+'], ['platinum_plus', 'Platinum+'], ['diamond_plus', 'Diamond+'],
-                        ['master_plus', 'Master+'], ['all', t('mu_tier_all')]];
+  const LOL_MU_TIERS = [['emerald_plus', t('lol_tier_emerald') + '+'], ['platinum_plus', t('lol_tier_platinum') + '+'],
+                        ['diamond_plus', t('lol_tier_diamond') + '+'], ['master_plus', t('lol_tier_master') + '+'], ['all', t('mu_tier_all')]];
   let lolMuTier = 'emerald_plus';
   try{ const v = localStorage.getItem('ryLolMuTier'); if(LOL_MU_TIERS.some(x => x[0] === v)) lolMuTier = v; }catch(e){}
   const lolMuCache = new Map();           // "champ:vs:pos:tier" -> Promise
@@ -6904,6 +6909,10 @@
     ].filter(x => x.items.length);
     return {name: lolChampName(champ), spells: (b.spells || []).length === 2 ? b.spells : [], runes: b.runes || null, items: blocks};
   }
+  // Fehler vom Dienst kommen mit Code -> übersetzt; sonst der Text des Dienstes
+  function lolBuildErr(r){
+    return r && r.code ? t('mu_err_' + r.code, {status: r.status ?? '?'}) : ((r && r.error) || '');
+  }
   function lolMuApply(champ, b, btn){
     btn.disabled = true;
     const setup = lolBuildToSetup(champ, b);
@@ -6911,7 +6920,7 @@
       btn.disabled = false;
       const res = (j && j.results) || {};
       const done = Object.keys(res).filter(k => res[k].ok).map(k => t('lol_setup_' + k)).join(', ');
-      const errs = Object.values(res).filter(r => !r.ok && r.error).map(r => r.error).join(' · ');
+      const errs = Object.values(res).filter(r => !r.ok).map(lolBuildErr).filter(Boolean).join(' · ');
       if(j && j.ok) toast('success', t('mu_applied_toast'), done);
       else toast('error', t('mu_apply_failed'), errs || (j && j.error) || '', {dur: 7000});
     }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
@@ -7039,7 +7048,8 @@
     if(!a || a.championId !== ctx.champ || (Date.now() / 1000 - a.at) > 900) return '';
     const opt = t(LOL_MU_OPT[a.option] || 'mu_opt_popular');
     const txt = a.vs ? t('mu_auto_applied', {opt, vs: esc(lolChampName(a.vs))}) : t('mu_auto_applied_general', {opt});
-    return `<div class="mu-auto ${a.ok ? 'ok' : 'bad'}">${svgIcon(a.ok ? 'check' : 'alert', 13)}<span>${a.ok ? txt : esc(a.error || t('mu_apply_failed'))}</span></div>`;
+    const err = Object.values(a.results || {}).filter(r => !r.ok).map(lolBuildErr).filter(Boolean).join(' · ');
+    return `<div class="mu-auto ${a.ok ? 'ok' : 'bad'}">${svgIcon(a.ok ? 'check' : 'alert', 13)}<span>${a.ok ? txt : esc(err || t('mu_apply_failed'))}</span></div>`;
   }
 
   // Gemeinsame Klick-Logik; ui = veränderlicher Zustand der jeweiligen Karte
@@ -7224,8 +7234,13 @@
   // ---- Champion-Auswahl: Picker (wiederverwendet .agentpick/.agent-cell von Valorant) ----
   function loadLolChampions(){
     if(lolChampCatalog) return Promise.resolve(lolChampCatalog);
-    return api('/api/lol/champions').then(j => {
-      lolChampCatalog = (j && j.ok) ? j.champions : [];
+    // Namen in der App-Sprache (Community Dragon), sonst die englischen vom Dienst
+    const local = CDRAGON_LOCALE_GD === CDRAGON_GD ? Promise.resolve(null)
+      : fetch(CDRAGON_LOCALE_GD + 'v1/champion-summary.json', {cache:'force-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
+    return Promise.all([api('/api/lol/champions'), local]).then(([j, loc]) => {
+      const names = loc ? Object.fromEntries(loc.filter(c => c.id > 0).map(c => [c.id, c.name])) : {};
+      lolChampCatalog = ((j && j.ok) ? j.champions : []).map(c => ({id: c.id, name: names[c.id] || c.name}))
+        .sort((a, b) => a.name.localeCompare(b.name, LOCALE));
       return lolChampCatalog;
     }).catch(() => (lolChampCatalog = []));
   }
@@ -7462,17 +7477,17 @@
     const rows = [];
     // Die letzten Versuche mit HTTP-Status und Phase - lastAutoResult allein
     // zeigte nur den jeweils letzten, frühere Fehlschläge waren unsichtbar.
-    const kindLabel = {hover: 'Hover', intent: 'Absicht', lock: 'Sperren'};
+    const kindLabel = {hover: t('lol_dbg_hover'), intent: t('lol_dbg_intent'), lock: t('lol_dbg_lock')};
     const history = (p.autoHistory || []).filter(h => (now - h.at) < 120).slice(-6);
     history.forEach(h => {
       rows.push(`${h.ok ? '✅' : '❌'} ${kindLabel[h.kind] || esc(h.kind)} ${esc(h.actionType || '')} ${h.championId ?? '?'}`
         + ` · ${esc(h.phase || '?')} · HTTP ${h.status ?? '–'}${h.error ? ' – ' + esc(h.error) : ''}`);
     });
     if(!history.length && recent(p.lastAutoHover)){
-      rows.push(`${p.lastAutoHover.ok ? '✅' : '❌'} Hover ${p.lastAutoHover.championId ?? '?'}${p.lastAutoHover.error ? ' – ' + esc(p.lastAutoHover.error) : ''}`);
+      rows.push(`${p.lastAutoHover.ok ? '✅' : '❌'} ${t('lol_dbg_hover')} ${p.lastAutoHover.championId ?? '?'}${p.lastAutoHover.error ? ' – ' + esc(p.lastAutoHover.error) : ''}`);
     }
     if(!history.length && recent(p.lastAutoResult)){
-      rows.push(`${p.lastAutoResult.ok ? '✅' : '❌'} Sperren ${p.lastAutoResult.championId ?? '?'} (Versuch ${p.lastAutoResult.attempts})${p.lastAutoResult.error ? ' – ' + esc(p.lastAutoResult.error) : ''}`);
+      rows.push(`${p.lastAutoResult.ok ? '✅' : '❌'} ${t('lol_dbg_lock')} ${p.lastAutoResult.championId ?? '?'} (${t('lol_dbg_attempt', {n: p.lastAutoResult.attempts})})${p.lastAutoResult.error ? ' – ' + esc(p.lastAutoResult.error) : ''}`);
     }
     if(recent(p.lastAutoSkip)){
       rows.push(`⏸️ ${esc(p.lastAutoSkip.reason)}`);
@@ -7482,7 +7497,7 @@
     }
     if(!rows.length) return '';
     return `<div class="lol-card" id="lolAutoDebug" style="font-size:11px; color:var(--text-dim); line-height:1.6;">
-      <div class="panel-head" style="font-size:11px;">Auto-Ban/-Pick<span class="line"></span></div>
+      <div class="panel-head" style="font-size:11px;">${t('lol_auto_ban_short')} / ${t('lol_auto_pick_short')}<span class="line"></span></div>
       ${rows.join('<br>')}
     </div>`;
   }
@@ -7700,7 +7715,7 @@
 
     el.innerHTML =
       `<div class="lol-card"><div class="panel-head">${t('rank_label')}<span class="line"></span></div>
-         <div class="modal-ranks" style="margin:0;">${lolMrankTileHtml('Solo/Duo', r.RANKED_SOLO_5x5)}${lolMrankTileHtml('Flex', r.RANKED_FLEX_SR)}</div>
+         <div class="modal-ranks" style="margin:0;">${lolMrankTileHtml(t('lol_queue_solo'), r.RANKED_SOLO_5x5)}${lolMrankTileHtml(t('lol_queue_flex'), r.RANKED_FLEX_SR)}</div>
        </div>
        ${seasonHtml}
        <div class="lol-card"><div class="panel-head">${t('last_matches_title')}<span class="line"></span></div>
@@ -7940,7 +7955,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev13";
+const CURRENT_VERSION = "2.4.2-dev14";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
