@@ -1413,6 +1413,11 @@
     border-radius:var(--r); padding:18px 20px 20px; margin-bottom:30px;
   }
   .agentpick .ap-top{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .side-badge{display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px;
+    font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;}
+  .side-badge i{width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);}
+  .side-badge.attack{color:#ff6b77; background:rgba(255,70,85,.12); border:1px solid rgba(255,70,85,.4);}
+  .side-badge.defense{color:#4fd1c5; background:rgba(79,209,197,.1); border:1px solid rgba(79,209,197,.38);}
   .agentpick .ap-title{font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:.16em; text-transform:uppercase;}
   .agentpick .ap-hint{font-size:11px; color:var(--text-faint); text-transform:none; letter-spacing:0;}
   /* mittig, letzte Reihe bricht ebenfalls mittig um */
@@ -3622,6 +3627,12 @@
           [p.puuid, p.agent || '', p.locked ? 'L' : p.hovering ? 'H' : '', p.name || ''].join('|')).join(';');
         if(roster !== pregameSig){ pregameSig = roster; pregameLive = j.players || []; changed = true; }
 
+        const side = j.side || null;
+        if(side !== pregameSide){
+          pregameSide = side;
+          document.querySelectorAll('.side-slot').forEach(el => { el.innerHTML = sideBadgeHtml(); });
+        }
+
         // Gegner-Ränge — meist leer (siehe Kommentar bei der Deklaration oben)
         const enemies = j.enemies || [];
         // agent+Skin-Anzahl+meistgespielter Agent mit in die Signatur - sonst
@@ -3678,7 +3689,7 @@
     pregameTimer = setInterval(syncPregame, 1000);   // nahezu live; Server cacht 0,7 s
     syncPregame();
   }
-  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; }
+  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; }   // Seite gilt nur für diese eine Auswahl
 
   function rankTileHtml(label, rankNum, opts){
     // opts: {rr, sub}
@@ -4310,6 +4321,14 @@
       </div>`;
   }
 
+  // Eigene Seite in der ersten Hälfte (Riot: Team "Red" greift an, "Blue"
+  // verteidigt) - kommt mit /api/pregame, wird live in .side-slot getauscht.
+  let pregameSide = null;
+  function sideBadgeHtml(){
+    if(pregameSide !== 'attack' && pregameSide !== 'defense') return '';
+    return `<span class="side-badge ${pregameSide}" title="${esc(t('side_first_half_tip'))}"><i></i>${t(pregameSide === 'attack' ? 'side_attack' : 'side_defense')}</span>`;
+  }
+
   function agentPickHtml(){
     const list = Object.entries(agentById)
       .map(([uuid, name]) => ({uuid, name, info: agentMap[String(name).toLowerCase()]}))
@@ -4324,6 +4343,7 @@
       <div class="agentpick">
         <div class="ap-top">
           <span class="ap-title">${t('agent_select_title')}</span>
+          <span class="side-slot">${sideBadgeHtml()}</span>
         </div>
         ${favs.length ? `<div class="fav-label">${t('favorites_label')}</div>
         <div class="fav-row">${favs.map(agentCellHtml).join('')}</div>
@@ -8261,7 +8281,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev2";
+const CURRENT_VERSION = "2.4.2-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

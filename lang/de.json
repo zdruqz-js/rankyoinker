@@ -501,6 +501,9 @@
     "mu_intro": "Builds für jedes Matchup aus aktuellen Ranked-Spielen. Wähle deinen Champion, die Lane und optional den Gegner – ein Klick übernimmt den Build in den Client.",
     "mu_browse_empty": "Noch kein Champion gewählt.",
     "mu_hover_hint": "Hovere oder wähle einen Champion – dann erscheinen hier passende Builds für dein Matchup.",
-    "mu_build_wr_tip": "Winrate und Spiele mit genau diesem Kern-Build"
+    "mu_build_wr_tip": "Winrate und Spiele mit genau diesem Kern-Build",
+    "side_attack": "Angreifer",
+    "side_defense": "Verteidiger",
+    "side_first_half_tip": "Deine Seite in der ersten Hälfte – zur Halbzeit wird getauscht."
   }
 }

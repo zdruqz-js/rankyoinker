@@ -501,6 +501,9 @@
     "mu_intro": "Builds for every matchup from current ranked games. Pick your champion, the lane and optionally the opponent – one click applies the build to the client.",
     "mu_browse_empty": "No champion chosen yet.",
     "mu_hover_hint": "Hover or pick a champion – matching builds for your matchup will show up here.",
-    "mu_build_wr_tip": "Win rate and games with exactly this core build"
+    "mu_build_wr_tip": "Win rate and games with exactly this core build",
+    "side_attack": "Attacker",
+    "side_defense": "Defender",
+    "side_first_half_tip": "Your side in the first half – sides swap at halftime."
   }
 }

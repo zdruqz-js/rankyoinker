@@ -500,6 +500,9 @@
     "mu_intro": "Des builds pour chaque matchup, issus des parties classées actuelles. Choisis ton champion, la voie et éventuellement l'adversaire – un clic applique le build dans le client.",
     "mu_browse_empty": "Aucun champion choisi pour l'instant.",
     "mu_hover_hint": "Survole ou choisis un champion – les builds adaptés à ton matchup apparaîtront ici.",
-    "mu_build_wr_tip": "Taux de victoire et parties avec exactement ce build"
+    "mu_build_wr_tip": "Taux de victoire et parties avec exactement ce build",
+    "side_attack": "Attaquant",
+    "side_defense": "Défenseur",
+    "side_first_half_tip": "Ton camp en première mi-temps – on change de camp à la mi-temps."
   }
 }

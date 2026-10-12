@@ -501,6 +501,9 @@
     "mu_intro": "Buildy na każdy matchup z aktualnych gier rankingowych. Wybierz bohatera, linię i opcjonalnie przeciwnika – jedno kliknięcie przenosi build do klienta.",
     "mu_browse_empty": "Nie wybrano jeszcze bohatera.",
     "mu_hover_hint": "Najedź na bohatera lub go wybierz – tutaj pojawią się buildy na twój matchup.",
-    "mu_build_wr_tip": "Współczynnik zwycięstw i liczba gier z dokładnie tym buildem"
+    "mu_build_wr_tip": "Współczynnik zwycięstw i liczba gier z dokładnie tym buildem",
+    "side_attack": "Atakujący",
+    "side_defense": "Obrońca",
+    "side_first_half_tip": "Twoja strona w pierwszej połowie – po przerwie strony się zmieniają."
   }
 }

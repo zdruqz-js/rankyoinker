@@ -500,6 +500,9 @@
     "mu_intro": "Builds para cada enfrentamiento a partir de partidas clasificatorias actuales. Elige tu campeón, la línea y, si quieres, el rival: un clic aplica el build en el cliente.",
     "mu_browse_empty": "Aún no has elegido campeón.",
     "mu_hover_hint": "Pasa el ratón por un campeón o elígelo y aquí aparecerán builds para tu enfrentamiento.",
-    "mu_build_wr_tip": "Tasa de victorias y partidas con exactamente este build"
+    "mu_build_wr_tip": "Tasa de victorias y partidas con exactamente este build",
+    "side_attack": "Atacante",
+    "side_defense": "Defensor",
+    "side_first_half_tip": "Tu lado en la primera mitad: en el descanso se cambia."
   }
 }

@@ -507,7 +507,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev2"
+APP_VERSION = "2.4.2-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2933,9 +2933,13 @@ def _pregame_fetch():
     enemies = _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid)
     if enemies is None:
         enemies = _pregame_enemies_best_effort(m, ally_puuids)
+    # Eigene Seite: Riot nennt die Teams "Red" (greift in der ersten Hälfte an)
+    # und "Blue" (verteidigt). Nach der Halbzeit wird getauscht.
+    team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
+    side = {"red": "attack", "blue": "defense"}.get(team.lower())
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
-            "enemies": enemies}
+            "enemies": enemies, "side": side}
 
 
 UUID_RE = re.compile(

@@ -500,6 +500,9 @@
     "mu_intro": "Güncel dereceli maçlardan her eşleşme için buildler. Şampiyonunu, koridoru ve istersen rakibi seç – tek tıkla build istemciye aktarılır.",
     "mu_browse_empty": "Henüz şampiyon seçilmedi.",
     "mu_hover_hint": "Bir şampiyonun üzerine gel ya da seç – eşleşmene uygun buildler burada görünür.",
-    "mu_build_wr_tip": "Tam olarak bu ana buildle kazanma oranı ve maç sayısı"
+    "mu_build_wr_tip": "Tam olarak bu ana buildle kazanma oranı ve maç sayısı",
+    "side_attack": "Saldıran",
+    "side_defense": "Savunan",
+    "side_first_half_tip": "İlk yarıdaki tarafın – devre arasında taraflar değişir."
   }
 }
