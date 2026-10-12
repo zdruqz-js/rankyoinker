@@ -471,6 +471,9 @@
     "lol_autobuild_tip": "Po zablokowaniu automatycznie stosuje najpopularniejszy build przeciw przeciwnikowi z linii (runy, czary, zestaw przedmiotów) i aktualizuje go, gdy przeciwnik jest znany. Jeśli sam zastosujesz build, zostaje on na tę grę.",
     "mu_auto_applied": "Zastosowano automatycznie: {opt} przeciw {vs}",
     "mu_auto_applied_general": "Zastosowano automatycznie: {opt} (ogólny build, przeciwnik z linii jeszcze nieznany)",
-    "mu_build_order": "Kolejność buildu"
+    "mu_build_order": "Kolejność buildu",
+    "mu_path": "Ścieżka zakupu",
+    "mu_path_item": "Ścieżka przedmiot {n}",
+    "mu_path_boots": "Ścieżka buty"
   }
 }

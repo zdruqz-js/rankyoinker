@@ -471,6 +471,9 @@
     "lol_autobuild_tip": "After you lock in, automatically applies the most popular build against your lane opponent (runes, spells, item set) and updates it once the opponent is known. If you apply a build yourself, that one stays for the game.",
     "mu_auto_applied": "Applied automatically: {opt} vs {vs}",
     "mu_auto_applied_general": "Applied automatically: {opt} (general build, lane opponent not known yet)",
-    "mu_build_order": "Build order"
+    "mu_build_order": "Build order",
+    "mu_path": "Buy path",
+    "mu_path_item": "Path item {n}",
+    "mu_path_boots": "Path boots"
   }
 }

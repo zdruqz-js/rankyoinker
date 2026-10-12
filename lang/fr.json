@@ -470,6 +470,9 @@
     "lol_autobuild_tip": "Après le verrouillage, applique automatiquement le build le plus populaire contre ton adversaire de voie (runes, sorts, set d'objets) et le met à jour dès que l'adversaire est connu. Si tu appliques toi-même un build, il reste pour la partie.",
     "mu_auto_applied": "Appliqué automatiquement : {opt} contre {vs}",
     "mu_auto_applied_general": "Appliqué automatiquement : {opt} (build général, adversaire de voie encore inconnu)",
-    "mu_build_order": "Ordre du build"
+    "mu_build_order": "Ordre du build",
+    "mu_path": "Parcours d'achat",
+    "mu_path_item": "Parcours objet {n}",
+    "mu_path_boots": "Parcours bottes"
   }
 }

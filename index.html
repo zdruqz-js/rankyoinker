@@ -674,6 +674,11 @@
   .mu-skill-start{flex-basis:100%; font-size:10.5px; color:var(--text-faint); margin-top:4px; letter-spacing:.04em;}
   .mu-sec-items{display:flex; flex-direction:column; gap:10px; min-width:0;}
   .mu-item-row{display:grid; grid-template-columns:118px minmax(0, 1fr); align-items:center; gap:10px;}
+  .mu-path{row-gap:8px;}
+  .mu-path-grp{display:inline-flex; align-items:center; gap:3px;}
+  .mu-path-gap{width:1px; height:26px; background:var(--border-strong); margin:0 8px;}
+  .mu-item.mu-comp img{width:24px; height:24px; border-radius:6px; opacity:.85;}
+  .mu-item.mu-target img{border-color:rgba(201,168,105,.65);}
   .mu-step i{position:absolute; left:-4px; top:-5px; min-width:15px; height:15px; padding:0 3px; border-radius:8px; font-style:normal;
     background:var(--panel); border:1px solid rgba(201,168,105,.55); color:var(--lol); font-family:var(--font-display); font-weight:700; font-size:9px;
     display:flex; align-items:center; justify-content:center; line-height:1;}
@@ -6880,9 +6885,19 @@
   function lolBuildOrder(b){
     return (b.order && b.order.length) ? b.order : (b.core || []).concat(b.boots ? [b.boots] : []);
   }
+  // Kaufweg-Blöcke: "Kaufweg Item 1", "Kaufweg Stiefel", "Kaufweg Item 2"
+  // (gleiche Titel wie die Auto-Builds im Dienst, siehe _lol_build_to_setup)
+  function lolPathBlocks(b){
+    let n = 0;
+    return (b.path || []).map(p => ({
+      type: p.boots ? t('mu_path_boots') : t('mu_path_item', {n: ++n}),
+      items: p.steps || [],
+    }));
+  }
   function lolBuildToSetup(champ, b){
     const blocks = [
       {type: t('lol_setup_block_start'), items: b.start || []},
+      ...lolPathBlocks(b),
       {type: t('mu_build_order'), items: lolBuildOrder(b)},
       {type: t('lol_setup_block_situational'), items: b.situational || []},
     ].filter(x => x.items.length);
@@ -6918,6 +6933,12 @@
       const it = gd.itemById[id];
       return `<span class="mu-item mu-step">${lolIcon(cdAsset(it && it.iconPath), it ? it.name : id)}<i>${i + 1}</i></span>`;
     }).join('<span class="mu-sep">›</span>');
+  }
+  // Kaufweg: je Ziel die Komponenten (klein) und dann das fertige Item (groß)
+  function lolPathIcons(gd, path){
+    const icon = (id, cls) => { const it = gd.itemById[id]; return `<span class="mu-item ${cls}">${lolIcon(cdAsset(it && it.iconPath), it ? it.name : id)}</span>`; };
+    return path.map(p => `<span class="mu-path-grp">${(p.steps || []).slice(0, -1).map(id => icon(id, 'mu-comp')).join('<span class="mu-sep">›</span>')}${(p.steps || []).length > 1 ? '<span class="mu-sep">›</span>' : ''}${icon(p.target, 'mu-target')}</span>`)
+      .join('<span class="mu-path-gap"></span>');
   }
   // Situative Items mit Winrate/Spielen im Tooltip (situationalInfo ab dev9)
   function lolSituationalIcons(gd, b){
@@ -6991,6 +7012,7 @@
             <div class="mu-lbl" style="margin-top:14px;">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>
           <div class="mu-sec mu-sec-items">
             <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_start')}</div><div class="mu-items">${lolItemIcons(gd, b.start)}</div></div>
+            ${(b.path || []).length ? `<div class="mu-item-row"><div class="mu-lbl">${t('mu_path')}</div><div class="mu-items mu-path">${lolPathIcons(gd, b.path)}</div></div>` : ''}
             <div class="mu-item-row"><div class="mu-lbl">${t('mu_build_order')}</div><div class="mu-items">${lolOrderIcons(gd, lolBuildOrder(b))}</div></div>
             <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_situational')}</div><div class="mu-items">${lolSituationalIcons(gd, b) || '<span class="mu-none">–</span>'}</div></div>
           </div>
@@ -7891,7 +7913,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev9";
+const CURRENT_VERSION = "2.4.2-dev10";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

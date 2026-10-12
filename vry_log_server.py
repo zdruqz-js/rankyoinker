@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev9"
+APP_VERSION = "2.4.2-dev10"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5373,6 +5373,13 @@ _LOL_BLOCK_NAMES = {
     "es": ("Inicio", "Orden del build", "Situacional"), "tr": ("Başlangıç", "Build sırası", "Duruma göre"),
     "ko": ("시작", "빌드 순서", "상황별"),
 }
+# Kaufweg-Blöcke (Komponenten -> fertiges Item); gleiche Titel wie im Overlay
+_LOL_PATH_NAMES = {
+    "de": ("Kaufweg Item {n}", "Kaufweg Stiefel"), "en": ("Path item {n}", "Path boots"),
+    "pl": ("Ścieżka przedmiot {n}", "Ścieżka buty"), "fr": ("Parcours objet {n}", "Parcours bottes"),
+    "es": ("Ruta objeto {n}", "Ruta botas"), "tr": ("Yol eşya {n}", "Yol botlar"),
+    "ko": ("구매 경로 아이템 {n}", "구매 경로 신발"),
+}
 
 
 def lol_set_auto_build(on):
@@ -5446,9 +5453,20 @@ def _lol_guess_opponent(my_pos, enemies, roles):
 
 
 def _lol_build_to_setup(name, b):
-    labels = _LOL_BLOCK_NAMES.get(_heartbeat_lang(), _LOL_BLOCK_NAMES["en"])
+    lang = _heartbeat_lang()
+    labels = _LOL_BLOCK_NAMES.get(lang, _LOL_BLOCK_NAMES["en"])
+    path_names = _LOL_PATH_NAMES.get(lang, _LOL_PATH_NAMES["en"])
+    path_blocks, n = [], 0
+    for p in (b.get("path") or [])[:3]:
+        if not isinstance(p, dict):
+            continue
+        if not p.get("boots"):
+            n += 1
+        path_blocks.append({"type": path_names[1] if p.get("boots") else path_names[0].format(n=n),
+                            "items": list(p.get("steps") or [])})
     blocks = [
         {"type": labels[0], "items": b.get("start") or []},
+        *path_blocks,
         # Volle Kaufreihenfolge (Server ab 2.4.2-dev9), sonst Kern + Stiefel
         {"type": labels[1], "items": b.get("order") or ((b.get("core") or []) + ([b["boots"]] if b.get("boots") else []))},
         {"type": labels[2], "items": b.get("situational") or []},

@@ -470,6 +470,9 @@
     "lol_autobuild_tip": "Kilitledikten sonra koridor rakibine karşı en popüler buildi (rünler, büyüler, eşya seti) otomatik uygular ve rakip belli olunca günceller. Kendin bir build uygularsan o maç boyunca o kalır.",
     "mu_auto_applied": "Otomatik uygulandı: {vs} karşısında {opt}",
     "mu_auto_applied_general": "Otomatik uygulandı: {opt} (genel build, koridor rakibi henüz belli değil)",
-    "mu_build_order": "Build sırası"
+    "mu_build_order": "Build sırası",
+    "mu_path": "Satın alma yolu",
+    "mu_path_item": "Yol eşya {n}",
+    "mu_path_boots": "Yol botlar"
   }
 }
