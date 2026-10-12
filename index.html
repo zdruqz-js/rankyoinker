@@ -625,8 +625,6 @@
   .mu-champ{display:flex; align-items:center; gap:10px; min-width:0;}
   .mu-champ img, .mu-anyone{width:44px; height:44px; border-radius:10px; flex-shrink:0; border:1px solid rgba(201,168,105,.4);}
   .mu-champ.enemy img, .mu-champ.enemy .mu-anyone{border-color:rgba(255,70,85,.45);}
-  .mu-champ[data-mu-pickvs]{cursor:pointer; padding:4px 8px 4px 4px; margin:-4px; border-radius:12px; transition:.15s ease;}
-  .mu-champ[data-mu-pickvs]:hover{background:rgba(255,255,255,.05);}
   .mu-anyone{display:flex; align-items:center; justify-content:center; font-family:var(--font-big); font-size:24px; color:var(--text-faint); background:var(--panel-2);}
   .mu-cname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .mu-lane{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
@@ -683,8 +681,6 @@
   .mu-none{color:var(--text-faint); font-size:12px;}
   .mu-foot{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
   .mu-source{margin-right:auto; font-size:10.5px; color:var(--text-faint);}
-  .bt-intro{display:flex; align-items:center; gap:18px; justify-content:space-between; flex-wrap:wrap;}
-  .bt-intro > div{flex:1; min-width:240px;}
 
   /* ---- League: Tab Presets ---- */
   .lp-section{padding:22px 24px;}
@@ -702,68 +698,6 @@
   .lp-col-title{font-family:var(--font-display); font-weight:700; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--lol); margin-bottom:12px;}
   .lp-col-title.ban{color:#ff7580;}
   .lp-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
-  .setup-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;}
-  .setup-card{display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--r-sm); border:1px solid var(--border); background:var(--panel-3);
-    color:var(--text); cursor:pointer; text-align:left; font-family:var(--font-body); transition:.16s ease;}
-  .setup-card:hover{border-color:rgba(201,168,105,.45); transform:translateY(-2px);}
-  .setup-card .sc-champ{width:52px; height:52px; border-radius:10px; flex-shrink:0;}
-  .sc-body{min-width:0; flex:1;}
-  .sc-name{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .sc-icons{display:flex; align-items:center; gap:4px; margin:6px 0 4px; min-height:22px;}
-  .sc-icons img{width:22px; height:22px; border-radius:6px; background:var(--panel-2);}
-  .sc-icons .sc-key{width:26px; height:26px; border-radius:50%;}
-  .sc-icons .sc-sub{width:18px; height:18px; margin-right:6px; background:none;}
-  .sc-meta{font-size:11px; color:var(--text-faint);}
-  .setup-card.add{justify-content:center; flex-direction:column; gap:6px; min-height:78px; border-style:dashed; color:var(--text-faint); font-weight:600; font-size:12px;}
-  .setup-card.add .sc-plus{font-size:24px; line-height:1;}
-  .setup-last{margin-top:14px; font-size:12px; color:var(--text-dim); display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-  .setup-last .ok{color:var(--green); font-weight:700;} .setup-last .bad{color:#ff7580; font-weight:700;}
-  .setup-err{flex-basis:100%; color:#ff7580; font-size:11.5px;}
-  .setup-status{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 18px;}
-  .setup-status .setup-last{margin-top:0;}
-
-  /* ---- Setup-Editor ---- */
-  .setup-editor{padding-top:6px;}
-  .se-head{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
-  .se-head img{width:58px; height:58px; border-radius:12px;}
-  .se-title{font-family:var(--font-big); font-size:28px; font-weight:600; letter-spacing:.03em; line-height:1;}
-  .se-sub{font-size:12px; color:var(--text-faint); margin-top:4px;}
-  .se-sec{padding:16px 0; border-top:1px solid var(--border);}
-  .se-sec-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:.1em; text-transform:uppercase;}
-  .se-sec-head span{font-family:var(--font-body); font-weight:500; font-size:11.5px; letter-spacing:0; text-transform:none; color:var(--text-faint);}
-  .se-sec-head .pbtn{padding:6px 11px; font-size:11px;}
-  .se-sec-head .pbtn:first-of-type{margin-left:auto;}
-  .sp-grid{display:flex; gap:6px; flex-wrap:wrap;}
-  .sp-btn, .rn-perk, .ib-item{position:relative; border:1px solid var(--border); background:var(--panel-3); cursor:pointer; padding:0; transition:.14s ease;}
-  .sp-btn{width:42px; height:42px; border-radius:9px; overflow:hidden; opacity:.55;}
-  .sp-btn img, .ib-item img{width:100%; height:100%; display:block;}
-  .sp-btn:hover, .rn-perk:hover, .ib-item:hover{opacity:1; border-color:var(--border-strong);}
-  .sp-btn.on{opacity:1; border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.35);}
-  .sp-btn b{position:absolute; right:2px; bottom:1px; font-size:10px; font-family:var(--font-display); color:#fff; text-shadow:0 1px 3px #000;}
-  .rn-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;}
-  .rn-lbl{font-size:10px; color:var(--text-faint); font-family:var(--font-display); font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px;}
-  .rn-styles{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
-  .rn-style{display:flex; align-items:center; gap:6px; padding:5px 10px 5px 6px; border-radius:999px; border:1px solid var(--border); background:var(--panel-3);
-    color:var(--text-faint); cursor:pointer; font-size:11px; font-weight:600; transition:.14s ease;}
-  .rn-style img{width:20px; height:20px;}
-  .rn-style.on{border-color:var(--lol); color:var(--text); background:rgba(201,168,105,.1);}
-  .rn-row{display:flex; gap:8px; margin-bottom:8px;}
-  .rn-perk{width:38px; height:38px; border-radius:50%; overflow:hidden; opacity:.4; filter:grayscale(.7);}
-  .rn-perk.key{width:48px; height:48px;}
-  .rn-row.shards .rn-perk{width:28px; height:28px;}
-  .rn-perk img{width:100%; height:100%; display:block;}
-  .rn-perk.on{opacity:1; filter:none; border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.35);}
-  .ib-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
-  .ib-tab{border:1px solid var(--border); background:var(--panel-3); color:var(--text-dim); border-radius:999px; padding:6px 13px; cursor:pointer; font-size:11.5px; font-weight:600;}
-  .ib-tab span{color:var(--text-faint); margin-left:4px;}
-  .ib-tab.on{border-color:var(--lol); color:var(--text);}
-  .ib-current{display:flex; gap:6px; flex-wrap:wrap; min-height:44px; align-items:center; padding:8px; border-radius:var(--r-sm); border:1px dashed var(--border-strong); margin-bottom:12px;}
-  .ib-empty{font-size:12px; color:var(--text-faint);}
-  .ib-item{width:38px; height:38px; border-radius:8px; overflow:hidden; opacity:.85;}
-  .ib-item.on{opacity:1; border-color:var(--lol);}
-  .ib-search{margin:0 0 10px !important; text-align:left !important;}
-  .ib-pool{display:flex; gap:5px; flex-wrap:wrap; max-height:220px; overflow-y:auto; padding:2px;}
-  .se-actions{justify-content:space-between !important; margin-top:6px;}
 
   /* Umschalten zwischen den beiden Spiel-Ansichten — eigene, von der
      Valorant-Zustandsmaschine (.show/.hidden) unabhängige Ebene. */
@@ -2244,12 +2178,10 @@
   <nav class="tabs" id="lolTabs">
     <span class="tab-pill" id="lolTabPill"></span>
     <button class="tab active" data-ltab="live" data-i18n="tab_lol_live">Spiel</button>
-    <button class="tab" data-ltab="builds" data-i18n="tab_lol_builds">Builds</button>
     <button class="tab" data-ltab="presets" data-i18n="tab_lol_presets">Presets</button>
     <button class="tab" data-ltab="history" data-i18n="tab_lol_history">Profil</button>
   </nav>
   <div id="lolContent" class="tabpanel active"></div>
-  <div id="lolPanelBuilds" class="tabpanel"></div>
   <div id="lolPanelPresets" class="tabpanel"></div>
   <div id="lolPanelHistory" class="tabpanel"></div>
 </div>
@@ -6336,7 +6268,6 @@
         ${chip('accept', lolAutoAccept !== false, t('lol_chip_accept'), t('lol_auto_accept'))}
         ${chip('ban', !!p.autoBan, t('lol_auto_ban_short'), t('lol_auto_ban_toggle'))}
         ${chip('pick', !!p.autoPick, t('lol_auto_pick_short'), t('lol_auto_pick_toggle'))}
-        ${chip('setups', !lolSetups || lolSetups.auto, t('lol_chip_setups'), t('lol_setups_auto'))}
       </div>
     </div>`;
   }
@@ -6363,7 +6294,7 @@
     if(kind === 'accept') call = api('/api/lol/autoaccept', {on: next}).then(j => { lolAutoAccept = next; return j; });
     else if(kind === 'ban') call = api('/api/lol/presets/auto', {ban: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
     else if(kind === 'pick') call = api('/api/lol/presets/auto', {pick: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
-    else call = api('/api/lol/setups/auto', {on: next}).then(j => { if(j && j.ok) lolSetups = j; else undo(); });
+    else return;
     call.catch(undo);
   }
 
@@ -6413,7 +6344,7 @@
   window.addEventListener('resize', moveGswPill);
 
   // ---- Tabs (Spiel / Verlauf) ----
-  const LOL_PANELS = {live:'lolContent', builds:'lolPanelBuilds', presets:'lolPanelPresets', history:'lolPanelHistory'};
+  const LOL_PANELS = {live:'lolContent', presets:'lolPanelPresets', history:'lolPanelHistory'};
   function moveLolPill(){
     const btn = document.querySelector('#lolTabs .tab.active');
     const pill = document.getElementById('lolTabPill');
@@ -6429,7 +6360,6 @@
     moveLolPill();
     if(name === 'history') renderLolHistory();
     else if(name === 'presets') renderLolPresetsTab();
-    else if(name === 'builds') renderLolBuildsTab();
   }
   document.querySelectorAll('#lolTabs .tab').forEach(b => b.addEventListener('click', () => setLolTab(b.getAttribute('data-ltab'))));
   window.addEventListener('resize', moveLolPill);
@@ -6483,7 +6413,6 @@
     // Stände für die Schnellschalter in der Kopfleiste
     if(state !== 'OFFLINE'){
       if(!lolPresets) loadLolPresets();
-      if(!lolSetups) loadLolSetups();
       if(lolAutoAccept === null) api('/api/lol/readycheck').then(j => { if(j && typeof j.autoAccept === 'boolean') lolAutoAccept = j.autoAccept; }).catch(() => {});
     }
 
@@ -6853,10 +6782,6 @@
     </div>`;
   }
 
-  let lolSetups = null;                   // {auto, champions:{id: setup}, last}
-  function loadLolSetups(){
-    return api('/api/lol/setups').then(j => { if(j && j.ok) lolSetups = j; return lolSetups; }).catch(() => lolSetups);
-  }
   // ---- Spieldaten für Runen/Zauber/Items (Community Dragon, CORS-offen) ----
   const CDRAGON_GD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
   function cdAsset(path){ return path ? CDRAGON_GD + String(path).replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : ''; }
@@ -6961,15 +6886,6 @@
       else toast('error', t('mu_apply_failed'), errs || (j && j.error) || '', {dur: 7000});
     }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
   }
-  function lolMuSaveSetup(champ, b, btn){
-    btn.disabled = true;
-    api('/api/lol/setups/save', {championId: champ, setup: lolBuildToSetup(champ, b)}).then(j => {
-      btn.disabled = false;
-      if(j && j.ok){ lolSetups = j; toast('success', t('lol_setup_saved_toast', {champ: lolChampName(champ)}), ''); }
-      else toast('error', t('lol_setup_save_failed'), (j && j.error) || '');
-    }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
-  }
-
   const LOL_MU_OPT = {popular: 'mu_opt_popular', winrate: 'mu_opt_winrate', alternative: 'mu_opt_alternative'};
   function lolMuNum(n){ return numFmt(n || 0); }
   function lolMuWr(w){ return w == null ? '–' : (Math.round(w * 10) / 10).toLocaleString(LOCALE) + ' %'; }
@@ -7006,15 +6922,15 @@
       ${first.length ? `<span class="mu-skill-start">${t('mu_skill_start')} ${first.map(esc).join(' ')}</span>` : ''}</div>`;
   }
 
-  // ctx: {champ, vs, pos, opt, mode:'cs'|'browse', guessed, enemies:[ids], showLanes}
+  // ctx: {champ, vs, pos, opt, mode:'cs', guessed, enemies:[ids], showLanes}
   function lolMuCardHtml(ctx, data, gd){
     const champName = lolChampName(ctx.champ);
     const vsName = ctx.vs ? lolChampName(ctx.vs) : null;
     const head = `<div class="mu-head">
       <div class="mu-champ">${lolIcon(champIconUrl(ctx.champ), champName)}<div><div class="mu-cname">${esc(champName)}</div><div class="mu-lane">${esc(LOL_LANE_LABELS[ctx.pos] || '')}</div></div></div>
       <div class="mu-vs">VS</div>
-      <div class="mu-champ enemy" ${ctx.mode === 'browse' ? 'data-mu-pickvs' : ''}>${ctx.vs ? lolIcon(champIconUrl(ctx.vs), vsName) : `<span class="mu-anyone">?</span>`}
-        <div><div class="mu-cname">${esc(vsName || t('mu_any_opponent'))}</div><div class="mu-lane">${ctx.vs && ctx.guessed ? t('mu_guessed') : (ctx.mode === 'browse' ? t('mu_choose_opponent') : '')}</div></div></div>
+      <div class="mu-champ enemy">${ctx.vs ? lolIcon(champIconUrl(ctx.vs), vsName) : `<span class="mu-anyone">?</span>`}
+        <div><div class="mu-cname">${esc(vsName || t('mu_any_opponent'))}</div><div class="mu-lane">${ctx.vs && ctx.guessed ? t('mu_guessed') : ''}</div></div></div>
       <div class="mu-stats">${data && data.ok && data.vs ? `<b>${lolMuWr(data.winrate)}</b><span>${t('mu_games', {n: lolMuNum(data.games)})}</span>` : ''}</div>
     </div>`;
     const enemyChips = ctx.mode === 'cs' && ctx.enemies.length ? `<div class="mu-opp-row"><span class="mu-lbl">${t('mu_opponent')}</span>
@@ -7051,7 +6967,6 @@
         </div>
         <div class="mu-foot">
           <div class="mu-source">${t('mu_source', {src: esc(data.source || ''), patch: esc(data.patch || '?')})}</div>
-          <button type="button" class="pbtn" data-mu-save>${svgIcon('download', 12)}${t('mu_save_setup')}</button>
           <button type="button" class="pbtn go" data-mu-apply title="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>
         </div>`;
     }
@@ -7075,8 +6990,6 @@
     const build = data && data.ok && data.builds && data.builds[Math.min(ui.opt || 0, data.builds.length - 1)];
     const ap = box.querySelector('[data-mu-apply]');
     if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap));
-    const sv = box.querySelector('[data-mu-save]');
-    if(sv && build) sv.addEventListener('click', () => lolMuSaveSetup(ctx.champ, build, sv));
   }
 
   // ---- Matchup-Karte im Champ Select ----
@@ -7118,70 +7031,14 @@
     bindLolMuCard(box, ctx, data, ui, rerender);
   }
 
-  // ---- Tab "Builds": Matchups unabhängig vom Champ Select nachschlagen ----
-  const lolBrowse = {champ: null, vs: null, pos: null, opt: 0};
-  async function renderLolBuildsTab(){
-    const el = document.getElementById('lolPanelBuilds');
-    if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader', 15, 'spin')} ${t('loading')}</div>`;
-    const [, roles] = await Promise.all([loadLolChampions(), lolRoles()]);
-    const intro = `<div class="lol-card bt-intro">
-      <div><div class="panel-head">${t('tab_lol_builds')}<span class="line"></span></div><p class="lp-desc" style="margin:0;">${t('mu_intro')}</p></div>
-      <button type="button" class="pbtn go" id="lolBrowsePick">${svgIcon('target', 12)}${t('mu_pick_champ')}</button>
-    </div>`;
-    if(!lolBrowse.champ){
-      el.innerHTML = intro + `<div class="lol-card"><div class="lol-empty">${t('mu_browse_empty')}</div></div>`;
-      el.querySelector('#lolBrowsePick').addEventListener('click', () => lolOpenChampChooser(t('mu_pick_champ'), false, id => { Object.assign(lolBrowse, {champ: id, vs: null, pos: null, opt: 0}); renderLolBuildsTab(); }));
-      return;
-    }
-    const pos = lolBrowse.pos || lolMainRole(roles, lolBrowse.champ);
-    const ctx = {champ: lolBrowse.champ, vs: lolBrowse.vs, pos, opt: lolBrowse.opt, mode: 'browse', guessed: false, enemies: [], showLanes: true};
-    const ui = {opt: lolBrowse.opt, vs: undefined, pos: undefined};
-    const rerender = () => {
-      Object.assign(lolBrowse, {opt: ui.opt, pos: ui.pos || lolBrowse.pos});
-      renderLolBuildsTab();
-    };
-    const sig = JSON.stringify([ctx.champ, ctx.vs, pos, lolMuTier, ctx.opt]);
-    el.dataset.sig = sig;
-    if(!el.querySelector('.mu-body')) el.innerHTML = intro + lolMuCardHtml(ctx, null, null);
-    const [data, gd] = await Promise.all([lolFetchMatchup(ctx.champ, ctx.vs, pos, lolMuTier), loadLolGameData().catch(() => null)]);
-    if(el.dataset.sig !== sig) return;
-    el.innerHTML = intro + lolMuCardHtml(ctx, data, gd);
-    bindLolMuCard(el, ctx, data, ui, rerender);
-    el.querySelector('#lolBrowsePick').addEventListener('click', () => lolOpenChampChooser(t('mu_pick_champ'), false, id => { Object.assign(lolBrowse, {champ: id, vs: id === lolBrowse.vs ? null : lolBrowse.vs, opt: 0, pos: null}); renderLolBuildsTab(); }));
-    const vsBtn = el.querySelector('[data-mu-pickvs]');
-    if(vsBtn) vsBtn.addEventListener('click', () => lolOpenChampChooser(t('mu_choose_opponent'), true, id => { lolBrowse.vs = id && id !== lolBrowse.champ ? id : null; lolBrowse.opt = 0; renderLolBuildsTab(); }));
-  }
-  // Champion-Auswahl als Popup; allowAny = zusätzlich "Alle Gegner" (liefert null)
-  async function lolOpenChampChooser(title, allowAny, onPick){
-    const champs = await loadLolChampions();
-    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
-      <div class="modal-body">
-        <div class="skinpick-head"><span class="wn">${esc(title)}</span></div>
-        <input class="lol-champ-filter" id="lolChooseFilter" type="text" placeholder="${t('champion_search_placeholder')}" autocomplete="off" style="margin-top:16px;">
-        <div class="agent-grid" id="lolChooseGrid" style="max-height:52vh; overflow-y:auto; padding:2px 4px 2px 2px; margin-top:14px;">${champs.map(c => lolChampCellHtml(c, false, false)).join('')}</div>
-        ${allowAny ? `<div class="skinpick-actions"><button class="pbtn" id="lolChooseAny">${t('mu_any_opponent')}</button></div>` : ''}
-      </div>`;
-    modalWrap.classList.add('open');
-    document.getElementById('modalClose').addEventListener('click', closeModal);
-    const f = document.getElementById('lolChooseFilter');
-    f.focus();
-    f.addEventListener('input', () => {
-      const q = f.value.toLowerCase();
-      document.querySelectorAll('#lolChooseGrid .agent-cell').forEach(c => { c.style.display = !q || (c.getAttribute('title') || '').toLowerCase().includes(q) ? '' : 'none'; });
-    });
-    document.querySelectorAll('#lolChooseGrid .agent-cell').forEach(c => c.addEventListener('click', () => { closeModal(); onPick(Number(c.getAttribute('data-champ'))); }));
-    const any = document.getElementById('lolChooseAny');
-    if(any) any.addEventListener('click', () => { closeModal(); onPick(null); });
-  }
-
-  // ---- Tab "Presets": Auto-Ban/-Pick je Lane + Champion-Setups ----
+  // ---- Tab "Presets": Auto-Ban/-Pick je Lane ----
   let lolPresetLane = null;
   const LOL_LANE_ORDER = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'OTHER'];
 
   async function renderLolPresetsTab(){
     const el = document.getElementById('lolPanelPresets');
     if(!el.innerHTML) el.innerHTML = `<div class="panel-loading">${svgIcon('loader',15,'spin')} ${t('loading')}</div>`;
-    const [, , , gd] = await Promise.all([loadLolChampions(), loadLolPresets(), loadLolSetups(), loadLolGameData().catch(() => null)]);
+    await Promise.all([loadLolChampions(), loadLolPresets()]);
     const p = lolPresets || {autoBan:false, autoPick:false, ban:{}, picks:{}};
     if(!lolPresetLane){
       lolPresetLane = LOL_LANE_ORDER.find(l => ((p.picks || {})[l] || []).some(Boolean) || ((p.ban || {})[l] || []).some(Boolean)) || 'TOP';
@@ -7206,305 +7063,15 @@
           <div class="lp-col"><div class="lp-col-title ban">${t('lol_ban_col')}</div><div class="lp-row">${row('ban')}</div></div>
           <div class="lp-col"><div class="lp-col-title">${t('lol_pick_col')}</div><div class="lp-row">${row('pick')}</div></div>
         </div>
-      </div>
-      <div class="lol-card lp-section">
-        <div class="panel-head">${t('lol_setups_head')}<span class="line"></span></div>
-        <p class="lp-desc">${t('lol_setups_desc')}</p>
-        <div class="lp-toggles"><div class="lol-toggle ${!lolSetups || lolSetups.auto ? 'on' : ''}" id="lolSetupAutoToggle"><span class="sw"></span><span class="lbl">${t('lol_setups_auto')}</span></div></div>
-        ${gd ? '' : `<div class="panel-empty" style="margin-bottom:12px;">${t('lol_setup_data_failed')}</div>`}
-        <div class="setup-grid">${lolSetupCardsHtml(gd)}</div>
-        ${lolSetupLastHtml()}
       </div>`;
     bindLolPresets();
     el.querySelectorAll('.lane-btn').forEach(b => b.addEventListener('click', () => { lolPresetLane = b.getAttribute('data-lane'); renderLolPresetsTab(); }));
-    const st = el.querySelector('#lolSetupAutoToggle');
-    if(st) st.addEventListener('click', () => {
-      const next = !st.classList.contains('on');
-      st.classList.toggle('on', next);
-      api('/api/lol/setups/auto', {on: next}).then(j => { if(j && j.ok) lolSetups = j; else st.classList.toggle('on', !next); })
-        .catch(() => st.classList.toggle('on', !next));
-    });
-    el.querySelectorAll('[data-setup]').forEach(c => c.addEventListener('click', () => gd && openLolSetupEditor(Number(c.getAttribute('data-setup')))));
-    const add = el.querySelector('#lolSetupAdd');
-    if(add) add.addEventListener('click', () => gd && openLolSetupChampionPicker());
   }
 
   function lolChampName(id){
     const c = (lolChampCatalog || []).find(x => x.id === id);
     return c ? c.name : String(id);
   }
-  function lolSetupCardsHtml(gd){
-    const champs = (lolSetups && lolSetups.champions) || {};
-    const cards = Object.entries(champs).sort((a, b) => lolChampName(Number(a[0])).localeCompare(lolChampName(Number(b[0])))).map(([id, su]) => {
-      const spells = (su.spells || []).map(sid => {
-        const sp = gd && gd.spellById[sid];
-        return sp ? `<img src="${esc(cdAsset(sp.iconPath))}" alt="" title="${esc(sp.name)}">` : '';
-      }).join('');
-      const r = su.runes;
-      const key = r && gd && gd.perkById[r.selectedPerkIds[0]];
-      const sub = r && gd && gd.styles.find(x => x.id === r.subStyleId);
-      const itemCount = (su.items || []).reduce((n, b) => n + b.items.length, 0);
-      return `<button type="button" class="setup-card" data-setup="${esc(id)}">
-        <img class="sc-champ" src="https://cdn.communitydragon.org/latest/champion/${esc(id)}/square" alt="" loading="lazy">
-        <div class="sc-body">
-          <div class="sc-name">${esc(su.name || lolChampName(Number(id)))}</div>
-          <div class="sc-icons">
-            ${key ? `<img class="sc-key" src="${esc(cdAsset(key.iconPath))}" alt="" title="${esc(key.name)}">` : ''}
-            ${sub ? `<img class="sc-sub" src="${esc(cdAsset(sub.iconPath))}" alt="" title="${esc(sub.name)}">` : ''}
-            ${spells}
-          </div>
-          <div class="sc-meta">${itemCount ? t('lol_setup_items_count', {n: itemCount}) : t('lol_setup_no_items')}</div>
-        </div>
-      </button>`;
-    }).join('');
-    return cards + `<button type="button" class="setup-card add" id="lolSetupAdd"><span class="sc-plus">+</span><span>${t('lol_setup_add')}</span></button>`;
-  }
-  function lolSetupLastHtml(){
-    const last = lolSetups && lolSetups.last;
-    if(!last || !last.results) return '';
-    const mark = (k) => last.results[k] ? `<span class="${last.results[k].ok ? 'ok' : 'bad'}">${last.results[k].ok ? '✓' : '✕'} ${t('lol_setup_' + k)}</span>` : '';
-    const errs = Object.values(last.results).filter(r => !r.ok && r.error).map(r => esc(r.error)).join(' · ');
-    return `<div class="setup-last">${t('lol_setup_last', {champ: esc(last.name || lolChampName(last.championId))})} ${mark('runes')}${mark('spells')}${mark('items')}${errs ? `<div class="setup-err">${errs}</div>` : ''}</div>`;
-  }
-
-  // ---- Setup-Editor ----
-  async function openLolSetupChampionPicker(){
-    const champs = await loadLolChampions();
-    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
-      <div class="modal-body">
-        <div class="skinpick-head"><span class="wn">${t('lol_setup_choose_champ')}</span></div>
-        <input class="lol-champ-filter" id="lolSetupFilter" type="text" placeholder="${t('champion_search_placeholder')}" autocomplete="off" style="margin-top:16px;">
-        <div class="agent-grid" id="lolSetupGrid" style="max-height:52vh; overflow-y:auto; padding:2px 4px 2px 2px; margin-top:14px;">${champs.map(c => lolChampCellHtml(c, !!(lolSetups && lolSetups.champions && lolSetups.champions[c.id]), false)).join('')}</div>
-      </div>`;
-    modalWrap.classList.add('open');
-    document.getElementById('modalClose').addEventListener('click', closeModal);
-    const f = document.getElementById('lolSetupFilter');
-    f.focus();
-    f.addEventListener('input', () => {
-      const q = f.value.toLowerCase();
-      document.querySelectorAll('#lolSetupGrid .agent-cell').forEach(c => { c.style.display = !q || (c.getAttribute('title') || '').toLowerCase().includes(q) ? '' : 'none'; });
-    });
-    document.querySelectorAll('#lolSetupGrid .agent-cell').forEach(c => c.addEventListener('click', () => openLolSetupEditor(Number(c.getAttribute('data-champ')))));
-  }
-
-  function runeStateFrom(runes, gd){
-    const st = {primary: 8000, sub: 8100, prim: [null, null, null, null], sec: {}, secOrder: [], shards: [null, null, null]};
-    if(!runes || !Array.isArray(runes.selectedPerkIds) || runes.selectedPerkIds.length !== 9) return st;
-    st.primary = runes.primaryStyleId; st.sub = runes.subStyleId;
-    st.prim = runes.selectedPerkIds.slice(0, 4);
-    const subStyle = gd.styles.find(x => x.id === st.sub);
-    runes.selectedPerkIds.slice(4, 6).forEach(pid => {
-      const row = subStyle ? subStyle.slots.findIndex((sl, i) => i >= 1 && i <= 3 && sl.perks.includes(pid)) : -1;
-      if(row > 0){ st.sec[row] = pid; st.secOrder.push(row); }
-    });
-    st.shards = runes.selectedPerkIds.slice(6, 9);
-    return st;
-  }
-  // null = keine Runen hinterlegt; 'incomplete' = angefangen, aber nicht fertig
-  function runePayload(st){
-    const rows = [1, 2, 3].filter(r => st.sec[r]);
-    const any = st.prim.some(Boolean) || rows.length || st.shards.some(Boolean);
-    if(!any) return null;
-    if(!st.prim.every(Boolean) || rows.length !== 2 || !st.shards.every(Boolean)) return 'incomplete';
-    return {primaryStyleId: st.primary, subStyleId: st.sub, selectedPerkIds: [...st.prim, ...rows.map(r => st.sec[r]), ...st.shards]};
-  }
-
-  async function openLolSetupEditor(champId){
-    const gd = await loadLolGameData().catch(() => null);
-    if(!gd){ toast('error', t('generic_error'), t('lol_setup_data_failed')); return; }
-    const existing = (lolSetups && lolSetups.champions && lolSetups.champions[champId]) || null;
-    const name = (existing && existing.name) || lolChampName(champId);
-    const state = {
-      spells: existing ? (existing.spells || []).slice() : [],
-      runes: runeStateFrom(existing && existing.runes, gd),
-      blocks: [t('lol_setup_block_start'), t('lol_setup_block_core'), t('lol_setup_block_situational')].map((label, i) => {
-        const b = existing && existing.items && existing.items[i];
-        return {type: (b && b.type) || label, items: b ? b.items.slice() : []};
-      }),
-      activeBlock: 0, itemQuery: '',
-    };
-
-    const styleBtn = (sty, sel, attr) => `<button type="button" class="rn-style ${sel ? 'on' : ''}" ${attr}="${sty.id}" title="${esc(sty.name)}"><img src="${esc(cdAsset(sty.iconPath))}" alt=""><span>${esc(sty.name)}</span></button>`;
-    const perkBtn = (pid, sel, attrs, keystone) => {
-      const pk = gd.perkById[pid];
-      if(!pk) return '';
-      return `<button type="button" class="rn-perk ${keystone ? 'key' : ''} ${sel ? 'on' : ''}" ${attrs} title="${esc(pk.name)}"><img src="${esc(cdAsset(pk.iconPath))}" alt=""></button>`;
-    };
-
-    function runesHtml(){
-      const r = state.runes;
-      const prim = gd.styles.find(x => x.id === r.primary) || gd.styles[0];
-      const sub = gd.styles.find(x => x.id === r.sub) || gd.styles.find(x => x.id !== prim.id);
-      const shardSlots = prim.slots.filter(sl => sl.type === 'kStatMod');
-      return `
-        <div class="rn-cols">
-          <div class="rn-col">
-            <div class="rn-lbl">${t('lol_setup_primary')}</div>
-            <div class="rn-styles">${gd.styles.map(x => styleBtn(x, x.id === prim.id, 'data-prim-style')).join('')}</div>
-            ${prim.slots.slice(0, 4).map((sl, row) => `<div class="rn-row">${sl.perks.map(pid => perkBtn(pid, r.prim[row] === pid, `data-prim-row="${row}" data-perk="${pid}"`, row === 0)).join('')}</div>`).join('')}
-          </div>
-          <div class="rn-col">
-            <div class="rn-lbl">${t('lol_setup_secondary')}</div>
-            <div class="rn-styles">${gd.styles.filter(x => x.id !== prim.id).map(x => styleBtn(x, x.id === sub.id, 'data-sub-style')).join('')}</div>
-            ${sub.slots.slice(1, 4).map((sl, i) => `<div class="rn-row">${sl.perks.map(pid => perkBtn(pid, r.sec[i + 1] === pid, `data-sec-row="${i + 1}" data-perk="${pid}"`)).join('')}</div>`).join('')}
-            <div class="rn-lbl" style="margin-top:12px;">${t('lol_setup_shards')}</div>
-            ${shardSlots.map((sl, i) => `<div class="rn-row shards">${sl.perks.map(pid => perkBtn(pid, r.shards[i] === pid, `data-shard-row="${i}" data-perk="${pid}"`)).join('')}</div>`).join('')}
-          </div>
-        </div>`;
-    }
-    function spellsHtml(){
-      return `<div class="sp-grid">${gd.spells.map(sp => {
-        const idx = state.spells.indexOf(sp.id);
-        return `<button type="button" class="sp-btn ${idx >= 0 ? 'on' : ''}" data-spell="${sp.id}" title="${esc(sp.name)}"><img src="${esc(cdAsset(sp.iconPath))}" alt="">${idx >= 0 ? `<b>${idx === 0 ? 'D' : 'F'}</b>` : ''}</button>`;
-      }).join('')}</div>`;
-    }
-    function itemsHtml(){
-      const q = state.itemQuery.toLowerCase();
-      const pool = gd.items.filter(i => !q || i.name.toLowerCase().includes(q)).slice(0, q ? 80 : 400);
-      return `
-        <div class="ib-tabs">${state.blocks.map((b, i) => `<button type="button" class="ib-tab ${i === state.activeBlock ? 'on' : ''}" data-block="${i}">${esc(b.type)} <span>${b.items.length}</span></button>`).join('')}</div>
-        <div class="ib-current">${state.blocks[state.activeBlock].items.map((id, i) => {
-          const it = gd.itemById[id];
-          return `<button type="button" class="ib-item on" data-remove="${i}" title="${esc(it ? it.name : id)} – ${t('lol_setup_remove_hint')}"><img src="${esc(cdAsset(it && it.iconPath))}" alt=""></button>`;
-        }).join('') || `<span class="ib-empty">${t('lol_setup_items_hint')}</span>`}</div>
-        <input class="lol-champ-filter ib-search" id="lolItemSearch" type="text" placeholder="${t('lol_setup_item_search')}" autocomplete="off" value="${esc(state.itemQuery)}">
-        <div class="ib-pool">${pool.map(it => `<button type="button" class="ib-item" data-add="${it.id}" title="${esc(it.name)} · ${it.priceTotal}g"><img src="${esc(cdAsset(it.iconPath))}" alt="" loading="lazy"></button>`).join('')}</div>`;
-    }
-
-    function draw(){
-      modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
-        <div class="modal-body setup-editor">
-          <div class="se-head">
-            <img src="https://cdn.communitydragon.org/latest/champion/${champId}/square" alt="">
-            <div><div class="se-title">${esc(name)}</div><div class="se-sub">${t('lol_setups_desc_short')}</div></div>
-          </div>
-          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_spells')}<span>${t('lol_setup_spells_hint')}</span></div><div id="seSpells">${spellsHtml()}</div></div>
-          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_runes')}<button type="button" class="pbtn" id="seImportRunes">${svgIcon('download', 12)}${t('lol_setup_import_runes')}</button><button type="button" class="pbtn" id="seClearRunes">${svgIcon('x', 11)}${t('reset_btn')}</button></div><div id="seRunes">${runesHtml()}</div></div>
-          <div class="se-sec"><div class="se-sec-head">${t('lol_setup_items')}<span>${t('lol_setup_items_where')}</span></div><div id="seItems">${itemsHtml()}</div></div>
-          <div class="skinpick-actions se-actions">
-            ${existing ? `<button class="pbtn halt" id="seDelete">${svgIcon('x', 12)}${t('lol_setup_delete')}</button>` : ''}
-            <button class="pbtn go" id="seSave">${svgIcon('check', 12)}${t('save')}</button>
-          </div>
-        </div>`;
-      document.getElementById('modalClose').addEventListener('click', closeModal);
-      bind();
-    }
-    function redraw(id, html){ const box = document.getElementById(id); if(box){ box.innerHTML = html; bind(); } }
-
-    function bind(){
-      modalBox.querySelectorAll('[data-spell]').forEach(b => b.onclick = () => {
-        const id = Number(b.getAttribute('data-spell'));
-        const i = state.spells.indexOf(id);
-        if(i >= 0) state.spells.splice(i, 1);
-        else if(state.spells.length < 2) state.spells.push(id);
-        else state.spells[1] = id;
-        redraw('seSpells', spellsHtml());
-      });
-      const r = state.runes;
-      modalBox.querySelectorAll('[data-prim-style]').forEach(b => b.onclick = () => {
-        const id = Number(b.getAttribute('data-prim-style'));
-        if(id === r.primary) return;
-        r.primary = id; r.prim = [null, null, null, null];
-        if(r.sub === id){ r.sub = gd.styles.find(x => x.id !== id).id; r.sec = {}; r.secOrder = []; }
-        redraw('seRunes', runesHtml());
-      });
-      modalBox.querySelectorAll('[data-sub-style]').forEach(b => b.onclick = () => {
-        const id = Number(b.getAttribute('data-sub-style'));
-        if(id === r.sub) return;
-        r.sub = id; r.sec = {}; r.secOrder = [];
-        redraw('seRunes', runesHtml());
-      });
-      modalBox.querySelectorAll('[data-prim-row]').forEach(b => b.onclick = () => {
-        const row = Number(b.getAttribute('data-prim-row')), pid = Number(b.getAttribute('data-perk'));
-        r.prim[row] = r.prim[row] === pid ? null : pid;
-        redraw('seRunes', runesHtml());
-      });
-      modalBox.querySelectorAll('[data-sec-row]').forEach(b => b.onclick = () => {
-        const row = Number(b.getAttribute('data-sec-row')), pid = Number(b.getAttribute('data-perk'));
-        r.secOrder = r.secOrder.filter(x => x !== row);
-        if(r.sec[row] === pid){ delete r.sec[row]; }
-        else {
-          r.sec[row] = pid; r.secOrder.push(row);
-          // Nur zwei Nebenbaum-Reihen erlaubt - die älteste Wahl fällt raus
-          while(r.secOrder.length > 2){ delete r.sec[r.secOrder.shift()]; }
-        }
-        redraw('seRunes', runesHtml());
-      });
-      modalBox.querySelectorAll('[data-shard-row]').forEach(b => b.onclick = () => {
-        const row = Number(b.getAttribute('data-shard-row')), pid = Number(b.getAttribute('data-perk'));
-        r.shards[row] = r.shards[row] === pid ? null : pid;
-        redraw('seRunes', runesHtml());
-      });
-      modalBox.querySelectorAll('[data-block]').forEach(b => b.onclick = () => { state.activeBlock = Number(b.getAttribute('data-block')); redraw('seItems', itemsHtml()); });
-      modalBox.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
-        const blk = state.blocks[state.activeBlock];
-        if(blk.items.length >= 12){ toast('warn', t('lol_setup_block_full'), ''); return; }
-        blk.items.push(Number(b.getAttribute('data-add')));
-        redraw('seItems', itemsHtml());
-      });
-      modalBox.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
-        state.blocks[state.activeBlock].items.splice(Number(b.getAttribute('data-remove')), 1);
-        redraw('seItems', itemsHtml());
-      });
-      const search = document.getElementById('lolItemSearch');
-      if(search) search.oninput = () => {
-        state.itemQuery = search.value;
-        const pos = search.selectionStart;
-        redraw('seItems', itemsHtml());
-        const s2 = document.getElementById('lolItemSearch');
-        if(s2){ s2.focus(); s2.setSelectionRange(pos, pos); }
-      };
-      const imp = document.getElementById('seImportRunes');
-      if(imp) imp.onclick = () => api('/api/lol/currentrunes').then(j => {
-        if(!j || !j.ok){ toast('error', t('lol_setup_import_failed'), (j && j.error) || ''); return; }
-        state.runes = runeStateFrom(j.runes, gd);
-        redraw('seRunes', runesHtml());
-        toast('success', t('lol_setup_imported_toast'), j.name || '');
-      }).catch(() => toast('error', t('generic_error'), t('err_local_service_port')));
-      const clr = document.getElementById('seClearRunes');
-      if(clr) clr.onclick = () => { state.runes = runeStateFrom(null, gd); state.runes.primary = r.primary; state.runes.sub = r.sub; redraw('seRunes', runesHtml()); };
-      const save = document.getElementById('seSave');
-      if(save) save.onclick = () => {
-        const runes = runePayload(state.runes);
-        if(runes === 'incomplete'){ toast('warn', t('lol_setup_runes_incomplete'), t('lol_setup_runes_incomplete_hint')); return; }
-        if(state.spells.length === 1){ toast('warn', t('lol_setup_spells_incomplete'), t('lol_setup_spells_hint')); return; }
-        save.disabled = true;
-        api('/api/lol/setups/save', {championId: champId, setup: {name, spells: state.spells, runes, items: state.blocks}}).then(j => {
-          if(!j || !j.ok){ toast('error', t('lol_setup_save_failed'), (j && j.error) || ''); save.disabled = false; return; }
-          lolSetups = j;
-          toast('success', t('lol_setup_saved_toast', {champ: name}), '');
-          closeModal();
-          if(lolTab === 'presets') renderLolPresetsTab();
-        }).catch(() => { toast('error', t('generic_error'), t('err_local_service_port')); save.disabled = false; });
-      };
-      const del = document.getElementById('seDelete');
-      if(del) del.onclick = () => api('/api/lol/setups/delete', {championId: champId}).then(j => {
-        if(j && j.ok) lolSetups = j;
-        closeModal();
-        if(lolTab === 'presets') renderLolPresetsTab();
-      }).catch(() => {});
-    }
-
-    draw();
-    modalWrap.classList.add('open');
-  }
-
-  // ---- Champ Select: Status des Champion-Setups ----
-  function lolSetupStatusHtml(setups, cs){
-    if(!setups || !setups.auto) return '';
-    const me = (cs.myTeam || []).find(m => m.me);
-    const champ = me && me.championId;
-    const su = champ && setups.champions && setups.champions[champ];
-    if(!su) return '';
-    const last = setups.last;
-    const applied = last && last.championId === champ && (Date.now() / 1000 - last.at) < 900;
-    const body = applied
-      ? `${t('lol_setup_last', {champ: esc(su.name || lolChampName(champ))})} ${['runes', 'spells', 'items'].filter(k => last.results[k]).map(k => `<span class="${last.results[k].ok ? 'ok' : 'bad'}">${last.results[k].ok ? '✓' : '✕'} ${t('lol_setup_' + k)}</span>`).join('')}`
-      : t('lol_setup_status_pending', {champ: esc(su.name || lolChampName(champ))});
-    return `<div class="lol-card setup-status"><div class="setup-last">${body}</div>
-      <button class="pbtn" id="lolSetupApply">${svgIcon('refresh', 12)}${t('lol_setup_apply_again')}</button></div>`;
-  }
-
   function bindLolPresets(){
     const banToggle = document.getElementById('lolAutoBanToggle');
     if(banToggle) banToggle.addEventListener('click', () => {
@@ -7880,12 +7447,10 @@
     // Champion-Katalog vorher laden: die Karten zeigen im Champ Select den
     // Namen daraus (der Dienst liefert dort nur die ID) und werden danach nur
     // neu gebaut, wenn sich ihre Daten ändern.
-    const [cs, presetsForDebug, setupsForStatus] = await Promise.all([
+    const [cs, presetsForDebug] = await Promise.all([
       loadLolChampions().then(() => api('/api/lol/champselect')).catch(() => ({ok:false})),
       api('/api/lol/presets').catch(() => null),
-      api('/api/lol/setups').catch(() => null),
     ]);
-    if(setupsForStatus && setupsForStatus.ok) lolSetups = setupsForStatus;
     if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(!cs || !cs.ok){
       const body = lolLayout('cs-error');
@@ -7905,7 +7470,7 @@
     // Grundgerüst nur anlegen, wenn es nicht schon da ist (z. B. frischer
     // Wechsel aus der Lobby) — danach wird nur noch gezielt gepatcht.
     // Oben nebeneinander: Champion-Raster (nur während der eigenen Aktion) und
-    // der Matchup-Build, darunter Setup-Status und die beiden Teams.
+    // der Matchup-Build, darunter die beiden Teams.
     const body = lolLayout('champselect');
     const phaseLabel = {PLANNING: t('lol_phase_planning'), BAN_PICK: '', FINALIZATION: t('lol_phase_final')}[cs.phase] || '';
     lolSetBar(state, [phaseLabel, timeLeft != null ? timeLeft + ' s' : ''].filter(Boolean).join(' · '));
@@ -7913,22 +7478,13 @@
     if(!teamsBox){
       body.innerHTML = `<div id="lolAutoAlertBox"></div>
         <div class="cs-grid" id="lolCsGrid"><div id="lolCsPicker"></div><div id="lolMuBox"></div></div>
-        <div id="lolSetupBox"></div><div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
+        <div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
       lolMuCs.sig = '';
     }
     const alertBox = document.getElementById('lolAutoAlertBox');
     if(alertBox) alertBox.innerHTML = lolAutoAlertHtml(lolPresets);
-    const setupBox = document.getElementById('lolSetupBox');
-    if(setupBox){
-      const html = lolSetupStatusHtml(setupsForStatus, cs);
-      if(setupBox.innerHTML !== html){
-        setupBox.innerHTML = html;
-        const b = setupBox.querySelector('#lolSetupApply');
-        if(b) b.addEventListener('click', () => { b.disabled = true; api('/api/lol/setups/apply', {}).catch(() => {}); });
-      }
-    }
     const debugBox = document.getElementById('lolAutoDebugBox');
     if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
@@ -8292,7 +7848,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev6";
+const CURRENT_VERSION = "2.4.2-dev7";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

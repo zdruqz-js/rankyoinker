@@ -507,7 +507,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev6"
+APP_VERSION = "2.4.2-dev7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4524,10 +4524,6 @@ def _lol_watcher():
             _lol_auto["lastCrash"] = {"error": "%s: %s" % (type(e).__name__, e), "at": time.time()}
             report_error("lol-auto", e)
         try:
-            _lol_setup_tick()
-        except Exception as e:
-            report_error("lol-setup", e)
-        try:
             if lol_gamestate().get("state") == "INGAME":
                 _lol_record_encounter_now()
         except Exception:
@@ -5201,18 +5197,13 @@ def _lol_auto_tick():
                                 "at": time.time(), "championId": desired, "attempts": _lol_auto["attempts"]}
 
 
-# ---- Champion-Setups: Runen, Beschwörerzauber und Item-Set pro Champion ----
-# Vom Nutzer selbst hinterlegt (kein Build-Dienst - Riots Entwicklerrichtlinie
-# verbietet Apps, die Spielentscheidungen vorgeben). Sobald der eigene Pick
-# gelockt ist (ARAM: sobald ein Champion zugewiesen ist), schreibt der Wächter
-# alles per LCU in den Client. Item-Sets erscheinen dadurch im Shop im Spiel,
-# ganz ohne Overlay.
+# ---- Builds anwenden: Runen, Beschwörerzauber und Item-Set ----
+# Kommt aus den Matchup-Builds im Overlay (Klick auf "Übernehmen"). Die früheren
+# gespeicherten Champion-Setups samt automatischem Anwenden sind seit 2.4.2-dev7
+# entfernt (Nutzerwunsch); eine alte vry_lol_setups.json wird nicht mehr gelesen.
+# Item-Sets erscheinen im Shop im Spiel, ganz ohne Overlay.
 
-LOL_SETUPS_FILE = os.path.join(DATA_DIR, "vry_lol_setups.json")
 LOL_SETUP_PAGE_PREFIX = "RankYoinker"
-_lol_setups_lock = threading.Lock()
-_lol_setups = {"auto": True, "champions": {}}     # champions: {"<champId>": setup}
-_lol_setup_state = {"applied": None, "last": None}
 
 
 def _pos_int(v):
@@ -5249,73 +5240,6 @@ def _clean_setup(raw):
     return {"name": str(raw.get("name") or "")[:40],
             "spells": spells if len(spells) == 2 else [],
             "runes": runes, "items": blocks}
-
-
-def _lol_setups_restore():
-    data = _load_json(LOL_SETUPS_FILE)
-    if not isinstance(data, dict):
-        return
-    champs = {}
-    for cid, raw in (data.get("champions") or {}).items():
-        if _pos_int(cid):
-            try:
-                champs[str(int(cid))] = _clean_setup(raw)
-            except ValueError:
-                pass
-    with _lol_setups_lock:
-        _lol_setups["auto"] = bool(data.get("auto", True))
-        _lol_setups["champions"] = champs
-
-
-def _lol_setups_save():
-    with _lol_setups_lock:
-        _save_json(LOL_SETUPS_FILE, {"auto": _lol_setups["auto"], "champions": dict(_lol_setups["champions"])})
-
-
-def lol_setups_state():
-    with _lol_setups_lock:
-        return {"ok": True, "auto": _lol_setups["auto"], "champions": dict(_lol_setups["champions"]),
-                "last": _lol_setup_state["last"]}
-
-
-def lol_setups_save(champion_id, raw):
-    cid = _pos_int(champion_id)
-    if not cid:
-        return {"ok": False, "error": "Kein Champion gewählt."}
-    try:
-        setup = _clean_setup(raw)
-    except ValueError as e:
-        return {"ok": False, "error": str(e)}
-    if not (setup["spells"] or setup["runes"] or setup["items"]):
-        return {"ok": False, "error": "Leeres Setup - mindestens Runen, Zauber oder Items hinterlegen."}
-    with _lol_setups_lock:
-        _lol_setups["champions"][str(cid)] = setup
-    _lol_setups_save()
-    record_feature("lol_setup_saved")
-    return lol_setups_state()
-
-
-def lol_setups_delete(champion_id):
-    cid = _pos_int(champion_id)
-    with _lol_setups_lock:
-        _lol_setups["champions"].pop(str(cid), None)
-    _lol_setups_save()
-    return lol_setups_state()
-
-
-def lol_setups_set_auto(on):
-    with _lol_setups_lock:
-        _lol_setups["auto"] = bool(on)
-    _lol_setups_save()
-    return lol_setups_state()
-
-
-def lol_setups_apply_again():
-    """Setzt das "schon angewendet"-Merkmal zurück - der nächste Wächter-Takt
-    wendet das Setup des aktuellen Champions erneut an (z. B. nach einer
-    Änderung mitten im Champ Select)."""
-    _lol_setup_state["applied"] = None
-    return {"ok": True}
 
 
 def lol_apply_build(champion_id, raw):
@@ -5361,26 +5285,8 @@ def lol_apply_build(champion_id, raw):
             report_error("lol-build", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
     if not results:
         return {"ok": False, "error": "Nichts zum Übernehmen."}
-    # Sonst überschreibt der Setup-Wächter den gewählten Build direkt nach dem
-    # Locken wieder mit dem gespeicherten Champion-Setup.
-    if session:
-        _lol_setup_state["applied"] = (session.get("gameId"), cid)
-    _lol_setup_state["last"] = {"championId": cid, "name": name, "at": time.time(), "results": results}
     record_feature("lol_build_applied")
     return {"ok": all(r.get("ok") for r in results.values()), "results": results}
-
-
-def lol_current_runes():
-    """Aktive Runenseite aus dem Client - zum Übernehmen in ein Setup."""
-    try:
-        st, page = lcu_get("/lol-perks/v1/currentpage")
-    except LcuError as e:
-        return {"ok": False, "error": str(e)}
-    if st != 200 or not isinstance(page, dict) or not page.get("primaryStyleId"):
-        return {"ok": False, "error": "Keine aktive Runenseite im Client gefunden."}
-    return {"ok": True, "name": page.get("name"),
-            "runes": {"primaryStyleId": page.get("primaryStyleId"), "subStyleId": page.get("subStyleId"),
-                      "selectedPerkIds": page.get("selectedPerkIds") or []}}
 
 
 def _lol_apply_runes(champ_name, runes):
@@ -5433,58 +5339,6 @@ def _lol_apply_itemset(champ_id, champ_name, blocks):
     st, _ = lcu_put(path, data)
     return {"ok": st in (200, 201, 204), "status": st,
             "error": None if st in (200, 201, 204) else "Riot lehnte ab (Status %s)." % st}
-
-
-def _lol_setup_tick():
-    with _lol_setups_lock:
-        auto = _lol_setups["auto"]
-        champs = dict(_lol_setups["champions"])
-    if not auto or not champs:
-        return
-    try:
-        st, j = lcu_get("/lol-champ-select/v1/session")
-    except LcuError:
-        return
-    if st != 200 or not isinstance(j, dict):
-        _lol_setup_state["applied"] = None
-        return
-    local = j.get("localPlayerCellId")
-    me = next((c for c in (j.get("myTeam") or []) if c.get("cellId") == local), {})
-    champ = me.get("championId") or 0
-    if not champ:
-        # Neuere Champ-Select-Version: championId kann leer bleiben, siehe
-        # _lol_cs_champions(). Nur ein gelockter Pick zählt hier.
-        cid, hover = _lol_cs_champions(j).get(local) or (0, True)
-        champ = cid if not hover else 0
-    # Solange die eigene Pick-Aktion noch offen ist, ist der Champion nur
-    # gehovert - erst nach dem Locken anwenden (ARAM hat keine Pick-Aktion).
-    pick_open = any(a.get("actorCellId") == local and a.get("type") == "pick" and not a.get("completed")
-                    for g in (j.get("actions") or []) for a in g)
-    setup = champs.get(str(champ))
-    if not champ or pick_open or not setup:
-        return
-    key = (j.get("gameId"), champ)
-    if _lol_setup_state["applied"] == key:
-        return
-    _lol_setup_state["applied"] = key
-    phase = (j.get("timer") or {}).get("phase")
-    name = setup.get("name") or str(champ)
-    results = {}
-    for what, fn in (("runes", lambda: _lol_apply_runes(name, setup["runes"]) if setup["runes"] else None),
-                     ("spells", lambda: _lol_apply_spells(setup["spells"]) if setup["spells"] else None),
-                     ("items", lambda: _lol_apply_itemset(champ, name, setup["items"]) if setup["items"] else None)):
-        try:
-            res = fn()
-        except LcuError as e:
-            res = {"ok": False, "status": None, "error": str(e)}
-        if res is None:
-            continue
-        results[what] = res
-        _lol_auto_log(what, "setup", None, champ, res, phase)
-        if not res.get("ok"):
-            report_error("lol-setup", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
-    _lol_setup_state["last"] = {"championId": champ, "name": name, "at": time.time(), "results": results}
-    record_feature("lol_setup_applied")
 
 
 # ---- Match-Verlauf (eigene puuid, lokale LCU-Historie — kein API-Key nötig) ----
@@ -6104,14 +5958,6 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/presets/pick":
             self._safe(lambda: lol_presets_set_pick(body.get("position"), body.get("slot", 0),
                                                      body.get("championId"), body.get("name")))
-        elif path == "/api/lol/setups/save":
-            self._safe(lambda: lol_setups_save(body.get("championId"), body.get("setup")))
-        elif path == "/api/lol/setups/delete":
-            self._safe(lambda: lol_setups_delete(body.get("championId")))
-        elif path == "/api/lol/setups/auto":
-            self._safe(lambda: lol_setups_set_auto(body.get("on", True)))
-        elif path == "/api/lol/setups/apply":
-            self._safe(lol_setups_apply_again)
         elif path == "/api/lol/build/apply":
             self._safe(lambda: lol_apply_build(body.get("championId"), body.get("setup")))
         elif path == "/api/lol/presets/auto":
@@ -6462,11 +6308,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/presets":
             self._json(lol_presets_state())
 
-        elif path == "/api/lol/setups":
-            self._json(lol_setups_state())
 
-        elif path == "/api/lol/currentrunes":
-            self._safe(lol_current_runes)
 
         else:
             self._json({}, 404)
@@ -6805,7 +6647,6 @@ if __name__ == "__main__":
     # vom VALORANT-Zweig oben — gleiches Prinzip wie der Instalock.
     _lol_cfg_restore()
     _lol_presets_restore()
-    _lol_setups_restore()
     threading.Thread(target=_lol_watcher, daemon=True).start()
     # RankYoinker: anonymer Aktiv-Nutzer-Ping für die Website (siehe oben)
     threading.Thread(target=_active_user_heartbeat, daemon=True).start()
