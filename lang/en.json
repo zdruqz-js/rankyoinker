@@ -474,6 +474,8 @@
     "mu_build_order": "Build order",
     "mu_path": "Buy path",
     "mu_path_item": "Path item {n}",
-    "mu_path_boots": "Path boots"
+    "mu_path_boots": "Path boots",
+    "mu_apply_items": "Apply item set",
+    "mu_apply_items_hint": "In game only items can still be changed, not runes or spells. Writes the item set for the selected opponent to the client."
   }
 }

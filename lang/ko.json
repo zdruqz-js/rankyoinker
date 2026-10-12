@@ -474,6 +474,8 @@
     "mu_build_order": "빌드 순서",
     "mu_path": "구매 경로",
     "mu_path_item": "구매 경로 아이템 {n}",
-    "mu_path_boots": "구매 경로 신발"
+    "mu_path_boots": "구매 경로 신발",
+    "mu_apply_items": "아이템 세트 적용",
+    "mu_apply_items_hint": "게임 중에는 룬과 소환사 주문은 바꿀 수 없고 아이템만 바꿀 수 있습니다. 선택한 상대에 맞는 아이템 세트를 클라이언트에 적용합니다."
   }
 }

@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev10"
+APP_VERSION = "2.4.2-dev11"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5292,9 +5292,12 @@ def lol_apply_build(champion_id, raw, manual=True):
             report_error("lol-build", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
     if not results:
         return {"ok": False, "error": "Nichts zum Übernehmen."}
-    if session and manual:
-        # Selbst gewählt -> der Auto-Build überschreibt das in diesem Spiel nicht mehr
-        _lol_autobuild["manualGame"] = session.get("gameId")
+    if manual:
+        # Selbst gewählt -> der Auto-Build überschreibt das in diesem Spiel nicht
+        # mehr (im Champ Select wie im laufenden Spiel)
+        game = session.get("gameId") if session else ((_lol_gameflow() or {}).get("gameData") or {}).get("gameId")
+        if game:
+            _lol_autobuild["manualGame"] = game
     record_feature("lol_build_applied" if manual else "lol_build_auto")
     return {"ok": all(r.get("ok") for r in results.values()), "results": results}
 
@@ -5475,6 +5478,68 @@ def _lol_build_to_setup(name, b):
             "runes": b.get("runes"), "items": [x for x in blocks if x["items"]]}
 
 
+def _lol_gameflow():
+    try:
+        st, j = lcu_get("/lol-gameflow/v1/session")
+    except LcuError:
+        return None
+    return j if st == 200 and isinstance(j, dict) else None
+
+
+_lol_autobuild_ingame_ts = [0.0]
+
+
+def _lol_autobuild_ingame():
+    """Im laufenden Spiel kennt die Live-Client-API die echten Positionen. War
+    der im Champ Select geschätzte Lane-Gegner falsch (oder noch unbekannt),
+    das Item-Set gegen den echten Gegner neu schreiben - nur Items, Runen und
+    Zauber lassen sich im Spiel nicht mehr ändern. Höchstens alle 5 s."""
+    now = time.time()
+    if now - _lol_autobuild_ingame_ts[0] < 5:
+        return
+    _lol_autobuild_ingame_ts[0] = now
+    gf = _lol_gameflow()
+    if not gf or gf.get("phase") != "InProgress":
+        return
+    gd = gf.get("gameData") or {}
+    game = gd.get("gameId")
+    if not game or (gd.get("queue") or {}).get("id") in LOL_AUTOBUILD_SKIP_QUEUES or _lol_autobuild["manualGame"] == game:
+        return
+    players, active = _live_get("/playerlist"), _live_get("/activeplayer")
+    if not players or not active:
+        return
+    me_id = active.get("riotId") or active.get("summonerName")
+    me = next((p for p in players if (p.get("riotId") or p.get("summonerName")) == me_id), None)
+    pos = ((me or {}).get("position") or "").upper()
+    if not me or pos not in LOL_LANES:
+        return
+    by_name = _lol_champion_by_name()
+    champ = by_name.get((me.get("championName") or "").lower())
+    opp = next((p for p in players if p.get("team") != me.get("team")
+                and (p.get("position") or "").upper() == pos), None)
+    vs = by_name.get(((opp or {}).get("championName") or "").lower())
+    if not champ or not vs:
+        return
+    key = ("ingame", game, champ, vs, pos)
+    if _lol_autobuild["applied"] == key:
+        return
+    last = _lol_autobuild["last"] or {}
+    if last.get("gameId") == game and last.get("championId") == champ and last.get("vs") == vs:
+        _lol_autobuild["applied"] = key      # Schätzung war richtig - nichts zu tun
+        return
+    data = _lol_fetch_matchup(champ, vs, pos)
+    if not data:
+        return
+    _lol_autobuild["applied"] = key
+    b = data["builds"][0]
+    setup = _lol_build_to_setup(_lol_champion_catalog()["byId"].get(champ) or str(champ), b)
+    setup["runes"], setup["spells"] = None, []
+    res = lol_apply_build(champ, setup, manual=False)
+    _lol_autobuild["last"] = {"gameId": game, "championId": champ, "vs": vs if not data.get("general") else None,
+                              "guessedVs": vs, "pos": pos, "option": b.get("id"), "at": time.time(), "ingame": True,
+                              "ok": bool(res.get("ok")), "results": res.get("results") or {}, "error": res.get("error")}
+
+
 def _lol_autobuild_tick():
     with _lol_cfg_lock:
         if not _lol_cfg.get("autoBuild", True):
@@ -5484,6 +5549,7 @@ def _lol_autobuild_tick():
     except LcuError:
         return
     if st != 200 or not isinstance(j, dict):
+        _lol_autobuild_ingame()
         return
     game = j.get("gameId")
     if _lol_autobuild["manualGame"] == game or j.get("queueId") in LOL_AUTOBUILD_SKIP_QUEUES:

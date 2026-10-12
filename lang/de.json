@@ -474,6 +474,8 @@
     "mu_build_order": "Build-Reihenfolge",
     "mu_path": "Kaufweg",
     "mu_path_item": "Kaufweg Item {n}",
-    "mu_path_boots": "Kaufweg Stiefel"
+    "mu_path_boots": "Kaufweg Stiefel",
+    "mu_apply_items": "Item-Set übernehmen",
+    "mu_apply_items_hint": "Im Spiel lassen sich nur noch Items ändern, Runen und Zauber nicht. Schreibt das Item-Set für den gewählten Gegner in den Client."
   }
 }

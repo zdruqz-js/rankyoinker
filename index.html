@@ -6903,9 +6903,12 @@
     ].filter(x => x.items.length);
     return {name: lolChampName(champ), spells: (b.spells || []).length === 2 ? b.spells : [], runes: b.runes || null, items: blocks};
   }
-  function lolMuApply(champ, b, btn){
+  // itemsOnly: im laufenden Spiel lassen sich Runen und Zauber nicht mehr ändern
+  function lolMuApply(champ, b, btn, itemsOnly){
     btn.disabled = true;
-    api('/api/lol/build/apply', {championId: champ, setup: lolBuildToSetup(champ, b)}).then(j => {
+    const setup = lolBuildToSetup(champ, b);
+    if(itemsOnly){ setup.runes = null; setup.spells = []; }
+    api('/api/lol/build/apply', {championId: champ, setup}).then(j => {
       btn.disabled = false;
       const res = (j && j.results) || {};
       const done = Object.keys(res).filter(k => res[k].ok).map(k => t('lol_setup_' + k)).join(', ');
@@ -6973,7 +6976,7 @@
       ${first.length ? `<span class="mu-skill-start">${t('mu_skill_start')} ${first.map(esc).join(' ')}</span>` : ''}</div>`;
   }
 
-  // ctx: {champ, vs, pos, opt, mode:'cs', guessed, enemies:[ids], showLanes}
+  // ctx: {champ, vs, pos, opt, mode:'cs'|'live', guessed, enemies:[ids], showLanes}
   function lolMuCardHtml(ctx, data, gd){
     const champName = lolChampName(ctx.champ);
     const vsName = ctx.vs ? lolChampName(ctx.vs) : null;
@@ -6984,7 +6987,7 @@
         <div><div class="mu-cname">${esc(vsName || t('mu_any_opponent'))}</div><div class="mu-lane">${ctx.vs && ctx.guessed ? t('mu_guessed') : ''}</div></div></div>
       <div class="mu-stats">${data && data.ok && data.vs ? `<b>${lolMuWr(data.winrate)}</b><span>${t('mu_games', {n: lolMuNum(data.games)})}</span>` : ''}</div>
     </div>`;
-    const enemyChips = ctx.mode === 'cs' && ctx.enemies.length ? `<div class="mu-opp-row"><span class="mu-lbl">${t('mu_opponent')}</span>
+    const enemyChips = ctx.enemies.length ? `<div class="mu-opp-row"><span class="mu-lbl">${t('mu_opponent')}</span>
       ${ctx.enemies.map(id => `<button type="button" class="mu-opp ${id === ctx.vs ? 'on' : ''}" data-mu-vs="${id}" title="${esc(lolChampName(id))}">${lolIcon(champIconUrl(id))}</button>`).join('')}
       <button type="button" class="mu-opp any ${!ctx.vs ? 'on' : ''}" data-mu-vs="0">${t('mu_any_opponent')}</button></div>` : '';
     const lanes = ctx.showLanes ? `<div class="lane-seg mu-lanes">${LOL_MU_LANES.map(l => `<button type="button" class="lane-btn ${l === ctx.pos ? 'on' : ''}" data-mu-lane="${l}">${esc(LOL_LANE_LABELS[l])}</button>`).join('')}</div>` : '';
@@ -7007,9 +7010,10 @@
         <div class="mu-opts">${data.builds.map((x, i) => `<button type="button" class="mu-opt ${i === opt ? 'on' : ''}" data-mu-opt="${i}" title="${esc(t('mu_build_wr_tip'))}">
           <span class="mu-opt-name">${t(LOL_MU_OPT[x.id] || 'mu_opt_popular')}</span><span class="mu-opt-meta">${lolMuWr(x.winrate)} · ${lolMuNum(x.games)}</span></button>`).join('')}</div>
         <div class="mu-body">
+          ${ctx.mode === 'live' ? `<div class="mu-sec"><div class="mu-lbl">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>` : `
           <div class="mu-sec mu-sec-runes"><div class="mu-lbl">${t('lol_setup_runes')}</div>${lolMuRunesHtml(gd, b.runes)}</div>
           <div class="mu-sec"><div class="mu-lbl">${t('lol_setup_spells')}</div><div class="mu-spells">${spells || '<span class="mu-none">–</span>'}</div>
-            <div class="mu-lbl" style="margin-top:14px;">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>
+            <div class="mu-lbl" style="margin-top:14px;">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>`}
           <div class="mu-sec mu-sec-items">
             <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_start')}</div><div class="mu-items">${lolItemIcons(gd, b.start)}</div></div>
             ${(b.path || []).length ? `<div class="mu-item-row"><div class="mu-lbl">${t('mu_path')}</div><div class="mu-items mu-path">${lolPathIcons(gd, b.path)}</div></div>` : ''}
@@ -7019,7 +7023,7 @@
         </div>
         <div class="mu-foot">
           <div class="mu-source">${t('mu_source', {src: esc(data.source || ''), patch: esc(data.patch || '?')})}</div>
-          <button type="button" class="pbtn go" data-mu-apply title="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>
+          <button type="button" class="pbtn go" data-mu-apply title="${esc(t(ctx.mode === 'live' ? 'mu_apply_items_hint' : 'mu_apply_hint'))}">${svgIcon('check', 12)}${t(ctx.mode === 'live' ? 'mu_apply_items' : 'mu_apply')}</button>
         </div>`;
     }
     return `<div class="lol-card mu-card">
@@ -7051,12 +7055,15 @@
     });
     const build = data && data.ok && data.builds && data.builds[Math.min(ui.opt || 0, data.builds.length - 1)];
     const ap = box.querySelector('[data-mu-apply]');
-    if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap));
+    if(ap && build) ap.addEventListener('click', () => lolMuApply(ctx.champ, build, ap, ctx.mode === 'live'));
   }
 
   // ---- Matchup-Karte im Champ Select ----
   const lolMuCs = {sig: '', champ: null, ui: {opt: 0, vs: undefined, pos: undefined}};
-  async function lolUpdateMatchupBox(cs){
+  // mode 'cs' = Champ Select, 'live' = laufendes Spiel (cs ist dann aus den
+  // Live-Daten nachgebaut: eigene Karte + Gegner mit echter Position)
+  async function lolUpdateMatchupBox(cs, mode){
+    mode = mode || 'cs';
     const box = document.getElementById('lolMuBox');
     if(!box) return;
     const me = (cs.myTeam || []).find(m => m.me) || {};
@@ -7070,7 +7077,9 @@
       if(box.dataset.sig !== 'empty'){ box.dataset.sig = 'empty'; box.innerHTML = html; }
       return;
     }
-    if(lolMuCs.champ !== champ){ lolMuCs.champ = champ; lolMuCs.ui = {opt: 0, vs: undefined, pos: undefined}; }
+    // Neuer Champion oder Wechsel Champ Select -> Spiel: Auswahl zurücksetzen,
+    // im Spiel zählt der echte Lane-Gegner aus den Live-Daten
+    if(lolMuCs.champ !== champ || lolMuCs.mode !== mode){ lolMuCs.champ = champ; lolMuCs.mode = mode; lolMuCs.ui = {opt: 0, vs: undefined, pos: undefined}; }
     const ui = lolMuCs.ui;
     const roles = await lolRoles();
     const lanesKnown = !!me.position && LOL_MU_LANES.includes(me.position);
@@ -7079,13 +7088,14 @@
     const enemies = theirTeam.map(e => e.championId).filter(Boolean);
     const guess = lolGuessOpponent(pos, theirTeam, roles);
     const vs = ui.vs !== undefined ? (ui.vs || null) : guess;
-    const ctx = {champ, vs: vs && vs !== champ ? vs : null, pos, opt: ui.opt, mode: 'cs', guessed: ui.vs === undefined && !!guess,
+    const exact = !!guess && theirTeam.some(e => e.championId === guess && e.position === pos);
+    const ctx = {champ, vs: vs && vs !== champ ? vs : null, pos, opt: ui.opt, mode, guessed: ui.vs === undefined && !!guess && !exact,
                  enemies, showLanes: !lanesKnown};
     const a = lolAutoBuild && lolAutoBuild.last;
-    const sig = JSON.stringify([champ, ctx.vs, pos, lolMuTier, ui.opt, enemies, ctx.guessed, a && a.at, lolAutoBuild && lolAutoBuild.autoBuild]);
+    const sig = JSON.stringify([mode, champ, ctx.vs, pos, lolMuTier, ui.opt, enemies, ctx.guessed, a && a.at, lolAutoBuild && lolAutoBuild.autoBuild]);
     if(box.dataset.sig === sig) return;
     box.dataset.sig = sig;
-    const rerender = () => { box.dataset.sig = ''; lolUpdateMatchupBox(cs); };
+    const rerender = () => { box.dataset.sig = ''; lolUpdateMatchupBox(cs, mode); };
     const pending = lolFetchMatchup(champ, ctx.vs, pos, lolMuTier);
     if(!box.querySelector('.mu-body')) box.innerHTML = lolMuCardHtml(ctx, null, null);
     const [data, gd] = await Promise.all([pending, loadLolGameData().catch(() => null), loadLolChampions()]);
@@ -7586,7 +7596,7 @@
     lolSetBar(state);
     let teamsBox = document.getElementById('lolLiveTeams');
     if(!teamsBox){
-      body.innerHTML = `<div id="lolLiveTeams"></div>`;
+      body.innerHTML = `<div id="lolMuBox"></div><div id="lolLiveTeams"></div>`;
       teamsBox = document.getElementById('lolLiveTeams');
     }
 
@@ -7622,6 +7632,21 @@
     Array.from(teamsBox.children).forEach(sec => { if(!usedIds.includes(sec.id)) sec.remove(); });
 
     loadLolEncounters(players);
+
+    // Build-Karte im Spiel (nicht in Arena): echter Lane-Gegner aus den Live-
+    // Positionen, Gegner umschaltbar, "Item-Set übernehmen" schreibt nur Items.
+    const mu = document.getElementById('lolMuBox');
+    if(mu){
+      if(live.arena || !meEntry || !meEntry.championId){ mu.innerHTML = ''; mu.dataset.sig = ''; }
+      else {
+        // jedes Mal frisch: so erscheint die automatische Korrektur im Spiel sofort
+        api('/api/lol/autobuild').then(j => { if(j && j.ok) lolAutoBuild = j; }).catch(() => {});
+        const enemiesLive = players.filter(p => p.team !== meEntry.team && p.championId)
+          .map(p => ({championId: p.championId, position: p.position}));
+        lolUpdateMatchupBox({myTeam: [{me: true, championId: meEntry.championId, position: meEntry.position}],
+                             theirTeam: enemiesLive, myAction: null}, 'live');
+      }
+    }
   }
 
   async function renderLolHistory(){
@@ -7913,7 +7938,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev10";
+const CURRENT_VERSION = "2.4.2-dev11";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

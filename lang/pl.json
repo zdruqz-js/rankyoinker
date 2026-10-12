@@ -474,6 +474,8 @@
     "mu_build_order": "Kolejność buildu",
     "mu_path": "Ścieżka zakupu",
     "mu_path_item": "Ścieżka przedmiot {n}",
-    "mu_path_boots": "Ścieżka buty"
+    "mu_path_boots": "Ścieżka buty",
+    "mu_apply_items": "Zastosuj zestaw przedmiotów",
+    "mu_apply_items_hint": "W trakcie gry można zmienić już tylko przedmioty, nie runy ani czary. Zapisuje zestaw przedmiotów dla wybranego przeciwnika w kliencie."
   }
 }
