@@ -6577,9 +6577,12 @@
     const posLabel = p.position && LOL_POSITIONS[p.position] ? LOL_POSITIONS[p.position] : '';
 
     let portraitInner, subLabel;
+    // Im Champ Select liefert der Dienst nur die ID, live auch den Namen
+    const champName = p.champion || (p.championId && lolChampCatalog ? lolChampName(p.championId) : '');
     if(champUrl){
       portraitInner = `<img class="portrait" src="${champUrl}" alt="" loading="lazy">`;
-      subLabel = `${esc(p.champion || '')}${posLabel ? ' · ' + posLabel : ''}`;
+      // roh, escaped wird erst beim Ausgeben (vorher doppelt: "Cho&#39;Gath")
+      subLabel = [champName, posLabel].filter(Boolean).join(' · ');
     } else if(mode === 'lobby'){
       // Statt des Rang-Emblems lieber der zuletzt gespielte Champion als grosses
       // Kartenbild - der Rang steht ohnehin schon separat in den Rang-Kacheln
@@ -6599,7 +6602,7 @@
     }
 
     const showRanks = !!(p.rankSolo || p.rankFlex);
-    lolCardData.set(key, Object.assign({}, p, {mode, champUrl, dispName, dispTag, subLabel}));
+    lolCardData.set(key, Object.assign({}, p, {mode, champUrl, dispName, dispTag, subLabel, posLabel, champion: champName || p.champion}));
     return `
     <div class="pcard ${mode === 'lobby' ? 'menu' : ''} ${isMe ? 'me' : ''} ${mode === 'champselect' && p.hovering ? 'lol-hovering' : ''}" data-lolkey="${esc(key)}" ${p.isDead ? 'style="opacity:.55;"' : ''}>
       <div class="pcard-portrait">
@@ -6738,7 +6741,7 @@
         <div class="modal-hero-inner">
           <div>
             <div class="mname">${esc(p.dispName)}<span style="font-size:16px;color:var(--text-faint);"> ${esc(p.dispTag)}</span></div>
-            <div class="msub">${esc(p.champion || '—')}${p.subLabel && p.subLabel !== p.champion ? ' · ' + esc(p.subLabel) : ''}</div>
+            <div class="msub">${esc([p.champion, p.posLabel].filter(Boolean).join(' · ') || p.subLabel || '—')}</div>
           </div>
         </div>
       </div>
@@ -7874,8 +7877,11 @@
   }
 
   async function renderLolChampSelect(state){
+    // Champion-Katalog vorher laden: die Karten zeigen im Champ Select den
+    // Namen daraus (der Dienst liefert dort nur die ID) und werden danach nur
+    // neu gebaut, wenn sich ihre Daten ändern.
     const [cs, presetsForDebug, setupsForStatus] = await Promise.all([
-      api('/api/lol/champselect').catch(() => ({ok:false})),
+      loadLolChampions().then(() => api('/api/lol/champselect')).catch(() => ({ok:false})),
       api('/api/lol/presets').catch(() => null),
       api('/api/lol/setups').catch(() => null),
     ]);
@@ -8286,7 +8292,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev5";
+const CURRENT_VERSION = "2.4.2-dev6";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
