@@ -1,0 +1,108 @@
+name: Installer migration test
+
+# Prueft auf einem echten Windows-Runner den Umzug ProgramData -> Program Files
+# (2.4.2): alten Build installieren, Altdaten + eine "untergeschobene" Datei in
+# den alten Ordner legen, neuen Build darueber installieren, Ergebnis pruefen,
+# danach Deinstallation und eine frische Installation pruefen.
+# Start: Tag "mtest-<irgendwas>" pushen (nutzt die Standard-Tags unten) oder
+# manuell per workflow_dispatch mit eigenen Tags.
+on:
+  push:
+    tags:
+      - "mtest-*"
+  workflow_dispatch:
+    inputs:
+      old_tag:
+        description: "Release-Tag der alten Version (installiert nach ProgramData)"
+        default: "v2.4.2-dev1"
+      new_tag:
+        description: "Release-Tag der neuen Version"
+        default: "v2.4.2-dev2"
+
+jobs:
+  migrate:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OLD_TAG: ${{ inputs.old_tag || 'v2.4.2-dev1' }}
+      NEW_TAG: ${{ inputs.new_tag || 'v2.4.2-dev2' }}
+    steps:
+      - name: Installer herunterladen
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force old, new | Out-Null
+          gh release download $env:OLD_TAG --repo $env:GITHUB_REPOSITORY --pattern "*.exe" --dir old
+          gh release download $env:NEW_TAG --repo $env:GITHUB_REPOSITORY --pattern "*.exe" --dir new
+          Get-ChildItem old, new
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $fail = 0
+          function Check($cond, $msg) {
+            if ($cond) { Write-Host "PASS $msg" } else { Write-Host "FAIL $msg"; $script:fail++ }
+          }
+          function Install($exe) {
+            $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -PassThru -Wait
+            Write-Host "Installer $exe exit $($p.ExitCode)"
+            Start-Sleep -Seconds 15
+          }
+          $key = "Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}_is1"
+          $key32 = "HKLM:\SOFTWARE\WOW6432Node\$key"
+          $key64 = "HKLM:\SOFTWARE\$key"
+          $old = "C:\ProgramData\RankYoinker"
+          $new = "C:\Program Files\RankYoinker"
+          $startup = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\vRY Log-Server.vbs"
+
+          # --- 1. alte Version ---
+          Install (Get-ChildItem old\*.exe)[0].FullName
+          Check (Test-Path "$old\vry_log_server.py") "alte Version liegt in ProgramData"
+          Check (Test-Path $key32) "alte Version hat 32-Bit-Deinstallationseintrag"
+          '{"x":1}' | Set-Content "$old\vry_pair.json"
+          'boese' | Set-Content "$old\version.dll"
+
+          # --- 2. neue Version darueber ---
+          Install (Get-ChildItem new\*.exe)[0].FullName
+          Check (Test-Path "$new\vry_log_server.py") "neue Version liegt in Program Files"
+          Check (Test-Path "$new\pythonw.exe") "pythonw.exe in Program Files"
+          Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
+          Check (-not (Test-Path "$old\version.dll")) "untergeschobene Datei entfernt"
+          Check (-not (Test-Path "$old\unins000.exe")) "alter Uninstaller entfernt"
+          Check (Test-Path "$old\vry_pair.json") "Altdaten (vor 2.3.14) bleiben fuer den Datenumzug liegen"
+          Check (-not (Test-Path $key32)) "alter 32-Bit-Deinstallationseintrag entfernt"
+          Check (Test-Path $key64) "64-Bit-Deinstallationseintrag vorhanden"
+          if (Test-Path $key64) {
+            $loc = (Get-ItemProperty $key64)."Inno Setup: App Path"
+            Check ($loc -eq $new) "Deinstallationseintrag zeigt auf Program Files ($loc)"
+          }
+          if (Test-Path $startup) {
+            $vbs = Get-Content $startup -Raw
+            Check ($vbs -like "*Program Files\RankYoinker*") "Autostart zeigt auf Program Files"
+          } else { Check $false "Autostart-Datei vorhanden ($startup)" }
+          $procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*vry_log_server.py*" }
+          $procs | ForEach-Object { Write-Host "Prozess: $($_.CommandLine)" }
+          Check (($procs | Where-Object { $_.CommandLine -like "*Program Files\RankYoinker*" }).Count -ge 1) "Dienst laeuft aus Program Files"
+          Check (($procs | Where-Object { $_.CommandLine -like "*ProgramData*" }).Count -eq 0) "kein Dienst mehr aus ProgramData"
+          try { $r = Invoke-WebRequest "http://127.0.0.1:1101/status" -UseBasicParsing -TimeoutSec 10; $ok = $r.StatusCode -eq 200 } catch { $ok = $false }
+          Check $ok "Dienst antwortet auf /status"
+          $acl = icacls $new | Out-String
+          Write-Host $acl
+          Check (-not ($acl -match "BUILTIN\\Users:.*\((W|M|F|AD|WD)")) "normale Benutzer haben keine Schreibrechte in Program Files\RankYoinker"
+          $apps = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" |
+            Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "RankYoinker*" }
+          Check ($apps.Count -eq 1) "genau ein Eintrag unter Apps ($($apps.Count))"
+
+          # --- 3. Deinstallation ---
+          $p = Start-Process -FilePath "$new\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru -Wait
+          Start-Sleep -Seconds 15
+          Check (-not (Test-Path "$new\vry_log_server.py")) "Deinstallation entfernt Program Files\RankYoinker"
+          Check (-not (Test-Path $key64)) "Deinstallation entfernt den Eintrag"
+
+          # --- 4. frische Installation ---
+          Remove-Item $old -Recurse -Force -ErrorAction SilentlyContinue
+          Install (Get-ChildItem new\*.exe)[0].FullName
+          Check (Test-Path "$new\vry_log_server.py") "frische Installation landet in Program Files"
+          Check (-not (Test-Path $old)) "frische Installation legt nichts in ProgramData an"
+
+          if ($fail) { throw "$fail Pruefung(en) fehlgeschlagen" }
