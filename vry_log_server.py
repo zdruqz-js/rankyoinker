@@ -38,7 +38,9 @@ import glob
 import hashlib
 import hmac
 import collections
+import itertools
 import json
+import math
 import os
 import random
 import re
@@ -507,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev7"
+APP_VERSION = "2.4.2-dev8"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4452,18 +4454,19 @@ def lol_queue_action(action, payload=None):
 
 LOL_FILE = os.path.join(DATA_DIR, "vry_lol.json")
 _lol_cfg_lock = threading.Lock()
-_lol_cfg = {"autoAccept": True}
+_lol_cfg = {"autoAccept": True, "autoBuild": True}
 
 
 def _lol_cfg_restore():
     data = _load_json(LOL_FILE)
     with _lol_cfg_lock:
         _lol_cfg["autoAccept"] = bool(data.get("autoAccept", True))
+        _lol_cfg["autoBuild"] = bool(data.get("autoBuild", True))
 
 
 def _lol_cfg_save():
     with _lol_cfg_lock:
-        _save_json(LOL_FILE, {"autoAccept": _lol_cfg["autoAccept"]})
+        _save_json(LOL_FILE, {"autoAccept": _lol_cfg["autoAccept"], "autoBuild": _lol_cfg["autoBuild"]})
 
 
 def lol_set_auto_accept(on):
@@ -4523,6 +4526,10 @@ def _lol_watcher():
             # ohne Spur war das nur noch Raten.
             _lol_auto["lastCrash"] = {"error": "%s: %s" % (type(e).__name__, e), "at": time.time()}
             report_error("lol-auto", e)
+        try:
+            _lol_autobuild_tick()
+        except Exception as e:
+            report_error("lol-autobuild", e)
         try:
             if lol_gamestate().get("state") == "INGAME":
                 _lol_record_encounter_now()
@@ -5242,7 +5249,7 @@ def _clean_setup(raw):
             "runes": runes, "items": blocks}
 
 
-def lol_apply_build(champion_id, raw):
+def lol_apply_build(champion_id, raw, manual=True):
     """Wendet einen Build sofort an - Runen, Item-Set und (nur im Champ Select)
     Beschwörerzauber. Kommt aus den Matchup-Builds im Overlay: der Spieler
     wählt dort selbst einen von mehreren Vorschlägen und klickt auf
@@ -5285,7 +5292,10 @@ def lol_apply_build(champion_id, raw):
             report_error("lol-build", "%s: HTTP %s %s" % (what, res.get("status"), res.get("error") or ""))
     if not results:
         return {"ok": False, "error": "Nichts zum Übernehmen."}
-    record_feature("lol_build_applied")
+    if session and manual:
+        # Selbst gewählt -> der Auto-Build überschreibt das in diesem Spiel nicht mehr
+        _lol_autobuild["manualGame"] = session.get("gameId")
+    record_feature("lol_build_applied" if manual else "lol_build_auto")
     return {"ok": all(r.get("ok") for r in results.values()), "results": results}
 
 
@@ -5339,6 +5349,156 @@ def _lol_apply_itemset(champ_id, champ_name, blocks):
     st, _ = lcu_put(path, data)
     return {"ok": st in (200, 201, 204), "status": st,
             "error": None if st in (200, 201, 204) else "Riot lehnte ab (Status %s)." % st}
+
+
+# ---- Auto-Builds (wie Blitz/Porofessor): beim Locken automatisch übernehmen ----
+# Sobald der eigene Pick gelockt ist, holt der Dienst den beliebtesten Build
+# gegen den (geschätzten) Lane-Gegner von rankyoinker.de und schreibt Runen,
+# Zauber und Item-Set in den Client - auch ohne offenes Overlay. Lockt der
+# Lane-Gegner erst später, wird nachgezogen. Abschaltbar ("autoBuild"), und wer
+# im Overlay selbst einen Build übernimmt, wird in diesem Spiel nicht mehr
+# überschrieben.
+
+LOL_MATCHUP_URL = "https://rankyoinker.de/api/lol/matchup"
+LOL_ROLES_URL = "https://rankyoinker.de/api/lol/roles"
+LOL_LANES = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
+# ARAM, Clash-ARAM, Arena, ARAM Mayhem: andere Builds, die Statistik passt nicht
+LOL_AUTOBUILD_SKIP_QUEUES = {450, 720, 1700, 1710, 2400}
+_lol_autobuild = {"applied": None, "manualGame": None, "last": None}
+_lol_mu_cache = {}
+_lol_roles_cache = {"ts": 0.0, "data": None}
+_LOL_BLOCK_NAMES = {
+    "de": ("Start", "Kern", "Situativ"), "en": ("Starter", "Core", "Situational"),
+    "pl": ("Start", "Rdzeń", "Sytuacyjne"), "fr": ("Départ", "Cœur", "Situationnel"),
+    "es": ("Inicio", "Núcleo", "Situacional"), "tr": ("Başlangıç", "Çekirdek", "Duruma göre"),
+    "ko": ("시작", "핵심", "상황별"),
+}
+
+
+def lol_set_auto_build(on):
+    with _lol_cfg_lock:
+        _lol_cfg["autoBuild"] = bool(on)
+    _lol_cfg_save()
+    return lol_auto_build_state()
+
+
+def lol_auto_build_state():
+    with _lol_cfg_lock:
+        on = _lol_cfg.get("autoBuild", True)
+    return {"ok": True, "autoBuild": on, "last": _lol_autobuild["last"]}
+
+
+def _lol_roles():
+    now = time.time()
+    if _lol_roles_cache["data"] and now - _lol_roles_cache["ts"] < 12 * 3600:
+        return _lol_roles_cache["data"]
+    try:
+        st, j = _http(LOL_ROLES_URL, timeout=8)
+    except Exception:
+        st, j = None, None
+    if st == 200 and isinstance(j, dict) and j.get("ok"):
+        roles = {}
+        for k, v in (j.get("roles") or {}).items():
+            if _pos_int(k) and isinstance(v, dict):
+                roles[int(k)] = v
+        _lol_roles_cache.update(ts=now, data=roles)
+    return _lol_roles_cache["data"] or {}
+
+
+def _lol_fetch_matchup(champ, vs, pos):
+    key = (champ, vs or 0, pos)
+    now = time.time()
+    hit = _lol_mu_cache.get(key)
+    if hit and now - hit[0] < (1800 if hit[1] else 120):
+        return hit[1]
+    url = "%s?champ=%d&pos=%s%s" % (LOL_MATCHUP_URL, champ, pos, "&vs=%d" % vs if vs else "")
+    data = None
+    try:
+        st, j = _http(url, timeout=10)
+        if st == 200 and isinstance(j, dict) and j.get("ok") and j.get("builds"):
+            data = j
+    except Exception:
+        data = None
+    if len(_lol_mu_cache) > 300:
+        _lol_mu_cache.clear()
+    _lol_mu_cache[key] = (now, data)
+    return data
+
+
+def _lol_main_role(roles, champ):
+    r = roles.get(champ) or {}
+    return max(LOL_LANES, key=lambda l: r.get(l, 0))
+
+
+def _lol_guess_opponent(my_pos, enemies, roles):
+    """Wahrscheinlichste Verteilung der gelockten Gegner auf die Lanes - wer
+    landet auf der eigenen? (gleiche Logik wie lolGuessOpponent() im Overlay)"""
+    ids = [e for e in enemies if e][:5]
+    if not ids or my_pos not in LOL_LANES:
+        return None
+    rate = lambda cid, lane: math.log((roles.get(cid) or {}).get(lane, 0) + 0.002)
+    best, best_score = None, None
+    for lanes in itertools.permutations(LOL_LANES, len(ids)):
+        score = sum(rate(c, l) for c, l in zip(ids, lanes))
+        if best_score is None or score > best_score:
+            best, best_score = lanes, score
+    return ids[best.index(my_pos)] if best and my_pos in best else None
+
+
+def _lol_build_to_setup(name, b):
+    labels = _LOL_BLOCK_NAMES.get(_heartbeat_lang(), _LOL_BLOCK_NAMES["en"])
+    blocks = [
+        {"type": labels[0], "items": b.get("start") or []},
+        {"type": labels[1], "items": (b.get("core") or []) + ([b["boots"]] if b.get("boots") else [])},
+        {"type": labels[2], "items": b.get("situational") or []},
+    ]
+    return {"name": name, "spells": b.get("spells") if len(b.get("spells") or []) == 2 else [],
+            "runes": b.get("runes"), "items": [x for x in blocks if x["items"]]}
+
+
+def _lol_autobuild_tick():
+    with _lol_cfg_lock:
+        if not _lol_cfg.get("autoBuild", True):
+            return
+    try:
+        st, j = lcu_get("/lol-champ-select/v1/session")
+    except LcuError:
+        return
+    if st != 200 or not isinstance(j, dict):
+        return
+    game = j.get("gameId")
+    if _lol_autobuild["manualGame"] == game or j.get("queueId") in LOL_AUTOBUILD_SKIP_QUEUES:
+        return
+    local = j.get("localPlayerCellId")
+    champs = _lol_cs_champions(j)
+    mine = champs.get(local)
+    if not mine or mine[1]:
+        return                       # noch nicht gelockt
+    champ = mine[0]
+    me = next((c for c in (j.get("myTeam") or []) if c.get("cellId") == local), {})
+    roles = _lol_roles()
+    pos = (me.get("assignedPosition") or "").upper()
+    if pos not in LOL_LANES:
+        pos = _lol_main_role(roles, champ) if roles else "TOP"
+    # Nur gelockte Gegner zählen. Ist ihre Rolle sichtbar (manche Modi), ist der
+    # Lane-Gegner eindeutig, sonst wird geschätzt.
+    locked = [(c, champs[c.get("cellId")][0]) for c in (j.get("theirTeam") or [])
+              if champs.get(c.get("cellId")) and not champs[c.get("cellId")][1]]
+    direct = next((cid for c, cid in locked if (c.get("assignedPosition") or "").upper() == pos), None)
+    vs = direct or _lol_guess_opponent(pos, [cid for _, cid in locked], roles)
+    key = (game, champ, vs, pos)
+    if _lol_autobuild["applied"] == key:
+        return
+    data = _lol_fetch_matchup(champ, vs, pos)
+    if not data:
+        return                       # nächster Takt versucht es erneut (Fehlschlag kurz gecacht)
+    _lol_autobuild["applied"] = key
+    b = data["builds"][0]
+    name = _lol_champion_catalog()["byId"].get(champ) or str(champ)
+    res = lol_apply_build(champ, _lol_build_to_setup(name, b), manual=False)
+    _lol_autobuild["last"] = {"gameId": game, "championId": champ, "vs": vs if not data.get("general") else None,
+                              "guessedVs": vs, "pos": pos, "option": b.get("id"), "at": time.time(),
+                              "ok": bool(res.get("ok")), "results": res.get("results") or {}, "error": res.get("error")}
 
 
 # ---- Match-Verlauf (eigene puuid, lokale LCU-Historie — kein API-Key nötig) ----
@@ -5958,6 +6118,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/presets/pick":
             self._safe(lambda: lol_presets_set_pick(body.get("position"), body.get("slot", 0),
                                                      body.get("championId"), body.get("name")))
+        elif path == "/api/lol/autobuild":
+            self._safe(lambda: lol_set_auto_build(body.get("on", True)))
         elif path == "/api/lol/build/apply":
             self._safe(lambda: lol_apply_build(body.get("championId"), body.get("setup")))
         elif path == "/api/lol/presets/auto":
@@ -6257,6 +6419,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/lol/searchstate":
             self._json(lol_search_state())
 
+        elif path == "/api/lol/autobuild":
+            self._json(lol_auto_build_state())
         elif path == "/api/lol/readycheck":
             self._json(lol_ready_check())
 

@@ -642,6 +642,9 @@
   .mu-opp.any{width:auto; padding:0 12px; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;}
   .mu-opp.any.on{border-color:var(--lol); box-shadow:0 0 0 2px rgba(201,168,105,.3); color:var(--text);}
   .mu-note{margin-top:12px; padding:9px 12px; border-radius:var(--r-sm); font-size:12px; color:var(--text-dim); background:rgba(201,168,105,.08); border:1px solid rgba(201,168,105,.22);}
+  .mu-auto{display:flex; align-items:center; gap:8px; margin-top:12px; padding:8px 12px; border-radius:var(--r-sm); font-size:12px;}
+  .mu-auto.ok{color:#4ade80; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.28);}
+  .mu-auto.bad{color:#ff7580; background:rgba(255,70,85,.08); border:1px solid rgba(255,70,85,.3);}
   .mu-msg{padding:28px 0 18px; text-align:center; color:var(--text-faint); font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px;}
   .mu-opts{display:flex; gap:6px; margin:14px 0 4px; flex-wrap:wrap;}
   .mu-opt{flex:1; min-width:120px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:9px 12px; border-radius:var(--r-sm); cursor:pointer;
@@ -6251,6 +6254,7 @@
   // darunter der Inhalt der jeweiligen Phase. Die Leiste sieht in jeder Phase
   // gleich aus; der Inhalt wird nur neu angelegt, wenn die Phase wechselt.
   let lolAutoAccept = null;               // Stand von "Automatisch annehmen" (null = unbekannt)
+  let lolAutoBuild = null;                // {autoBuild, last} vom Dienst (Auto-Builds wie Blitz)
   function lolLayout(kind){
     const el = document.getElementById('lolContent');
     if(el.dataset.kind !== kind || !document.getElementById('lolBody')){
@@ -6268,6 +6272,7 @@
         ${chip('accept', lolAutoAccept !== false, t('lol_chip_accept'), t('lol_auto_accept'))}
         ${chip('ban', !!p.autoBan, t('lol_auto_ban_short'), t('lol_auto_ban_toggle'))}
         ${chip('pick', !!p.autoPick, t('lol_auto_pick_short'), t('lol_auto_pick_toggle'))}
+        ${chip('build', !lolAutoBuild || lolAutoBuild.autoBuild, t('lol_chip_autobuild'), t('lol_autobuild_tip'))}
       </div>
     </div>`;
   }
@@ -6294,6 +6299,7 @@
     if(kind === 'accept') call = api('/api/lol/autoaccept', {on: next}).then(j => { lolAutoAccept = next; return j; });
     else if(kind === 'ban') call = api('/api/lol/presets/auto', {ban: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
     else if(kind === 'pick') call = api('/api/lol/presets/auto', {pick: next}).then(j => { if(j && j.ok) lolPresets = j; else undo(); });
+    else if(kind === 'build') call = api('/api/lol/autobuild', {on: next}).then(j => { if(j && j.ok) lolAutoBuild = j; else undo(); });
     else return;
     call.catch(undo);
   }
@@ -6413,6 +6419,7 @@
     // Stände für die Schnellschalter in der Kopfleiste
     if(state !== 'OFFLINE'){
       if(!lolPresets) loadLolPresets();
+      if(!lolAutoBuild) api('/api/lol/autobuild').then(j => { if(j && j.ok) lolAutoBuild = j; }).catch(() => {});
       if(lolAutoAccept === null) api('/api/lol/readycheck').then(j => { if(j && typeof j.autoAccept === 'boolean') lolAutoAccept = j.autoAccept; }).catch(() => {});
     }
 
@@ -6972,9 +6979,19 @@
     }
     return `<div class="lol-card mu-card">
       <div class="mu-top"><div class="panel-head">${t('mu_title')}<span class="line"></span></div>${tierSel}</div>
-      ${lanes}${head}${enemyChips}${main}
+      ${lanes}${head}${lolMuAutoHtml(ctx)}${enemyChips}${main}
     </div>`;
   }
+  // "Automatisch übernommen" - nur für den Champion dieser Karte und frisch
+  // (der Dienst merkt sich nur die letzte automatische Übernahme).
+  function lolMuAutoHtml(ctx){
+    const a = lolAutoBuild && lolAutoBuild.autoBuild !== false && lolAutoBuild.last;
+    if(!a || a.championId !== ctx.champ || (Date.now() / 1000 - a.at) > 900) return '';
+    const opt = t(LOL_MU_OPT[a.option] || 'mu_opt_popular');
+    const txt = a.vs ? t('mu_auto_applied', {opt, vs: esc(lolChampName(a.vs))}) : t('mu_auto_applied_general', {opt});
+    return `<div class="mu-auto ${a.ok ? 'ok' : 'bad'}">${svgIcon(a.ok ? 'check' : 'alert', 13)}<span>${a.ok ? txt : esc(a.error || t('mu_apply_failed'))}</span></div>`;
+  }
+
   // Gemeinsame Klick-Logik; ui = veränderlicher Zustand der jeweiligen Karte
   function bindLolMuCard(box, ctx, data, ui, rerender){
     box.querySelectorAll('[data-mu-opt]').forEach(b => b.addEventListener('click', () => { ui.opt = Number(b.getAttribute('data-mu-opt')); rerender(); }));
@@ -7019,7 +7036,8 @@
     const vs = ui.vs !== undefined ? (ui.vs || null) : guess;
     const ctx = {champ, vs: vs && vs !== champ ? vs : null, pos, opt: ui.opt, mode: 'cs', guessed: ui.vs === undefined && !!guess,
                  enemies, showLanes: !lanesKnown};
-    const sig = JSON.stringify([champ, ctx.vs, pos, lolMuTier, ui.opt, enemies, ctx.guessed]);
+    const a = lolAutoBuild && lolAutoBuild.last;
+    const sig = JSON.stringify([champ, ctx.vs, pos, lolMuTier, ui.opt, enemies, ctx.guessed, a && a.at, lolAutoBuild && lolAutoBuild.autoBuild]);
     if(box.dataset.sig === sig) return;
     box.dataset.sig = sig;
     const rerender = () => { box.dataset.sig = ''; lolUpdateMatchupBox(cs); };
@@ -7447,10 +7465,12 @@
     // Champion-Katalog vorher laden: die Karten zeigen im Champ Select den
     // Namen daraus (der Dienst liefert dort nur die ID) und werden danach nur
     // neu gebaut, wenn sich ihre Daten ändern.
-    const [cs, presetsForDebug] = await Promise.all([
+    const [cs, presetsForDebug, autoBuild] = await Promise.all([
       loadLolChampions().then(() => api('/api/lol/champselect')).catch(() => ({ok:false})),
       api('/api/lol/presets').catch(() => null),
+      api('/api/lol/autobuild').catch(() => null),
     ]);
+    if(autoBuild && autoBuild.ok) lolAutoBuild = autoBuild;
     if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(!cs || !cs.ok){
       const body = lolLayout('cs-error');
@@ -7848,7 +7868,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev7";
+const CURRENT_VERSION = "2.4.2-dev8";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

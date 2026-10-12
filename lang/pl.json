@@ -467,6 +467,10 @@
     "mu_build_wr_tip": "Współczynnik zwycięstw i liczba gier z dokładnie tym buildem",
     "side_attack": "Atakujący",
     "side_defense": "Obrońca",
-    "side_first_half_tip": "Twoja strona w pierwszej połowie – po przerwie strony się zmieniają."
+    "side_first_half_tip": "Twoja strona w pierwszej połowie – po przerwie strony się zmieniają.",
+    "lol_chip_autobuild": "Auto-buildy",
+    "lol_autobuild_tip": "Po zablokowaniu automatycznie stosuje najpopularniejszy build przeciw przeciwnikowi z linii (runy, czary, zestaw przedmiotów) i aktualizuje go, gdy przeciwnik jest znany. Jeśli sam zastosujesz build, zostaje on na tę grę.",
+    "mu_auto_applied": "Zastosowano automatycznie: {opt} przeciw {vs}",
+    "mu_auto_applied_general": "Zastosowano automatycznie: {opt} (ogólny build, przeciwnik z linii jeszcze nieznany)"
   }
 }

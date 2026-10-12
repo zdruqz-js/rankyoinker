@@ -467,6 +467,10 @@
     "mu_build_wr_tip": "Winrate und Spiele mit genau diesem Kern-Build",
     "side_attack": "Angreifer",
     "side_defense": "Verteidiger",
-    "side_first_half_tip": "Deine Seite in der ersten Hälfte – zur Halbzeit wird getauscht."
+    "side_first_half_tip": "Deine Seite in der ersten Hälfte – zur Halbzeit wird getauscht.",
+    "lol_chip_autobuild": "Auto-Builds",
+    "lol_autobuild_tip": "Übernimmt nach dem Locken automatisch den beliebtesten Build gegen deinen Lane-Gegner (Runen, Zauber, Item-Set) und zieht nach, sobald der Gegner feststeht. Übernimmst du selbst einen Build, bleibt der für dieses Spiel.",
+    "mu_auto_applied": "Automatisch übernommen: {opt} gegen {vs}",
+    "mu_auto_applied_general": "Automatisch übernommen: {opt} (allgemeiner Build, Lane-Gegner noch unbekannt)"
   }
 }

@@ -466,6 +466,10 @@
     "mu_build_wr_tip": "Tam olarak bu ana buildle kazanma oranı ve maç sayısı",
     "side_attack": "Saldıran",
     "side_defense": "Savunan",
-    "side_first_half_tip": "İlk yarıdaki tarafın – devre arasında taraflar değişir."
+    "side_first_half_tip": "İlk yarıdaki tarafın – devre arasında taraflar değişir.",
+    "lol_chip_autobuild": "Otomatik build",
+    "lol_autobuild_tip": "Kilitledikten sonra koridor rakibine karşı en popüler buildi (rünler, büyüler, eşya seti) otomatik uygular ve rakip belli olunca günceller. Kendin bir build uygularsan o maç boyunca o kalır.",
+    "mu_auto_applied": "Otomatik uygulandı: {vs} karşısında {opt}",
+    "mu_auto_applied_general": "Otomatik uygulandı: {opt} (genel build, koridor rakibi henüz belli değil)"
   }
 }

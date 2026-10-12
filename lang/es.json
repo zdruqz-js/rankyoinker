@@ -466,6 +466,10 @@
     "mu_build_wr_tip": "Tasa de victorias y partidas con exactamente este build",
     "side_attack": "Atacante",
     "side_defense": "Defensor",
-    "side_first_half_tip": "Tu lado en la primera mitad: en el descanso se cambia."
+    "side_first_half_tip": "Tu lado en la primera mitad: en el descanso se cambia.",
+    "lol_chip_autobuild": "Builds auto",
+    "lol_autobuild_tip": "Tras fijar tu campeón, aplica automáticamente el build más popular contra tu rival de línea (runas, hechizos, set de objetos) y lo actualiza cuando se conoce al rival. Si aplicas tú un build, se mantiene en esa partida.",
+    "mu_auto_applied": "Aplicado automáticamente: {opt} contra {vs}",
+    "mu_auto_applied_general": "Aplicado automáticamente: {opt} (build general, rival de línea aún desconocido)"
   }
 }
