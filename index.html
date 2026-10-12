@@ -3646,7 +3646,7 @@
         <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">—</div></div></div>
       </div>`;
     }
-    const name = RANK_NAMES[rankNum] || t('unranked_label');
+    const name = RANK_NAMES[rankNum] || 'Unranked';
     const icon = rankIcon(rankNum);
     const color = tierColor(rankNum);
     const rr = (typeof opts.rr === 'number') ? opts.rr : null;
@@ -6241,12 +6241,14 @@
   let lolChampFilterText = '';
   let lolPresets = null;                  // {autoBan, autoPick, ban, picks}, vom Dienst
 
-  const LOL_POSITIONS = {TOP:t('lol_lane_top'), JUNGLE:t('lol_lane_jungle'), MIDDLE:t('lol_lane_mid'), BOTTOM:t('lol_lane_bot'),
-                         UTILITY:t('lol_lane_support'), FILL:t('lol_lane_fill'), UNSELECTED:''};
-  const LOL_LANE_LABELS = {TOP:t('lol_lane_top'), JUNGLE:t('lol_lane_jungle'), MIDDLE:t('lol_lane_mid'), BOTTOM:t('lol_lane_bot'),
-                           UTILITY:t('lol_lane_support'), OTHER: t('lol_other_modes')};
-  const LOL_TIER_LABEL = Object.fromEntries(['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND',
-                          'MASTER', 'GRANDMASTER', 'CHALLENGER'].map(k => [k, t('lol_tier_' + k.toLowerCase())]));
+  // Spielbegriffe (Lanes, Ränge, Warteschlangen) bleiben in jeder Sprache englisch
+  // (Nutzerwunsch); übersetzt wird nur, wo es wirklich Sinn ergibt.
+  const LOL_POSITIONS = {TOP:'Top', JUNGLE:'Jungle', MIDDLE:'Mid', BOTTOM:'Bot',
+                         UTILITY:'Support', FILL:'Fill', UNSELECTED:''};
+  const LOL_LANE_LABELS = {TOP:'Top', JUNGLE:'Jungle', MIDDLE:'Mid', BOTTOM:'Bot', UTILITY:'Support', OTHER: t('lol_other_modes')};
+  const LOL_TIER_LABEL = {IRON:'Iron', BRONZE:'Bronze', SILVER:'Silver', GOLD:'Gold',
+                          PLATINUM:'Platinum', EMERALD:'Emerald', DIAMOND:'Diamond',
+                          MASTER:'Master', GRANDMASTER:'Grandmaster', CHALLENGER:'Challenger'};
   const LOL_STATE_LABEL = {OFFLINE:t('state_client_closed'), NONE:t('state_menu'), LOBBY:t('state_menu'),
                            QUEUE:t('state_queue_searching'), READYCHECK:t('state_game_found'),
                            CHAMPSELECT:t('state_champ_select'), INGAME:t('state_live'),
@@ -6496,7 +6498,7 @@
   function lolRankTileHtml(label, r){
     if(!r || !r.tier){
       return `<div class="rank-tile"><div class="rt-label">${esc(label)}</div>
-        <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">${t('unranked_label')}</div></div></div></div>`;
+        <div class="rt-main"><div class="rt-text"><div class="rname" style="color:var(--text-faint);">Unranked</div></div></div></div>`;
     }
     const color = lolTierColor(r.tier);
     const name = `${LOL_TIER_LABEL[r.tier] || r.tier}${r.division && r.division !== 'NA' ? ' ' + r.division : ''}`;
@@ -6561,7 +6563,7 @@
         </div>
       </div>
       <div class="pcard-body">
-        ${showRanks ? `<div class="rank-duo">${lolRankTileHtml(t('lol_queue_solo'), p.rankSolo)}${lolRankTileHtml(t('lol_queue_flex'), p.rankFlex)}</div>` : ''}
+        ${showRanks ? `<div class="rank-duo">${lolRankTileHtml('Solo/Duo', p.rankSolo)}${lolRankTileHtml('Flex', p.rankFlex)}</div>` : ''}
         ${mode === 'live' ? `<div class="stat-strip" style="grid-template-columns:repeat(3,1fr);">
           <div class="s"><div class="v">${p.kills ?? 0}/${p.deaths ?? 0}/${p.assists ?? 0}</div><div class="l">KDA</div></div>
           <div class="s"><div class="v">${p.cs ?? '—'}</div><div class="l">CS</div></div>
@@ -6665,7 +6667,7 @@
   function lolMrankTileHtml(label, r){
     if(!r || !r.tier){
       const peak = lolPeakLabel(r && r.prevSeason);
-      return `<div class="mrank-tile"><div><div class="lab">${esc(label)}</div><div class="val" style="color:var(--text-faint);">${t('unranked_label')}</div>
+      return `<div class="mrank-tile"><div><div class="lab">${esc(label)}</div><div class="val" style="color:var(--text-faint);">Unranked</div>
         ${peak ? `<div class="extra">${peak}</div>` : ''}</div></div>`;
     }
     const color = lolTierColor(r.tier);
@@ -6691,8 +6693,8 @@
       </div>
       <div class="modal-body">
         <div class="modal-ranks">
-          ${lolMrankTileHtml(t('lol_queue_solo'), p.rankSolo)}
-          ${lolMrankTileHtml(t('lol_queue_flex'), p.rankFlex)}
+          ${lolMrankTileHtml('Solo/Duo', p.rankSolo)}
+          ${lolMrankTileHtml('Flex', p.rankFlex)}
         </div>
         <div id="lolModalStats"></div>
       </div>`;
@@ -6834,8 +6836,8 @@
   // Entscheidungen vorgeben nicht).
   const RY_SITE = 'https://rankyoinker.de';
   const LOL_MU_LANES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
-  const LOL_MU_TIERS = [['emerald_plus', t('lol_tier_emerald') + '+'], ['platinum_plus', t('lol_tier_platinum') + '+'],
-                        ['diamond_plus', t('lol_tier_diamond') + '+'], ['master_plus', t('lol_tier_master') + '+'], ['all', t('mu_tier_all')]];
+  const LOL_MU_TIERS = [['emerald_plus', 'Emerald+'], ['platinum_plus', 'Platinum+'], ['diamond_plus', 'Diamond+'],
+                        ['master_plus', 'Master+'], ['all', t('mu_tier_all')]];
   let lolMuTier = 'emerald_plus';
   try{ const v = localStorage.getItem('ryLolMuTier'); if(LOL_MU_TIERS.some(x => x[0] === v)) lolMuTier = v; }catch(e){}
   const lolMuCache = new Map();           // "champ:vs:pos:tier" -> Promise
@@ -7466,42 +7468,6 @@
     return JSON.stringify([a.id, a.type, a.completed, (cs.pickable || []).length, (cs.bannable || []).length]);
   }
 
-  // ---- Auto-Ban/-Pick-Diagnose: direkt im Champ-Select sichtbar, kein Devtools
-  // noetig - bisher lieferte /api/lol/presets diese Felder zwar schon mit, aber
-  // nirgends im UI stand je etwas davon, darum wirkten Aussetzer wie "einfach
-  // nichts passiert" ohne jede Spur, wo's hakt. ----
-  function lolAutoDebugHtml(p){
-    if(!p) return '';
-    const now = Date.now() / 1000;
-    const recent = (x) => x && x.at && (now - x.at) < 20;
-    const rows = [];
-    // Die letzten Versuche mit HTTP-Status und Phase - lastAutoResult allein
-    // zeigte nur den jeweils letzten, frühere Fehlschläge waren unsichtbar.
-    const kindLabel = {hover: t('lol_dbg_hover'), intent: t('lol_dbg_intent'), lock: t('lol_dbg_lock')};
-    const history = (p.autoHistory || []).filter(h => (now - h.at) < 120).slice(-6);
-    history.forEach(h => {
-      rows.push(`${h.ok ? '✅' : '❌'} ${kindLabel[h.kind] || esc(h.kind)} ${esc(h.actionType || '')} ${h.championId ?? '?'}`
-        + ` · ${esc(h.phase || '?')} · HTTP ${h.status ?? '–'}${h.error ? ' – ' + esc(h.error) : ''}`);
-    });
-    if(!history.length && recent(p.lastAutoHover)){
-      rows.push(`${p.lastAutoHover.ok ? '✅' : '❌'} ${t('lol_dbg_hover')} ${p.lastAutoHover.championId ?? '?'}${p.lastAutoHover.error ? ' – ' + esc(p.lastAutoHover.error) : ''}`);
-    }
-    if(!history.length && recent(p.lastAutoResult)){
-      rows.push(`${p.lastAutoResult.ok ? '✅' : '❌'} ${t('lol_dbg_lock')} ${p.lastAutoResult.championId ?? '?'} (${t('lol_dbg_attempt', {n: p.lastAutoResult.attempts})})${p.lastAutoResult.error ? ' – ' + esc(p.lastAutoResult.error) : ''}`);
-    }
-    if(recent(p.lastAutoSkip)){
-      rows.push(`⏸️ ${esc(p.lastAutoSkip.reason)}`);
-    }
-    if(recent(p.lastAutoCrash)){
-      rows.push(`💥 ${esc(p.lastAutoCrash.error)}`);
-    }
-    if(!rows.length) return '';
-    return `<div class="lol-card" id="lolAutoDebug" style="font-size:11px; color:var(--text-dim); line-height:1.6;">
-      <div class="panel-head" style="font-size:11px;">${t('lol_auto_ban_short')} / ${t('lol_auto_pick_short')}<span class="line"></span></div>
-      ${rows.join('<br>')}
-    </div>`;
-  }
-
   // ---- Hinweis, wenn kein hinterlegter Pick mehr verfügbar ist (alle
   // gebannt/gepickt): deutlich sichtbar plus kurzer Ton, damit der Spieler
   // rechtzeitig selbst wählt - sonst droht beim Timer-Ablauf ein Dodge. ----
@@ -7569,15 +7535,13 @@
     if(!teamsBox){
       body.innerHTML = `<div id="lolAutoAlertBox"></div>
         <div class="cs-grid" id="lolCsGrid"><div id="lolCsPicker"></div><div id="lolMuBox"></div></div>
-        <div id="lolAutoDebugBox"></div><div id="lolCsTeams"></div>`;
+        <div id="lolCsTeams"></div>`;
       teamsBox = document.getElementById('lolCsTeams');
       lolCsPickerSig = '';   // frischer Aufbau -> Picker in jedem Fall befüllen
       lolMuCs.sig = '';
     }
     const alertBox = document.getElementById('lolAutoAlertBox');
     if(alertBox) alertBox.innerHTML = lolAutoAlertHtml(lolPresets);
-    const debugBox = document.getElementById('lolAutoDebugBox');
-    if(debugBox) debugBox.innerHTML = lolAutoDebugHtml(lolPresets);
 
     const pickerSig = lolPickerSigOf(cs);
     if(pickerSig !== lolCsPickerSig){
@@ -7715,7 +7679,7 @@
 
     el.innerHTML =
       `<div class="lol-card"><div class="panel-head">${t('rank_label')}<span class="line"></span></div>
-         <div class="modal-ranks" style="margin:0;">${lolMrankTileHtml(t('lol_queue_solo'), r.RANKED_SOLO_5x5)}${lolMrankTileHtml(t('lol_queue_flex'), r.RANKED_FLEX_SR)}</div>
+         <div class="modal-ranks" style="margin:0;">${lolMrankTileHtml('Solo/Duo', r.RANKED_SOLO_5x5)}${lolMrankTileHtml('Flex', r.RANKED_FLEX_SR)}</div>
        </div>
        ${seasonHtml}
        <div class="lol-card"><div class="panel-head">${t('last_matches_title')}<span class="line"></span></div>
@@ -7955,7 +7919,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev14";
+const CURRENT_VERSION = "2.4.2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
