@@ -436,7 +436,6 @@
     "lol_setup_spells": "주문",
     "lol_setup_items": "아이템",
     "lol_setup_block_start": "시작",
-    "lol_setup_block_core": "핵심",
     "lol_setup_block_situational": "상황별",
     "lol_chip_accept": "자동 수락",
     "lol_phase_planning": "계획",
@@ -471,6 +470,7 @@
     "lol_chip_autobuild": "자동 빌드",
     "lol_autobuild_tip": "픽을 확정하면 라인 상대에 맞춘 가장 인기 있는 빌드(룬, 소환사 주문, 아이템 세트)를 자동으로 적용하고 상대가 정해지면 갱신합니다. 직접 빌드를 적용하면 그 게임에서는 그대로 유지됩니다.",
     "mu_auto_applied": "자동 적용됨: {vs} 상대 {opt}",
-    "mu_auto_applied_general": "자동 적용됨: {opt} (일반 빌드, 라인 상대 아직 미정)"
+    "mu_auto_applied_general": "자동 적용됨: {opt} (일반 빌드, 라인 상대 아직 미정)",
+    "mu_build_order": "빌드 순서"
   }
 }

@@ -673,14 +673,16 @@
   .mu-key-cap:first-child{border-color:rgba(201,168,105,.55); color:var(--lol);}
   .mu-skill-start{flex-basis:100%; font-size:10.5px; color:var(--text-faint); margin-top:4px; letter-spacing:.04em;}
   .mu-sec-items{display:flex; flex-direction:column; gap:10px; min-width:0;}
-  .mu-item-row{display:grid; grid-template-columns:78px minmax(0, 1fr); align-items:center; gap:10px;}
+  .mu-item-row{display:grid; grid-template-columns:118px minmax(0, 1fr); align-items:center; gap:10px;}
+  .mu-step i{position:absolute; left:-4px; top:-5px; min-width:15px; height:15px; padding:0 3px; border-radius:8px; font-style:normal;
+    background:var(--panel); border:1px solid rgba(201,168,105,.55); color:var(--lol); font-family:var(--font-display); font-weight:700; font-size:9px;
+    display:flex; align-items:center; justify-content:center; line-height:1;}
   .mu-item-row .mu-lbl{margin:0;}
   .mu-items{display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
   .mu-item{position:relative; display:inline-flex;}
   .mu-item img{width:32px; height:32px; border-radius:7px; border:1px solid var(--border); background:var(--panel-2);}
   .mu-item b{position:absolute; right:1px; bottom:0; font-size:10px; font-family:var(--font-display); color:#fff; text-shadow:0 1px 3px #000;}
   .mu-sep{color:var(--text-faint); font-size:13px; margin:0 1px;}
-  .mu-plus{color:var(--text-faint); font-size:13px; margin:0 4px;}
   .mu-none{color:var(--text-faint); font-size:12px;}
   .mu-foot{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
   .mu-source{margin-right:auto; font-size:10.5px; color:var(--text-faint);}
@@ -6874,10 +6876,14 @@
     return idx >= 0 ? ids[idx] : null;
   }
 
+  // Volle Kaufreihenfolge (seit 2.4.2-dev9 vom Server), sonst Kern + Stiefel
+  function lolBuildOrder(b){
+    return (b.order && b.order.length) ? b.order : (b.core || []).concat(b.boots ? [b.boots] : []);
+  }
   function lolBuildToSetup(champ, b){
     const blocks = [
       {type: t('lol_setup_block_start'), items: b.start || []},
-      {type: t('lol_setup_block_core'), items: (b.core || []).concat(b.boots ? [b.boots] : [])},
+      {type: t('mu_build_order'), items: lolBuildOrder(b)},
       {type: t('lol_setup_block_situational'), items: b.situational || []},
     ].filter(x => x.items.length);
     return {name: lolChampName(champ), spells: (b.spells || []).length === 2 ? b.spells : [], runes: b.runes || null, items: blocks};
@@ -6906,6 +6912,23 @@
       return `<span class="mu-item">${lolIcon(cdAsset(it && it.iconPath), it ? it.name : g.id)}${g.n > 1 ? `<b>${g.n}</b>` : ''}</span>`;
     }).join(sep ? '<span class="mu-sep">›</span>' : '');
   }
+  // Kaufreihenfolge mit Nummern (1 = zuerst kaufen)
+  function lolOrderIcons(gd, ids){
+    return (ids || []).map((id, i) => {
+      const it = gd.itemById[id];
+      return `<span class="mu-item mu-step">${lolIcon(cdAsset(it && it.iconPath), it ? it.name : id)}<i>${i + 1}</i></span>`;
+    }).join('<span class="mu-sep">›</span>');
+  }
+  // Situative Items mit Winrate/Spielen im Tooltip (situationalInfo ab dev9)
+  function lolSituationalIcons(gd, b){
+    const info = b.situationalInfo || (b.situational || []).map(id => ({id}));
+    return info.map(o => {
+      const it = gd.itemById[o.id];
+      const tip = (it ? it.name : o.id) + (o.n ? ` · ${lolMuWr(o.wr)} · ${t('mu_games', {n: lolMuNum(o.n)})}` : '');
+      return `<span class="mu-item">${lolIcon(cdAsset(it && it.iconPath), tip)}</span>`;
+    }).join('');
+  }
+
   function lolMuRunesHtml(gd, r){
     if(!r) return `<span class="mu-none">–</span>`;
     const pk = (id) => gd.perkById[id];
@@ -6968,8 +6991,8 @@
             <div class="mu-lbl" style="margin-top:14px;">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>
           <div class="mu-sec mu-sec-items">
             <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_start')}</div><div class="mu-items">${lolItemIcons(gd, b.start)}</div></div>
-            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_core')}</div><div class="mu-items">${lolItemIcons(gd, b.core, true)}${b.boots ? `<span class="mu-plus">+</span>${lolItemIcons(gd, [b.boots])}` : ''}</div></div>
-            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_situational')}</div><div class="mu-items">${lolItemIcons(gd, b.situational) || '<span class="mu-none">–</span>'}</div></div>
+            <div class="mu-item-row"><div class="mu-lbl">${t('mu_build_order')}</div><div class="mu-items">${lolOrderIcons(gd, lolBuildOrder(b))}</div></div>
+            <div class="mu-item-row"><div class="mu-lbl">${t('lol_setup_block_situational')}</div><div class="mu-items">${lolSituationalIcons(gd, b) || '<span class="mu-none">–</span>'}</div></div>
           </div>
         </div>
         <div class="mu-foot">
@@ -7868,7 +7891,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev8";
+const CURRENT_VERSION = "2.4.2-dev9";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

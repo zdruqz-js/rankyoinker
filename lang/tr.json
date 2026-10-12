@@ -435,7 +435,6 @@
     "lol_setup_spells": "Büyüler",
     "lol_setup_items": "Eşyalar",
     "lol_setup_block_start": "Başlangıç",
-    "lol_setup_block_core": "Ana",
     "lol_setup_block_situational": "Duruma göre",
     "lol_chip_accept": "Otomatik kabul",
     "lol_phase_planning": "Planlama",
@@ -470,6 +469,7 @@
     "lol_chip_autobuild": "Otomatik build",
     "lol_autobuild_tip": "Kilitledikten sonra koridor rakibine karşı en popüler buildi (rünler, büyüler, eşya seti) otomatik uygular ve rakip belli olunca günceller. Kendin bir build uygularsan o maç boyunca o kalır.",
     "mu_auto_applied": "Otomatik uygulandı: {vs} karşısında {opt}",
-    "mu_auto_applied_general": "Otomatik uygulandı: {opt} (genel build, koridor rakibi henüz belli değil)"
+    "mu_auto_applied_general": "Otomatik uygulandı: {opt} (genel build, koridor rakibi henüz belli değil)",
+    "mu_build_order": "Build sırası"
   }
 }

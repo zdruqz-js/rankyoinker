@@ -436,7 +436,6 @@
     "lol_setup_spells": "Zauber",
     "lol_setup_items": "Items",
     "lol_setup_block_start": "Start",
-    "lol_setup_block_core": "Kern",
     "lol_setup_block_situational": "Situativ",
     "lol_chip_accept": "Auto-Annehmen",
     "lol_phase_planning": "Planung",
@@ -471,6 +470,7 @@
     "lol_chip_autobuild": "Auto-Builds",
     "lol_autobuild_tip": "Übernimmt nach dem Locken automatisch den beliebtesten Build gegen deinen Lane-Gegner (Runen, Zauber, Item-Set) und zieht nach, sobald der Gegner feststeht. Übernimmst du selbst einen Build, bleibt der für dieses Spiel.",
     "mu_auto_applied": "Automatisch übernommen: {opt} gegen {vs}",
-    "mu_auto_applied_general": "Automatisch übernommen: {opt} (allgemeiner Build, Lane-Gegner noch unbekannt)"
+    "mu_auto_applied_general": "Automatisch übernommen: {opt} (allgemeiner Build, Lane-Gegner noch unbekannt)",
+    "mu_build_order": "Build-Reihenfolge"
   }
 }

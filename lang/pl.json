@@ -436,7 +436,6 @@
     "lol_setup_spells": "Czary",
     "lol_setup_items": "Przedmioty",
     "lol_setup_block_start": "Start",
-    "lol_setup_block_core": "Główne",
     "lol_setup_block_situational": "Sytuacyjne",
     "lol_chip_accept": "Auto-akceptacja",
     "lol_phase_planning": "Planowanie",
@@ -471,6 +470,7 @@
     "lol_chip_autobuild": "Auto-buildy",
     "lol_autobuild_tip": "Po zablokowaniu automatycznie stosuje najpopularniejszy build przeciw przeciwnikowi z linii (runy, czary, zestaw przedmiotów) i aktualizuje go, gdy przeciwnik jest znany. Jeśli sam zastosujesz build, zostaje on na tę grę.",
     "mu_auto_applied": "Zastosowano automatycznie: {opt} przeciw {vs}",
-    "mu_auto_applied_general": "Zastosowano automatycznie: {opt} (ogólny build, przeciwnik z linii jeszcze nieznany)"
+    "mu_auto_applied_general": "Zastosowano automatycznie: {opt} (ogólny build, przeciwnik z linii jeszcze nieznany)",
+    "mu_build_order": "Kolejność buildu"
   }
 }

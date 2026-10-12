@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev8"
+APP_VERSION = "2.4.2-dev9"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5368,10 +5368,10 @@ _lol_autobuild = {"applied": None, "manualGame": None, "last": None}
 _lol_mu_cache = {}
 _lol_roles_cache = {"ts": 0.0, "data": None}
 _LOL_BLOCK_NAMES = {
-    "de": ("Start", "Kern", "Situativ"), "en": ("Starter", "Core", "Situational"),
-    "pl": ("Start", "Rdzeń", "Sytuacyjne"), "fr": ("Départ", "Cœur", "Situationnel"),
-    "es": ("Inicio", "Núcleo", "Situacional"), "tr": ("Başlangıç", "Çekirdek", "Duruma göre"),
-    "ko": ("시작", "핵심", "상황별"),
+    "de": ("Start", "Build-Reihenfolge", "Situativ"), "en": ("Starter", "Build order", "Situational"),
+    "pl": ("Start", "Kolejność buildu", "Sytuacyjne"), "fr": ("Départ", "Ordre du build", "Situationnel"),
+    "es": ("Inicio", "Orden del build", "Situacional"), "tr": ("Başlangıç", "Build sırası", "Duruma göre"),
+    "ko": ("시작", "빌드 순서", "상황별"),
 }
 
 
@@ -5449,7 +5449,8 @@ def _lol_build_to_setup(name, b):
     labels = _LOL_BLOCK_NAMES.get(_heartbeat_lang(), _LOL_BLOCK_NAMES["en"])
     blocks = [
         {"type": labels[0], "items": b.get("start") or []},
-        {"type": labels[1], "items": (b.get("core") or []) + ([b["boots"]] if b.get("boots") else [])},
+        # Volle Kaufreihenfolge (Server ab 2.4.2-dev9), sonst Kern + Stiefel
+        {"type": labels[1], "items": b.get("order") or ((b.get("core") or []) + ([b["boots"]] if b.get("boots") else []))},
         {"type": labels[2], "items": b.get("situational") or []},
     ]
     return {"name": name, "spells": b.get("spells") if len(b.get("spells") or []) == 2 else [],

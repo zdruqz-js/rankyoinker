@@ -435,7 +435,6 @@
     "lol_setup_spells": "Hechizos",
     "lol_setup_items": "Objetos",
     "lol_setup_block_start": "Inicio",
-    "lol_setup_block_core": "Núcleo",
     "lol_setup_block_situational": "Situacional",
     "lol_chip_accept": "Aceptar auto",
     "lol_phase_planning": "Planificación",
@@ -470,6 +469,7 @@
     "lol_chip_autobuild": "Builds auto",
     "lol_autobuild_tip": "Tras fijar tu campeón, aplica automáticamente el build más popular contra tu rival de línea (runas, hechizos, set de objetos) y lo actualiza cuando se conoce al rival. Si aplicas tú un build, se mantiene en esa partida.",
     "mu_auto_applied": "Aplicado automáticamente: {opt} contra {vs}",
-    "mu_auto_applied_general": "Aplicado automáticamente: {opt} (build general, rival de línea aún desconocido)"
+    "mu_auto_applied_general": "Aplicado automáticamente: {opt} (build general, rival de línea aún desconocido)",
+    "mu_build_order": "Orden del build"
   }
 }
