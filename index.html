@@ -587,6 +587,8 @@
   .lc-action{display:flex; align-items:center; gap:10px;}
   .lc-action .pbtn{white-space:nowrap;}
   .rc-card{text-align:center; padding:34px 20px;}
+  /* Champ Select: nur gehovert, noch nicht gelockt */
+  .pcard.lol-hovering .pcard-portrait .portrait{opacity:.45; filter:grayscale(.5);}
 
   /* ---- League: Kopfleiste (Status + Schnellschalter) ---- */
   .lol-bar{display:flex; align-items:center; justify-content:space-between; gap:12px 18px; flex-wrap:wrap;
@@ -6599,7 +6601,7 @@
     const showRanks = !!(p.rankSolo || p.rankFlex);
     lolCardData.set(key, Object.assign({}, p, {mode, champUrl, dispName, dispTag, subLabel}));
     return `
-    <div class="pcard ${mode === 'lobby' ? 'menu' : ''} ${isMe ? 'me' : ''}" data-lolkey="${esc(key)}" ${p.isDead ? 'style="opacity:.55;"' : ''}>
+    <div class="pcard ${mode === 'lobby' ? 'menu' : ''} ${isMe ? 'me' : ''} ${mode === 'champselect' && p.hovering ? 'lol-hovering' : ''}" data-lolkey="${esc(key)}" ${p.isDead ? 'style="opacity:.55;"' : ''}>
       <div class="pcard-portrait">
         ${isMe && mode !== 'live' ? `<span class="you-badge">${t('pregame_you')}</span>` : ''}
         ${portraitInner}
@@ -6643,7 +6645,7 @@
     return p.puuid || p.name || 'x';
   }
   function lolCardSigOf(p, mode){
-    return JSON.stringify([p.championId, p.name, p.tagLine, p.position, !!p.isDead,
+    return JSON.stringify([p.championId, !!p.hovering, p.name, p.tagLine, p.position, !!p.isDead,
       p.rankSolo ? [p.rankSolo.tier, p.rankSolo.division, p.rankSolo.lp] : null,
       p.rankFlex ? [p.rankFlex.tier, p.rankFlex.division, p.rankFlex.lp] : null,
       mode === 'live' ? [p.kills, p.deaths, p.assists, p.cs, p.level] : null,
@@ -8284,7 +8286,7 @@
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.2-dev4";
+const CURRENT_VERSION = "2.4.2-dev5";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

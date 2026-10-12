@@ -507,7 +507,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2-dev4"
+APP_VERSION = "2.4.2-dev5"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4552,6 +4552,57 @@ def _lol_resolve_names(summoner_ids):
     return out
 
 
+def _lol_cs_champions(j):
+    """{cellId: (championId, nur_gehovert)} für alle Plätze im Champ Select.
+
+    Riots neuere Champ-Select-Version füllt myTeam/theirTeam[].championId nicht
+    in jedem Modus zuverlässig (Nutzer-Meldung 2026-10-12: weder eigene noch
+    gegnerische Picks sichtbar). Darum mehrere Quellen, erste mit Wert gewinnt:
+      1. championId des Platzes,
+      2. die Pick-Aktionen (gelockt bzw. gerade gehovert),
+      3. /lol-champ-select/v1/summoners/{cellId} - daraus liest die
+         Client-Oberfläche selbst (nur für Plätze ohne Treffer, kostet je
+         Platz eine LCU-Anfrage),
+      4. championPickIntent (Hover in Planungsphase/fremden Zügen)."""
+    out = {}
+    cells = (j.get("myTeam") or []) + (j.get("theirTeam") or [])
+    picks = {}
+    for group in (j.get("actions") or []):
+        for a in (group if isinstance(group, list) else [group]):
+            if not isinstance(a, dict) or a.get("type") != "pick" or not a.get("championId"):
+                continue
+            prev = picks.get(a.get("actorCellId"))
+            # Gelockte Picks schlagen reine Hover; sonst gewinnt die spätere Aktion
+            if not prev or a.get("completed") or prev[1]:
+                picks[a.get("actorCellId")] = (a["championId"], not a.get("completed"))
+    for c in cells:
+        cid = c.get("cellId")
+        if c.get("championId"):
+            out[cid] = (c["championId"], bool(picks.get(cid) and picks[cid][1]))
+        elif cid in picks:
+            out[cid] = picks[cid]
+    for c in cells:
+        cid = c.get("cellId")
+        if cid in out or cid is None:
+            continue
+        try:
+            st, sm = lcu_get("/lol-champ-select/v1/summoners/%s" % cid)
+        except LcuError:
+            st, sm = None, None
+        if st == 200 and isinstance(sm, dict) and sm.get("championId"):
+            out[cid] = (sm["championId"], not sm.get("isDonePicking", True) or bool(sm.get("isPickIntenting")))
+        elif c.get("championPickIntent"):
+            out[cid] = (c["championPickIntent"], True)
+    # Nichts gefunden, obwohl die Wahl schon durch ist -> Struktur (ohne
+    # persönliche Daten) melden, damit der nächste Fall nachvollziehbar ist.
+    phase = (j.get("timer") or {}).get("phase")
+    if phase == "FINALIZATION" and cells and not out:
+        keys = sorted((cells[0] or {}).keys())
+        report_error("lol-champselect", "keine Champion-IDs: legacy=%s queue=%s actions=%s cellKeys=%s" % (
+            j.get("isLegacyChampSelect"), j.get("queueId"), len(j.get("actions") or []), ",".join(keys)[:300]))
+    return out
+
+
 def lol_champ_select():
     try:
         status, j = lcu_get("/lol-champ-select/v1/session")
@@ -4560,23 +4611,31 @@ def lol_champ_select():
     if status != 200 or not j:
         return {"ok": False, "error": "Gerade keine Champion-Auswahl aktiv."}
 
-    my_ids = [c.get("summonerId") for c in (j.get("myTeam") or [])]
-    names = _lol_resolve_names(my_ids)
+    my_ids = [c.get("summonerId") for c in (j.get("myTeam") or []) if c.get("summonerId")]
+    names = _lol_resolve_names(my_ids) if my_ids else {}
+    # Neuere Champ-Select-Version: Name und puuid stehen direkt am Platz, die
+    # summonerId kann 0 sein - dann diese Felder nehmen.
+    for c in (j.get("myTeam") or []):
+        sid = c.get("summonerId") or ("cell", c.get("cellId"))
+        if not (names.get(sid) or {}).get("puuid") and (c.get("puuid") or c.get("gameName")):
+            names[sid] = {"puuid": c.get("puuid") or None, "name": c.get("gameName") or None,
+                          "tagLine": c.get("tagLine") or None}
     local_cell = j.get("localPlayerCellId")
 
     puuids = [info.get("puuid") for info in names.values() if info.get("puuid")]
     ranks = dict(zip(puuids, _pool.map(lol_ranked, puuids))) if puuids else {}
+    champs = _lol_cs_champions(j)
 
     def cell(c, with_name):
-        info = (names.get(c.get("summonerId")) or {}) if with_name else {}
+        info = (names.get(c.get("summonerId") or ("cell", c.get("cellId"))) or {}) if with_name else {}
         r = ranks.get(info.get("puuid")) or {}
         return {
             "cellId": c.get("cellId"), "puuid": info.get("puuid"),
             "name": info.get("name") or ("—" if with_name else None),
             "tagLine": info.get("tagLine"),
-            "championId": c.get("championId") or None,
-            # Hover in der Planungsphase bzw. während fremder Züge (Pick-Absicht) -
-            # in der eigenen Pick-Phase steht der Hover dagegen in der Aktion.
+            "championId": (champs.get(c.get("cellId")) or (None, False))[0],
+            # True = nur gehovert/beabsichtigt, noch nicht gelockt
+            "hovering": (champs.get(c.get("cellId")) or (None, False))[1],
             "pickIntent": c.get("championPickIntent") or None,
             # Grossschreiben: normale/Ranked-Queues liefern "TOP", Custom-Spiele
             # können es klein liefern ("top") — sonst griff weder die
@@ -5392,6 +5451,11 @@ def _lol_setup_tick():
     local = j.get("localPlayerCellId")
     me = next((c for c in (j.get("myTeam") or []) if c.get("cellId") == local), {})
     champ = me.get("championId") or 0
+    if not champ:
+        # Neuere Champ-Select-Version: championId kann leer bleiben, siehe
+        # _lol_cs_champions(). Nur ein gelockter Pick zählt hier.
+        cid, hover = _lol_cs_champions(j).get(local) or (0, True)
+        champ = cid if not hover else 0
     # Solange die eigene Pick-Aktion noch offen ist, ist der Champion nur
     # gehovert - erst nach dem Locken anwenden (ARAM hat keine Pick-Aktion).
     pick_open = any(a.get("actorCellId") == local and a.get("type") == "pick" and not a.get("completed")
