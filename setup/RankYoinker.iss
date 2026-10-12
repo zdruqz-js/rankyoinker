@@ -289,7 +289,9 @@ Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-wait.bat"
 //   3. den alten 32-Bit-Deinstallations-Eintrag löschen, sonst stünde
 //      RankYoinker zweimal unter "Apps & Features".
 const
-  UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}_is1';
+  // Ja, zwei schließende Klammern: AppId oben ist {{...}} - nur die vordere
+  // Doppelklammer ist ein Escape, die hintere steht wörtlich im Schlüssel.
+  UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}}_is1';
   LegacyData = '|.rankyoinker_client_id|.rankyoinker_feature_counts.json|.rankyoinker_last_report.json|.rankyoinker_matches_tracked_seen.json|config.json|vry_presets.json|vry_encounters.json|vry_instalock.json|vry_pair.json|vry_lol.json|vry_lol_presets.json|vry_lol_encounters.json|';
 
 var

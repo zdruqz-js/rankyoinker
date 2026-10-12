@@ -52,7 +52,7 @@ jobs:
             Write-Host "Installer $exe exit $($p.ExitCode)"
             Start-Sleep -Seconds 15
           }
-          $key = "Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}_is1"
+          $key = "Microsoft\Windows\CurrentVersion\Uninstall\{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}}_is1"
           $key32 = "HKLM:\SOFTWARE\WOW6432Node\$key"
           $key64 = "HKLM:\SOFTWARE\$key"
           $old = "C:\ProgramData\RankYoinker"
