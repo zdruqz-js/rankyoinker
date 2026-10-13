@@ -1243,11 +1243,21 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .bundle-card .bp .new{display:flex; align-items:center; justify-content:flex-end; gap:8px; font-family:var(--font-display); font-weight:850; font-size:30px; letter-spacing:-.03em; line-height:1;}
 .bundle-card .bp .new img{width:22px; height:22px;}
 .bundle-items{display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; margin:0 0 26px;}
-.bi{position:relative; padding:14px; border-radius:18px; text-align:center; background:rgba(255,255,255,.03); border:1px solid var(--line);
-  transition:transform .4s var(--spring), border-color .2s ease; animation:cardIn .6s var(--ease) both;}
-.bi:hover{transform:translateY(-3px); border-color:var(--line-2);}
+.bi{
+  --tier:#9aa3ad;
+  position:relative; overflow:hidden; isolation:isolate; padding:14px; border-radius:18px; text-align:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border:1px solid var(--line);
+  transition:transform .55s var(--spring-soft), border-color .3s ease, box-shadow .4s ease; animation:cardIn .6s var(--ease) both;
+}
+/* Hover wie bei den Shop-Karten: Seltenheitsfarbe, Schatten, Lichtstreifen, Bild hebt sich */
+.bi::before{content:""; position:absolute; inset:0; z-index:-1; background:radial-gradient(90% 75% at 50% 0%, color-mix(in srgb, var(--tier) 22%, transparent), transparent 72%);}
+.bi::after{content:""; position:absolute; inset:0; z-index:-1; opacity:0; transition:opacity .4s ease;
+  background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.08) 45%, transparent 60%); transform:translateX(-60%);}
+.bi:hover{transform:translateY(-6px); border-color:color-mix(in srgb, var(--tier) 50%, transparent); box-shadow:0 30px 60px -32px color-mix(in srgb, var(--tier) 70%, #000);}
+.bi:hover::after{opacity:1; animation:sheen 1.1s var(--ease) forwards;}
 .bi .bimg{height:70px; display:grid; place-items:center; margin-bottom:10px;}
-.bi img{max-height:70px; max-width:100%; object-fit:contain; filter:drop-shadow(0 10px 16px rgba(0,0,0,.55));}
+.bi img{max-height:70px; max-width:100%; object-fit:contain; filter:drop-shadow(0 10px 16px rgba(0,0,0,.55)); transition:transform .7s var(--spring-soft);}
+.bi:hover img{transform:translateY(-5px) scale(1.07) rotate(-2deg);}
 .bi .bnm{font-family:var(--font-display); font-weight:600; font-size:13px; line-height:1.3;}
 .bi .bpr{font-family:var(--font-mono); font-size:12px; color:var(--accent); margin-top:6px;}
 .bi .bpr s{color:var(--text-3); margin-right:6px;}
@@ -5314,7 +5324,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const id = String(it.itemId || '').toLowerCase();
     if(String(it.typeId).toLowerCase() === ITEM_TYPE.SKIN){
       const sk = skinLevelMap && skinLevelMap[id];
-      if(sk) return {name: sk.name, icon: sk.icon};
+      if(sk) return {name: sk.name, icon: sk.icon, tier: sk.tier};
     }
     return itemMap[id] || {name: t('shop_item_not_cataloged'), icon: null, notCataloged: true};
   }
@@ -5480,7 +5490,8 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
           const info = bundleItemInfo(it);
           const has = ownsItem(it.typeId, it.itemId);
           const itemTip = info.notCataloged ? ` title="${esc(t('shop_item_not_cataloged_tip'))}"` : '';
-          return `<div class="bi ${has ? 'owned' : ''}"${itemTip}>
+          const tier = info.tier && contentTiers[info.tier];
+          return `<div class="bi ${has ? 'owned' : ''}"${tier ? ` style="--tier:${esc(tier.color)};"` : ''}${itemTip}>
             ${has ? ownedBadge : ''}
             <div class="bimg">${info.icon ? `<img src="${esc(info.icon)}" alt="" loading="lazy">` : `<span style="color:var(--text-faint);font-size:10px;">${t('shop_no_image')}</span>`}</div>
             <div class="bnm">${esc(info.name)}${it.amount > 1 ? ' ×' + it.amount : ''}</div>
@@ -8346,7 +8357,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.3-dev5";
+const CURRENT_VERSION = "2.4.3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
