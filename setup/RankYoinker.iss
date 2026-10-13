@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.4.5-dev7"
+#define MyAppVersion "2.4.5-dev8"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -353,12 +353,21 @@ begin
     and (not SameDir(ExpandConstant('{app}'), OldDefaultDir())) and DirExists(OldDefaultDir());
 end;
 
+// Beendet den Dienst (python/pythonw mit vry_log_server.py, egal woher) UND
+// jeden Prozess, der das eingebettete Python aus {app} benutzt - der haelt
+// python310.dll/*.pyd offen, auch ohne vry_log_server.py in der Kommandozeile
+// (so geschehen 2026-10-13: ein Hilfsskript mit {app}\python.exe liess zwei
+// stille Updates scheitern). Beim Umzug aus ProgramData laeuft der Dienst noch
+// aus dem alten Ordner - den deckt die Kommandozeilen-Pruefung ab.
 procedure StopOldProcesses();
 var
   RC: Integer;
+  AppDir: String;
 begin
+  AppDir := ExpandConstant('{app}');
+  StringChangeEx(AppDir, '''', '''''', True);   // ' -> '' fuer PowerShell
   Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { ($_.Name -eq ''pythonw.exe'' -or $_.Name -eq ''python.exe'') -and $_.CommandLine -like ''*vry_log_server.py*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
+    '-NoProfile -Command "$app = ''' + AppDir + '\''; Get-CimInstance Win32_Process | Where-Object { ($_.Name -eq ''pythonw.exe'' -or $_.Name -eq ''python.exe'') -and ($_.CommandLine -like ''*vry_log_server.py*'' -or ($_.ExecutablePath -and $_.ExecutablePath.StartsWith($app, [System.StringComparison]::OrdinalIgnoreCase))) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
     '', SW_HIDE, ewWaitUntilTerminated, RC);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM vry.exe /T', '', SW_HIDE, ewWaitUntilTerminated, RC);
 end;

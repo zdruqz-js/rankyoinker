@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.5-dev7"
+APP_VERSION = "2.4.5-dev8"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1038,6 +1038,12 @@ def _write_update_pending(version):
 def check_pending_update():
     """Beim Start: lief das letzte Update wirklich durch? Sonst als Fehler
     melden (Dashboard-Telemetrie), statt dass es lautlos verschwindet."""
+    # Rest des alten Batch-Warteskripts (bis 2.4.5-dev5): der neue Installer
+    # beendet dessen cmd.exe, bevor es sich selbst loeschen kann
+    try:
+        os.remove(os.path.join(DATA_DIR, "rankyoinker-update-wait.bat"))
+    except OSError:
+        pass
     try:
         if not os.path.exists(UPDATE_PENDING_PATH):
             return
@@ -1074,7 +1080,9 @@ def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, scr
         "try { Wait-Process -Id %d -Timeout 30 -ErrorAction Stop } catch { }" % int(pid),
         "if (Get-Process -Id %d -ErrorAction SilentlyContinue) { L 'Alter Prozess laeuft nach 30 s noch - beende ihn hart.'; Stop-Process -Id %d -Force }" % (int(pid), int(pid)),
         "L ('Alter Prozess beendet, starte Installer (' + %s + ')...')" % q(installer),
-        "$setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', ('/LOG=\"' + %s + '\"'))" % q(setup_log),
+        # /CLOSEAPPLICATIONS: der Restart Manager schliesst auch fremde Prozesse,
+        # die Dateien in {app} offen halten (still sonst: Abbruch ohne Meldung)
+        "$setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CLOSEAPPLICATIONS', ('/LOG=\"' + %s + '\"'))" % q(setup_log),
         "try { Start-Process -FilePath %s -ArgumentList $setupArgs } catch { L ('Installer konnte nicht gestartet werden: ' + $_.Exception.Message) }" % q(installer),
         "$start = Get-Date",
         "$ok = $false",
