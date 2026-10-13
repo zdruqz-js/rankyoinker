@@ -35,6 +35,7 @@ Laeuft unsichtbar via pythonw.exe, beendet sich, wenn der Port belegt ist.
 import base64
 import ctypes
 import glob
+import gzip
 import hashlib
 import hmac
 import collections
@@ -509,7 +510,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.4-dev2"
+APP_VERSION = "2.4.4-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1309,6 +1310,17 @@ _auth_lock = threading.Lock()
 _auth = {"ts": 0.0, "data": None}
 
 
+def _unzip(raw, headers):
+    """Riot-Antworten kommen mit "Accept-Encoding: gzip" gepackt (Match-Details
+    ~40 statt ~420 KB - weniger Datenverkehr neben dem laufenden Spiel)."""
+    if raw and headers is not None and (headers.get("Content-Encoding") or "").lower() == "gzip":
+        try:
+            return gzip.decompress(raw)
+        except (OSError, EOFError):
+            return raw
+    return raw
+
+
 def _http(url, headers=None, method="GET", body=None, timeout=12, local_unverified=False, info=None):
     """local_unverified=True NUR fuer Riot-APIs auf 127.0.0.1 mit
     selbstsigniertem Zertifikat (Verifikation dort schlicht nicht moeglich):
@@ -1340,16 +1352,16 @@ def _http(url, headers=None, method="GET", body=None, timeout=12, local_unverifi
     try:
         try:
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
-                raw = r.read()
+                raw = _unzip(r.read(), r.headers)
                 return r.status, (json.loads(raw) if raw else None)
         except urllib.error.URLError as e:
             if (not local_unverified) and _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
                 with urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX) as r:
-                    raw = r.read()
+                    raw = _unzip(r.read(), r.headers)
                     return r.status, (json.loads(raw) if raw else None)
             raise
     except urllib.error.HTTPError as e:
-        raw = e.read()
+        raw = _unzip(e.read(), e.headers)
         if info is not None:
             info["raw"] = (raw or b"")[:600]
             info["retry_after"] = e.headers.get("Retry-After") if e.headers else None
@@ -1443,6 +1455,7 @@ def get_auth(force=False):
                 # (Python-urllib wird geblockt). Gleiche Kennung wie der Spiel-Client.
                 "User-Agent": "ShooterGame/%s Windows/10.0.19043.1.256.64bit" % _major(version),
                 "Content-Type": "application/json",
+                "Accept-Encoding": "gzip",           # siehe _unzip()
             },
         }
         _auth["data"] = data
@@ -1486,7 +1499,11 @@ def _pd_acquire():
 def _is_cloudflare_block(info):
     raw = (info or {}).get("raw") or b""
     low = raw.lower()
-    return b"cloudflare" in low or b"access denied" in low or b"<html" in low
+    # "error code: 1015" ist Cloudflares Ratenlimit - Klartext, kein HTML. Bis
+    # 2026-10-13 galt es als normales 429: 12 s Pause, dann wieder anklopfen,
+    # waehrend die Sperre noch lief (beim Matchstart im vry-Log gesehen).
+    return (b"cloudflare" in low or b"access denied" in low or b"<html" in low
+            or b"error code:" in low)
 
 
 def _pd_feedback(status, info):
@@ -1652,6 +1669,36 @@ def _digest_match(match):
     return {"rows": rows, "party": party}
 
 
+_inflight = {}                  # Schluessel -> {"ev": Event, "res": Ergebnis}
+_inflight_lock = threading.Lock()
+
+
+def _single_flight(key, fn):
+    """fn() je Schluessel nur einmal gleichzeitig ausfuehren.
+
+    Beim Matchstart wollten Spielerkarten, Vorladen, Party-Erkennung und
+    "meistgespielter Agent" oft dieselben Daten im selben Moment - und jeder
+    fragte Riot selbst, weil der Cache erst nach der ersten Antwort gefuellt
+    war (Party-Mitglieder teilen sich ihre Matches). Wer jetzt zu spaet kommt,
+    wartet auf das Ergebnis des ersten. None, wenn der erste gescheitert ist.
+    """
+    with _inflight_lock:
+        slot = _inflight.get(key)
+        owner = slot is None
+        if owner:
+            slot = _inflight[key] = {"ev": threading.Event(), "res": None}
+    if not owner:
+        slot["ev"].wait(60)
+        return slot["res"]
+    try:
+        slot["res"] = fn()
+        return slot["res"]
+    finally:
+        with _inflight_lock:
+            _inflight.pop(key, None)
+        slot["ev"].set()
+
+
 def _match_details(match_id):
     """Kurzfassung eines abgeschlossenen Matches (siehe oben), gecacht."""
     with _cache_lock:
@@ -1659,6 +1706,14 @@ def _match_details(match_id):
         if hit is not None:
             _match_cache.move_to_end(match_id)
             return hit
+    return _single_flight(("match", match_id), lambda: _match_details_fetch(match_id))
+
+
+def _match_details_fetch(match_id):
+    with _cache_lock:
+        hit = _match_cache.get(match_id)   # kam evtl. gerade erst herein
+    if hit is not None:
+        return hit
     status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
     if status != 200 or not j:
         return None
@@ -1787,7 +1842,16 @@ def player_stats(puuid, count=1, season=True):
         hit = _stats_cache.get(key)
         if hit and now - hit[0] < STATS_TTL and (not season or "seasonGames" in hit[1]):
             return hit[1]
+    # Laeuft dieselbe Abfrage schon (Vorladen, "meistgespielter Agent", zweites
+    # Geraet), auf deren Ergebnis warten statt Riot doppelt zu fragen
+    res = _single_flight(("stats", key, season), lambda: _player_stats_fetch(puuid, count, season, key))
+    if res is None:
+        return {"puuid": puuid, "error": "abgebrochen", "matches": [], "totals": None}
+    return res
 
+
+def _player_stats_fetch(puuid, count, season, key):
+    now = time.time()
     out = {"puuid": puuid, "matches": [], "totals": None}
     incomplete = False
     try:
@@ -2819,6 +2883,16 @@ def premades():
     with _cache_lock:
         hit = _premade_cache
         if hit["match"] == mid and hit["data"] and now - hit["ts"] < PREMADE_TTL:
+            return hit["data"]
+    # Vorladen (siehe _prefetch_match) und Seite fragen oft gleichzeitig
+    res = _single_flight(("premades", mid), lambda: _premades_store(mid, state, roster))
+    return res if res is not None else {"ok": False, "error": "abgebrochen"}
+
+
+def _premades_store(mid, state, roster):
+    with _cache_lock:
+        hit = _premade_cache                  # kam evtl. gerade erst herein
+        if hit["match"] == mid and hit["data"] and time.time() - hit["ts"] < PREMADE_TTL:
             return hit["data"]
     data = _premades_build(mid, state, roster)
     if pd_gate_state()["paused"]:
@@ -4154,6 +4228,58 @@ def _maybe_resync(state, mid, now):
                              "damit es geladen wird." % state)
 
 
+# ---- Spielerkarten vorladen ----
+# vry.exe braucht nach dem Matchstart noch ein paar Sekunden (Namen, Loadouts,
+# Raenge); erst danach zeichnet die Seite die Karten und fragt "Letzte 5
+# Matches" und Partys an. Der Dienst kennt den Kader aber schon vorher - also
+# holt er die Daten gleich selbst. Die Seite bekommt sie dann aus dem Cache bzw.
+# haengt sich an die laufende Abfrage (_single_flight). Nur solange die Seite
+# offen ist (/status kommt im 1,5-s-Takt): ohne Zuschauer waeren das rund 60
+# Riot-Anfragen pro Match fuer nichts.
+PREFETCH_PAGE_IDLE = 120
+_page_seen = {"ts": 0.0}
+_prefetch_done = {"key": None}
+
+
+def _prefetch_match(state, mid):
+    if not mid or time.time() - _page_seen["ts"] > PREFETCH_PAGE_IDLE:
+        return
+    key = "%s:%s" % (state, mid)
+    if _prefetch_done["key"] == key:
+        return
+    if state == "INGAME":
+        if _game_roster["match"] != mid:
+            return                            # Kader noch nicht da -> naechste Runde
+        # Gegner zuerst: die eigene Seite liegt meist schon aus der Agentenauswahl vor
+        puuids = [p["puuid"] for p in sorted(_game_roster["players"], key=lambda p: bool(p.get("ally")))]
+    else:
+        try:
+            _, _, roster = _lobby_roster()
+        except Exception:
+            return
+        puuids = [p["puuid"] for p in roster]
+    if not puuids:
+        return
+    _prefetch_done["key"] = key
+
+    def run():
+        # Nacheinander: die Riot-Bremse laesst ohnehin nur ~3 Anfragen/s durch,
+        # so ist wenigstens eine Karte nach der anderen fertig statt alle zuletzt
+        for pu in puuids:
+            if pd_gate_state()["paused"]:
+                return                        # Riot-Pause: den Rest holt die Seite spaeter selbst
+            try:
+                card_data(pu)
+            except Exception:
+                pass
+        try:
+            premades()
+        except Exception:
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def _game_watcher():
     while True:
         time.sleep(GAME_INTERVAL)
@@ -4182,6 +4308,8 @@ def _game_watcher():
             if state == "INGAME":
                 record_encounter_now(mid)
                 _notify_match_tracked_once("valorant", mid)
+            if state in ("PREGAME", "INGAME"):
+                _prefetch_match(state, mid)   # Karten-Daten holen, waehrend vry.exe noch laedt
             _maybe_resync(state, mid, now)
         except Exception:
             pass
@@ -6615,6 +6743,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(out)
 
         elif path.startswith("/status"):
+            _page_seen["ts"] = time.time()    # Seite offen -> Vorladen lohnt sich
             _, lines = self._read_lines()
             # Der Instalock kommt hier bewusst mit: Startet der Dienst neu und
             # nimmt ein Scharfschalten wieder auf, merkt die Seite das sonst
@@ -6661,7 +6790,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json({"ok": False, "error": str(e)})
                 return
-            rows = list(_pool.map(card_data, puuids[:12]))
+            # Die Seite fragt je Spieler einzeln (Kachel erscheint, sobald ihre
+            # Daten da sind) - dann direkt in diesem Thread statt ueber den Pool
+            rows = ([card_data(puuids[0])] if len(puuids) == 1
+                    else list(_pool.map(card_data, puuids[:12])))
             self._json({"ok": True, "players": {r["puuid"]: r for r in rows}})
 
         elif path == "/api/party":
