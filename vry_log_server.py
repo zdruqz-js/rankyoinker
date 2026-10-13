@@ -521,7 +521,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.5-dev5"
+APP_VERSION = "2.4.5-dev6"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1017,6 +1017,95 @@ def _resolve_official_update():
     return download_url, str(j["sha256"]).lower(), version
 
 
+def _ps_quote(value):
+    """String als PowerShell-Literal in einfachen Anfuehrungszeichen."""
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+UPDATE_PENDING_PATH = os.path.join(DATA_DIR, "rankyoinker-update-pending.json")
+
+
+def _write_update_pending(version):
+    """Merkt sich das Update-Ziel - der naechste Start prueft, ob es geklappt hat."""
+    try:
+        _save_json(UPDATE_PENDING_PATH, {"target": str(version), "from": APP_VERSION, "at": int(time.time())})
+    except Exception:
+        pass
+
+
+def check_pending_update():
+    """Beim Start: lief das letzte Update wirklich durch? Sonst als Fehler
+    melden (Dashboard-Telemetrie), statt dass es lautlos verschwindet."""
+    try:
+        if not os.path.exists(UPDATE_PENDING_PATH):
+            return
+        info = _load_json(UPDATE_PENDING_PATH) or {}
+        os.remove(UPDATE_PENDING_PATH)
+    except Exception:
+        return
+    target = str(info.get("target") or "")
+    if not target or target == APP_VERSION:
+        if target:
+            _ulog("Update auf %s erfolgreich (laeuft jetzt)." % target)
+        return
+    if time.time() - float(info.get("at") or 0) > 6 * 3600:
+        return                                # uralt, nicht mehr aussagekraeftig
+    msg = "Update auf %s fehlgeschlagen, es laeuft weiter %s" % (target, APP_VERSION)
+    _ulog(msg + " (siehe rankyoinker-setup.log).")
+    report_error("self-update", msg)
+
+
+def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, script, appdir):
+    """PowerShell-Warteskript fuer das Selbst-Update (siehe _trigger_self_update).
+
+    Laeuft unter Windows PowerShell 5.1 - also keine PS7-Syntax (kein ?:, ??, &&).
+    """
+    q = _ps_quote
+    return "\r\n".join([
+        "$ErrorActionPreference = 'SilentlyContinue'",
+        "$log = %s" % q(log_path),
+        "function L([string]$m) { Add-Content -LiteralPath $log -Value ('[' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.ff') + '] ' + $m) -Encoding UTF8 }",
+        "function Get-Status { try { return Invoke-RestMethod -Uri 'http://127.0.0.1:1101/status' -TimeoutSec 3 -UseBasicParsing } catch { return $null } }",
+        "function Test-Installer { return [bool](Get-Process -Name 'rankyoinker-update*' -ErrorAction SilentlyContinue) }",
+        "$target = %s" % q(target),
+        "L ('Update gestartet, warte auf PID %d...')" % int(pid),
+        "try { Wait-Process -Id %d -Timeout 30 -ErrorAction Stop } catch { }" % int(pid),
+        "if (Get-Process -Id %d -ErrorAction SilentlyContinue) { L 'Alter Prozess laeuft nach 30 s noch - beende ihn hart.'; Stop-Process -Id %d -Force }" % (int(pid), int(pid)),
+        "L ('Alter Prozess beendet, starte Installer (' + %s + ')...')" % q(installer),
+        "$setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', ('/LOG=\"' + %s + '\"'))" % q(setup_log),
+        "try { Start-Process -FilePath %s -ArgumentList $setupArgs } catch { L ('Installer konnte nicht gestartet werden: ' + $_.Exception.Message) }" % q(installer),
+        "$start = Get-Date",
+        "$ok = $false",
+        "while (((Get-Date) - $start).TotalSeconds -lt 240) {",
+        "  $s = Get-Status",
+        "  if ($s -and ([string]$s.appVersion -eq $target)) { $ok = $true; break }",
+        "  if ((((Get-Date) - $start).TotalSeconds -gt 20) -and -not (Test-Installer)) {",
+        "    Start-Sleep -Seconds 10",
+        "    $s = Get-Status",
+        "    if ($s -and ([string]$s.appVersion -eq $target)) { $ok = $true }",
+        "    break",
+        "  }",
+        "  Start-Sleep -Seconds 1",
+        "}",
+        "if ($ok) {",
+        "  L ('Update erfolgreich: Version ' + $target + ' laeuft.')",
+        "} else {",
+        "  $s = Get-Status",
+        "  if ($s) {",
+        "    L ('UPDATE FEHLGESCHLAGEN: es laeuft weiter Version ' + [string]$s.appVersion + ' statt ' + $target + '. Installer-Log: ' + %s)" % q(setup_log),
+        "  } elseif (Test-Installer) {",
+        "    L 'Installer laeuft nach 240 s noch - kein Sicherheitsnetz, um ihn nicht zu stoeren.'",
+        "  } else {",
+        "    L 'Log-Server laeuft nicht und kein Installer mehr aktiv - starte Sicherheitsnetz direkt...'",
+        "    if ((Test-Path -LiteralPath %s) -and (Test-Path -LiteralPath %s)) { Start-Process -FilePath %s -ArgumentList ('\"' + %s + '\"') -WorkingDirectory %s }" % (
+            q(pythonw), q(script), q(pythonw), q(script), q(appdir)),
+        "  }",
+        "}",
+        "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue",
+        "",
+    ])
+
+
 def trigger_self_update():
     res = _trigger_self_update()
     if isinstance(res, dict) and not res.get("ok"):
@@ -1081,7 +1170,6 @@ def _trigger_self_update():
     # Fix: ein winziges Batch-Skript wartet aktiv (per tasklist-Polling), bis
     # DIESE PID wirklich weg ist, und startet den Installer erst danach.
     my_pid = os.getpid()
-    waiter_path = os.path.join(DATA_DIR, "rankyoinker-update-wait.bat")
     # Protokolliert die Schritte NACH diesem Python-Prozess (der sich ja
     # gleich selbst beendet und darum ab hier nichts mehr sehen kann) -
     # insbesondere den Exit-Code des Installers. Ohne das war "es sieht aus
@@ -1127,52 +1215,42 @@ def _trigger_self_update():
     # echten Installationsweg (inkl. install_all.py) bis zu ~2 Minuten
     # Zeit, bevor das Sicherheitsnetz unten ueberhaupt in Erwaegung
     # gezogen wird.
+    #
+    # WICHTIG (dritter Vorfall, 2026-10-13, Live-Analyse der Session "Ladezeit
+    # der letzten 5 Matches"): Das Batch-Warteskript bis 2.4.5-dev5 hat NIE
+    # gewartet. In "tasklist ... 2^>nul ^| find" innerhalb eines ( )-Blocks
+    # machen die ^ Umleitung und Pipe zu Text - tasklist bekam ungueltige
+    # Argumente, die Schleife brach nach 20 ms ab. Der Installer startete,
+    # waehrend der alte Dienst noch lief; dessen /status beantwortete die
+    # Fertig-Pruefung, und ~3 s spaeter startete das Sicherheitsnetz den ALTEN
+    # Dienst mitten in die Installation. Lief der Dienst erhoeht (kein UAC),
+    # brach der unsichtbare Installer dann lautlos ab ("Datei in Benutzung").
+    #
+    # Jetzt ein PowerShell-Skript statt Batch:
+    #   1. Wait-Process auf die eigene PID (kein Text-Matching mehr),
+    #   2. Installer mit /LOG starten (Abbrueche nachvollziehbar),
+    #   3. fertig erst, wenn /status die NEUE appVersion meldet,
+    #   4. Sicherheitsnetz nur, wenn KEIN Installer mehr laeuft und gar kein
+    #      Dienst antwortet - nie waehrend einer laufenden Installation.
+    # Der neue Installer raeumt zusaetzlich selbst auf (RankYoinker.iss:
+    # altes Warteskript beenden, laufende Dienste vor dem Kopieren stoppen) -
+    # das schuetzt auch Updates, die noch vom alten Batch-Skript kommen.
     pythonw_path = os.path.join(BASE, "pythonw.exe")
     script_path = os.path.join(BASE, "vry_log_server.py")
-    status_check = (
-        'powershell -NoProfile -Command "try { $r = Invoke-WebRequest '
-        "'http://127.0.0.1:1101/status' -UseBasicParsing -TimeoutSec 3; "
-        'if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"'
-    )
-    waiter_script = (
-        "@echo off\r\n"
-        f'echo [%date% %time%] Update gestartet, warte auf PID {my_pid}... >> "{log_path}"\r\n'
-        f"for /l %%i in (1,1,30) do (\r\n"
-        f'  tasklist /fi "PID eq {my_pid}" 2^>nul ^| find /I "pythonw.exe" >nul\r\n'
-        "  if errorlevel 1 goto proceed\r\n"
-        "  timeout /t 1 /nobreak >nul\r\n"
-        ")\r\n"
-        ":proceed\r\n"
-        f'echo [%date% %time%] Alter Prozess beendet (oder Zeitlimit erreicht), starte Installer ({tmp_path})... >> "{log_path}"\r\n'
-        f'start "" "{tmp_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-\r\n'
-        f"for /l %%i in (1,1,110) do (\r\n"
-        f"  {status_check}\r\n"
-        "  if not errorlevel 1 goto installer_done\r\n"
-        "  timeout /t 1 /nobreak >nul\r\n"
-        ")\r\n"
-        ":installer_done\r\n"
-        f'echo [%date% %time%] Installations-Warteschleife beendet (laeuft oder Zeitlimit erreicht). >> "{log_path}"\r\n'
-        f"{status_check}\r\n"
-        "if errorlevel 1 (\r\n"
-        f'  echo [%date% %time%] Log-Server laeuft nicht, starte Fallback direkt... >> "{log_path}"\r\n'
-        f'  if exist "{pythonw_path}" if exist "{script_path}" start "" "{pythonw_path}" "{script_path}"\r\n'
-        ")\r\n"
-        'del "%~f0"\r\n'
-    )
+    setup_log = os.path.join(DATA_DIR, "rankyoinker-setup.log")
+    waiter_path = os.path.join(DATA_DIR, "rankyoinker-update-wait.ps1")
+    _write_update_pending(version)
+    waiter_script = _update_waiter_ps1(my_pid, tmp_path, version, log_path, setup_log,
+                                       pythonw_path, script_path, BASE)
 
     try:
-        with open(waiter_path, "w", encoding="utf-8") as f:
+        # utf-8-sig: Windows PowerShell 5.1 liest .ps1 ohne BOM als ANSI -
+        # Pfade mit z. B. koreanischem Benutzernamen gingen sonst kaputt
+        with open(waiter_path, "w", encoding="utf-8-sig") as f:
             f.write(waiter_script)
-        # NUR CREATE_NO_WINDOW, kein DETACHED_PROCESS: laut Windows-Doku wird
-        # CREATE_NO_WINDOW zusammen mit DETACHED_PROCESS ignoriert - cmd lief
-        # dann ganz ohne Konsole, und JEDES Konsolenprogramm im Warte-Skript
-        # (tasklist, find, timeout, powershell) bekam ein eigenes, sichtbar
-        # aufblitzendes Fenster ("5 cmd-Fenster beim Update", Nutzer-Meldung
-        # 2026-10-10). So bekommt cmd eine unsichtbare Konsole, die alle
-        # Kindprozesse erben. CREATE_NEW_PROCESS_GROUP entkoppelt das Skript
-        # trotzdem vom gleich endenden Dienst-Prozess.
         subprocess.Popen(
-            ["cmd", "/c", waiter_path],
+            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+             "-WindowStyle", "Hidden", "-File", waiter_path],
             creationflags=CREATE_NO_WINDOW | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200),
             close_fds=True,
         )
@@ -6766,7 +6844,8 @@ class Handler(BaseHTTPRequestHandler):
             # nicht — sie fragt /api/instalock nur, solange sie es selbst kennt.
             with _il_lock:
                 il = {"on": bool(_il["on"]), "gen": _il["gen"]}
-            out = {"progress": parse_progress(lines), "game": game_state(),
+            out = {"appVersion": APP_VERSION,
+                   "progress": parse_progress(lines), "game": game_state(),
                    "instalock": il, "activeGame": detect_active_game(),
                    "lol": lol_gamestate()}
             out.update(proc_state())
@@ -7289,6 +7368,9 @@ if __name__ == "__main__":
     except OSError:
         raise SystemExit(0)  # Port belegt -> Instanz laeuft schon
     main_server.daemon_threads = True
+
+    # Lief das letzte Selbst-Update wirklich durch? (sonst Telemetrie-Fehler)
+    check_pending_update()
 
     # Wacht über vry.exe: genau eine Instanz, Neustart nach einem Absturz
     threading.Thread(target=_watchdog, daemon=True).start()

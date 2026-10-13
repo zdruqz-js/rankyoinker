@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.4.5-dev5"
+#define MyAppVersion "2.4.5-dev6"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -310,8 +310,26 @@ begin
   Result := CompareText(RemoveBackslashUnlessRoot(A), RemoveBackslashUnlessRoot(B)) = 0;
 end;
 
+// Das Batch-Warteskript der App bis 2.4.5-dev5 hat nie auf das Ende des alten
+// Dienstes gewartet und startet ~3 s nach diesem Installer den ALTEN Dienst
+// neu ("Sicherheitsnetz") - mitten in die Installation. Lief der Dienst
+// erhoeht (kein UAC-Fenster), brach /VERYSILENT dann lautlos ab, weil
+// python310.dll & Co. in Benutzung waren (Live-Analyse 2026-10-13). Das
+// Warteskript kommt immer von der ALTEN Version, darum raeumt der neue
+// Installer selbst auf: nur cmd.exe beenden, NICHT den Prozessbaum - dieser
+// Installer ist ein Kind davon.
+procedure StopOldUpdateWaiter();
+var
+  RC: Integer;
+begin
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq ''cmd.exe'' -and $_.CommandLine -like ''*rankyoinker-update-wait.bat*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
+    '', SW_HIDE, ewWaitUntilTerminated, RC);
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  StopOldUpdateWaiter();
   PrevDir := '';
   if not RegQueryStringValue(HKLM64, UninstKey, 'Inno Setup: App Path', PrevDir) then
     if not RegQueryStringValue(HKLM32, UninstKey, 'Inno Setup: App Path', PrevDir) then
@@ -370,7 +388,11 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if (CurStep = ssInstall) and MigratingFromProgramData() then
+  // Vor dem Kopieren IMMER laufende Dienste und vry.exe beenden (vorher nur
+  // beim Umzug aus ProgramData): sonst sind python310.dll, *.pyd und
+  // library.zip in Benutzung, und eine stille Installation bricht ab.
+  // install_all.py startet den Dienst danach neu.
+  if CurStep = ssInstall then
     StopOldProcesses();
   if CurStep = ssPostInstall then
   begin
