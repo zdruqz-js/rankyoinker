@@ -62,8 +62,10 @@ class Rank:
                     final["leaderboard"] = 0
 
             else:
-                self.log("failed getting rank")
-                self.log(response.text)
+                # Kurz statt der kompletten Antwort - bei einer Cloudflare-Sperre
+                # stand hier sonst eine ganze HTML-Seite im Log (und im Overlay).
+                from src.requestsV import short_error
+                self.log(f"failed getting rank ({response.status_code}): {short_error(response)}")
                 final["rank"] = 0
                 final["rr"] = 0
                 final["leaderboard"] = 0

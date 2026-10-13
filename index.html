@@ -767,28 +767,35 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .rank-emblem-lol{position:relative; width:86px; height:86px; overflow:hidden; filter:drop-shadow(0 12px 26px rgba(0,0,0,.7));}
 .rank-emblem-lol img{position:absolute; top:50%; left:50%; width:340px; height:auto; max-width:none; transform:translate(-50%,-50%);}
 
-/* Lade-Ansicht */
-.prog-wrap{max-width:520px; margin:6px auto 0; text-align:center;}
-.prog-nums{font-family:var(--font-display); font-weight:800; font-size:56px; line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums;}
-.prog-nums span{font-size:26px; color:var(--text-3); font-weight:600;}
-.prog-track{position:relative; height:8px; margin-top:16px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.07);}
-.prog-fill{height:100%; width:0; border-radius:99px; background:var(--grad-accent); box-shadow:0 0 18px rgba(216,184,124,.7); transition:width .6s var(--ease); position:relative; overflow:hidden;}
-.prog-fill::after{content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); transform:translateX(-100%); animation:skshimmer 1.4s infinite;}
-.prog-sub{margin-top:12px; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);}
-.skel-card{position:relative; min-height:330px; border-radius:20px; overflow:hidden; background:rgba(255,255,255,.03); border:1px solid var(--line); opacity:.55; transition:opacity .5s ease, border-color .5s ease, box-shadow .5s ease;}
-.skel-card .sk-portrait{height:172px; background:rgba(255,255,255,.035);}
+/* Lade-Ansicht: Statuszeile + Kader-Platzhalter (mit Agentenbild, sobald bekannt) */
+.load-strip{display:flex; align-items:center; gap:14px; margin:-14px 0 26px; padding:12px 18px; border-radius:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border:1px solid var(--line-2);}
+.agentpick + .load-strip{margin-top:-18px;}
+.ls-spin{width:16px; height:16px; flex-shrink:0; border-radius:50%; border:2px solid rgba(255,255,255,.12); border-top-color:var(--accent); animation:spin .9s linear infinite;}
+.load-strip.paused .ls-spin{border-top-color:var(--warn); animation-duration:2.2s;}
+.load-strip.done .ls-spin{border-top-color:var(--win);}
+.ls-txt{font-family:var(--font-display); font-weight:600; font-size:14px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+.load-strip.paused .ls-txt{color:var(--warn);}
+.ls-num{font-family:var(--font-mono); font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.ls-num b{color:var(--text); font-weight:600;}
+.ls-bar{flex:1; min-width:60px; height:4px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.07);}
+.ls-bar i{display:block; height:100%; border-radius:99px; background:var(--grad-accent); transition:width .6s var(--ease);}
+.load-strip.paused .ls-bar i{background:var(--warn);}
+.skel-card{position:relative; min-height:330px; border-radius:20px; overflow:hidden; background:rgba(255,255,255,.03); border:1px solid var(--line); opacity:.6; transition:opacity .5s ease, border-color .5s ease;}
+.skel-card .sk-portrait{position:relative; height:172px; overflow:hidden; background:linear-gradient(180deg, color-mix(in srgb, var(--team, var(--accent)) 10%, transparent), rgba(255,255,255,.02));}
+.skel-card .sk-portrait img{width:100%; height:100%; object-fit:contain; transform:scale(1.62) translateY(15%); filter:grayscale(.7) brightness(.6); transition:filter .6s ease;}
+.skel-card .sk-agent{margin:14px 16px 0; font-family:var(--font-display); font-weight:700; font-size:14px; color:var(--text-2);}
 .skel-card .sk-line{height:12px; margin:16px 16px 0; border-radius:99px; background:rgba(255,255,255,.06);}
+.skel-card .sk-agent + .sk-line{margin-top:12px;}
 .skel-card::after{content:""; position:absolute; inset:0; transform:translateX(-100%);
   background:linear-gradient(100deg, transparent 35%, rgba(255,255,255,.07) 50%, transparent 65%); animation:skshimmer 1.5s infinite;}
 @keyframes skshimmer{to{transform:translateX(100%);}}
-.skel-card.done{opacity:1; border-color:var(--accent-line); box-shadow:0 0 0 1px rgba(216,184,124,.15), 0 20px 50px -30px rgba(216,184,124,.5);}
-.skel-card.done::after{display:none;}
-.skel-card.done::before{
-  content:""; position:absolute; top:44%; left:50%; width:54px; height:54px; margin:-27px 0 0 -27px; z-index:2; border-radius:50%;
-  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1408' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 12.5 10 16.5 18 8.5'/></svg>") center/28px no-repeat, var(--grad-accent);
-  box-shadow:0 0 30px rgba(216,184,124,.6), 0 0 0 6px rgba(216,184,124,.12);
-  animation:popIn .5s var(--spring) both;
-}
+.skel-card[data-done]{opacity:1; border-color:color-mix(in srgb, var(--team, var(--accent)) 40%, transparent);}
+.skel-card[data-done]::after{display:none;}
+.skel-card[data-done] .sk-portrait img{filter:none;}
+.skel-card[data-done] .sk-agent{color:var(--text);}
+.sk-ok{position:absolute; top:10px; right:10px; z-index:2; width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  color:var(--accent-ink); background:var(--grad-accent); animation:popIn .45s var(--spring) both;}
 
 /* ================= Agentenauswahl / Instalock ================= */
 .agentpick{
@@ -2004,13 +2011,6 @@ ul.ry-upd-notes li::before{content:""; position:absolute; left:2px; top:8px; wid
 }
 
 /* ================= Ergänzungen (neue Bausteine) ================= */
-.load-card{
-  max-width:640px; margin:0 auto 26px; padding:22px 26px 26px; border-radius:24px; text-align:center;
-  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border:1px solid var(--line-2);
-  box-shadow:var(--shadow-card);
-}
-.load-card .team-banner{justify-content:center;}
-.load-card .team-banner .line{display:none;}
 .party-card{--team:var(--accent);}
 .mh-sub{font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-2);}
 .stat-hero > :only-child{grid-column:1 / -1;}
@@ -2844,15 +2844,31 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // unten es an mehreren Stellen aufrufen.
   function refreshStatusChip(){}
 
-  let connStateInit = false;
+  let connStateInit = false, connToastTimer = null, connDropShown = false, powerChanges = 0;
   function setConnState(state){
     const prev = connState;
     connState = state;
     refreshStatusChip();
-    // Nur echte Wechsel melden (ws.onclose feuert im Offline-Betrieb im Sekundentakt)
+    // Nur echte Wechsel melden (ws.onclose feuert im Offline-Betrieb im Sekundentakt).
+    // Wird RankYoinker gestartet oder beendet, meldet das schon der Start/Stopp-
+    // Hinweis - "Verbindung getrennt"/"Verbunden" kam dann jedes Mal doppelt.
+    // Darum kurz abwarten und nur melden, wenn die Verbindung wirklich ohne
+    // Grund weg ist; "Verbunden" nur, wenn vorher "getrennt" angezeigt wurde.
     if(connStateInit && state !== prev){
-      if(state === 'live') toast('success', t('toast_connected_title'), t('toast_connected_msg'), {id:'conn'});
-      else if(state === 'off' && prev !== 'off') toast('warn', t('toast_disconnected_title'), t('toast_disconnected_msg'), {id:'conn', dur:6000});
+      if(state === 'live'){
+        clearTimeout(connToastTimer);
+        if(connDropShown) toast('success', t('toast_connected_title'), t('toast_connected_msg'), {id:'conn'});
+        connDropShown = false;
+      } else if(state === 'off' && prev !== 'off'){
+        clearTimeout(connToastTimer);
+        const gen = powerChanges;
+        connToastTimer = setTimeout(() => {
+          // Inzwischen beendet/neu gestartet? Dann hat das schon der Start/Stopp-Hinweis gesagt.
+          if(connState !== 'off' || !procStatus || !procStatus.running || powerChanges !== gen) return;
+          connDropShown = true;
+          toast('warn', t('toast_disconnected_title'), t('toast_disconnected_msg'), {id:'conn', dur:6000});
+        }, 3500);
+      }
     }
     connStateInit = true;
     updateOverlay();
@@ -3007,58 +3023,93 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     }).join('');
   }
 
+  // ---------- Lade-Ansicht ----------
+  // Früher: dieselbe Zahl dreimal (Plakette, große Ziffer, Haken auf leeren
+  // Platzhaltern) plus "RankYoinker fragt die Riot-API pro Spieler ab…". Jetzt:
+  // Karte und Modus oben, eine schlanke Statuszeile und der Kader mit den
+  // Agenten, die schon feststehen (kommt vom Dienst, keine eigene Riot-Anfrage) -
+  // wer geladen ist, wird hell. Eine Riot-Pause (Rate-Limit) steht dabei klar
+  // in der Statuszeile statt nur im Log.
+  function loadStripHtml(pr, loaded, total, pause){
+    const pct = pr.phase === 'done' ? 100 : Math.round(loaded / Math.max(total, 1) * 100);
+    const text = pause ? t('loading_riot_pause', {s: pause})
+      : pr.phase === 'done' ? t('loading_building') : t('loading_ranks');
+    return `<div class="load-strip${pause ? ' paused' : ''}${pr.phase === 'done' ? ' done' : ''}">
+      <span class="ls-spin"></span>
+      <span class="ls-txt">${esc(text)}</span>
+      <span class="ls-num"><b>${loaded}</b> / ${total}</span>
+      <span class="ls-bar"><i style="width:${pct}%;"></i></span>
+    </div>`;
+  }
+  // slot: {puuid, agent} aus dem Kader des Dienstes oder null (noch unbekannt)
+  function loadCardHtml(slot, loadedSet){
+    const aName = slot && slot.agent ? (agentById[String(slot.agent).toLowerCase()] || '') : '';
+    const info = aName ? agentMap[aName.toLowerCase()] : null;
+    const done = !!(slot && slot.puuid && loadedSet.has(slot.puuid));
+    return `<div class="skel-card"${done ? ' data-done="1"' : ''}>
+      <div class="sk-portrait">${info && info.portrait ? `<img src="${esc(info.portrait)}" alt="" loading="lazy">` : ''}${done ? `<span class="sk-ok">${svgIcon('check', 13)}</span>` : ''}</div>
+      ${aName ? `<div class="sk-agent">${esc(aName)}</div>` : '<div class="sk-line" style="width:55%;"></div>'}
+      <div class="sk-line" style="width:78%;"></div>
+      <div class="sk-line" style="width:42%;"></div>
+    </div>`;
+  }
+  function loadTeamHtml(cls, title, slots, loadedSet){
+    return `<div class="team-section ${cls}">
+      <div class="team-banner"><div class="slash"></div><h2>${esc(title)}</h2><div class="line"></div>
+        <span class="cnt">${t(slots.length === 1 ? 'player_count_1' : 'player_count_n', {n: slots.length})}</span></div>
+      <div class="card-grid" style="--card-grid-n:${Math.max(1, slots.length)};">${slots.map(sl => loadCardHtml(sl, loadedSet)).join('')}</div>
+    </div>`;
+  }
+
   function renderLoading(pr){
     const total = Math.max(pr.total || 0, 1);
     const loaded = Math.min(pr.loaded || 0, total);
-    // Nur der Ladefortschritt gehört in den Schlüssel — der Auswahlstand wird
-    // über applyPregameToDom() nachgezogen, ohne die Ansicht neu aufzubauen.
-    const key = pr.state + ':' + pr.phase + ':' + loaded + '/' + total
-      + ':' + (pregameLive ? pregameLive.length : 0);
+    const isPre = pr.state === 'PREGAME';
+    const game = (procStatus && procStatus.game) || {};
+    const roster = !isPre && game.roster && (game.roster.players || []).length ? game.roster : null;
+    const pause = game.riotPause && game.riotPause.paused ? (game.riotPause.seconds || 1) : 0;
+    const loadedSet = new Set(pr.puuids || []);
+    // Nur was die Ansicht wirklich ändert — der Auswahlstand wird über
+    // applyPregameToDom() nachgezogen, ohne die Ansicht neu aufzubauen.
+    const key = [pr.state, pr.phase, loaded, total, pregameLive ? pregameLive.length : 0,
+      roster ? roster.map + roster.players.length : '', Array.from(loadedSet).join(','), pause].join('|');
     if(key === lastLoadKey) return;
     const fresh = lastLoadKey === '';
     lastLoadKey = key;
     lastFullSig = '';  // Lade-Ansicht überschreibt #content -> danach auf jeden Fall neu rendern
-    const pct = pr.phase === 'done' ? 100 : Math.round(loaded / total * 100);
-    // Im PREGAME zeigen wir live, wer welchen Agenten hovert/gelockt hat —
-    // die Daten kommen direkt von Riot, unabhängig vom Ladefortschritt in RankYoinker.
-    const roster = (pr.state === 'PREGAME' && pregameLive && pregameLive.length) ? pregameLive : null;
-    const cards = roster
-      ? pregameRosterHtml()
-      : Array.from({length: total}, (_, i) => `
-      <div class="skel-card${i < loaded ? ' done' : ''}">
-        <div class="sk-portrait"></div>
-        <div class="sk-line" style="width:55%;"></div>
-        <div class="sk-line" style="width:78%;"></div>
-        <div class="sk-line" style="width:42%;"></div>
-      </div>`).join('');
-    // Im PREGAME kann sofort gewählt/gelockt werden — nicht warten, bis RankYoinker alle
-    // Spieler durchgeladen hat.
-    const isPre = pr.state === 'PREGAME';
-    const mapHint = latestData && Array.isArray(latestData.map) ? latestData.map[0] : null;
-    content.innerHTML = `
-      ${isPre ? matchHeroHtml('PREGAME', mapHint, latestData && latestData.mode, '', dodgeBtnHtml(false)) : ''}
-      ${isPre ? agentPickHtml() : ''}
-      <div class="team-section ally">
-        <div class="load-card">
-          <div class="team-banner">
-            <div class="slash"></div>
-            <h2>${t('loading_x_title', {x: isPre ? t('agent_select_title') : t('match_word')})}</h2>
-            <div class="line"></div>
-            <span class="cnt">${t(total === 1 ? 'player_count_1' : 'player_count_n', {n: `${loaded} / ${total}`})}</span>
-          </div>
-          <div class="prog-wrap">
-            <div class="prog-nums">${loaded} <span>/ ${total}</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:${pct}%;"></div></div>
-            <div class="prog-sub">${pr.phase === 'done' ? t('all_players_loaded') : t('querying_riot_api')}</div>
-          </div>
-        </div>
-        <div class="card-grid" id="pregameRoster">${cards}</div>
-      </div>`;
-    // Einflug nur beim ersten Aufbau der Lade-Ansicht, nicht bei jedem Fortschritts-Tick
+    let html;
+    if(isPre){
+      // Im PREGAME kann sofort gewählt/gelockt werden — nicht warten, bis
+      // RankYoinker alle Spieler durchgeladen hat. Die Mitspieler-Reihe zeigt
+      // live, wer welchen Agenten hovert/gelockt hat (direkt von Riot).
+      // Karte nur, wenn sie zu DIESER Agentenauswahl gehört - sonst stand hier die des vorigen Matches
+      const preData = latestData && latestData.state === 'PREGAME' ? latestData : null;
+      const mapHint = preData && Array.isArray(preData.map) ? preData.map[0] : null;
+      const live = pregameLive && pregameLive.length;
+      html = matchHeroHtml('PREGAME', mapHint, preData && preData.mode, '', dodgeBtnHtml(false))
+        + agentPickHtml()
+        + loadStripHtml(pr, loaded, total, pause)
+        + `<div class="team-section ally"><div class="card-grid" id="pregameRoster">${live
+            ? pregameRosterHtml()
+            : Array.from({length: total}, () => loadCardHtml(null, loadedSet)).join('')}</div></div>`;
+    } else {
+      const ally = roster ? roster.players.filter(p => p.ally) : [];
+      const enemy = roster ? roster.players.filter(p => !p.ally) : [];
+      html = matchHeroHtml('INGAME', roster ? roster.map : null, roster ? (QUEUE_NAMES[roster.queue] || '') : '', '', '')
+        + loadStripHtml(pr, loaded, total, pause)
+        + (roster
+            ? loadTeamHtml('ally', t('your_team'), ally, loadedSet) + loadTeamHtml('enemy', t('enemies'), enemy, loadedSet)
+            : `<div class="team-section ally"><div class="card-grid">${Array.from({length: total}, () => loadCardHtml(null, loadedSet)).join('')}</div></div>`);
+    }
+    // Einflug nur beim ersten Aufbau, danach ruhig angleichen (Bilder und
+    // laufende Animationen bleiben stehen, nur geänderte Karten tauschen)
     content.classList.toggle('anim', fresh);
-    if(fresh) content.querySelectorAll('.skel-card').forEach((c, i) => { c.style.animationDelay = (i * 50) + 'ms'; });
-    const rosterEl = document.getElementById('pregameRoster');
-    if(rosterEl) Array.from(rosterEl.children).forEach(setSig);
+    if(fresh){
+      replaceChildrenHtml(content, html);
+      content.querySelectorAll('.skel-card').forEach((c, i) => { c.style.animationDelay = (i * 50) + 'ms'; });
+    } else {
+      morphChildren(content, html);
+    }
     if(isPre){ bindAgentPick(); bindDodge(); startPregamePoll(); }
   }
   setConnState('off');
@@ -3241,6 +3292,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       const running = !!procStatus.running;
       // vry.exe geht mit VALORANT an und aus — nur der Wechsel wird gemeldet
       if(procKnown && running !== lastProcRunning){
+        powerChanges++;     // setConnState(): Verbindungswechsel deswegen nicht extra melden
         if(running) toast('success', t('toast_vry_started'), translateBackendNote(procStatus.note)
           || t('toast_vry_started_msg'), {id:'power', dur:5000});
         else toast('info', t('toast_vry_stopped'), translateBackendNote(procStatus.note)
@@ -3501,22 +3553,44 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
   // Nach dem Rendern die fehlenden K/D/A nachladen und die Kacheln direkt ersetzen
   // (kein Re-Render, damit Animationen und Hover nicht zurückspringen).
+  // In Portionen zu je 3 Spielern statt alle 10 auf einmal: der Dienst bremst
+  // seine Riot-Anfragen (Rate-Limit), so füllen sich die Karten nach und nach
+  // statt erst ganz am Ende. Meldet der Dienst für einen Spieler eine Riot-Pause,
+  // bleibt die Kachel auf "lädt…" und wird später erneut versucht.
+  const kdaRetryAt = {};
   function loadKda(){
     if(kdaInFlight) return;
+    const now = Date.now();
     const missing = Array.prototype.map.call(content.querySelectorAll('.lm-tile.pending'), el => el.getAttribute('data-kda'))
-      .filter(id => id && kdaCache[id] === undefined);
+      .filter(id => id && kdaCache[id] === undefined && !(kdaRetryAt[id] > now));
     const unique = Array.from(new Set(missing));
     if(!unique.length) return;
     kdaInFlight = true;
-    fetch(LOG_URL + '/api/kda?puuids=' + encodeURIComponent(unique.join(',')), {cache:'no-store'})
-      .then(r => r.json())
-      .then(j => {
-        if(!j.ok) throw new Error(j.error || 'unbekannt');
-        unique.forEach(id => { kdaCache[id] = (j.players && j.players[id]) || null; });
-        paintKda();
-      })
-      .catch(() => { /* Proxy nicht bereit — Kacheln bleiben auf "lädt…" */ })
-      .finally(() => { kdaInFlight = false; });
+    const chunks = [];
+    for(let i = 0; i < unique.length; i += 3) chunks.push(unique.slice(i, i + 3));
+    let retry = false;
+    const next = () => {
+      const ids = chunks.shift();
+      if(!ids){
+        kdaInFlight = false;
+        if(retry) setTimeout(loadKda, 15000);
+        return;
+      }
+      fetch(LOG_URL + '/api/kda?puuids=' + encodeURIComponent(ids.join(',')), {cache:'no-store'})
+        .then(r => r.json())
+        .then(j => {
+          if(!j.ok) throw new Error(j.error || 'unbekannt');
+          ids.forEach(id => {
+            const row = (j.players && j.players[id]) || null;
+            if(row && row.error){ kdaRetryAt[id] = Date.now() + 14000; retry = true; return; }
+            kdaCache[id] = row;
+          });
+          paintKda();
+        })
+        .catch(() => { /* Dienst nicht bereit — Kacheln bleiben auf "lädt…" */ })
+        .then(next);
+    };
+    next();
   }
   function paintKda(){
     // Nur die noch "ladenden" Kacheln ersetzen - fuer bereits geladene wuerde
@@ -3556,14 +3630,33 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     });
   }
 
-  // RankYoinker liefert "N/A", wenn ein Spieler in dieser Act noch kein gewertetes Spiel
-  // hat. Dann rechnen wir HS/KD aus dem letzten Match, das der Proxy geladen hat.
+  // K/D und HS des letzten Matches: seit 2.4.4 vom lokalen Dienst (/api/kda,
+  // dieselbe Partie wie die "Letzte 5 Matches"-Reihe). vry.exe fragt sie nicht
+  // mehr selbst bei Riot ab (war doppelt und trug zu Rate-Limits beim
+  // Matchstart bei); ältere vry-Versionen schicken sie noch mit.
+  function hsOf(p, id){
+    if(typeof p.headshotPercentage === 'number') return fmtHs(p.headshotPercentage);
+    const d = kdaCache[id || p.puuid || ''];
+    if(d === undefined) return '…';
+    return d && d.last && d.last.hsPercent != null ? Math.round(d.last.hsPercent) + '%' : '—';
+  }
+  function kdOf(p, id){
+    if(typeof p.kd === 'number') return fmtKd(p.kd);
+    const d = kdaCache[id || p.puuid || ''];
+    if(d === undefined) return '…';
+    return d && d.last && d.last.kd != null ? Number(d.last.kd).toFixed(2) : '—';
+  }
+  // Nachtragen, sobald /api/kda da ist (ohne die Karte neu zu bauen)
   function fillMissingStats(){
     content.querySelectorAll('.pcard[data-puuid]').forEach(card => {
       const d = kdaCache[card.getAttribute('data-puuid')];
+      if(d === undefined) return;
       const m = d && d.last;
-      if(!m) return;
-      const isEmpty = el => el && /^(n\/a|—|-)$/i.test(el.textContent.trim());
+      if(!m){
+        card.querySelectorAll('[data-stat]').forEach(el => { if(el.textContent.trim() === '…') el.textContent = '—'; });
+        return;
+      }
+      const isEmpty = el => el && /^(n\/a|—|-|…)$/i.test(el.textContent.trim());
       const hs = card.querySelector('[data-stat="hs"]');
       if(isEmpty(hs) && m.hsPercent != null){
         hs.textContent = Math.round(m.hsPercent) + '%';
@@ -3757,9 +3850,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         </div>
 
         <div class="stat-strip">
-          <div class="s"><div class="v" data-stat="hs">${esc(fmtHs(p.headshotPercentage))}</div><div class="l">HS</div></div>
+          <div class="s"><div class="v" data-stat="hs">${esc(hsOf(p))}</div><div class="l">HS</div></div>
           <div class="s"><div class="v">${esc(fmtWr(p.winPercentage))}</div><div class="l">Win</div></div>
-          <div class="s"><div class="v" data-stat="kd">${esc(fmtKd(p.kd))}</div><div class="l">K/D</div></div>
+          <div class="s"><div class="v" data-stat="kd">${esc(kdOf(p))}</div><div class="l">K/D</div></div>
           <div class="s"><div class="v">${esc(p.level ?? '—')}</div><div class="l">Lvl</div></div>
         </div>
       </div>
@@ -3799,9 +3892,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         </div>
         ${recentTileHtml({puuid: p.puuid || key})}
         <div class="stat-strip">
-          <div class="s"><div class="v" data-stat="hs">${esc(fmtHs(p.headshotPercentage))}</div><div class="l">HS</div></div>
+          <div class="s"><div class="v" data-stat="hs">${esc(hsOf(p, p.puuid || key))}</div><div class="l">HS</div></div>
           <div class="s"><div class="v">${esc(fmtWr(p.winPercentage))}</div><div class="l">Win</div></div>
-          <div class="s"><div class="v" data-stat="kd">${esc(fmtKd(p.kd))}</div><div class="l">K/D</div></div>
+          <div class="s"><div class="v" data-stat="kd">${esc(kdOf(p, p.puuid || key))}</div><div class="l">K/D</div></div>
           <div class="s"><div class="v">${esc(p.level ?? '—')}</div><div class="l">Lvl</div></div>
         </div>
       </div>
@@ -3887,7 +3980,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
           <div class="mrank-tile">
             <div>
               <div class="lab">${t('statistics_label')}</div>
-              <div class="val">${esc(fmtHs(p.headshotPercentage))} HS · ${esc(fmtKd(p.kd))} K/D</div>
+              <div class="val">${esc(hsOf(p, p.puuid || keyHint))} HS · ${esc(kdOf(p, p.puuid || keyHint))} K/D</div>
               <div class="extra">${t('winrate_label')} ${esc(p.winPercentage ?? '—')}</div>
             </div>
           </div>
@@ -5663,7 +5756,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // bleiben stehen: Hover, laufende Animationen (Map-Zoom, Pings) und nachgeladene
   // Badges springen dann nicht mehr zurück. Team-Abschnitte und Kartenraster werden
   // eine Ebene tiefer verglichen, damit sich nur die eine geänderte Karte erneuert.
-  const MORPH_DEEP = ['team-section', 'card-grid', 'faction-grid',
+  const MORPH_DEEP = ['team-section', 'card-grid', 'faction-grid', 'skel-card', 'sk-portrait',
     // League: Kopf, Draft-Spalten, Lane-Duelle, Preset-Tafel, Profil
     'lol-hero', 'mh-inner', 'mh-left', 'mh-right', 'mh-eyebrow', 'lh-foot', 'tcmp', 'tmid', 'lh-bans', 'lh-ban-row',
     'drows', 'lrow', 'lr-info', 'lane-board', 'lb-rows', 'lb-row', 'lp-board', 'lpb-row', 'lpb-slots', 'lmatch-list'];
@@ -8357,7 +8450,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.3";
+const CURRENT_VERSION = "2.4.4-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

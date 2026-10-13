@@ -1,5 +1,7 @@
 import requests
 
+from src.requestsV import pd_wait
+
 
 class Names:
 
@@ -10,15 +12,18 @@ class Names:
     # pd_url is Riot's real, publicly-trusted cloud API (not the local self-
     # signed client API) - verify=True, see security report 2026-09-28.
     def get_name_from_puuid(self, puuid):
+        pd_wait()   # gemeinsame Bremse fuer pd.*.a.pvp.net (requestsV.py)
         response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(), json=[puuid], verify=True)
         return response.json()[0]["GameName"] + "#" + response.json()[0]["TagLine"]
 
 
     def get_multiple_names_from_puuid(self, puuids):
+        pd_wait()   # gemeinsame Bremse fuer pd.*.a.pvp.net (requestsV.py)
         response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(), json=puuids, verify=True)
 
         if 'errorCode' in response.json():
             self.log(f'{response.json()["errorCode"]}, new token retrieved')
+            pd_wait()   # gemeinsame Bremse fuer pd.*.a.pvp.net (requestsV.py)
             response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(refresh=True), json=puuids, verify=True)
 
         name_dict = {player["Subject"]: f"{player['GameName']}#{player['TagLine']}"

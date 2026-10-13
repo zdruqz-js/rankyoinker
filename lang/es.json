@@ -501,6 +501,9 @@
     "lol_no_champ_match": "Ningún campeón coincide con el filtro.",
     "instalock_risk_fact_delay": "Bloquea tu agente tras un retraso aleatorio de 11 a 12 segundos, dentro de tiempos de reacción humanos normales y sin ventaja injusta.",
     "instalock_risk_fact_instant": "Las herramientas que bloquean al instante (menos de 1 segundo) se consideran similares a las trampas y pueden causar una expulsión.",
-    "instalock_risk_fact_residual": "Cualquier automatización conlleva cierto riesgo frente a Riot. Úsalo bajo tu propia responsabilidad."
+    "instalock_risk_fact_residual": "Cualquier automatización conlleva cierto riesgo frente a Riot. Úsalo bajo tu propia responsabilidad.",
+    "loading_ranks": "Cargando rangos…",
+    "loading_building": "Listo, creando las tarjetas…",
+    "loading_riot_pause": "Riot está limitando las solicitudes – se reanuda en {s} s"
   }
 }

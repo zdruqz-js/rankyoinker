@@ -502,6 +502,9 @@
     "lol_no_champ_match": "Kein Champion passt zum Filter.",
     "instalock_risk_fact_delay": "Sperrt deinen Agenten nach zufälligen 11–12 Sekunden, im Rahmen normaler menschlicher Reaktionszeiten und ohne unfairen Vorteil.",
     "instalock_risk_fact_instant": "Tools, die sofort (unter 1 Sekunde) sperren, gelten als cheat-ähnlich und können zu einem Bann führen.",
-    "instalock_risk_fact_residual": "Bei jeder Automatisierung bleibt ein Restrisiko für Maßnahmen von Riot. Nutzung auf eigene Verantwortung."
+    "instalock_risk_fact_residual": "Bei jeder Automatisierung bleibt ein Restrisiko für Maßnahmen von Riot. Nutzung auf eigene Verantwortung.",
+    "loading_ranks": "Ränge werden geladen…",
+    "loading_building": "Fertig, Karten werden aufgebaut…",
+    "loading_riot_pause": "Riot bremst gerade (zu viele Anfragen) – weiter in {s} s"
   }
 }

@@ -502,6 +502,9 @@
     "lol_no_champ_match": "Żaden czempion nie pasuje do filtra.",
     "instalock_risk_fact_delay": "Blokuje twojego agenta po losowych 11–12 sekundach, w granicach normalnego czasu reakcji człowieka i bez nieuczciwej przewagi.",
     "instalock_risk_fact_instant": "Narzędzia, które blokują natychmiast (poniżej 1 sekundy), są uznawane za zbliżone do cheatów i mogą skutkować banem.",
-    "instalock_risk_fact_residual": "Każda automatyzacja niesie pewne ryzyko ze strony Riot. Korzystasz na własną odpowiedzialność."
+    "instalock_risk_fact_residual": "Każda automatyzacja niesie pewne ryzyko ze strony Riot. Korzystasz na własną odpowiedzialność.",
+    "loading_ranks": "Wczytywanie rang…",
+    "loading_building": "Gotowe, budowanie kart…",
+    "loading_riot_pause": "Riot chwilowo ogranicza zapytania – dalej za {s} s"
   }
 }

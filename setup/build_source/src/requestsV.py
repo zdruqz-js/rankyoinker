@@ -1,5 +1,6 @@
 import base64
 import json
+import threading
 import time
 from json.decoder import JSONDecodeError
 import requests
@@ -18,6 +19,60 @@ from requests.exceptions import ConnectionError
 # Standardwerte/Fallbacks, zeigen fuer den betroffenen Spieler dann eben "N/A"
 # statt die komplette Ladung fuer alle zu blockieren.
 MAX_FETCH_ATTEMPTS = 2
+
+# ---- Bremse fuer pd.*.a.pvp.net (gilt fuer alle Threads gemeinsam) ----
+# Beim Matchstart haben vry.exe und der lokale Dienst denselben Riot-Server so
+# dicht hintereinander abgefragt, dass Riot mit 429 antwortete und Cloudflare
+# die IP danach kurz ganz sperrte (HTML-Seite "Access denied ... used
+# Cloudflare to restrict access" statt Daten, Nutzer-Log 2026-10-13). Bisher
+# wartete jeder Thread fuer sich und klopfte danach erneut an - das verlaengert
+# so eine Sperre nur. Jetzt: Mindestabstand zwischen pd-Anfragen, und nach
+# einem 429 bzw. einer Cloudflare-Sperre warten ALLE Threads gemeinsam.
+PD_MIN_INTERVAL = 0.25         # hoechstens ~4 Anfragen pro Sekunde
+PD_RATE_PAUSE = 10.0           # nach einem normalen 429 von Riot
+PD_BLOCK_PAUSE = 75.0          # nach einer Cloudflare-Sperre
+_pd_gate = {"next": 0.0, "blocked_until": 0.0}
+_pd_lock = threading.Lock()
+
+
+def pd_wait():
+    """Wartet auf den naechsten freien Platz fuer eine pd-Anfrage."""
+    while True:
+        with _pd_lock:
+            now = time.time()
+            blocked = _pd_gate["blocked_until"] - now
+            if blocked <= 0:
+                slot = max(now, _pd_gate["next"])
+                _pd_gate["next"] = slot + PD_MIN_INTERVAL
+                break
+        time.sleep(min(blocked, 5.0))
+    delay = slot - time.time()
+    if delay > 0:
+        time.sleep(delay)
+
+
+def is_cloudflare_block(response):
+    """Cloudflare-Sperrseite statt Riot-Antwort (HTML, 'Access denied')."""
+    if response is None or response.status_code not in (403, 429):
+        return False
+    head = (response.text or "")[:2000].lower()
+    return "cloudflare" in head or "access denied" in head or "<html" in head
+
+
+def short_error(response):
+    """Kurze Fehlerbeschreibung fuers Log - nie die komplette HTML-Seite."""
+    if is_cloudflare_block(response):
+        return "Cloudflare-Sperre (zu viele Anfragen an Riot) - kurze Pause"
+    text = (response.text or "").replace("\n", " ").strip()
+    return text[:300] + (" …" if len(text) > 300 else "")
+
+
+def pd_pause(response, log):
+    """Nach einem 429/einer Sperre: alle pd-Anfragen gemeinsam pausieren."""
+    pause = PD_BLOCK_PAUSE if is_cloudflare_block(response) else PD_RATE_PAUSE
+    with _pd_lock:
+        _pd_gate["blocked_until"] = max(_pd_gate["blocked_until"], time.time() + pause)
+    log(f"pd: {short_error(response) if is_cloudflare_block(response) else 'Rate-Limit 429'} - alle pd-Anfragen pausieren {int(pause)} s")
 
 class Requests:
     def __init__(self, version, log, Error):
@@ -111,6 +166,7 @@ class Requests:
                 return response.json()
             elif url_type == "pd":
                 # pd.*.a.pvp.net is Riot's real cloud API too - see comment above.
+                pd_wait()
                 response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
@@ -127,14 +183,17 @@ class Requests:
                     pass
 
                 if not response.ok:
-                    if response.status_code == 429:
-                        self.log(f"response not ok pd endpoint, rate limit 429")
+                    blocked = response.status_code == 429 or is_cloudflare_block(response)
+                    if blocked:
+                        # gemeinsame Pause statt Einzel-Schlaf je Thread (siehe pd_wait)
+                        pd_pause(response, self.log)
                     else:
-                        self.log(f"response not ok pd endpoint, {response.text}")
+                        self.log(f"response not ok pd endpoint, {short_error(response)}")
                     if attempt >= MAX_FETCH_ATTEMPTS:
                         self.log(f"pd endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
                         return response
-                    time.sleep(rate_limit_seconds+5)
+                    if not blocked:
+                        time.sleep(rate_limit_seconds+5)
                     self.headers = {}
                     return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
                 return response

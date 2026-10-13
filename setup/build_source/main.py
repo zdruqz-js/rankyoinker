@@ -144,6 +144,20 @@ try:
     previousSeasonID = content.get_previous_season_id(gameContent)
     lastGameState = ""
 
+    # K/D und HS aus dem letzten Match holt die Overlay-Seite ohnehin selbst
+    # (lokaler Dienst, /api/kda - dieselbe Partie wie fuer die "Letzte 5
+    # Matches"-Reihe). vry.exe stellte dafuer pro Spieler zwei weitere
+    # Riot-Anfragen (competitiveupdates + match-details), genau zur selben Zeit
+    # wie der Dienst - Hauptgrund fuer Riot-Rate-Limits und eine kurze
+    # Cloudflare-Sperre beim Matchstart (Nutzer-Log 2026-10-13). Darum hier
+    # nicht mehr; die Seite traegt die Werte nach, sobald sie da sind.
+    FETCH_LAST_MATCH_STATS = False
+
+    def last_match_stats(player_subject):
+        if FETCH_LAST_MATCH_STATS:
+            return pstats.get_stats(player_subject)
+        return pstats._default_stats()
+
     # Cache rank+stats per player for the current match so PREGAME data can be reused in INGAME
     match_player_cache = {
         "match_id": None,
@@ -189,7 +203,7 @@ try:
         # Cache miss -> fetch
         playerRank = rank.get_rank(player_subject, seasonID)
         previousPlayerRank = rank.get_rank(player_subject, previousSeasonID)
-        ppstats = pstats.get_stats(player_subject)
+        ppstats = last_match_stats(player_subject)
 
         if current_match_id and match_player_cache["match_id"] == current_match_id:
             match_player_cache["players"][player_subject] = {
@@ -1152,7 +1166,7 @@ try:
                             #     rankStatus = playerRank[1]
                             # playerRank = playerRank["rank"]
 
-                            ppstats = pstats.get_stats(player["Subject"])
+                            ppstats = last_match_stats(player["Subject"])
                             hs = ppstats["hs"]
                             kd = ppstats["kd"]
 

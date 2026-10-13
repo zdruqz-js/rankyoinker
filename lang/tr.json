@@ -501,6 +501,9 @@
     "lol_no_champ_match": "Filtreye uyan şampiyon yok.",
     "instalock_risk_fact_delay": "Ajanını rastgele 11-12 saniye sonra kilitler; bu normal insan tepki süreleri içinde kalır ve haksız avantaj sağlamaz.",
     "instalock_risk_fact_instant": "Anında (1 saniyenin altında) kilitleyen araçlar hileye benzer kabul edilir ve banla sonuçlanabilir.",
-    "instalock_risk_fact_residual": "Her otomasyon Riot tarafında bir miktar risk taşır. Kullanım sorumluluğu sana aittir."
+    "instalock_risk_fact_residual": "Her otomasyon Riot tarafında bir miktar risk taşır. Kullanım sorumluluğu sana aittir.",
+    "loading_ranks": "Rütbeler yükleniyor…",
+    "loading_building": "Tamam, kartlar oluşturuluyor…",
+    "loading_riot_pause": "Riot şu an istekleri sınırlıyor – {s} sn sonra devam"
   }
 }
