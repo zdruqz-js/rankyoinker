@@ -3570,44 +3570,46 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
   // Nach dem Rendern die fehlenden K/D/A nachladen und die Kacheln direkt ersetzen
   // (kein Re-Render, damit Animationen und Hover nicht zurückspringen).
-  // In Portionen zu je 3 Spielern statt alle 10 auf einmal: der Dienst bremst
-  // seine Riot-Anfragen (Rate-Limit), so füllen sich die Karten nach und nach
-  // statt erst ganz am Ende. Meldet der Dienst für einen Spieler eine Riot-Pause,
-  // bleibt die Kachel auf "lädt…" und wird später erneut versucht.
+  // Je Spieler eine eigene Anfrage, höchstens KDA_PARALLEL gleichzeitig: jede
+  // Kachel erscheint, sobald ihre Daten da sind - früher wartete jede auf ihr
+  // ganzes 3er-Paket. Die Riot-Bremse sitzt ohnehin im Dienst, und der hat die
+  // Daten oft schon vorgeladen (siehe _prefetch_match dort). Meldet der Dienst
+  // für einen Spieler eine Riot-Pause, bleibt die Kachel auf "lädt…" und wird
+  // später erneut versucht.
   const kdaRetryAt = {};
+  const KDA_PARALLEL = 4;
   function loadKda(){
     if(kdaInFlight) return;
     const now = Date.now();
     const missing = Array.prototype.map.call(content.querySelectorAll('.lm-tile.pending'), el => el.getAttribute('data-kda'))
       .filter(id => id && kdaCache[id] === undefined && !(kdaRetryAt[id] > now));
-    const unique = Array.from(new Set(missing));
-    if(!unique.length) return;
+    const queue = Array.from(new Set(missing));
+    if(!queue.length) return;
     kdaInFlight = true;
-    const chunks = [];
-    for(let i = 0; i < unique.length; i += 3) chunks.push(unique.slice(i, i + 3));
-    let retry = false;
+    let retry = false, running = 0;
     const next = () => {
-      const ids = chunks.shift();
-      if(!ids){
-        kdaInFlight = false;
-        if(retry) setTimeout(loadKda, 15000);
+      const id = queue.shift();
+      if(!id){
+        if(!running){
+          kdaInFlight = false;
+          if(retry) setTimeout(loadKda, 15000);
+        }
         return;
       }
-      fetch(LOG_URL + '/api/kda?puuids=' + encodeURIComponent(ids.join(',')), {cache:'no-store'})
+      running++;
+      fetch(LOG_URL + '/api/kda?puuids=' + encodeURIComponent(id), {cache:'no-store'})
         .then(r => r.json())
         .then(j => {
           if(!j.ok) throw new Error(j.error || 'unbekannt');
-          ids.forEach(id => {
-            const row = (j.players && j.players[id]) || null;
-            if(row && row.error){ kdaRetryAt[id] = Date.now() + 14000; retry = true; return; }
-            kdaCache[id] = row;
-          });
+          const row = (j.players && j.players[id]) || null;
+          if(row && row.error){ kdaRetryAt[id] = Date.now() + 14000; retry = true; return; }
+          kdaCache[id] = row;
           paintKda();
         })
-        .catch(() => { /* Dienst nicht bereit — Kacheln bleiben auf "lädt…" */ })
-        .then(next);
+        .catch(() => { /* Dienst nicht bereit — Kachel bleibt auf "lädt…" */ })
+        .then(() => { running--; next(); });
     };
-    next();
+    for(let i = 0; i < KDA_PARALLEL; i++) next();
   }
   function paintKda(){
     // Nur die noch "ladenden" Kacheln ersetzen - fuer bereits geladene wuerde
@@ -8468,7 +8470,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.4-dev2";
+const CURRENT_VERSION = "2.4.4-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

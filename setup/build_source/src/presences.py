@@ -243,8 +243,8 @@ class Presences:
             "partyVersion": 0,
         }
 
-    def wait_for_presence(self, PlayersPuuids, timeout=15):
-        """Wartet, bis alle uebergebenen puuids in der Chat-Presence auftauchen.
+    def wait_for_presence(self, PlayersPuuids, timeout=3.0, settle=0.8):
+        """Wartet kurz, bis die Chat-Presence der Mitspieler nachgezogen hat.
 
         War hier vorher kaputt: "break" stand ausserhalb der for-Schleife und
         lief darum IMMER nach genau einem Durchlauf, egal ob wirklich alle
@@ -253,19 +253,33 @@ class Presences:
         Presence-Abruf, danach pro (zu diesem einen Zeitpunkt) fehlendem
         Spieler eine Sekunde sinnlos warten, und danach trotzdem weitermachen
         - unabhaengig davon, ob die Presence inzwischen tatsaechlich
-        vollstaendig war. Bei 9 von 10 Spielern noch nicht in der Presence
-        waren das reproduzierbar ~9 Sekunden, die nichts gebracht haben (siehe
-        Timing-Logs: das allein war der groesste Einzelposten beim Laden).
-        Jetzt: frische Presence pro Versuch, wirklich erst zurueck wenn alle
-        da sind - und ein Timeout als Sicherheitsventil, falls ein Spieler
-        (z. B. wegen Streamer-Modus) nie auftaucht.
+        vollstaendig war.
+
+        Die Folgefassung wartete dann wirklich, bis ALLE puuids auftauchen,
+        mit 15 s Timeout. Das passiert aber praktisch nie: /chat/v4/presences
+        enthaelt nur Freunde (und einen selbst), fremde Mitspieler tauchen dort
+        nie auf (im laufenden Match nachgeprueft, 2026-10-13). Damit lief bei
+        JEDEM Match- und Agentenauswahl-Start der volle Timeout ab - im
+        Timing-Log "wait_for_presence fertig: +15.62s", der mit Abstand
+        groesste Einzelposten beim Laden.
+
+        Jetzt: zurueck, sobald alle da sind ODER sich die Menge der sichtbaren
+        Mitspieler `settle` Sekunden lang nicht mehr veraendert hat (dann kommt
+        auch nichts mehr). `timeout` bleibt als Sicherheitsventil.
         """
         start = time.time()
+        wanted = set(PlayersPuuids)
+        seen, changed_at = None, start
         while True:
-            presence = self.get_presence()
-            haystack = str(presence)
-            if all(puuid in haystack for puuid in PlayersPuuids):
+            haystack = str(self.get_presence())
+            now_seen = {puuid for puuid in wanted if puuid in haystack}
+            if now_seen == wanted:
                 return
-            if time.time() - start > timeout:
+            now = time.time()
+            if now_seen != seen:
+                seen, changed_at = now_seen, now
+            elif now - changed_at >= settle:
                 return
-            time.sleep(0.5)
+            if now - start > timeout:
+                return
+            time.sleep(0.25)
