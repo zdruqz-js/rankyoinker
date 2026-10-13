@@ -112,6 +112,8 @@
     "playing_in_party_tip": "파티로 플레이 중입니다.",
     "party_confirmed_with_tip": "{who}님과 같은 파티입니다, Riot가 직접 확인함.",
     "party_likely_with_tip": "{who}님과 함께 플레이 중일 가능성이 매우 높습니다. 최근 매치 중 {proof}번 같은 파티였습니다.",
+    "party_alive_with_tip": "{who}님과 함께 플레이 중: 직전 매치에서 같은 파티였고, Riot 기준 그 파티가 아직 유지되고 있습니다.",
+    "party_unknown_rest": "+{n}명 미확인",
     "applying_ellipsis": "적용 중…",
     "reset_btn": "초기화",
     "computed_from_last_match_tip": "마지막 매치를 기준으로 계산된 값입니다. RankYoinker에 원래 값이 없었습니다.",

@@ -111,6 +111,8 @@
     "playing_in_party_tip": "Bir partide oynuyor.",
     "party_confirmed_with_tip": "{who} ile aynı partide, doğrudan Riot tarafından onaylandı.",
     "party_likely_with_tip": "Büyük olasılıkla {who} ile birlikte oynuyor, son maçlardan {proof} tanesinde aynı partideydiler.",
+    "party_alive_with_tip": "{who} ile oynuyor: son maçlarında aynı partideydiler ve Riot'a göre bu parti hâlâ var.",
+    "party_unknown_rest": "+{n} bilinmeyen",
     "applying_ellipsis": "Ayarlanıyor…",
     "reset_btn": "Sıfırla",
     "computed_from_last_match_tip": "Son maçtan hesaplandı, RankYoinker'de bir değer yoktu.",

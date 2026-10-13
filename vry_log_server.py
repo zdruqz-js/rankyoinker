@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.4-dev1"
+APP_VERSION = "2.4.4-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2457,28 +2457,41 @@ def record_encounter_now(mid):
 
 
 # ---------------------------- Party-Erkennung ----------------------------
-# vry.exe färbt nur die Partys ein, die es in den Riot-Presences sieht — und
-# die gibt es ausschliesslich für Freunde. Alle anderen Spieler bekommen von
-# vry.exe partyNumber 0, obwohl auch dort Duos und Trios sitzen. Riot selbst
-# verrät live nichts über fremde Partys: /parties/v1/players/<fremde puuid>
-# antwortet mit 403 NONSELF_OPERATION, und die Match-Details des laufenden
-# Matches gibt es erst nach dem Abpfiff (404).
+# Wer spielt mit wem? Was Riot dazu live verraet (im laufenden Match
+# nachgeprueft, 2026-10-13):
+#  - /core-game/v1/matches/<id> und /pregame/v1/matches/<id> enthalten KEINE
+#    partyId, und die Match-Details des laufenden Matches gibt es erst nach
+#    dem Abpfiff (404).
+#  - /chat/v4/presences enthaelt nur Freunde (und einen selbst) - fuer die
+#    aber live mit partyId und partySize. vry.exe faerbt nur diese ein.
+#  - Die eigene Party kommt komplett ueber /parties/v1/parties/<eigene id>.
+#  - Fremde Partys: /parties/v1/players/<fremde puuid> antwortet mit 403
+#    NONSELF_OPERATION. /parties/v1/parties/<fremde partyId> nennt zwar auch
+#    keine Mitglieder, unterscheidet aber: 403 PLAYER_NOT_IN_PARTY = die Party
+#    gibt es noch, 404 PARTY_DNE = aufgeloest.
 #
-# Was es aber gibt: In den ABGESCHLOSSENEN Matches steht je Spieler eine
-# partyId. Wer in einem der letzten Matches dieselbe partyId hatte und heute
-# wieder im selben Team steht, ist mit sehr hoher Wahrscheinlichkeit auch jetzt
-# zusammen unterwegs. Genau daraus bauen wir die Gruppen — die eigene Party
-# kommt zusätzlich direkt von Riot und steht damit ohne Historie fest.
+# Dazu steht in den ABGESCHLOSSENEN Matches je Spieler eine partyId. Daraus
+# entstehen drei Stufen je Gruppe:
+#   live    - direkt von Riot: die eigene Party, Freunde mit gleicher partyId
+#   alive   - im jeweils letzten Match in derselben Party, und die besteht laut
+#             Riot jetzt noch -> praktisch sicher
+#   history - in einem der letzten Matches zusammen in einer Party (Schaetzung)
+# Gegenbeweise zaehlen auch: Wer in einer vollstaendig bekannten Party sitzt
+# (eigene, oder Freund samt partySize), bekommt keine geschaetzten Mitspieler
+# dazu. Und hat jeder von zwei Spielern seit dem gemeinsamen Match in einer
+# anderen Party gespielt, die beide noch bestehen, sind sie heute getrennt
+# unterwegs - man sitzt immer in genau einer Party.
 #
-# Grenzen (bewusst): Ein Duo, das gerade zum allerersten Mal miteinander spielt,
-# hat noch keine gemeinsame Historie und bleibt unerkannt. Umgekehrt kann ein
-# Paar, das früher mal zusammen gespielt hat und heute zufällig im selben Team
-# landet, fälschlich als Party gelten — das ist selten, aber möglich.
+# Grenzen (bewusst): Ein Duo, das zum allerersten Mal zusammen spielt, hat noch
+# keine gemeinsame Historie und bleibt unerkannt, solange keiner davon ein
+# Freund ist.
 
 _premade_cache = {"match": None, "ts": 0.0, "data": None}
 PREMADE_TTL = 900          # ein Kader aendert sich waehrend eines Matches nicht
 PREMADE_HISTORY = 10       # so viele vergangene Matches je Spieler
 PREMADE_DETAILS = 12       # Obergrenze der Match-Details-Abfragen
+PREMADE_MAX_PARTY = 5
+_PREMADE_SOURCES = ("live", "alive", "history")   # Index = Stufe, kleiner = sicherer
 
 
 def _lobby_roster():
@@ -2514,18 +2527,84 @@ def _lobby_roster():
     return None, "MENUS", []
 
 
-def _own_party_members():
-    """Die eigene Party direkt von Riot — dafuer braucht es keine Historie."""
+def _own_party():
+    """Die eigene Party direkt von Riot: (partyId, [puuids]) - vollstaendig."""
     try:
         pid = _party_id()
         if not pid:
-            return []
+            return None, []
         status, party = riot_get("glz", "/parties/v1/parties/%s" % pid)
         if status != 200 or not party:
-            return []
-        return [m.get("Subject") for m in (party.get("Members") or []) if m.get("Subject")]
+            return None, []
+        return pid, [m.get("Subject") for m in (party.get("Members") or []) if m.get("Subject")]
     except Exception:
-        return []
+        return None, []
+
+
+def _riot_local_get(path):
+    """GET gegen die lokale Riot-Client-API (Zugang aus dem Lockfile)."""
+    if not os.path.exists(LOCKFILE):
+        return None, None
+    with open(LOCKFILE, "r", encoding="utf-8", errors="replace") as fh:
+        parts = fh.read().strip().split(":")
+    if len(parts) < 5:
+        return None, None
+    basic = base64.b64encode(("riot:" + parts[3]).encode()).decode()
+    return _http("https://127.0.0.1:%s%s" % (parts[2], path),
+                 {"Authorization": "Basic " + basic}, timeout=5, local_unverified=True)
+
+
+def _presence_parties(puuids):
+    """puuid -> (partyId, partySize) aus den Chat-Presences - gibt es nur fuer Freunde.
+
+    Dieselbe Quelle, die vry.exe einfaerbt, aber samt partySize: damit ist auch
+    klar, ob ein Freund solo spielt oder wie viele Unbekannte zu ihm gehoeren.
+    """
+    wanted, out = set(puuids), {}
+    try:
+        status, j = _riot_local_get("/chat/v4/presences")
+    except Exception:
+        return out
+    if status != 200 or not isinstance(j, dict):
+        return out
+    for pr in j.get("presences") or []:
+        pu, priv = pr.get("puuid"), pr.get("private")
+        if pu not in wanted or pr.get("product") != "valorant" or not priv or "{" in str(priv):
+            continue
+        try:
+            d = json.loads(base64.b64decode(priv))
+        except Exception:
+            continue
+        if not isinstance(d, dict) or not d.get("isValid"):
+            continue
+        ppd = d.get("partyPresenceData") or {}     # neue, verschachtelte Struktur
+        pid = ppd.get("partyId") or d.get("partyId")
+        try:
+            size = int(ppd.get("partySize") or d.get("partySize") or 0)
+        except (TypeError, ValueError):
+            size = 0
+        if pid:
+            out[pu] = (pid, size)
+    return out
+
+
+def _party_alive(party_id):
+    """Gibt es diese Party noch? True / False / None (unklar).
+
+    Bewusst ueber _riot_send statt riot_get: riot_get haelt ein 403 fuer einen
+    abgelaufenen Token und holt dann frische Token samt ShooterGame.log - hier
+    ist das 403 aber die eigentliche Antwort (siehe Kopfkommentar).
+    """
+    try:
+        status, j = _riot_send("glz", get_auth(), "/parties/v1/parties/%s" % party_id)
+    except Exception:
+        return None
+    code = j.get("errorCode") if isinstance(j, dict) else None
+    if status == 200 or (status == 403 and code == "PLAYER_NOT_IN_PARTY"):
+        return True
+    if status == 404 and code == "PARTY_DNE":
+        return False
+    return None
 
 
 _premade_hist_cache = {}       # puuid -> (Zeitpunkt, [match_ids])
@@ -2576,7 +2655,11 @@ def _premades_build(mid, state, roster):
     puuids = [p["puuid"] for p in roster]
     team = {p["puuid"]: p["team"] for p in roster}
     seat = {p: i for i, p in enumerate(puuids)}
+    # Union-Find; je Wurzel: Anzahl, Hoechstgroesse und schwaechste Stufe der Gruppe
     parent = {p: p for p in puuids}
+    count = {p: 1 for p in puuids}
+    cap = {p: PREMADE_MAX_PARTY for p in puuids}
+    level = {p: 0 for p in puuids}
 
     def find(a):
         while parent[a] != a:
@@ -2584,75 +2667,147 @@ def _premades_build(mid, state, roster):
             a = parent[a]
         return a
 
-    def union(a, b):
+    def union(a, b, lvl):
         ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[rb] = ra
+        if ra == rb:
+            return True
+        if count[ra] + count[rb] > min(cap[ra], cap[rb]):
+            return False                      # passt nicht mehr in eine Party
+        parent[rb] = ra
+        count[ra] += count[rb]
+        cap[ra] = min(cap[ra], cap[rb])
+        level[ra] = max(level[ra], level[rb], lvl)
+        return True
 
-    # 1) Die eigene Party steht fest — ganz ohne Historie
-    mine = [p for p in _own_party_members() if p in parent]
-    for other in mine[1:]:
-        union(mine[0], other)
-    sure = set(mine) if len(mine) > 1 else set()
+    # 1) live: eigene Party (vollstaendig) + Freunde aus den Presences
+    known = {}                                # partyId -> {"members", "size", "own"}
+    own_pid, own_members = _own_party()
+    if own_pid:
+        known[own_pid] = {"members": {p for p in own_members if p in parent},
+                          "size": len(own_members), "own": True}
+    for pu, (pid, size) in _presence_parties(puuids).items():
+        k = known.setdefault(pid, {"members": set(), "size": 0, "own": False})
+        k["members"].add(pu)
+        if not k["own"]:
+            k["size"] = max(k["size"], size)
+    fixed, size_of = {}, {}                   # puuid -> partyId bzw. bekannte Partygroesse
+    for pid, k in known.items():
+        members = sorted(k["members"], key=lambda x: seat[x])
+        if not members:
+            continue
+        for pu in members:
+            fixed[pu] = pid
+            size_of[pu] = max(k["size"], len(members))
+        for other in members[1:]:
+            union(members[0], other, 0)
+        if k["size"]:
+            root = find(members[0])
+            cap[root] = min(cap[root], max(k["size"], len(members)))
 
-    # 2) Alle anderen über die gemeinsame Historie
-    hist = dict(zip(puuids, _pool.map(_premade_history, puuids)))
-    seen, freshness = {}, {}
+    # 2) Historie nur fuer Spieler, deren Party noch nicht vollstaendig bekannt ist
+    todo = [p for p in puuids if count[find(p)] < cap[find(p)]]
+    hist = dict(zip(todo, _pool.map(_premade_history, todo))) if len(todo) > 1 else {}
+    seen, freshness, latest = {}, {}, {}
     for pu, ids in hist.items():
+        ids = [m for m in ids if m != mid]    # das laufende Match zaehlt nicht
+        if ids:
+            latest[pu] = ids[0]
         for i, m in enumerate(ids):
-            if m == mid:
-                continue                      # das laufende Match zaehlt nicht
             seen.setdefault(m, set()).add(pu)
             freshness[m] = min(freshness.get(m, 99), i)
 
     shared = sorted((m for m, who in seen.items() if len(who) > 1),
                     key=lambda m: (freshness[m], m))[:PREMADE_DETAILS]
+    details = dict(zip(shared, _pool.map(_premade_details, shared))) if shared else {}
 
-    proof = {}                                # puuid -> Zahl der Belege
-    for m, details in zip(shared, _pool.map(_premade_details, shared)):
-        if not details:
-            continue
+    pairs = {}                                # (a, b) -> Zahl der Matches in derselben Party
+    for m in shared:
+        party_of = (details.get(m) or {}).get("party") or {}
         by_party = {}
-        party_of = details.get("party") or {}
         for pu in seen[m]:
-            key = party_of.get(pu)
-            if key:
-                by_party.setdefault(key, []).append(pu)
+            if party_of.get(pu):
+                by_party.setdefault(party_of[pu], []).append(pu)
         for members in by_party.values():
+            members.sort(key=lambda x: seat[x])
             for i in range(len(members)):
                 for k in range(i + 1, len(members)):
                     a, b = members[i], members[k]
                     if team.get(a) != team.get(b):
                         continue              # verschiedene Teams -> heute keine Party
-                    union(a, b)
-                    proof[a] = proof.get(a, 0) + 1
-                    proof[b] = proof.get(b, 0) + 1
+                    pairs[(a, b)] = pairs.get((a, b), 0) + 1
 
-    # 3) Gruppen durchnummerieren: die eigene Party zuerst, dann nach Kaderplatz
+    # 3) Besteht die Party aus dem jeweils letzten Match noch?
+    involved = {p for pair in pairs for p in pair}
+    need = sorted({latest[p] for p in involved if p in latest} - set(details))
+    if need:
+        details.update(zip(need, _pool.map(_premade_details, need)))
+    last_party, last_members = {}, {}         # puuid -> partyId bzw. Mitglieder im letzten Match
+    for p in involved:
+        party_of = (details.get(latest.get(p)) or {}).get("party") or {}
+        if party_of.get(p):
+            last_party[p] = party_of[p]
+            last_members[p] = {q for q, x in party_of.items() if x == party_of[p]}
+    pids = sorted(set(last_party.values()))
+    alive = dict(zip(pids, _pool.map(_party_alive, pids))) if pids else {}
+
+    def anchor(p):
+        """Party, in der p jetzt sicher sitzt - oder None.
+
+        Live bekannt, oder die Party aus dem letzten Match besteht noch und
+        alle damaligen Mitspieler stehen heute im selben Team (sonst koennte
+        auch p gegangen und der Rest geblieben sein).
+        """
+        if p in fixed:
+            return fixed[p]
+        pid = last_party.get(p)
+        if pid and alive.get(pid) is True and all(team.get(q) == team[p] for q in last_members[p]):
+            return pid
+        return None
+
+    links = []
+    for (a, b), n in pairs.items():
+        xa, xb = anchor(a), anchor(b)
+        if xa and xb:
+            if xa != xb:
+                continue                      # sitzen heute nachweislich in verschiedenen Partys
+            lvl = 1
+        elif last_party.get(a) and last_party.get(a) == last_party.get(b):
+            lvl = 1 if alive.get(last_party[a]) is True else 2
+        else:
+            lvl = 2
+        links.append((lvl, -n, seat[a], seat[b], a, b))
+    for lvl, _, _, _, a, b in sorted(links):  # sichere Verbindungen zuerst
+        union(a, b, lvl)
+
+    # 4) Gruppen durchnummerieren: die eigene Party zuerst, dann nach Kaderplatz
     buckets = {}
     for pu in puuids:
         buckets.setdefault(find(pu), []).append(pu)
     me = get_auth()["puuid"]
-    groups = [sorted(g, key=lambda x: seat[x]) for g in buckets.values() if len(g) > 1]
-    groups.sort(key=lambda g: (0 if me in g else 1, seat[g[0]]))
+    groups = []
+    for root, members in buckets.items():
+        members.sort(key=lambda x: seat[x])
+        size = max([len(members)] + [size_of.get(pu, 0) for pu in members])
+        if size > 1:                          # auch ein Freund, dessen Mitspieler fremd sind
+            groups.append((root, members, size))
+    groups.sort(key=lambda g: (0 if me in g[1] else 1, seat[g[1][0]]))
 
     parties, out_groups = {}, []
-    for number, members in enumerate(groups, 1):
-        live = bool(sure) and set(members) <= sure
+    for number, (root, members, size) in enumerate(groups, 1):
         for pu in members:
             parties[pu] = number
         out_groups.append({
             "party": number,
             "members": members,
             "team": team.get(members[0]) or "",
-            # live  = direkt von Riot (eigene Party), steht fest
-            # history = aus der gemeinsamen Match-Historie abgeleitet
-            "source": "live" if live else "history",
-            "proof": max(proof.get(pu, 0) for pu in members),
+            "size": size,                     # > len(members): Rest der Party unbekannt
+            "source": _PREMADE_SOURCES[level[root]],
+            "proof": max([n for (a, b), n in pairs.items() if a in members and b in members] or [0]),
         })
 
     return {"ok": True, "matchId": mid, "state": state, "parties": parties,
-            "groups": out_groups, "checked": len(shared), "at": int(time.time())}
+            "groups": out_groups, "checked": len(details), "aliveChecked": len(alive),
+            "at": int(time.time())}
 
 
 def premades():

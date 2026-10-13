@@ -3428,13 +3428,19 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
   // ---------- Partys im Match: wer gehört zu wem? ----------
   // RankYoinker färbt nur die Party ein, die es in den Riot-Presences sieht — und die
-  // gibt es ausschließlich für Freunde (deshalb bislang nur du und dein Mate).
-  // Der Log-Server leitet die übrigen Partys aus der gemeinsamen Match-Historie
-  // ab (dort steht je Spieler eine partyId) und liefert sie unter /api/premades.
+  // gibt es ausschließlich für Freunde. Der Log-Server liefert unter /api/premades
+  // alle Gruppen samt Sicherheit (source):
+  //   live    = direkt von Riot (eigene Party, Freunde)
+  //   alive   = im letzten Match zusammen, und diese Party besteht laut Riot noch
+  //   history = aus der gemeinsamen Match-Historie geschätzt
   let premadeParties = {};   // puuid -> Party-Nummer
-  let premadeGroups = [];    // [{party, members, source, proof}]
+  let premadeGroups = [];    // [{party, members, size, source, proof}]
   let premadeSig = '', premadeBusy = false, premadeNext = 0;
+  let premadeRepaint = null, lastSceneAt = 0;
 
+  function premadeRosterSig(roster){
+    return roster.map(r => r.puuid).filter(Boolean).sort().join(',');
+  }
   function partyNumberOf(p){
     const n = premadeParties[p.puuid || ''];
     if(n) return n;
@@ -3444,25 +3450,29 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     return premadeGroups.find(g => g.members && g.members.indexOf(puuid) >= 0) || null;
   }
   function playerNameOf(puuid){
-    const all = (latestData && latestData.players) || {};
-    const hit = Object.values(all).find(x => x && x.puuid === puuid);
+    const all = Object.values((latestData && latestData.players) || {}).concat(pregameEnemies);
+    const hit = all.find(x => x && x.puuid === puuid);
     return (hit && hit.name) || t('unknown_short');
   }
-  // Party eines Spielers: Nummer, Farbe und ob von Riot bestätigt (live) oder aus
-  // der gemeinsamen Match-Historie abgeleitet (history = "sehr wahrscheinlich").
+  // Tooltip einer Party: mit wem, und wie sicher. self = aus wessen Sicht (oder null)
+  function partyTipOf(g, self){
+    const names = g.members.filter(m => m !== self).map(playerNameOf);
+    const extra = (g.size || 0) - g.members.length;
+    if(extra > 0) names.push(t('party_unknown_rest', {n: extra}));
+    const who = names.join(', ');
+    if(!who) return t('playing_in_party_tip');
+    const key = g.source === 'live' ? 'party_confirmed_with_tip'
+      : g.source === 'alive' ? 'party_alive_with_tip' : 'party_likely_with_tip';
+    return t(key, {who, proof: g.proof});
+  }
+  // Party eines Spielers: Nummer, Farbe und ob nur geschätzt (likely)
   function partyInfoOf(p){
     const n = partyNumberOf(p);
     if(!n) return null;
     const color = PARTY_COLORS[(n - 1) % PARTY_COLORS.length];
     const g = partyGroupOf(p.puuid || '');
     const likely = !!(g && g.source === 'history');
-    let tip = t('playing_in_party_tip');
-    if(g){
-      const who = g.members.filter(m => m !== p.puuid).map(playerNameOf).join(', ');
-      tip = g.source === 'live'
-        ? t('party_confirmed_with_tip', {who})
-        : t('party_likely_with_tip', {who, proof: g.proof});
-    }
+    const tip = g ? partyTipOf(g, p.puuid) : t('playing_in_party_tip');
     return {n, color, likely, tip};
   }
   // Farbige Leiste über die ganze Kartenhöhe: gleiche Farbe = gleiche Party,
@@ -3471,12 +3481,24 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const i = partyInfoOf(p);
     return i ? `<i class="party-bar${i.likely ? ' likely' : ''}" style="--pc:${i.color};" title="${esc(i.tip)}"></i>` : '';
   }
+  // Party-Mitglieder nebeneinander: die Rang-Reihenfolge bleibt, nur rückt der
+  // Rest einer Party direkt hinter ihr bestplatziertes Mitglied.
+  function groupByParty(sorted){
+    const out = [], done = new Set();
+    sorted.forEach(p => {
+      if(done.has(p)) return;
+      const n = partyNumberOf(p);
+      (n ? sorted.filter(q => !done.has(q) && partyNumberOf(q) === n) : [p])
+        .forEach(q => { done.add(q); out.push(q); });
+    });
+    return out;
+  }
 
   // Kader-Signatur: neu geladen wird nur, wenn sich die Runde wirklich ändert.
   function loadPremades(roster){
-    const ids = roster.map(r => r.puuid).filter(Boolean).sort();
+    const ids = roster.map(r => r.puuid).filter(Boolean);
     if(ids.length < 2) return;
-    const sig = ids.join(',');
+    const sig = premadeRosterSig(roster);
     // Der Heartbeat rendert im Sekundentakt neu — ein Fehlschlag darf daraus
     // keine Dauerabfrage machen.
     if(sig === premadeSig || premadeBusy || Date.now() < premadeNext) return;
@@ -3490,20 +3512,15 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       paintPremades();
     });
   }
-  // Ergebnis nachtragen, ohne die Karten neu zu bauen (sonst springen Hover und
-  // Einflug-Animation zurück).
+  // Ergebnis einzeichnen: Party-Leisten und die Reihenfolge der Karten kommen
+  // beide aus render(). Läuft gerade noch der Einflug einer neuen Szene, erst danach
+  // - sonst bricht das Neuzeichnen die Animation mittendrin ab.
   function paintPremades(){
-    content.querySelectorAll('.pcard[data-puuid]').forEach(card => {
-      const puuid = card.getAttribute('data-puuid');
-      if(!puuid) return;
-      const p = {puuid: puuid, partyNumber: Number(card.getAttribute('data-vryparty')) || 0};
-      const bar = partyBarHtml(p);
-      if(card.dataset.party === bar) return;      // nichts geändert
-      card.dataset.party = bar;
-      const oldBar = card.querySelector(':scope > .party-bar');
-      if(oldBar) oldBar.remove();
-      if(bar) card.insertAdjacentHTML('afterbegin', bar);
-    });
+    clearTimeout(premadeRepaint);
+    premadeRepaint = setTimeout(() => {
+      if(loadingShown || activeTab !== 'match') return;   // kommt beim nächsten render() von selbst mit
+      lastFullSig = ''; render();
+    }, Math.max(0, lastSceneAt + 1600 - Date.now()));
   }
 
   // ---------- K/D/A aus dem zuletzt gespielten Match (über den lokalen Proxy) ----------
@@ -5969,7 +5986,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       }
       const meKey = own ? (own.puuid || own.name) : null;
       const sortFn = (a,b) => (b.rank ?? 0) - (a.rank ?? 0) || (b.rr ?? 0) - (a.rr ?? 0);
-      allies.sort(sortFn); enemies.sort(sortFn);
+      allies = groupByParty(allies.sort(sortFn)); enemies = groupByParty(enemies.sort(sortFn));
 
       // --card-grid-n steuert die Karten-Maximalbreite unten (siehe .card-grid > *) -
       // ohne das war jede Karte fest auf 1/5 Breite gedeckelt, was bei kleineren
@@ -6012,6 +6029,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     content.classList.toggle('anim', sceneChanged);
     if(sceneChanged){
       // Neue Szene: alles neu, mit gestaffeltem Einflug
+      lastSceneAt = Date.now();
       replaceChildrenHtml(content, html);
       let d = 0;
       content.querySelectorAll('.pcard').forEach(c => { c.style.animationDelay = Math.min(d, 650) + 'ms'; d += 55; });
@@ -8450,7 +8468,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.4-dev1";
+const CURRENT_VERSION = "2.4.4-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

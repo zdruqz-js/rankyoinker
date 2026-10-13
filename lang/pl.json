@@ -112,6 +112,8 @@
     "playing_in_party_tip": "Gra w drużynie.",
     "party_confirmed_with_tip": "Razem w drużynie z {who}, potwierdzone bezpośrednio przez Riot.",
     "party_likely_with_tip": "Najprawdopodobniej gra razem z {who}, w {proof} ostatnich meczach byli w tej samej drużynie.",
+    "party_alive_with_tip": "Gra z {who}: w ostatnim meczu byli w tej samej drużynie, a według Riot ta drużyna nadal istnieje.",
+    "party_unknown_rest": "+{n} nieznanych",
     "applying_ellipsis": "Ustawianie…",
     "reset_btn": "Zresetuj",
     "computed_from_last_match_tip": "Obliczono na podstawie ostatniego meczu, RankYoinker nie miało wartości.",

@@ -111,6 +111,8 @@
     "playing_in_party_tip": "Juega en grupo.",
     "party_confirmed_with_tip": "Juntos en un grupo con {who}, confirmado directamente por Riot.",
     "party_likely_with_tip": "Es muy probable que juegue junto a {who}, en {proof} de las últimas partidas estuvieron en el mismo grupo.",
+    "party_alive_with_tip": "Juega con {who}: estaban en el mismo grupo en su última partida y, según Riot, ese grupo sigue existiendo.",
+    "party_unknown_rest": "+{n} desconocido(s)",
     "applying_ellipsis": "Aplicando…",
     "reset_btn": "Restablecer",
     "computed_from_last_match_tip": "Calculado a partir de la última partida, RankYoinker no tenía ningún valor.",
