@@ -3114,6 +3114,19 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   }
   setConnState('off');
 
+  // RankYoinker keyed die Spieler immer nach puuid, schreibt sie aber nur im Match
+  // (INGAME) zusätzlich als Feld "puuid" ins Objekt - in der Agentenauswahl
+  // (PREGAME) fehlt sie dort. Alles, was über p.puuid geht (Party-Leisten,
+  // "Letzte 5 Matches", Begegnungen, die Party-Abfrage selbst), fand die eigenen
+  // Mitspieler dann nicht; die Gegner kommen mit puuid vom Dienst und gingen.
+  const PUUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function withPuuids(msg){
+    Object.entries(msg.players || {}).forEach(([key, p]) => {
+      if(p && !p.puuid && PUUID_RE.test(key)) p.puuid = key;
+    });
+    return msg;
+  }
+
   function connectWS(){
     clearTimeout(reconnectTimer);
     try{ if(ws) ws.close(); }catch(e){}
@@ -3124,7 +3137,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       let msg;
       try{ msg = JSON.parse(evt.data); }catch(e){ return; }
       if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
-      else if(msg.type === 'heartbeat'){ latestData = msg; setConnState('live'); render(); }
+      else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
     };
     ws.onclose = () => { setConnState('off'); scheduleReconnect(); };
   }
@@ -8470,7 +8483,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.4-dev3";
+const CURRENT_VERSION = "2.4.4-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

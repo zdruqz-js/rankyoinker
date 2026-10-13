@@ -510,7 +510,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.4-dev3"
+APP_VERSION = "2.4.4-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2680,8 +2680,8 @@ def _premade_history(puuid):
 
     competitiveupdates funktioniert im Gegensatz zu /parties auch fuer fremde
     puuids; ohne queue-Filter kommen auch Unrated-Matches mit. Gecacht: die
-    Agentenauswahl und das anschliessende Match haben verschiedene Match-IDs,
-    also lief die Erkennung zweimal - mit denselben 10 Spielern.
+    Erkennung laeuft in der Agentenauswahl und beim Matchstart noch einmal (dann
+    mit den Gegnern, siehe premades()) - weitgehend mit denselben Spielern.
     """
     now = time.time()
     with _cache_lock:
@@ -2879,27 +2879,32 @@ def premades():
     mid, state, roster = _lobby_roster()
     if not roster:
         return {"ok": False, "error": "Gerade kein laufendes Match."}
+    # Schluessel = Match-ID UND Kader: Agentenauswahl und Match haben dieselbe
+    # Match-ID (live nachgeprueft, 2026-10-13), in der Agentenauswahl fehlen die
+    # Gegner aber oft. Nur mit der ID hielt das Ergebnis aus der Agentenauswahl
+    # bis zu 15 min - die gegnerischen Partys fehlten dann im ganzen Match.
+    key = "%s|%s" % (mid, ",".join(sorted(p["puuid"] for p in roster)))
     now = time.time()
     with _cache_lock:
         hit = _premade_cache
-        if hit["match"] == mid and hit["data"] and now - hit["ts"] < PREMADE_TTL:
+        if hit["match"] == key and hit["data"] and now - hit["ts"] < PREMADE_TTL:
             return hit["data"]
     # Vorladen (siehe _prefetch_match) und Seite fragen oft gleichzeitig
-    res = _single_flight(("premades", mid), lambda: _premades_store(mid, state, roster))
+    res = _single_flight(("premades", key), lambda: _premades_store(key, mid, state, roster))
     return res if res is not None else {"ok": False, "error": "abgebrochen"}
 
 
-def _premades_store(mid, state, roster):
+def _premades_store(key, mid, state, roster):
     with _cache_lock:
         hit = _premade_cache                  # kam evtl. gerade erst herein
-        if hit["match"] == mid and hit["data"] and time.time() - hit["ts"] < PREMADE_TTL:
+        if hit["match"] == key and hit["data"] and time.time() - hit["ts"] < PREMADE_TTL:
             return hit["data"]
     data = _premades_build(mid, state, roster)
     if pd_gate_state()["paused"]:
         # Historie unvollstaendig - nicht fuers ganze Match merken; die Seite fragt in 8 s erneut
         return {"ok": False, "error": "riot-ratelimit"}
     with _cache_lock:
-        _premade_cache.update({"match": mid, "ts": time.time(), "data": data})
+        _premade_cache.update({"match": key, "ts": time.time(), "data": data})
     return data
 
 
