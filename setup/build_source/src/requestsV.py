@@ -121,7 +121,10 @@ class Requests:
             print(color("[WARNING] Failed processing status - skipping...", fore=(255, 165, 0)))
             return
             
-    def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5, attempt=1):
+    def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5, attempt=1, max_attempts=None):
+        # max_attempts=1: kein Schlaf + zweiter Versuch bei !ok - fuer Aufrufer,
+        # die ohnehin gleich wieder fragen (z. B. Party beim Spielstart)
+        limit = max_attempts or MAX_FETCH_ATTEMPTS
         try:
             if url_type == "glz":
                 # glz-*.*.a.pvp.net is Riot's real cloud API (public, trusted
@@ -141,7 +144,7 @@ class Requests:
                     if response.json().get("errorCode") == "BAD_CLAIMS":
                         self.log("detected bad claims")
                         self.headers = {}
-                        return self.fetch(url_type, endpoint, method)
+                        return self.fetch(url_type, endpoint, method, max_attempts=max_attempts)
                 except JSONDecodeError:
                     pass
                 if not response.ok:
@@ -149,8 +152,9 @@ class Requests:
                         self.log("response not ok glz endpoint: rate limit 429")
                     else:
                         self.log("response not ok glz endpoint: " + response.text)
-                    if attempt >= MAX_FETCH_ATTEMPTS:
-                        self.log(f"glz endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
+                    if attempt >= limit:
+                        if limit > 1:
+                            self.log(f"glz endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
                         return response.json()
                     time.sleep(rate_limit_seconds+5)
                     self.headers = {}
@@ -162,7 +166,8 @@ class Requests:
                     # Rate-Limit-Treffer dadurch dazu, dass der Zustandsabgleich
                     # faelschlich "nicht mehr im Match" meldete und das laufende
                     # Laden der Spielerliste mittendrin neu startete.
-                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
+                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1,
+                                      max_attempts=max_attempts)
                 return response.json()
             elif url_type == "pd":
                 # pd.*.a.pvp.net is Riot's real cloud API too - see comment above.
@@ -178,7 +183,7 @@ class Requests:
                     if response.json().get("errorCode") == "BAD_CLAIMS":
                         self.log("detected bad claims")
                         self.headers = {}
-                        return self.fetch(url_type, endpoint, method)
+                        return self.fetch(url_type, endpoint, method, max_attempts=max_attempts)
                 except JSONDecodeError:
                     pass
 
@@ -189,13 +194,15 @@ class Requests:
                         pd_pause(response, self.log)
                     else:
                         self.log(f"response not ok pd endpoint, {short_error(response)}")
-                    if attempt >= MAX_FETCH_ATTEMPTS:
-                        self.log(f"pd endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
+                    if attempt >= limit:
+                        if limit > 1:
+                            self.log(f"pd endpoint {endpoint} weiterhin nicht ok nach {attempt} Versuchen - gebe auf")
                         return response
                     if not blocked:
                         time.sleep(rate_limit_seconds+5)
                     self.headers = {}
-                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1)
+                    return self.fetch(url_type, endpoint, method, rate_limit_seconds=rate_limit_seconds+5, attempt=attempt+1,
+                                      max_attempts=max_attempts)
                 return response
             elif url_type == "local":
                 # 127.0.0.1 = the Riot Client's own local API, self-signed

@@ -30,7 +30,8 @@ class Presences:
         self.log = log
         # Fallback-Zustand (siehe Patch-Hinweis)
         self._fallback_logged = False
-        self._party_cache = {"ts": 0.0, "data": None}
+        self._party_cache = {"ts": 0.0, "data": None, "ttl": 0.0}
+        self._party_seen = False
         self._state_cache = {"ts": 0.0, "data": None}
 
     def get_presence(self):
@@ -99,28 +100,41 @@ class Presences:
         laeuft: ohne Party gibt es kein Spiel.
         """
         now = time.time()
-        if now - self._party_cache["ts"] < max_age:
+        if now - self._party_cache["ts"] < self._party_cache["ttl"]:
             return self._party_cache["data"]
 
+        # Beim Spielstart ist der Party-Dienst oft noch nicht bereit. fetch()
+        # schlief dann 10 s bis zum zweiten Versuch - die Startschleife in
+        # main.py fragt aber ohnehin alle 2 s neu (Messung 2026-10-13: 10 s
+        # Wartezeit vor dem ersten Heartbeat). Bis zur ersten erfolgreichen
+        # Party deshalb nur ein Versuch und das "nichts" nur kurz merken; danach
+        # wie bisher mit Wiederholung.
+        quick = not self._party_seen
+        attempts = 1 if quick else None
         party = None
         try:
             player = self.Requests.fetch(
                 url_type="glz",
                 endpoint=f"/parties/v1/players/{self.Requests.puuid}",
                 method="get",
+                max_attempts=attempts,
             )
             if isinstance(player, dict) and player.get("CurrentPartyID"):
                 data = self.Requests.fetch(
                     url_type="glz",
                     endpoint=f"/parties/v1/parties/{player['CurrentPartyID']}",
                     method="get",
+                    max_attempts=attempts,
                 )
                 if isinstance(data, dict) and data.get("ID"):
                     party = data
         except Exception as e:
             self.log(f"Party konnte nicht ueber die Spiel-API geladen werden: {e}")
 
-        self._party_cache = {"ts": now, "data": party}
+        if party is not None:
+            self._party_seen = True
+        ttl = max_age if (party is not None or not quick) else min(max_age, 1.5)
+        self._party_cache = {"ts": now, "data": party, "ttl": ttl}
         return party
 
     def get_api_game_state(self, prefer=None, max_age=2.0):
