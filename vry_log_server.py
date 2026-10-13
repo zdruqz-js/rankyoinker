@@ -162,7 +162,9 @@ def newest_log():
 # (Basic riot:<Lockfile-Passwort>) ins Log - und /log gibt das Log auch an
 # gekoppelte Handys. Neue Logs enthalten ihn nicht mehr; aeltere Dateien werden
 # hier vor der Ausgabe geschwaerzt.
-_LOG_SECRET_RE = re.compile(r"((?:Basic|Bearer)\s+)[A-Za-z0-9+/=._\-]{8,}")
+# {20,}: echte Werte sind deutlich laenger (Basic ~36 Zeichen, Bearer-JWT >100);
+# mit {8,} wurde auch der Kartenname "Basic Training" geschwaerzt.
+_LOG_SECRET_RE = re.compile(r"((?:Basic|Bearer)\s+)[A-Za-z0-9+/=._\-]{20,}")
 
 
 def _redact_log(text):
@@ -521,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.5-dev6"
+APP_VERSION = "2.4.5-dev7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
