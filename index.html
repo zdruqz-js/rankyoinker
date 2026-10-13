@@ -572,7 +572,6 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .card-grid > *{flex:0 0 calc((100% - (var(--cols) - 1) * 14px) / var(--cols)); min-width:0;}
 .pcard{
   --ag:color-mix(in srgb, var(--team, var(--accent)) 60%, #222);
-  --mx:50%; --my:0%;
   position:relative; display:flex; flex-direction:column; min-width:0; cursor:pointer;
   border-radius:20px; overflow:hidden; isolation:isolate;
   background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018) 40%, rgba(255,255,255,.012));
@@ -584,16 +583,11 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   content:""; position:absolute; left:10%; right:10%; top:0; height:1px; z-index:7;
   background:linear-gradient(90deg, transparent, var(--team, var(--accent)), transparent); opacity:.8;
 }
-.pcard::after{ /* Spotlight folgt der Maus */
-  content:""; position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0; transition:opacity .35s ease;
-  background:radial-gradient(260px circle at var(--mx) var(--my), rgba(255,255,255,.08), transparent 60%);
-}
 .pcard:hover{
   transform:translateY(-6px);
   border-color:color-mix(in srgb, var(--team, var(--accent)) 45%, transparent);
   box-shadow:0 1px 0 rgba(255,255,255,.06) inset, 0 34px 60px -30px color-mix(in srgb, var(--team, var(--accent)) 55%, #000);
 }
-.pcard:hover::after{opacity:1;}
 .pcard.me{border-color:var(--accent-line); box-shadow:0 0 0 1px rgba(216,184,124,.18), var(--shadow-card);}
 .pcard.me::before{background:linear-gradient(90deg, transparent, var(--accent), transparent);}
 #content.anim .pcard, #content.anim .skel-card, #content.anim .pick-card{animation:cardIn .8s var(--ease) both;}
@@ -8289,14 +8283,6 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // braucht ein fertiges Layout, um offsetLeft/offsetWidth zu kennen).
   setTimeout(applyGameView, 60);
 
-  // Lichtfleck folgt der Maus über Spieler-, Shop- und Waffenkarten (CSS: --mx/--my)
-  document.addEventListener('pointermove', (ev) => {
-    const card = ev.target && ev.target.closest ? ev.target.closest('.pcard, .shop-card, .gun-card') : null;
-    if(!card) return;
-    const r = card.getBoundingClientRect();
-    card.style.setProperty('--mx', (ev.clientX - r.left).toFixed(0) + 'px');
-    card.style.setProperty('--my', (ev.clientY - r.top).toFixed(0) + 'px');
-  }, {passive: true});
 
 
 })();
@@ -8315,7 +8301,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.3-dev3";
+const CURRENT_VERSION = "2.4.3-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
