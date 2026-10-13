@@ -80,9 +80,6 @@ try:
 
     Requests.check_status()
     Requests = Requests(version, log, ErrorSRC)
-    # Plattencache der valorant-api.com-Kataloge (src/valapi.py): nach einem
-    # Patch neu holen. Die Version steht schon in den Headern (ShooterGame.log).
-    valapi.set_client_version((getattr(Requests, "headers", None) or {}).get("X-Riot-ClientVersion"))
 
     cfg = Config(log)
 

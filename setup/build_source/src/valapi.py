@@ -7,11 +7,14 @@ Response.json() parst bei jedem Aufruf neu). Die Daten aendern sich aber nur
 mit einem Patch.
 
 Jetzt: einmal geholt, auf Platte unter DATA_DIR/cache/valorant-api/ gemerkt
-und pro Programmlauf nur einmal geparst. Neu geholt wird, wenn sich die
-Spielversion aendert (aus ShooterGame.log, siehe set_client_version) oder der
-Eintrag aelter als MAX_AGE ist - valorant-api.com zieht neue Inhalte oft erst
-Stunden nach einem Patch nach. Antwortet valorant-api.com nicht, gilt ein
-alter Eintrag als Notnagel noch bis STALE_MAX_AGE.
+und pro Programmlauf nur einmal geparst. Ob die Daten noch stimmen, sagt
+valorant-api.com selbst: /v1/version (gut 200 Byte, einmal pro Start) nennt
+den Datenstand der API. Gleicher Stand -> Cache (hoechstens API_MAX_AGE),
+neuer Stand -> neu holen. Die Spielversion taugt dafuer nicht: nach einem
+Patch zieht valorant-api.com oft erst Stunden spaeter nach (Hinweis aus der
+Session "Ladezeit der letzten 5 Matches", 2026-10-13). Ist /v1/version nicht
+erreichbar, gilt MAX_AGE; antwortet valorant-api.com gar nicht, ist ein alter
+Eintrag als Notnagel noch bis STALE_MAX_AGE gut.
 """
 import hashlib
 import json
@@ -23,20 +26,32 @@ import requests
 
 from src.paths import data_dir
 
-MAX_AGE = 24 * 3600
+VERSION_URL = "https://valorant-api.com/v1/version"
+API_MAX_AGE = 7 * 24 * 3600      # gleicher API-Stand: trotzdem einmal pro Woche neu
+MAX_AGE = 24 * 3600              # API-Stand unbekannt (/v1/version nicht erreichbar)
 STALE_MAX_AGE = 14 * 24 * 3600
 TIMEOUT = 20
+VERSION_TIMEOUT = 5
 
-_client_version = None
 _mem = {}                    # url -> CachedResponse (pro Programmlauf)
 _locks = {}
 _locks_guard = threading.Lock()
+_api = {"checked": False, "version": None}
+_api_lock = threading.Lock()
 
 
-def set_client_version(version):
-    """Spielversion als Cache-Schluessel (None = nur nach Alter erneuern)."""
-    global _client_version
-    _client_version = version or None
+def _api_version():
+    """Datenstand von valorant-api.com, einmal pro Programmlauf (None = unbekannt)."""
+    with _api_lock:
+        if not _api["checked"]:
+            _api["checked"] = True
+            try:
+                d = requests.get(VERSION_URL, timeout=VERSION_TIMEOUT).json().get("data") or {}
+                v = "%s|%s" % (d.get("manifestId") or "", d.get("buildDate") or "")
+                _api["version"] = v if v != "|" else None
+            except (requests.RequestException, ValueError, AttributeError):
+                _api["version"] = None
+        return _api["version"]
 
 
 class CachedResponse:
@@ -71,11 +86,13 @@ def _read(url):
 
 def _write(url, data):
     path = _cache_file(url)
-    tmp = path + ".tmp"
+    # Eindeutiger Name: zwei vry.exe kurz gleichzeitig duerfen sich nicht die
+    # halbe Datei gegenseitig ueberschreiben (der Lock gilt nur im Prozess)
+    tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"url": url, "savedAt": time.time(), "clientVersion": _client_version, "data": data},
+            json.dump({"url": url, "savedAt": time.time(), "apiVersion": _api_version(), "data": data},
                       fh, separators=(",", ":"))
         os.replace(tmp, path)
     except OSError:
@@ -88,9 +105,12 @@ def _write(url, data):
 
 def _fresh(entry):
     age = time.time() - float(entry.get("savedAt") or 0)
-    if age < 0 or age > MAX_AGE:
+    if age < 0:
         return False
-    return not _client_version or entry.get("clientVersion") == _client_version
+    api = _api_version()
+    if api:
+        return entry.get("apiVersion") == api and age < API_MAX_AGE
+    return age < MAX_AGE
 
 
 def _usable(data):
