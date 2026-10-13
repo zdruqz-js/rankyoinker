@@ -4525,6 +4525,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const tmp = document.createElement('div');
     tmp.innerHTML = instalockPanelHtml();
     const fresh = tmp.firstElementChild;
+    const sig = fresh.outerHTML;
+    // Gleiche Agentenliste: nur Auswahl, Status und Knopf angleichen (siehe patchAgentPanel)
+    if(patchAgentPanel(box, fresh)){ box._sig = sig; return; }
     setSig(fresh);            // damit das nächste ruhige Neuzeichnen ihn wiedererkennt
     box.replaceWith(fresh);
     bindInstalock();
@@ -5634,6 +5637,11 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       const ok = oldKids[i];
       const sig = nk.outerHTML;
       if(ok && ok._sig === sig) return;
+      // Agenten-Raster: angleichen statt ersetzen (sonst laden alle Bilder neu)
+      if(ok && ok.classList && ok.classList.contains('agentpick') && nk.classList.contains('agentpick') && patchAgentPanel(ok, nk)){
+        ok._sig = sig;
+        return;
+      }
       if(ok && ok.tagName === nk.tagName && ok.className === nk.className && MORPH_DEEP.some(c => nk.classList.contains(c))){
         Array.from(nk.attributes).forEach(a => { if(ok.getAttribute(a.name) !== a.value) ok.setAttribute(a.name, a.value); });
         morphInto(ok, Array.from(nk.children));
@@ -5646,6 +5654,61 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     oldKids.slice(newKids.length).forEach(k => k.remove());
   }
   function morphChildren(parent, html){ morphInto(parent, htmlNodes(html)); }
+
+  // ---------- Agenten-Raster ruhig angleichen (Agentenauswahl + Instalock) ----------
+  // Früher wurde das ganze Panel ersetzt, sobald sich etwas daran änderte -
+  // also bei jedem Klick auf einen Agenten: alle Bilder luden neu (sichtbares
+  // Flackern, wirkte wie ein Neuladen des Fensters) und die Liste sprang nach
+  // oben. Bleibt die Agentenliste gleich, bleiben jetzt Panel, Zellen, Bilder,
+  // Scrollposition und Knöpfe (samt Handlern) stehen; übernommen werden nur
+  // Klassen, Titel und Knopf-Zustand. Die übrigen Teile (Kopf, Status,
+  // Hinweise) werden einzeln getauscht. false = Liste anders -> neu aufbauen.
+  function agentCellsKey(root){
+    return Array.from(root.querySelectorAll('.agent-cell'))
+      .map(c => (c.closest('.fav-row') ? 'f:' : '') + (c.getAttribute('data-agent') || c.getAttribute('data-il'))).join(',');
+  }
+  // Kinder von oldParent an freshParent angleichen; keep(el) = Knoten bleibt stehen (sync() gleicht an)
+  function patchKids(oldParent, freshParent, keep, sync){
+    const oldKids = Array.from(oldParent.children);
+    const used = new Set();
+    let prev = null;
+    Array.from(freshParent.children).forEach(fk => {
+      let ok = oldKids.find(o => !used.has(o) && o.tagName === fk.tagName && (keep(fk) ? (o.id || o.className) === (fk.id || fk.className) : o.className === fk.className));
+      if(ok){
+        used.add(ok);
+        if(keep(fk)) sync(ok, fk);
+        else if(ok.outerHTML !== fk.outerHTML){ ok.replaceWith(fk); ok = fk; }
+      } else ok = fk;
+      const want = prev ? prev.nextElementSibling : oldParent.firstElementChild;
+      if(want !== ok) oldParent.insertBefore(ok, want);
+      prev = ok;
+    });
+    oldKids.forEach(o => { if(!used.has(o)) o.remove(); });
+  }
+  function patchAgentPanel(old, fresh){
+    if(!old.dataset.bound || agentCellsKey(old) !== agentCellsKey(fresh)) return false;
+    if(old.className !== fresh.className) old.className = fresh.className;
+    const fc = fresh.querySelectorAll('.agent-cell');
+    old.querySelectorAll('.agent-cell').forEach((c, i) => {
+      const f = fc[i];
+      if(c.className !== f.className) c.className = f.className;
+      if(c.title !== f.title) c.title = f.title;
+      const s = c.querySelector('.fav-star'), fs = f.querySelector('.fav-star');
+      if(s && fs){
+        if(s.className !== fs.className) s.className = fs.className;
+        if(s.title !== fs.title) s.title = fs.title;
+      }
+    });
+    const syncBtn = (b, fb) => {
+      if(b.className !== fb.className) b.className = fb.className;
+      b.disabled = fb.disabled;
+      if(b.innerHTML !== fb.innerHTML) b.innerHTML = fb.innerHTML;
+    };
+    patchKids(old, fresh, el => el.matches('.agent-grid, .fav-row, .ap-actions'), (o, f) => {
+      if(o.matches('.ap-actions')) patchKids(o, f, el => el.tagName === 'BUTTON' && !!el.id, syncBtn);
+    });
+    return true;
+  }
 
   // ---------- main render ----------
   function render(){
@@ -8252,7 +8315,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.3-dev2";
+const CURRENT_VERSION = "2.4.3-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
