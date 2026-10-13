@@ -498,6 +498,9 @@
     "lol_champ_pool": "Pool de champions",
     "lol_presets_for_lane": "Tes préréglages · {lane}",
     "lol_all_lanes": "Toutes",
-    "lol_no_champ_match": "Aucun champion ne correspond au filtre."
+    "lol_no_champ_match": "Aucun champion ne correspond au filtre.",
+    "instalock_risk_fact_delay": "Verrouille ton agent après un délai aléatoire de 11 à 12 secondes, dans les limites d'un temps de réaction humain normal et sans avantage déloyal.",
+    "instalock_risk_fact_instant": "Les outils qui verrouillent instantanément (moins d'une seconde) sont considérés comme proches de la triche et peuvent entraîner un bannissement.",
+    "instalock_risk_fact_residual": "Toute automatisation comporte un risque résiduel vis-à-vis de Riot. Utilisation sous ta propre responsabilité."
   }
 }

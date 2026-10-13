@@ -1148,6 +1148,40 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .chroma-opt img{width:100%; height:30px; object-fit:contain;}
 .chroma-opt .cn{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em; color:var(--text-3); margin-top:5px;}
 .skinpick-actions{display:flex; align-items:center; gap:10px; margin-top:22px; flex-wrap:wrap;}
+/* Instalock: Risiko-Bestätigung (kompakter Dialog mit Bestätigungs-Karte) */
+.modal:has(.risk-dlg){max-width:520px; margin-top:8vh;}
+.risk-dlg{padding:28px 28px 24px;}
+.risk-head{display:flex; align-items:center; gap:14px; margin:0 44px 20px 0;}
+.risk-ic{width:48px; height:48px; flex-shrink:0; border-radius:15px; display:grid; place-items:center; color:var(--warn);
+  background:rgba(244,184,80,.1); border:1px solid rgba(244,184,80,.32);}
+.risk-head .eyebrow{display:block; margin-bottom:3px; color:var(--warn);}
+.risk-head h3{font-size:20px; font-weight:750; letter-spacing:-.02em; line-height:1.2;}
+.risk-facts{display:flex; flex-direction:column; gap:8px; margin-bottom:16px;}
+.risk-fact{display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:14px; font-size:13.5px; line-height:1.5; color:var(--text-2);
+  background:var(--surface); border:1px solid var(--line); animation:rise .5s var(--ease) both;}
+.risk-fact:nth-child(2){animation-delay:.06s;} .risk-fact:nth-child(3){animation-delay:.12s;}
+.rf-ic{width:28px; height:28px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; color:var(--text-2); background:var(--surface-2); border:1px solid var(--line);}
+.risk-fact.ok .rf-ic{color:var(--win); background:rgba(61,220,132,.08); border-color:rgba(61,220,132,.28);}
+.risk-fact.bad .rf-ic{color:var(--loss); background:rgba(255,107,122,.08); border-color:rgba(255,107,122,.28);}
+.risk-fact > span:last-child{padding-top:4px;}
+.consent{position:relative; display:flex; align-items:center; gap:13px; padding:14px 16px; border-radius:15px; cursor:pointer; user-select:none;
+  background:rgba(255,255,255,.02); border:1px solid var(--line-2); transition:border-color .25s ease, background .25s ease, box-shadow .3s ease;}
+.consent:hover{border-color:var(--line-3); background:rgba(255,255,255,.035);}
+.consent:has(.consent-input:checked){border-color:var(--accent-line); background:var(--accent-soft); box-shadow:0 0 0 1px rgba(216,184,124,.12), 0 16px 34px -24px rgba(216,184,124,.8);}
+.consent-input{position:absolute; opacity:0; width:1px; height:1px; margin:0; pointer-events:none;}
+.consent-box{position:relative; width:24px; height:24px; flex-shrink:0; border-radius:8px; display:grid; place-items:center;
+  background:rgba(255,255,255,.03); border:1.5px solid var(--line-3);
+  transition:background .25s ease, border-color .25s ease, transform .4s var(--spring), box-shadow .3s ease;}
+.consent-box svg{width:15px; height:15px; fill:none; stroke:var(--accent-ink); stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:24; stroke-dashoffset:24; transition:stroke-dashoffset .35s var(--ease) .06s;}
+.consent:hover .consent-box{border-color:var(--accent-line);}
+.consent-input:checked + .consent-box{background:var(--grad-accent); border-color:transparent; transform:scale(1.06);
+  box-shadow:0 0 0 4px rgba(216,184,124,.14), 0 6px 16px -6px rgba(216,184,124,.85);}
+.consent-input:checked + .consent-box svg{stroke-dashoffset:0;}
+.consent-input:focus-visible + .consent-box{outline:2px solid var(--accent); outline-offset:3px;}
+.consent-txt{font-family:var(--font-display); font-weight:600; font-size:14px; line-height:1.35; color:var(--text);}
+.risk-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+.risk-actions .pbtn.go{transition:opacity .3s ease, transform .35s var(--spring), box-shadow .3s ease;}
 
 /* ================= Shop ================= */
 .wallet-row{display:flex; flex-wrap:wrap; gap:8px;}
@@ -1936,6 +1970,8 @@ ul.ry-upd-notes li::before{content:""; position:absolute; left:2px; top:8px; wid
   .gsw-btn span{display:none;}
   .gsw-btn{padding:0 10px;}
   .modal-body{padding:6px 18px 24px;}
+  .risk-dlg{padding:22px 18px 20px;}
+  .risk-actions .pbtn{flex:1; justify-content:center;}
   .modal-hero-inner{padding:22px 18px 14px;}
   .modal-hero .mname{font-size:26px;}
   .tracker-btn span{display:none;}
@@ -4488,17 +4524,26 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // geschaltet werden kann - danach dauerhaft (per localStorage) gemerkt,
   // genau wie der zuletzt gewaehlte Agent selbst.
   function showInstalockRiskModal(onConfirm){
+    const fact = (icon, key, cls) => `<div class="risk-fact ${cls || ''}"><span class="rf-ic">${svgIcon(icon, 15)}</span><span>${t(key)}</span></div>`;
     modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
-      <div class="modal-body">
-        <div class="sec-title">${t('instalock_risk_title')}</div>
-        <p style="color:var(--text-dim); line-height:1.55; margin:0 0 18px;">${t('instalock_risk_body')}</p>
-        <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin-bottom:20px;">
-          <input type="checkbox" id="ilRiskCheck" style="accent-color:var(--gold); width:16px; height:16px; margin-top:2px; flex:none;">
-          <span>${t('instalock_risk_checkbox_label')}</span>
+      <div class="risk-dlg">
+        <div class="risk-head">
+          <div class="risk-ic">${svgIcon('shield', 22)}</div>
+          <div><span class="eyebrow">Instalock</span><h3>${t('instalock_risk_title')}</h3></div>
+        </div>
+        <div class="risk-facts">
+          ${fact('clock', 'instalock_risk_fact_delay', 'ok')}
+          ${fact('zap', 'instalock_risk_fact_instant', 'bad')}
+          ${fact('alert', 'instalock_risk_fact_residual')}
+        </div>
+        <label class="consent">
+          <input type="checkbox" class="consent-input" id="ilRiskCheck">
+          <span class="consent-box"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span class="consent-txt">${t('instalock_risk_checkbox_label')}</span>
         </label>
-        <div class="skinpick-actions">
+        <div class="risk-actions">
+          <button class="pbtn" id="ilRiskCancel">${t('cancel')}</button>
           <button class="pbtn go" id="ilRiskConfirm" disabled>${svgIcon('check', 12)}${t('instalock_risk_confirm_btn')}</button>
-          <button class="pbtn" id="ilRiskCancel">${svgIcon('x', 12)}${t('cancel')}</button>
         </div>
       </div>`;
     openModalWrap();
@@ -8301,7 +8346,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.3-dev4";
+const CURRENT_VERSION = "2.4.3-dev5";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

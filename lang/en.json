@@ -499,6 +499,9 @@
     "lol_champ_pool": "Champion pool",
     "lol_presets_for_lane": "Your presets · {lane}",
     "lol_all_lanes": "All",
-    "lol_no_champ_match": "No champion matches the filter."
+    "lol_no_champ_match": "No champion matches the filter.",
+    "instalock_risk_fact_delay": "Locks your agent after a random 11–12 seconds, within normal human reaction times and without an unfair advantage.",
+    "instalock_risk_fact_instant": "Tools that lock instantly (under 1 second) are considered cheat-like and can get you banned.",
+    "instalock_risk_fact_residual": "Any automation carries some residual risk with Riot. Use it at your own responsibility."
   }
 }

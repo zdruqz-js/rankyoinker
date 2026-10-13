@@ -499,6 +499,9 @@
     "lol_champ_pool": "Champion-Pool",
     "lol_presets_for_lane": "Deine Presets · {lane}",
     "lol_all_lanes": "Alle",
-    "lol_no_champ_match": "Kein Champion passt zum Filter."
+    "lol_no_champ_match": "Kein Champion passt zum Filter.",
+    "instalock_risk_fact_delay": "Sperrt deinen Agenten nach zufälligen 11–12 Sekunden, im Rahmen normaler menschlicher Reaktionszeiten und ohne unfairen Vorteil.",
+    "instalock_risk_fact_instant": "Tools, die sofort (unter 1 Sekunde) sperren, gelten als cheat-ähnlich und können zu einem Bann führen.",
+    "instalock_risk_fact_residual": "Bei jeder Automatisierung bleibt ein Restrisiko für Maßnahmen von Riot. Nutzung auf eigene Verantwortung."
   }
 }

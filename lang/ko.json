@@ -499,6 +499,9 @@
     "lol_champ_pool": "챔피언 폭",
     "lol_presets_for_lane": "내 프리셋 · {lane}",
     "lol_all_lanes": "전체",
-    "lol_no_champ_match": "필터에 맞는 챔피언이 없습니다."
+    "lol_no_champ_match": "필터에 맞는 챔피언이 없습니다.",
+    "instalock_risk_fact_delay": "11~12초의 무작위 지연 후 요원을 선택합니다. 일반적인 사람의 반응 속도 범위이며 부당한 이점이 없습니다.",
+    "instalock_risk_fact_instant": "1초 미만으로 즉시 선택하는 도구는 부정 프로그램에 가까운 것으로 간주되어 제재를 받을 수 있습니다.",
+    "instalock_risk_fact_residual": "자동화 기능인 만큼 제재 위험이 완전히 없다고 보장할 수는 없습니다. 사용에 대한 책임은 사용자에게 있습니다."
   }
 }
