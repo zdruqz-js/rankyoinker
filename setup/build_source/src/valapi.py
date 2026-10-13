@@ -16,7 +16,10 @@ Session "Ladezeit der letzten 5 Matches", 2026-10-13). Ist /v1/version nicht
 erreichbar, gilt MAX_AGE; antwortet valorant-api.com gar nicht, ist ein alter
 Eintrag als Notnagel noch bis STALE_MAX_AGE gut. Nach einem Verbindungsfehler
 oder Timeout gilt die API DOWN_RETRY lang als weg: vorhandene Eintraege kommen
-dann ohne Netz, statt dass jeder der neun Kataloge erst 20 s wartet.
+dann ohne Netz, statt dass jeder der neun Kataloge erst 20 s wartet. Kam
+dabei ein echter Verbindungsfehler/Timeout (nicht bloss eine langsame
+Versionsabfrage), bricht auch ein Katalog OHNE Eintrag sofort ab - mit
+derselben Ausnahme wie sonst nach dem Warten.
 """
 import hashlib
 import json
@@ -41,15 +44,25 @@ _locks = {}
 _locks_guard = threading.Lock()
 _api = {"checked": False, "version": None}
 _api_lock = threading.Lock()
-_down = {"until": 0.0}
+_down = {"until": 0.0, "hard_until": 0.0}
 
 
-def _mark_down():
-    _down["until"] = time.time() + DOWN_RETRY
+def _mark_down(hard):
+    """hard = echter Verbindungsfehler/Timeout; sonst nur "Versionsabfrage zu
+    langsam" - dann darf ein Katalog ohne Eintrag es trotzdem versuchen (sonst
+    scheitert eine Neuinstallation bei langsamer erster Verbindung)."""
+    until = time.time() + DOWN_RETRY
+    _down["until"] = until
+    if hard:
+        _down["hard_until"] = until
 
 
 def _is_down():
     return time.time() < _down["until"]
+
+
+def _hard_down():
+    return time.time() < _down["hard_until"]
 
 
 def _fetch_api_version(box):
@@ -79,7 +92,7 @@ def _api_version():
             t.join(VERSION_TIMEOUT)
             if t.is_alive() or box["down"]:
                 _api["version"] = None
-                _mark_down()
+                _mark_down(hard=bool(box["down"]))
             else:
                 _api["version"] = box["version"]
         return _api["version"]
@@ -188,11 +201,13 @@ def get(url):
             return hit
         if entry and _is_down() and _age(entry) < STALE_MAX_AGE:
             return _stale(url, entry)         # API gerade weg: nicht erst 20 s warten
+        if not entry and _hard_down():
+            raise requests.ConnectionError("valorant-api.com gerade nicht erreichbar (%s)" % url)
         try:
             r = requests.get(url, timeout=TIMEOUT)
             data = r.json() if r.status_code == 200 else None
         except (requests.ConnectionError, requests.Timeout) as e:
-            _mark_down()
+            _mark_down(hard=True)
             r, data, err = None, None, e
         except (requests.RequestException, ValueError) as e:
             r, data, err = None, None, e

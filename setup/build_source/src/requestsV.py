@@ -289,9 +289,12 @@ class Requests:
                 try:
                     response = requests.get(f"https://127.0.0.1:{self.lockfile['port']}/entitlements/v1/token",
                                             headers=local_headers, verify=False)
-                    self.log(f"https://127.0.0.1:{self.lockfile['port']}/entitlements/v1/token\n{local_headers}")
+                    # Nur die URL: local_headers enthaelt das Lockfile-Passwort
+                    # (Basic riot:...), und das Log ist ueber /log auch fuer
+                    # gekoppelte Handys lesbar (Hinweis 2026-10-13)
+                    self.log(f"https://127.0.0.1:{self.lockfile['port']}/entitlements/v1/token")
                 except ConnectionError:
-                    self.log(f"https://127.0.0.1:{self.lockfile['port']}/entitlements/v1/token\n{local_headers}")
+                    self.log(f"https://127.0.0.1:{self.lockfile['port']}/entitlements/v1/token")
                     self.log("Connection error, retrying in 1 seconds, getting new lockfile")
                     time.sleep(1)
                     self.lockfile = self.get_lockfile()
