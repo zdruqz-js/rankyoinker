@@ -509,7 +509,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.2"
+APP_VERSION = "2.4.3-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5822,9 +5822,10 @@ def lol_live_game():
             "squad": squads.get(puuid) if is_arena else None,
         })
     my_champ_id = next((p["championId"] for p in out if p["me"]), None)
+    # gameTime (Sekunden) und gameMode für den Kopf der Ansicht (Spieluhr, Kartenname)
     return {"ok": True, "players": out, "gold": active.get("currentGold"),
             "level": active.get("level"), "myMastery": lol_champion_mastery(my_champ_id),
-            "arena": is_arena}
+            "arena": is_arena, "gameTime": stats.get("gameTime"), "gameMode": stats.get("gameMode")}
 
 
 # ---- Begegnungen (eigenes League-Konto) ----

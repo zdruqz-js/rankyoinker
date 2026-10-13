@@ -481,6 +481,24 @@
     "mu_err_itemsets_unreadable": "Item-Sets konnten nicht gelesen werden.",
     "mu_err_rejected": "League hat die Änderung abgelehnt (Status {status}).",
     "mu_err_client": "League-Client nicht erreichbar.",
-    "lol_lane_2nd": "2nd"
+    "lol_lane_2nd": "2nd",
+    "settings_connect_label": "Verbinden",
+    "shop_daily_title": "Tagesangebote",
+    "instalock_desc": "Wähle einen Agenten und schalte Instalock scharf: Sobald die nächste Agentenauswahl startet, sperrt RankYoinker ihn nach kurzer, zufälliger Verzögerung für dich.",
+    "lol_queue_estimate": "≈ {t} erwartet",
+    "lol_open_slot": "Freier Platz",
+    "lol_your_turn_ban": "Du bannst",
+    "lol_your_turn_pick": "Du wählst",
+    "lol_waiting_turn": "Andere sind dran",
+    "lol_bans": "Bans",
+    "lol_bans_none": "Noch keine",
+    "lol_enemy_n": "Gegner {n}",
+    "lol_kills": "Kills",
+    "lol_dead": "Tot",
+    "lol_vision": "Vision",
+    "lol_champ_pool": "Champion-Pool",
+    "lol_presets_for_lane": "Deine Presets · {lane}",
+    "lol_all_lanes": "Alle",
+    "lol_no_champ_match": "Kein Champion passt zum Filter."
   }
 }

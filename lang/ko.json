@@ -481,6 +481,24 @@
     "mu_err_itemsets_unreadable": "아이템 세트를 읽을 수 없습니다.",
     "mu_err_rejected": "League가 변경을 거부했습니다(상태 {status}).",
     "mu_err_client": "League 클라이언트에 연결할 수 없습니다.",
-    "lol_lane_2nd": "2순위"
+    "lol_lane_2nd": "2순위",
+    "settings_connect_label": "연결",
+    "shop_daily_title": "오늘의 상점",
+    "instalock_desc": "요원을 고르고 인스타락을 켜세요. 다음 요원 선택이 시작되면 RankYoinker가 짧은 무작위 지연 후 대신 고정합니다.",
+    "lol_queue_estimate": "≈ {t} 예상",
+    "lol_open_slot": "빈 자리",
+    "lol_your_turn_ban": "내 밴 차례",
+    "lol_your_turn_pick": "내 픽 차례",
+    "lol_waiting_turn": "다른 플레이어 차례",
+    "lol_bans": "밴",
+    "lol_bans_none": "아직 없음",
+    "lol_enemy_n": "상대 {n}",
+    "lol_kills": "킬",
+    "lol_dead": "사망",
+    "lol_vision": "시야",
+    "lol_champ_pool": "챔피언 폭",
+    "lol_presets_for_lane": "내 프리셋 · {lane}",
+    "lol_all_lanes": "전체",
+    "lol_no_champ_match": "필터에 맞는 챔피언이 없습니다."
   }
 }

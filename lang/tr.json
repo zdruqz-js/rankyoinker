@@ -480,6 +480,24 @@
     "mu_err_itemsets_unreadable": "Eşya setleri okunamadı.",
     "mu_err_rejected": "League değişikliği reddetti (durum {status}).",
     "mu_err_client": "League istemcisine ulaşılamıyor.",
-    "lol_lane_2nd": "2. lane"
+    "lol_lane_2nd": "2. lane",
+    "settings_connect_label": "Bağlan",
+    "shop_daily_title": "Günlük teklifler",
+    "instalock_desc": "Bir ajan seç ve Instalock'u etkinleştir: Bir sonraki ajan seçimi başlar başlamaz RankYoinker onu kısa, rastgele bir gecikmeden sonra senin için kilitler.",
+    "lol_queue_estimate": "≈ {t} bekleniyor",
+    "lol_open_slot": "Boş yer",
+    "lol_your_turn_ban": "Sen banlıyorsun",
+    "lol_your_turn_pick": "Sen seçiyorsun",
+    "lol_waiting_turn": "Sıra diğerlerinde",
+    "lol_bans": "Yasaklar",
+    "lol_bans_none": "Henüz yok",
+    "lol_enemy_n": "Rakip {n}",
+    "lol_kills": "Öldürme",
+    "lol_dead": "Ölü",
+    "lol_vision": "Görüş",
+    "lol_champ_pool": "Şampiyon havuzu",
+    "lol_presets_for_lane": "Ön ayarların · {lane}",
+    "lol_all_lanes": "Tümü",
+    "lol_no_champ_match": "Filtreye uyan şampiyon yok."
   }
 }
