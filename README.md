@@ -9,9 +9,9 @@
 [![Build & release installer](https://github.com/zdruqz-js/rankyoinker/actions/workflows/build-release.yml/badge.svg)](https://github.com/zdruqz-js/rankyoinker/actions/workflows/build-release.yml)
 [![Latest release](https://img.shields.io/github/v/release/zdruqz-js/rankyoinker?label=latest%20release)](https://github.com/zdruqz-js/rankyoinker/releases/latest)
 [![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](VRY-LICENSE.txt)
-[![Discord](https://img.shields.io/discord/1547138804996112395?label=discord&logo=discord&logoColor=white)](https://discord.gg/rankyoinker)
+[![Discord](https://img.shields.io/discord/1547138804996112395?label=discord&logo=discord&logoColor=white)](https://discord.gg/kBqc9yQRNA)
 
-[**Download**](https://rankyoinker.de/download) · [Live preview](https://rankyoinker.de/demo/) · [Website](https://rankyoinker.de) · [Discord](https://discord.gg/rankyoinker)
+[**Download**](https://rankyoinker.de/download) · [Live preview](https://rankyoinker.de/demo/) · [Website](https://rankyoinker.de) · [Discord](https://discord.gg/kBqc9yQRNA)
 
 </div>
 
@@ -81,7 +81,7 @@ gh attestation verify RankYoinker-SetupV<version>.exe --owner zdruqz-js
 
 <img src="docs/screenshots/download-virustotal.png" alt="Download dialog showing VirusTotal scan results" width="420">
 
-The installer isn't code-signed yet (no paid certificate), so a couple of antivirus engines flag it on heuristics alone. The download dialog shows the live [VirusTotal](https://www.virustotal.com/) scan for the current release, and our [Discord FAQ](https://discord.gg/rankyoinker) explains exactly why, in plain terms.
+The installer isn't code-signed yet (no paid certificate), so a couple of antivirus engines flag it on heuristics alone. The download dialog shows the live [VirusTotal](https://www.virustotal.com/) scan for the current release, and our [Discord FAQ](https://discord.gg/kBqc9yQRNA) explains exactly why, in plain terms.
 
 ## Install
 
