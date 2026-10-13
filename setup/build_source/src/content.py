@@ -1,5 +1,7 @@
 import requests
 
+from src import valapi
+
 class Content():
     def __init__(self, Requests, log):
         self.Requests = Requests
@@ -29,7 +31,7 @@ class Content():
         return None
 
     def get_all_agents(self):
-        rAgents = requests.get("https://valorant-api.com/v1/agents?isPlayableCharacter=true").json()
+        rAgents = valapi.get("https://valorant-api.com/v1/agents?isPlayableCharacter=true").json()
         agent_dict = {}
         agent_dict.update({None: None})
         agent_dict.update({"": ""})
@@ -43,7 +45,7 @@ class Content():
         Requests data and assets of all maps.
         :return: JSON of all map information.
         """
-        return requests.get("https://valorant-api.com/v1/maps").json()
+        return valapi.get("https://valorant-api.com/v1/maps").json()
 
     def get_map_urls(self, maps) -> dict:
         map_dict = {}

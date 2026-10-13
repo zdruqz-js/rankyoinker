@@ -6,6 +6,7 @@ import os
 
 from src.constants import DEFAULT_CONFIG
 from src.paths import config_path
+from src import valapi
 
 def apply_defaults(cls):
     for name, value in DEFAULT_CONFIG.items():
@@ -79,7 +80,7 @@ class Config:
         return jsonToWrite
 
     def weapon_check(self, name):
-        if name in [weapon["displayName"] for weapon in requests.get("https://valorant-api.com/v1/weapons").json()["data"]]:
+        if name in [weapon["displayName"] for weapon in valapi.get("https://valorant-api.com/v1/weapons").json()["data"]]:
             return True
         else:
             return False

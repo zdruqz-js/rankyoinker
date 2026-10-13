@@ -33,6 +33,7 @@ from src.stats import Stats
 from src.table import Table
 from src.websocket import Ws
 from src.os_info import get_os
+from src import valapi
 
 from src.account_manager.account_manager import AccountManager
 from src.account_manager.account_config import AccountConfig
@@ -79,6 +80,9 @@ try:
 
     Requests.check_status()
     Requests = Requests(version, log, ErrorSRC)
+    # Plattencache der valorant-api.com-Kataloge (src/valapi.py): nach einem
+    # Patch neu holen. Die Version steht schon in den Headern (ShooterGame.log).
+    valapi.set_client_version((getattr(Requests, "headers", None) or {}).get("X-Riot-ClientVersion"))
 
     cfg = Config(log)
 
@@ -138,7 +142,7 @@ try:
 
     log(f"VALORANT rank yoinker v{version}")
 
-    valoApiSkins = requests.get("https://valorant-api.com/v1/weapons/skins")
+    valoApiSkins = valapi.get("https://valorant-api.com/v1/weapons/skins")
     gameContent = content.get_content()
     seasonID = content.get_latest_season_id(gameContent)
     previousSeasonID = content.get_previous_season_id(gameContent)
