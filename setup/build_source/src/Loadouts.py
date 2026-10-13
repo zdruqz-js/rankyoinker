@@ -2,6 +2,7 @@ import time
 import requests
 from colr import color
 from src.constants import sockets, hide_names
+from src import valapi
 import json
 
 # Warden (13.06-Patch, 2026-09-22/23) fehlt bei valorant-api.com noch (Community-
@@ -49,13 +50,11 @@ class Loadouts:
         # get_match_loadouts komplett neu geholt (bis zu 7 Anfragen) - bei
         # bis zu 4 Aufrufen pro Match (1 Versuch + 3 Nachversuche bei
         # unvollstaendigen Loadouts) ging dafuer unnoetig Zeit drauf. Jetzt
-        # einmal pro Programmlauf gecacht.
-        self._ref_cache = {}
+        # auf Platte gecacht und pro Programmlauf nur einmal geparst, siehe
+        # src/valapi.py.
 
     def _cached_get(self, url):
-        if url not in self._ref_cache:
-            self._ref_cache[url] = requests.get(url)
-        return self._ref_cache[url]
+        return valapi.get(url)
 
     def get_match_loadouts(self, match_id, players, weaponChoose, valoApiSkins, names, state="game"):
         playersBackup = players

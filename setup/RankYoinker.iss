@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.4.4"
+#define MyAppVersion "2.4.5-dev1"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -275,6 +275,9 @@ Type: filesandordirs; Name: "{localappdata}\RankYoinker\logs"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update.exe"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-log.txt"
 Type: files; Name: "{localappdata}\RankYoinker\rankyoinker-update-wait.bat"
+; Plattencache der valorant-api.com-Kataloge (ab 2.4.5, src/valapi.py) - rund
+; 10 MB, wird beim naechsten Start einfach neu geholt.
+Type: filesandordirs; Name: "{localappdata}\RankYoinker\cache"
 
 [Code]
 // ---- Umzug ProgramData -> Program Files (2.4.2) ----
