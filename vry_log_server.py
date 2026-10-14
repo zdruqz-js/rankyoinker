@@ -2648,7 +2648,7 @@ def lobby_info():
                         rank=rank if rank is not None else m.get("tier"),
                         rr=r.get("rr"),
                         peakRank=r.get("peakRank"),
-                        peakRankAct=r.get("peakRankAct")))
+                        peakRankAct=r.get("peakRankAct"), rankCarried=bool(r.get("rankCarried"))))
     return dict(info, members=out)
 
 
@@ -4751,6 +4751,10 @@ MATCH_SNAPSHOT_FILE = os.path.join(DATA_DIR, "match-snapshot.json")
 _SNAPSHOT_CACHES = (("stats", _stats_cache), ("mmr", _mmr_cache), ("agents", _agent_history_cache),
                     ("premadeHist", _premade_hist_cache), ("rr", _rr_cache), ("names", _name_cache))
 _snapshot = {"match": None, "since": 0.0, "sig": None, "restored": 0}   # restored: fuer /api/gamestate
+# Format je Cache: aendert sich, WAS ein Cache-Eintrag bedeutet, hier erhoehen -
+# ein Snapshot aus einer aelteren Version (Update mitten im Match) bringt diesen
+# Teil dann nicht mit, der Rest bleibt. mmr 2 = Rang mit Act-Uebernahme (2.4.9).
+_SNAPSHOT_FMT = {"stats": 1, "mmr": 2, "agents": 1, "premadeHist": 1, "rr": 1, "names": 1, "premades": 1}
 _snapshot_ready = threading.Event()
 
 
@@ -4789,13 +4793,17 @@ def _snapshot_restore():
         if state in ("PREGAME", "INGAME") and mid == snap["match"]:
             now = time.time()
             restored = 0
+            fmt = snap.get("fmt") if isinstance(snap.get("fmt"), dict) else {}
+            same = lambda name: fmt.get(name, 1) == _SNAPSHOT_FMT[name]
             with _cache_lock:
                 for name, cache in _SNAPSHOT_CACHES:
+                    if not same(name):
+                        continue
                     for key, value in (snap.get(name) or {}).items():
                         cache[key] = (now, value)
                         restored += 1
                 pm = snap.get("premades")
-                if isinstance(pm, dict) and pm.get("data"):
+                if isinstance(pm, dict) and pm.get("data") and same("premades"):
                     _premade_cache.update({"match": pm.get("match"), "ts": now, "data": pm["data"]})
             _snapshot.update(match=mid, since=float(snap.get("since") or now), sig=None, restored=restored)
         elif state == "MENUS":
@@ -4844,7 +4852,7 @@ def _snapshot_tick(state, mid, now):
     if sig == _snapshot["sig"] or not count:
         return
     try:
-        payload = dict(data, v=1, match=mid, since=since, savedAt=now)
+        payload = dict(data, v=1, fmt=_SNAPSHOT_FMT, match=mid, since=since, savedAt=now)
         tmp = MATCH_SNAPSHOT_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, default=str)
