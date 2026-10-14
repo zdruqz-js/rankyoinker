@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.9"
+APP_VERSION = "2.5.0-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2236,7 +2236,7 @@ def player_stats(puuid, count=1, season=True):
     now = time.time()
     with _cache_lock:
         hit = _stats_cache.get(key)
-        if hit and now - hit[0] < STATS_TTL and (not season or "seasonGames" in hit[1]):
+        if hit and (now - hit[0] < STATS_TTL or _match_current(hit[0])) and (not season or "seasonGames" in hit[1]):
             return hit[1]
     # Laeuft dieselbe Abfrage schon (Vorladen, "meistgespielter Agent", zweites
     # Geraet), auf deren Ergebnis warten statt Riot doppelt zu fragen
@@ -3131,7 +3131,7 @@ def _premade_history(puuid):
     now = time.time()
     with _cache_lock:
         hit = _premade_hist_cache.get(puuid)
-        if hit and now - hit[0] < PREMADE_HIST_TTL:
+        if hit and (now - hit[0] < PREMADE_HIST_TTL or _match_current(hit[0])):
             return hit[1]
     ids = _premade_history_fetch(puuid)
     if ids:
@@ -3333,7 +3333,7 @@ def premades():
     now = time.time()
     with _cache_lock:
         hit = _premade_cache
-        if hit["match"] == key and hit["data"] and now - hit["ts"] < PREMADE_TTL:
+        if hit["match"] == key and hit["data"] and (now - hit["ts"] < PREMADE_TTL or _match_current(hit["ts"])):
             return hit["data"]
     # Vorladen (siehe _prefetch_match) und Seite fragen oft gleichzeitig
     res = _single_flight(("premades", key), lambda: _premades_store(key, mid, state, roster))
@@ -3343,7 +3343,7 @@ def premades():
 def _premades_store(key, mid, state, roster):
     with _cache_lock:
         hit = _premade_cache                  # kam evtl. gerade erst herein
-        if hit["match"] == key and hit["data"] and time.time() - hit["ts"] < PREMADE_TTL:
+        if hit["match"] == key and hit["data"] and (time.time() - hit["ts"] < PREMADE_TTL or _match_current(hit["ts"])):
             return hit["data"]
     data = _premades_build(mid, state, roster)
     if pd_gate_state()["paused"]:
@@ -4774,6 +4774,16 @@ _snapshot_ready = threading.Event()
 def _snapshot_wait():
     """Vor jeder Spielerdaten-Abfrage: erst den gespeicherten Stand pruefen lassen."""
     _snapshot_ready.wait(6.0)
+
+
+def _match_current(ts):
+    """Eintrag stammt aus dem LAUFENDEN Match -> gilt bis Matchende, ohne TTL.
+
+    Die letzten Matches und Partys der zehn Spieler aendern sich waehrend des
+    Matches nicht. Mit den TTLs (Karten 5 min, Party 15 min) fragte ein F5 oder
+    Neustart spaeter im Match alles erneut bei Riot ab (seit 2.5.0 nicht mehr)."""
+    return (bool(_snapshot["match"]) and _snapshot["match"] == _game.get("matchId")
+            and _game.get("state") in ("PREGAME", "INGAME") and ts >= _snapshot["since"])
 
 
 def _snapshot_clear():
