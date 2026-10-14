@@ -2971,12 +2971,26 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       ? `<br><span style="color:var(--gold);">${t(game.state === 'INGAME' ? 'match_running' : 'agent_select_running')}</span>`
       : '';
 
+    // VALORANT ist schon offen (Spiel oder Starter), nur RankYoinker ist noch nicht
+    // so weit - z. B. direkt nach einem Update/Neustart mitten im Match. Dann
+    // nicht "Starte VALORANT" anzeigen (Live-Test 2.4.9-dev1).
+    const valorantOpen = !!(procStatus && procStatus.valorant);
+    const showConnecting = () => {
+      statusCard.className = 'status-card wait';
+      setStatusIcon('clock');
+      statusCardTitle.textContent = t('vry_starting');
+      statusCardText.innerHTML = `<span class="wait-hint">${t('valorant_open_vry_connecting')}</span>` + matchHint;
+    };
+
     if(!running && procStatus && procStatus.waiting){
       // RankYoinker läuft nicht — kommt aber von selbst, sobald VALORANT da ist
-      statusCard.className = 'status-card wait';
-      setStatusIcon('load');
-      statusCardTitle.textContent = t('waiting_for_valorant');
-      statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_vry_autostart')}</span>`;
+      if(valorantOpen) showConnecting();
+      else {
+        statusCard.className = 'status-card wait';
+        setStatusIcon('load');
+        statusCardTitle.textContent = t('waiting_for_valorant');
+        statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_vry_autostart')}</span>`;
+      }
     } else if(running && phase === 'waiting_riot'){
       statusCard.className = 'status-card wait';
       setStatusIcon('load');
@@ -3009,6 +3023,8 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       setStatusIcon('target');
       statusCardTitle.textContent = t('reading_lobby');
       statusCardText.innerHTML = t('reading_lobby_text_html', {version: appVersion ? ` (v${esc(appVersion)})` : ''});
+    } else if(valorantOpen){
+      showConnecting();
     } else {
       // WICHTIG: Hier wartet RankYoinker NICHT auf Match-Daten, sondern schlicht darauf,
       // dass VALORANT überhaupt läuft. Alles andere wäre irreführend.

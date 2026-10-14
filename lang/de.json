@@ -82,6 +82,7 @@
     "reading_lobby": "Lobby wird gelesen",
     "reading_lobby_text_html": "VALORANT läuft, RankYoinker holt gerade die Daten deiner Lobby{version}.<br>Gleich siehst du dich und deine Party hier.",
     "start_valorant_lobby_autoload": "Starte VALORANT, Lobby und Match erscheinen dann automatisch.",
+    "valorant_open_vry_connecting": "VALORANT läuft, RankYoinker verbindet sich gleich.",
     "helper_service_unreachable_plain": "Der Hilfsdienst ist nicht erreichbar (Port 1101), einmal <code>start_vry.vbs</code> ausführen.",
     "state_client_closed": "Client zu",
     "state_menu": "Menü",
