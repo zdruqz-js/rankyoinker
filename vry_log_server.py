@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.8.1"
+APP_VERSION = "2.4.8.2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2380,7 +2380,7 @@ def pick_agent(mid, kind, agent_id):
     """
     status, _ = riot_post("glz", "/pregame/v1/matches/%s/%s/%s" % (mid, kind, agent_id))
     if status in (200, 204):
-        _pregame_cache["ts"] = 0.0   # eigene Wahl sofort sichtbar machen
+        _pregame_invalidate()   # eigene Wahl sofort sichtbar machen
         return True, ""
     if status == 400:
         return False, ("Agent nicht waehlbar (gesperrt, nicht freigeschaltet "
@@ -3351,7 +3351,8 @@ def pregame_match_id(force=False):
     return _pregame_mid["id"]
 
 
-_pregame_cache = {"ts": 0.0, "data": None}
+_pregame_cache = {"ts": 0.0, "data": None, "gen": 0}
+_pregame_lock = threading.Lock()
 PREGAME_TTL = 0.7   # Sekunden: die Seite darf oefter fragen als wir Riot fragen
 
 
@@ -3360,14 +3361,28 @@ def pregame_state():
 
     Kurz gecacht, damit ein schnelles Polling im Browser nicht 1:1 auf Riot
     durchschlaegt — mehrere Abfragen pro Sekunde teilen sich eine Antwort.
+    Immer nur eine Abfrage gleichzeitig (2.4.8.2): Dauerte eine laenger als der
+    1-s-Takt der Seite, liefen vorher mehrere parallel und schrieben sich
+    gegenseitig ueber. Wer waehrenddessen fragt, wartet und bekommt den Cache.
+    Eine Abfrage, die vor einem eigenen Hover/Lock gestartet ist ("gen"), kommt
+    nicht in den Cache - sonst sah die Seite danach noch kurz den alten Agenten.
     """
-    now = time.time()
-    if _pregame_cache["data"] and now - _pregame_cache["ts"] < PREGAME_TTL:
-        return _pregame_cache["data"]
-    result = _pregame_fetch()
-    _pregame_cache["data"] = result
-    _pregame_cache["ts"] = now
-    return result
+    with _pregame_lock:
+        now = time.time()
+        if _pregame_cache["data"] and now - _pregame_cache["ts"] < PREGAME_TTL:
+            return _pregame_cache["data"]
+        gen = _pregame_cache["gen"]
+        result = _pregame_fetch()
+        if _pregame_cache["gen"] == gen:
+            _pregame_cache["data"] = result
+            _pregame_cache["ts"] = time.time()
+        return result
+
+
+def _pregame_invalidate():
+    """Eigene Wahl sofort sichtbar machen: Cache leeren und laufende Abfragen entwerten."""
+    _pregame_cache["gen"] += 1
+    _pregame_cache["ts"] = 0.0
 
 
 def _pregame_fetch():
@@ -4033,7 +4048,7 @@ def _clear_account_caches():
     _shop_cache["data"] = None
     _shop_cache["ts"] = 0.0
     _pregame_cache["data"] = None
-    _pregame_cache["ts"] = 0.0
+    _pregame_invalidate()
     _pregame_mid["id"] = None
     _pregame_mid["ts"] = 0.0
     _self_name["puuid"] = None
