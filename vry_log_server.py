@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.9-dev3"
+APP_VERSION = "2.4.9-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1755,20 +1755,69 @@ def pd_gate_state():
     return {"paused": left > 0, "seconds": max(0, int(left + 0.5)), "reason": g["reason"] if left > 0 else ""}
 
 
+# Vorrang innerhalb des Dienstes (2.4.9): Die Party-Erkennung braucht beim
+# Matchstart viele pd-Anfragen und lief bisher gleichberechtigt neben den
+# Kacheln "Letzte 5" - beide wurden dadurch spaet fertig. Jetzt warten ihre
+# Anfragen (markiert per _low_priority, eigener Pool), solange Kachel- und
+# andere Abfragen anstehen, hoechstens PD_LOW_MAX_WAIT.
+PD_LOW_MAX_WAIT = 25.0
+_tl = threading.local()
+_pd_high = {"n": 0}
+_pd_counts = collections.Counter()      # pd-Anfragen im laufenden Match, je Art (fuer /api/gamestate)
+_pd_count_lock = threading.Lock()
+
+
+def _low_priority(fn):
+    def wrapper(*a, **k):
+        _tl.low = True
+        try:
+            return fn(*a, **k)
+        finally:
+            _tl.low = False
+    return wrapper
+
+
+def _pd_kind(path):
+    if "/match-details/" in path:
+        return "details"
+    if "/competitiveupdates" in path or "/match-history/" in path:
+        return "history"
+    if path.startswith("/mmr/"):
+        return "mmr"
+    if "/name-service/" in path:
+        return "names"
+    return "other"
+
+
 def _riot_send(base_key, auth, path, method="GET", body=None):
     if base_key != "pd":
         return _http(auth[base_key] + path, auth["headers"], method=method, body=body)
-    ticket = _pd_acquire()
-    if not ticket:
-        return 429, None
-    info = {}
+    low = getattr(_tl, "low", False)
+    if low:
+        deadline = time.time() + PD_LOW_MAX_WAIT
+        while _pd_high["n"] > 0 and time.time() < deadline:
+            time.sleep(0.15)
+    else:
+        with _pd_count_lock:
+            _pd_high["n"] += 1
     try:
-        status, j = _http(auth[base_key] + path, auth["headers"], method=method, body=body, info=info)
-    except Exception:
-        _pd_feedback(None, info, probe=(ticket == "probe"))
-        raise
-    _pd_feedback(status, info, probe=(ticket == "probe"))
-    return status, j
+        ticket = _pd_acquire()
+        if not ticket:
+            return 429, None
+        info = {}
+        try:
+            status, j = _http(auth[base_key] + path, auth["headers"], method=method, body=body, info=info)
+        except Exception:
+            _pd_feedback(None, info, probe=(ticket == "probe"))
+            raise
+        _pd_feedback(status, info, probe=(ticket == "probe"))
+        with _pd_count_lock:
+            _pd_counts[_pd_kind(path)] += 1
+        return status, j
+    finally:
+        if not low:
+            with _pd_count_lock:
+                _pd_high["n"] -= 1
 
 
 def riot_get(base_key, path):
@@ -1933,6 +1982,9 @@ _match_cache = collections.OrderedDict()   # match_id -> {"rows": {puuid: row}, 
 _stats_cache = {}        # puuid -> (timestamp, result)
 _cache_lock = threading.Lock()
 _pool = ThreadPoolExecutor(max_workers=3)   # Riot mag keine Anfrage-Lawine
+# Party-Erkennung mit eigenem Pool: ihre Anfragen warten ggf. auf die Kacheln
+# (siehe _low_priority) und duerfen dabei keine Plaetze in _pool blockieren.
+_premade_pool = ThreadPoolExecutor(max_workers=3)
 STATS_TTL = 300
 
 
@@ -1954,6 +2006,48 @@ def _digest_match(match):
         if row:
             rows[sub] = row
     return {"rows": rows, "party": party}
+
+
+# Abgeschlossene Matches aendern sich nie - seit 2.4.9 ueberleben ihre
+# Kurzfassungen auch einen Neustart und das naechste Match:
+# DATA_DIR/match-digests.json (die juengsten MATCH_DIGEST_KEEP). Die eigenen
+# letzten Matches und die der Party tauchen in jedem Spiel wieder auf und kamen
+# bisher jedes Mal neu von Riot. Aendern sich _digest_match()/_extract(),
+# DIGEST_VERSION erhoehen - sonst kaemen alte Kurzfassungen ohne neue Felder.
+DIGEST_VERSION = 1
+MATCH_DIGEST_FILE = os.path.join(DATA_DIR, "match-digests.json")
+MATCH_DIGEST_KEEP = 400
+_digest_disk = {"dirty": False, "saved": 0.0}
+
+
+def _digests_load():
+    data = _load_json(MATCH_DIGEST_FILE)
+    if data.get("v") != DIGEST_VERSION or not isinstance(data.get("matches"), dict):
+        return 0
+    n = 0
+    with _cache_lock:
+        for match_id, dg in data["matches"].items():
+            if isinstance(dg, dict) and isinstance(dg.get("rows"), dict) and match_id not in _match_cache:
+                _cache_put(_match_cache, match_id, dg, MATCH_CACHE_MAX)
+                n += 1
+    return n
+
+
+def _digests_save(force=False):
+    if not _digest_disk["dirty"] or (not force and time.time() - _digest_disk["saved"] < 30):
+        return
+    with _cache_lock:
+        items = list(_match_cache.items())[-MATCH_DIGEST_KEEP:]
+        _digest_disk["dirty"] = False
+    try:
+        tmp = MATCH_DIGEST_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"v": DIGEST_VERSION, "matches": dict(items)}, fh, separators=(",", ":"))
+        os.replace(tmp, MATCH_DIGEST_FILE)
+        _digest_disk["saved"] = time.time()
+    except Exception as e:
+        _digest_disk["dirty"] = True
+        report_error("match-digests", e)
 
 
 _inflight = {}                  # Schluessel -> {"ev": Event, "res": Ergebnis}
@@ -2007,6 +2101,7 @@ def _match_details_fetch(match_id):
     digest = _digest_match(j)
     with _cache_lock:
         _cache_put(_match_cache, match_id, digest, MATCH_CACHE_MAX)
+        _digest_disk["dirty"] = True
     return digest
 
 
@@ -2294,7 +2389,7 @@ def party_info():
 
 _mmr_cache = {}          # puuid -> (Zeitpunkt, Ergebnis)
 MMR_TTL = 120
-_seasons = {"ts": 0.0, "map": {}, "current_id": None}
+_seasons = {"ts": 0.0, "map": {}, "current_id": None, "previous_id": None}
 # Ohne Sperre holen sich mehrere Mitglieder die Tabelle gleichzeitig: Der erste
 # Thread setzt den Zeitstempel, der zweite überspringt den Abruf daraufhin und
 # liest die noch leere Tabelle — dann fehlt bei einem Spieler die Act-Angabe.
@@ -2334,6 +2429,7 @@ def _load_seasons():
         # UTC ("...Z"), ein reiner String-Vergleich reicht dafuer.
         now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         current_id = None
+        acts = {}                     # Act-Season -> (Start, Ende), fuer den vorherigen Act
         for sid, s in by_id.items():
             act = re.match(r"\s*ACT\s+([IVX]+)\s*$", s.get("displayName") or "", re.I)
             if not act:
@@ -2350,6 +2446,7 @@ def _load_seasons():
             else:
                 out[sid] = "A%d" % num
             start, end = s.get("startTime"), s.get("endTime")
+            acts[sid] = (start, end)
             if start and end and start <= now_iso < end:
                 current_id = sid
         # Die MMR-Antwort schlüsselt teils nach Competitive-Season statt
@@ -2364,6 +2461,9 @@ def _load_seasons():
             pass
         _seasons["map"] = out
         _seasons["current_id"] = current_id
+        cur_start = acts.get(current_id, (None, None))[0]
+        before = [(e, sid) for sid, (_s, e) in acts.items() if e and cur_start and e <= cur_start]
+        _seasons["previous_id"] = max(before)[1] if before else None
     except Exception:
         pass
 
@@ -2387,11 +2487,31 @@ def mmr_summary(puuid):
         return out                   # dito (Rate-Limit/Pause, Token) - nicht 2 Minuten "kein Rang"
     if status == 200 and j:
         last = j.get("LatestCompetitiveUpdate") or {}
-        if last.get("TierAfterUpdate") is not None:
-            out["rank"] = last.get("TierAfterUpdate")
-            out["rr"] = last.get("RankedRatingAfterUpdate")
         seasons = (((j.get("QueueSkills") or {}).get("competitive") or {})
                    .get("SeasonalInfoBySeasonID") or {})
+        # Rang wie in vry.exe: aktueller Act; ohne Spiel im neuen Act der des
+        # vorherigen (Riot uebernimmt ihn). Bis 2.4.9 kam hier immer der Stand
+        # des letzten Competitive-Spiels, egal wie alt - die Lobby zeigte so
+        # einen Rang, waehrend das Match (vry.exe) im neuen Act 0 zeigte.
+        with _seasons_lock:
+            _load_seasons()
+        cur, prev = _seasons.get("current_id"), _seasons.get("previous_id")
+
+        def act_rank(sid):
+            info = seasons.get(sid) if sid else None
+            if isinstance(info, dict) and (info.get("CompetitiveTier") or 0) > 2:
+                return info.get("CompetitiveTier"), info.get("RankedRating")
+            return None
+
+        ranked = act_rank(cur) or act_rank(prev)
+        if ranked:
+            out["rank"], out["rr"] = ranked
+            out["rankCarried"] = not act_rank(cur)
+        elif last.get("TierAfterUpdate") is not None and (
+                not cur or last.get("SeasonID") in (cur, prev)):
+            # Seasons nicht ladbar oder anders verschluesselt: wie bisher
+            out["rank"] = last.get("TierAfterUpdate")
+            out["rr"] = last.get("RankedRatingAfterUpdate")
         best_tier, best_season = 0, None
         for sid, info in seasons.items():
             if not isinstance(info, dict):
@@ -3082,7 +3202,7 @@ def _premades_build(mid, state, roster):
 
     # 2) Historie nur fuer Spieler, deren Party noch nicht vollstaendig bekannt ist
     todo = [p for p in puuids if count[find(p)] < cap[find(p)]]
-    hist = dict(zip(todo, _pool.map(_premade_history, todo))) if len(todo) > 1 else {}
+    hist = dict(zip(todo, _premade_pool.map(_low_priority(_premade_history), todo))) if len(todo) > 1 else {}
     seen, freshness, latest = {}, {}, {}
     for pu, ids in hist.items():
         ids = [m for m in ids if m != mid]    # das laufende Match zaehlt nicht
@@ -3094,7 +3214,7 @@ def _premades_build(mid, state, roster):
 
     shared = sorted((m for m, who in seen.items() if len(who) > 1),
                     key=lambda m: (freshness[m], m))[:PREMADE_DETAILS]
-    details = dict(zip(shared, _pool.map(_premade_details, shared))) if shared else {}
+    details = dict(zip(shared, _premade_pool.map(_low_priority(_premade_details), shared))) if shared else {}
 
     pairs = {}                                # (a, b) -> Zahl der Matches in derselben Party
     for m in shared:
@@ -3116,7 +3236,7 @@ def _premades_build(mid, state, roster):
     involved = {p for pair in pairs for p in pair}
     need = sorted({latest[p] for p in involved if p in latest} - set(details))
     if need:
-        details.update(zip(need, _pool.map(_premade_details, need)))
+        details.update(zip(need, _premade_pool.map(_low_priority(_premade_details), need)))
     last_party, last_members = {}, {}         # puuid -> partyId bzw. Mitglieder im letzten Match
     for p in involved:
         party_of = (details.get(latest.get(p)) or {}).get("party") or {}
@@ -4419,7 +4539,8 @@ def game_state():
     """Spielzustand fuer die Oberflaeche — unabhaengig davon, was vry.exe sieht."""
     out = {"state": _game["state"], "matchId": _game["matchId"],
            "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
-           "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]}}
+           "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
+           "pdRequests": dict(_pd_counts)}
     if _game["state"] == "INGAME" and _game_roster["match"] and _game_roster["match"] == _game["matchId"]:
         out["roster"] = {"map": _game_roster["map"], "queue": _game_roster["queue"],
                          "players": _game_roster["players"]}
@@ -4693,11 +4814,14 @@ def _snapshot_tick(state, mid, now):
     if state == "MENUS":
         if _snapshot["match"] or os.path.exists(MATCH_SNAPSHOT_FILE):
             _snapshot_clear()
+            _digests_save(force=True)           # Match vorbei: Kurzfassungen gleich sichern
         return
     if state not in ("PREGAME", "INGAME") or not mid:
         return
     if _snapshot["match"] != mid:
         _snapshot_clear()                       # Stand eines anderen Matches gilt nicht mehr
+        with _pd_count_lock:
+            _pd_counts.clear()
         # Vorladen und Seite koennen ein paar Sekunden vor dem ersten Takt anfangen
         _snapshot.update(match=mid, since=now - GAME_INTERVAL - 2.0, sig=None, restored=0)
     since = _snapshot["since"]
@@ -4734,6 +4858,7 @@ def _game_watcher():
     while True:
         time.sleep(GAME_INTERVAL)
         try:
+            _digests_save()
             now = time.time()
             if not game_ready():
                 if _game["state"] != "offline":
@@ -7884,6 +8009,10 @@ if __name__ == "__main__":
     threading.Thread(target=_account_watcher, daemon=True).start()
     # Verfolgt den echten Spielzustand und holt vry.exe zurück, wenn es ein
     # laufendes Match verpasst hat
+    try:
+        _digests_load()                         # abgeschlossene Matches aus frueheren Laeufen
+    except Exception as e:
+        report_error("match-digests", e)
     if os.path.exists(MATCH_SNAPSHOT_FILE):
         threading.Thread(target=_snapshot_restore, daemon=True).start()   # als Erstes: gehoert er zum Match?
     else:
