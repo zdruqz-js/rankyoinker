@@ -189,6 +189,8 @@
     "update_new_version_generic": "Dostępna jest nowa wersja RankYoinker.",
     "install_now": "Zainstaluj teraz",
     "installing": "Instalowanie...",
+    "update_deferred_match": "Trwa mecz. Aktualizacja uruchomi się automatycznie, gdy wrócisz do lobby.",
+    "install_now_anyway": "Zainstaluj teraz mimo to",
     "download_in_progress": "Pobieranie w toku, proszę czekać...",
     "install_in_progress_restart": "Trwa instalacja, RankYoinker zaraz się zrestartuje...",
     "error_prefix": "Błąd: ",

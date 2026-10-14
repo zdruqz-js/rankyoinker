@@ -2379,16 +2379,20 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // erfahren. sendBeacon statt fetch, robust auch waehrend eines Reloads
   // (fetch koennte durch die Navigation abgebrochen werden, bevor sie beim
   // Server ankommt).
-  function notifyBackendLang(lang){
+  // auto=true: nur der Abgleich beim Laden. Den nimmt der Dienst seit 2.4.9 nur
+  // noch vom PC selbst an und nie ueber eine ausdrueckliche Auswahl hinweg -
+  // vorher schrieb jedes Geraet, das die Seite nur ansah (gekoppeltes Handy,
+  // zweiter Browser), seine Sprache in config.json (Discord-Status, /stats).
+  function notifyBackendLang(lang, auto){
     try{
       const url = (typeof LOG_URL !== 'undefined' ? LOG_URL : '') + '/api/set-lang';
-      navigator.sendBeacon(url, new Blob([JSON.stringify({lang})], {type: 'text/plain'}));
+      navigator.sendBeacon(url, new Blob([JSON.stringify({lang, auto: !!auto})], {type: 'text/plain'}));
     }catch(e){}
   }
   function setLang(lang){
     if(SUPPORTED_LANGS.indexOf(lang) === -1) return;
     try{ localStorage.setItem(LANG_KEY, lang); }catch(e){}
-    notifyBackendLang(lang);
+    notifyBackendLang(lang, false);
     location.reload();
   }
   // Bisher wurde config.json nur beim MANUELLEN Wechsel im Dropdown
@@ -2400,7 +2404,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // Laden synchronisiert (per setTimeout, damit LOG_URL - erst viel weiter
   // unten im selben Script deklariert - zu dem Zeitpunkt sicher zugewiesen
   // ist), nicht nur bei einer expliziten Auswahl.
-  setTimeout(() => notifyBackendLang(LANG), 0);
+  setTimeout(() => { if(!ON_PHONE) notifyBackendLang(LANG, true); }, 0);
 
   // STRINGS kommt jetzt aus loadLanguages() oben (lang/*.json) statt hier hart eingebettet zu sein.
 
@@ -2841,7 +2845,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // gibt es keinen, dann bleibt es bei localhost.
   const NET_HOST = (/^https?:$/.test(location.protocol) && location.hostname)
     ? location.hostname : 'localhost';
-  const ON_PHONE = !/^(localhost|127\.0\.0\.1|\[::1\]|::1|vry)$/i.test(NET_HOST);
+  // "rankyoinker" (Kurzadresse aus der hosts-Datei, seit 2.4.2) ist ebenfalls der PC -
+  // fehlte hier, dadurch war dort u. a. der Kopplungs-Knopf ausgeblendet.
+  const ON_PHONE = !/^(localhost|127\.0\.0\.1|\[::1\]|::1|vry|rankyoinker)$/i.test(NET_HOST);
 
   let ws = null, reconnectTimer = null, appVersion = null, latestData = null, connState = 'off';
   // Welches Spiel gerade angezeigt wird (siehe League-Abschnitt weiter unten) —
@@ -3666,7 +3672,11 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // für einen Spieler eine Riot-Pause, bleibt die Kachel auf "lädt…" und wird
   // später erneut versucht.
   const kdaRetryAt = {};
-  const KDA_PARALLEL = 4;
+  // 3 statt 4: Jede dieser Abfragen wartet auf die Riot-Bremse und belegt so
+  // lange eine Browser-Verbindung - eine bleibt so immer frei fuer Hovern,
+  // Sperren und die Live-Abfragen (schneller wird das Laden mit mehr ohnehin
+  // nicht, die Bremse im Dienst gibt das Tempo vor).
+  const KDA_PARALLEL = 3;
   function loadKda(){
     if(kdaInFlight) return;
     const now = Date.now();
@@ -3793,11 +3803,18 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // Antworten können sich überholen (1-s-Takt plus Abfrage nach jedem Klick,
   // eine Riot-Abfrage dauert oft mehrere hundert ms) - eine ältere Antwort darf
   // nie über eine neuere geschrieben werden.
-  let pregameReqSeq = 0, pregameAppliedSeq = 0;
+  // Nie mehrere /api/pregame gleichzeitig: Antwortete der Dienst einmal
+  // langsam, stapelten sich sonst jede Sekunde neue Abfragen, belegten die
+  // (pro Adresse begrenzten) Browser-Verbindungen, und Hovern/Sperren musste
+  // dahinter warten. Eine haengende Abfrage gibt nach 8 s wieder frei.
+  let pregameReqSeq = 0, pregameAppliedSeq = 0, pregameBusySince = 0;
   function syncPregame(){
     if(!inPregame()){ stopPregamePoll(); return; }
+    if(pregameBusySince && Date.now() - pregameBusySince < 8000) return;
+    pregameBusySince = Date.now();
     const seq = ++pregameReqSeq;
     fetch(LOG_URL + '/api/pregame', {cache:'no-store'})
+      .finally(() => { if(seq === pregameReqSeq) pregameBusySince = 0; })
       .then(r => r.json())
       .then(j => {
         if(!j || !j.ok) return;
@@ -8631,7 +8648,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.9-dev2";
+const CURRENT_VERSION = "2.4.9-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -8726,7 +8743,31 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     snoozeUntil = Date.now() + SNOOZE_MS;
   }
 
-  function runInstall(btn, status) {
+  // Ein Popup, das schon in der Lobby offen war, installierte per Klick auch
+  // mitten im Match (Live-Test 2.4.9-dev1). Jetzt: im Match wird bis zur Lobby
+  // gewartet; ein zweiter Klick installiert trotzdem sofort.
+  let installDeferred = false;
+  function runInstall(btn, status, force) {
+    if (!force && !installDeferred) {
+      currentlyInMatch().then(inMatch => {
+        if (!inMatch) { runInstall(btn, status, true); return; }
+        installDeferred = true;
+        status.textContent = window.ryT('update_deferred_match');
+        if (btn) { btn.disabled = false; btn.textContent = window.ryT('install_now_anyway'); }
+        const waitLobby = () => {
+          if (!installDeferred) return;          // inzwischen von Hand gestartet
+          currentlyInMatch().then(still => {
+            if (!installDeferred) return;
+            if (still) { setTimeout(waitLobby, 10000); return; }
+            installDeferred = false;
+            runInstall(btn, status, true);
+          });
+        };
+        setTimeout(waitLobby, 10000);
+      });
+      return;
+    }
+    installDeferred = false;
     if (btn) { btn.disabled = true; btn.textContent = window.ryT('installing'); }
     status.textContent = window.ryT('download_in_progress');
 
@@ -8788,7 +8829,8 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
 
     const status = document.getElementById("ryUpdStatus");
     document.getElementById("ryUpdInstall").addEventListener("click", () => {
-      runInstall(document.getElementById("ryUpdInstall"), status);
+      // zweiter Klick waehrend des Wartens auf die Lobby = sofort installieren
+      runInstall(document.getElementById("ryUpdInstall"), status, installDeferred);
     });
   }
 

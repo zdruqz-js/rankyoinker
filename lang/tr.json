@@ -188,6 +188,8 @@
     "update_new_version_generic": "Yeni bir RankYoinker sürümü mevcut.",
     "install_now": "Şimdi yükle",
     "installing": "Yükleniyor...",
+    "update_deferred_match": "Şu anda bir maç sürüyor. Güncelleme lobiye döndüğünde otomatik olarak başlayacak.",
+    "install_now_anyway": "Yine de şimdi yükle",
     "download_in_progress": "İndirme sürüyor, lütfen bekleyin...",
     "install_in_progress_restart": "Yükleme sürüyor, RankYoinker birazdan yeniden başlayacak...",
     "error_prefix": "Hata: ",
