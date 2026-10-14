@@ -3377,7 +3377,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
   // Zentraler Status-Poll: Prozess + Ladefortschritt (aus dem Log geparst) fürs Overlay
   let procKnown = false, lastProcRunning = false, lastRestarts = null,
-      lastAccountGen = null, lastGiveup = false;
+      lastAccountPuuid = null, lastGiveup = false;
   async function pollStatus(){
     try{
       procStatus = await (await fetch(LOG_URL + '/status', {cache:'no-store'})).json();
@@ -3418,11 +3418,15 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       lastGiveup = !!procStatus.giveup;
 
       // Account gewechselt? Dann sind alle zwischengespeicherten Namen,
-      // Presets, Loadouts und Shop-Daten vom falschen Konto.
-      if(typeof procStatus.gen === 'number'){
-        if(lastAccountGen !== null && procStatus.gen !== lastAccountGen) onAccountSwitch();
-        lastAccountGen = procStatus.gen;
+      // Presets, Loadouts und Shop-Daten vom falschen Konto. Seit 2.5.0 an der
+      // puuid erkannt: Der Zaehler "gen" faengt nach einem Neustart des Dienstes
+      // (Update!) wieder bei 0 an und loeste dann faelschlich einen Wechsel aus -
+      // Letzte 5 und Partys wurden verworfen und luden neu.
+      if(procStatus.puuid){
+        if(lastAccountPuuid && procStatus.puuid !== lastAccountPuuid) onAccountSwitch();
+        lastAccountPuuid = procStatus.puuid;
       }
+      matchViewSync();
 
       // Welches Spiel gerade läuft, entscheidet der Server (Match/Queue schlägt
       // blossen offenen Client) — die Seite schaltet nur noch die Ansicht um.
@@ -3458,6 +3462,8 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     shopState.data = null; shopState.at = 0;
     partySig = ''; lastFullSig = ''; lastSceneSig = '';
     premadeParties = {}; premadeGroups = []; premadeSig = '';
+    matchViewId = null;
+    try{ localStorage.removeItem(MATCH_VIEW_KEY); }catch(e){}
     loadOwnPuuid();
     if(activeTab === 'skins') renderSkins();
     else if(activeTab === 'shop') renderShop(true);
@@ -3605,6 +3611,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       premadeParties = j.parties || {};
       premadeGroups = j.groups || [];
       paintPremades();
+      matchViewSave();
     });
   }
   // Ergebnis einzeichnen: Party-Leisten und die Reihenfolge der Karten kommen
@@ -3623,6 +3630,58 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // zeigen wir die Werte der zuletzt abgeschlossenen Partie.
   const kdaCache = {};      // puuid -> {results:[…], last:{…}} (oder null = nichts gefunden)
   let kdaInFlight = false;
+
+  // ---- "Letzte 5" und Partys des LAUFENDEN Matches ueberstehen F5 (2.5.0) ----
+  // Liegen im localStorage, immer nur fuer ein Match (Match-ID aus /status).
+  // Nach dem Neuladen kommen sie von dort statt erneut ueber den Dienst; im
+  // Menue oder bei einem anderen Match wird verworfen.
+  const MATCH_VIEW_KEY = 'ry_match_view';
+  let matchViewId = null, matchViewTimer = null;
+  function currentMatchId(){
+    const g = procStatus && procStatus.game;
+    return g && (g.state === 'INGAME' || g.state === 'PREGAME') ? (g.matchId || null) : null;
+  }
+  function matchViewSave(){
+    clearTimeout(matchViewTimer);
+    matchViewTimer = setTimeout(() => {
+      const mid = currentMatchId();
+      if(!mid || mid !== matchViewId) return;
+      try{
+        localStorage.setItem(MATCH_VIEW_KEY, JSON.stringify({match: mid, at: Date.now(), kda: kdaCache,
+          premades: premadeSig ? {sig: premadeSig, parties: premadeParties, groups: premadeGroups} : null}));
+      }catch(e){}
+    }, 400);
+  }
+  function matchViewSync(){
+    const mid = currentMatchId();
+    if(!mid){
+      if(procStatus && procStatus.game && procStatus.game.state === 'MENUS'){
+        matchViewId = null;
+        try{ localStorage.removeItem(MATCH_VIEW_KEY); }catch(e){}
+      }
+      return;
+    }
+    if(mid === matchViewId) return;
+    matchViewId = mid;
+    let saved = null;
+    try{ saved = JSON.parse(localStorage.getItem(MATCH_VIEW_KEY) || 'null'); }catch(e){}
+    if(!saved || saved.match !== mid){
+      try{ localStorage.removeItem(MATCH_VIEW_KEY); }catch(e){}
+      matchViewSave();
+      return;
+    }
+    let kda = false, party = false;
+    Object.entries(saved.kda || {}).forEach(([id, row]) => {
+      if(kdaCache[id] === undefined){ kdaCache[id] = row; kda = true; }
+    });
+    const pm = saved.premades;
+    if(pm && pm.sig && !premadeSig){
+      premadeSig = pm.sig; premadeParties = pm.parties || {}; premadeGroups = pm.groups || [];
+      party = true;
+    }
+    if(kda) paintKda();
+    if(party) paintPremades();
+  }
 
   // Ergebnis-Punkte der letzten 5 Matches — links der jüngste.
   // Details stehen in der Einzelübersicht des Spielers.
@@ -3704,6 +3763,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
           if(row && row.error){ kdaRetryAt[id] = Date.now() + 14000; retry = true; return; }
           kdaCache[id] = row;
           paintKda();
+          matchViewSave();
         })
         .catch(() => { /* Dienst nicht bereit — Kachel bleibt auf "lädt…" */ })
         .then(() => { running--; next(); });
@@ -8648,7 +8708,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.9";
+const CURRENT_VERSION = "2.5.0-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
