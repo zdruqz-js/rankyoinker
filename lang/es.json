@@ -492,7 +492,7 @@
     "lol_your_turn_pick": "Te toca elegir",
     "lol_waiting_turn": "Turno de los demás",
     "lol_bans": "Vetos",
-    "lol_bans_none": "Ninguno aún",
+    "lol_no_ban": "Sin veto",
     "lol_enemy_n": "Rival {n}",
     "lol_kills": "Asesinatos",
     "lol_dead": "Muerto",

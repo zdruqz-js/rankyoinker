@@ -492,7 +492,7 @@
     "lol_your_turn_pick": "Sen seçiyorsun",
     "lol_waiting_turn": "Sıra diğerlerinde",
     "lol_bans": "Yasaklar",
-    "lol_bans_none": "Henüz yok",
+    "lol_no_ban": "Yasak yok",
     "lol_enemy_n": "Rakip {n}",
     "lol_kills": "Öldürme",
     "lol_dead": "Ölü",

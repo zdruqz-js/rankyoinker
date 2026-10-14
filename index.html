@@ -1366,10 +1366,20 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .lh-bans{display:flex; flex-direction:column; align-items:flex-end; gap:7px;}
 .lh-bans .lab{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3);}
 .lh-ban-row{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:380px;}
+.lh-ban-row::before{content:""; width:3px; align-self:stretch; margin-right:3px; border-radius:2px; background:var(--ally); opacity:.85;}
+.lh-ban-row.enemy::before{background:var(--enemy);}
 .ban-ic{position:relative; width:34px; height:34px; border-radius:9px; overflow:hidden; border:1px solid rgba(255,77,94,.4); animation:popIn .45s var(--spring) both; background:#111;}
 .ban-ic img{width:100%; height:100%; object-fit:cover; filter:grayscale(1) brightness(.75);}
 .ban-ic::after{content:""; position:absolute; left:-25%; right:-25%; top:50%; height:2px; margin-top:-1px; background:#ff4d5e; transform:rotate(-45deg); box-shadow:0 0 6px rgba(255,77,94,.9);}
-.lh-none{font-size:12px; color:var(--text-3);}
+/* Nicht gebannt (Zeit abgelaufen): Bann-Symbol des Clients, kein Strich */
+.ban-ic.none{border-color:var(--line-2); background:rgba(10,10,12,.6);}
+.ban-ic.none img{object-fit:contain; padding:4px; filter:brightness(2.2);}
+/* Läuft gerade (Hover sichtbar nur im eigenen Team) / kommt noch */
+.ban-ic.active{border-color:rgba(255,77,94,.75); background:rgba(10,10,12,.6); animation:popIn .45s var(--spring) both, banPulse 1.4s ease-in-out infinite;}
+.ban-ic.active img{filter:grayscale(.3); opacity:.6;}
+.ban-ic.empty{border:1px dashed rgba(255,255,255,.16); background:rgba(10,10,12,.35); animation:none;}
+.ban-ic.none::after, .ban-ic.active::after, .ban-ic.empty::after{display:none;}
+@keyframes banPulse{50%{box-shadow:0 0 0 2px rgba(255,77,94,.25), 0 0 14px -2px rgba(255,77,94,.7);}}
 
 /* Im Spiel: Kill-Stand statt "VS" */
 .lh-score{display:flex; align-items:baseline; justify-content:center; gap:10px;}
@@ -6808,13 +6818,17 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const tm = lolTimers[name];
     return tm ? Math.max(0, tm.v + tm.dir * (Date.now() - tm.at) / 1000) : null;
   }
-  // dir 1 = zählt hoch, -1 = runter. Springt ein Countdown nach oben, beginnt ein
-  // neuer Zug - dann gilt der neue Wert als volle Länge für den Ring.
-  function lolSetTimer(name, v, dir){
+  // dir 1 = zählt hoch, -1 = runter. full = volle Länge für den Ring (vom Dienst);
+  // ohne sie gilt: springt ein Countdown nach oben, beginnt ein neuer Zug - dann
+  // ist der neue Wert die volle Länge. Liegt der neue Wert dicht an der lokal
+  // weiterlaufenden Uhr, läuft diese einfach weiter - sonst zuckte die Sekunde
+  // bei jedem Poll um eins vor und zurück.
+  function lolSetTimer(name, v, dir, full){
     if(v == null || isNaN(v)){ delete lolTimers[name]; return; }
     const prev = lolTimers[name];
     const cur = prev ? lolTimerValue(name) : null;
-    const total = (!prev || v > cur + 1.5) ? Math.max(v, 1) : prev.total;
+    const total = full && full >= v ? full : ((!prev || v > cur + 1.5) ? Math.max(v, 1) : prev.total);
+    if(prev && prev.dir === dir && Math.abs(v - cur) < 0.6){ prev.total = total; return; }
     lolTimers[name] = {v, at: Date.now(), dir, total};
   }
   function lolClock(s){ s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -8151,10 +8165,22 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     return `<div class="dc-head ${side}"><span class="slash"></span><h2>${esc(title)}</h2><span class="line"></span></div>
       <div class="drows">${rows.join('')}</div>`;
   }
-  function lolBansHtml(ids){
-    return `<div class="lh-bans"><div class="lab">${t('lol_bans')}</div><div class="lh-ban-row">${ids.length
-      ? ids.map(id => `<span class="ban-ic" title="${esc(lolChampName(id))}"><img src="${champIconUrl(id)}" alt="" loading="lazy"></span>`).join('')
-      : `<span class="lh-none">${t('lol_bans_none')}</span>`}</div></div>`;
+  // Bans wie im Client: oben das eigene Team, unten die Gegner, ein Platz je
+  // Bann-Aktion. "none" = Zeit abgelaufen, nichts gebannt -> das Bann-Symbol
+  // des Clients (früher stand da die -1 der LCU als "Champion").
+  const LOL_NO_BAN_ICON = 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-champ-select/global/default/images/team-bans/icon-ban-small.png';
+  function lolBanSlotHtml(s){
+    const img = (id) => `<img src="${champIconUrl(id)}" alt="" loading="lazy">`;
+    if(s.state === 'done' && s.championId) return `<span class="ban-ic" title="${esc(lolChampName(s.championId))}">${img(s.championId)}</span>`;
+    if(s.state === 'none') return `<span class="ban-ic none" title="${esc(t('lol_no_ban'))}"><img src="${LOL_NO_BAN_ICON}" alt="" loading="lazy"></span>`;
+    if(s.state === 'active') return `<span class="ban-ic active"${s.championId ? ` title="${esc(lolChampName(s.championId))}"` : ''}>${s.championId ? img(s.championId) : ''}</span>`;
+    return '<span class="ban-ic empty"></span>';
+  }
+  function lolBansHtml(bans){
+    const ally = (bans && bans.ally) || [], enemy = (bans && bans.enemy) || [];
+    if(!ally.length && !enemy.length) return '';     // Modus ohne Bans (ARAM, Blind Pick)
+    const row = (list, side) => `<div class="lh-ban-row ${side}">${list.map(lolBanSlotHtml).join('')}</div>`;
+    return `<div class="lh-bans"><div class="lab">${t('lol_bans')}</div>${row(ally, 'ally')}${row(enemy, 'enemy')}</div>`;
   }
 
   async function renderLolChampSelect(state){
@@ -8186,7 +8212,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const pickTurn = myTurn && action.type === 'pick';
     const myChamp = (pickTurn && (lolPickLocalId || action.championId)) || me.championId || me.pickIntent || null;
     const locked = !!(me.championId && !me.hovering && !pickTurn);
-    lolSetTimer('cs', cs.timeLeft != null ? Math.max(0, cs.timeLeft / 1000) : null, -1);
+    lolSetTimer('cs', cs.timeLeft != null ? Math.max(0, cs.timeLeft / 1000) : null, -1, cs.timeTotal ? cs.timeTotal / 1000 : null);
 
     const body = lolLayout('champselect');
     // ---- Kopf ----
@@ -8206,7 +8232,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         myLane ? `<span class="lh-lane">${laneIcon(myLane, 15)}${esc(LOL_POSITIONS[myLane])}</span>` : '',
         me.mastery && me.mastery.level ? esc(t('mastery_tip', {level: me.mastery.level, points: numFmt(me.mastery.points || 0)})) : '',
       ]),
-      right: ring + lolBansHtml(cs.bannedChampionIds || []),
+      right: ring + lolBansHtml(cs.bans),
     });
 
     // ---- Gerüst (einmal je Champ Select), danach nur gezielt aktualisieren ----
@@ -8483,7 +8509,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.6";
+const CURRENT_VERSION = "2.4.7-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

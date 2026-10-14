@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.6"
+APP_VERSION = "2.4.7-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5192,6 +5192,8 @@ def lol_champ_select():
     # überhaupt geklickt werden, alle anderen Aktionen sind fremde Spieler.
     my_action = None
     banned_ids = set()
+    ally_cells = {c.get("cellId") for c in (j.get("myTeam") or [])}
+    bans = {"ally": [], "enemy": []}
     for group in (j.get("actions") or []):
         for a in group:
             if (a.get("actorCellId") == local_cell and a.get("isInProgress")
@@ -5199,8 +5201,23 @@ def lol_champ_select():
                 my_action = {"id": a.get("id"), "type": a.get("type"),
                             "championId": a.get("championId") or None,
                             "completed": bool(a.get("completed"))}
-            if a.get("type") == "ban" and a.get("completed") and a.get("championId"):
-                banned_ids.add(a["championId"])
+            if a.get("type") == "ban":
+                slot = _lol_ban_slot(a)
+                if slot["state"] == "done":
+                    banned_ids.add(slot["championId"])
+                ally = a.get("isAllyAction")
+                if not isinstance(ally, bool):
+                    ally = a.get("actorCellId") in ally_cells
+                bans["ally" if ally else "enemy"].append(slot)
+    if not bans["ally"] and not bans["enemy"]:
+        # Ältere/andere Modi: nur die fertigen Listen, keine Bann-Aktionen
+        old = j.get("bans") or {}
+        for side, key in (("ally", "myTeamBans"), ("enemy", "theirTeamBans")):
+            for cid in (old.get(key) or []):
+                slot = _lol_ban_slot({"championId": cid, "completed": True})
+                if slot["state"] == "done":
+                    banned_ids.add(slot["championId"])
+                bans[side].append(slot)
 
     pickable, bannable = [], []
     try:
@@ -5222,11 +5239,62 @@ def lol_champ_select():
     my_mastery = lol_champion_mastery(me_cell["championId"]) if me_cell else None
 
     timer = j.get("timer") or {}
+    total = timer.get("totalTimeInPhase")
     return {"ok": True, "myTeam": my_team, "theirTeam": their_team,
             "myAction": my_action, "pickable": pickable, "bannable": bannable,
-            "bannedChampionIds": sorted(banned_ids),
+            "bannedChampionIds": sorted(banned_ids), "bans": bans,
             "myMastery": my_mastery,
-            "phase": timer.get("phase"), "timeLeft": timer.get("adjustedTimeLeftInPhase")}
+            # Restzeit erst hier ausrechnen: Ränge und Mastery oben kosten Zeit
+            "phase": timer.get("phase"), "timeLeft": _lol_cs_time_left(timer),
+            # Länge des laufenden Zugs für den Ring (unplausibel lang -> weglassen)
+            "timeTotal": total if _is_num(total) and 0 < total <= 180000 and not timer.get("isInfinite") else None}
+
+
+def _is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _lol_ban_slot(a):
+    """Ein Bann-Platz für die Anzeige. Ein abgeschlossener Bann ohne Champion
+    (die LCU liefert dann -1 oder 0) heisst "nicht gebannt" - die -1 landete
+    früher als Champion-ID in der Liste."""
+    cid = a.get("championId")
+    cid = cid if isinstance(cid, int) and not isinstance(cid, bool) and cid > 0 else None
+    if a.get("completed"):
+        return {"championId": cid, "state": "done" if cid else "none"}
+    if a.get("isInProgress"):
+        return {"championId": cid, "state": "active"}     # cid = Hover (beim Gegner verborgen)
+    return {"championId": None, "state": "pending"}
+
+
+_lol_cs_timer_seen = {"key": None, "at": 0.0}
+
+
+def _lol_cs_time_left(timer):
+    """Restzeit (ms) der laufenden Champ-Select-Phase, Stand JETZT.
+
+    Die LCU schreibt "timer" nur neu, wenn sich die Session ändert (Hovern,
+    Lock, neuer Zug). "adjustedTimeLeftInPhase" ist die Restzeit zum Zeitpunkt
+    "internalNowInEpochMs", nicht zum Zeitpunkt der Anfrage - ohne Abzug sprang
+    die Uhr im Overlay bei jedem Poll auf diesen alten Wert zurück, bis jemand
+    etwas hoverte."""
+    left = timer.get("adjustedTimeLeftInPhase")
+    if timer.get("isInfinite") or not _is_num(left):
+        return None
+    snap = timer.get("internalNowInEpochMs")
+    elapsed = None
+    if _is_num(snap) and snap > 0:
+        e = time.time() * 1000 - snap
+        # Der League-Client läuft auf demselben PC, also dieselbe Uhr. Ein
+        # völlig unplausibler Abstand heisst: andere Uhr - dann unten zählen.
+        if -2000 <= e <= 15 * 60 * 1000:
+            elapsed = max(0.0, e)
+    if elapsed is None:
+        key = (timer.get("phase"), snap, left)
+        if _lol_cs_timer_seen["key"] != key:
+            _lol_cs_timer_seen.update(key=key, at=time.monotonic())
+        elapsed = (time.monotonic() - _lol_cs_timer_seen["at"]) * 1000
+    return max(0, int(left - elapsed))
 
 
 def lol_champ_action(action_id, champion_id, lock):
