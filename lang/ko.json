@@ -493,7 +493,7 @@
     "lol_your_turn_pick": "내 픽 차례",
     "lol_waiting_turn": "다른 플레이어 차례",
     "lol_bans": "밴",
-    "lol_bans_none": "아직 없음",
+    "lol_no_ban": "밴 없음",
     "lol_enemy_n": "상대 {n}",
     "lol_kills": "킬",
     "lol_dead": "사망",

@@ -493,7 +493,7 @@
     "lol_your_turn_pick": "Wybierasz",
     "lol_waiting_turn": "Kolej innych",
     "lol_bans": "Bany",
-    "lol_bans_none": "Jeszcze brak",
+    "lol_no_ban": "Brak bana",
     "lol_enemy_n": "Przeciwnik {n}",
     "lol_kills": "Zabójstwa",
     "lol_dead": "Martwy",

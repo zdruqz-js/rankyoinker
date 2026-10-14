@@ -493,7 +493,7 @@
     "lol_your_turn_pick": "You pick",
     "lol_waiting_turn": "Others are up",
     "lol_bans": "Bans",
-    "lol_bans_none": "None yet",
+    "lol_no_ban": "No ban",
     "lol_enemy_n": "Enemy {n}",
     "lol_kills": "Kills",
     "lol_dead": "Dead",
