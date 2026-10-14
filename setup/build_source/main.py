@@ -182,6 +182,10 @@ try:
             reset_match_player_cache(match_id)
             restored = match_snapshot.load(match_id)
             if restored:
+                # Stand evtl. von einer aelteren Version (Update mitten im Match):
+                # die Rang-Uebernahme aus dem Vor-Act gilt auch fuer ihn.
+                for entry in restored.values():
+                    entry["playerRank"] = carry_over_rank(entry["playerRank"], entry["previousPlayerRank"])
                 match_player_cache["players"].update(restored)
                 log(f"Match-Stand uebernommen: {len(restored)} Spieler ohne neue Riot-Abfrage")
             return
