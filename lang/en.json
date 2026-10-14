@@ -82,6 +82,7 @@
     "reading_lobby": "Reading lobby",
     "reading_lobby_text_html": "VALORANT is running, RankYoinker is fetching your lobby data{version}.<br>You and your party will show up here shortly.",
     "start_valorant_lobby_autoload": "Start VALORANT, your lobby and match will appear automatically.",
+    "valorant_open_vry_connecting": "VALORANT is running, RankYoinker will connect in a moment.",
     "helper_service_unreachable_plain": "The helper service is not reachable (port 1101), run <code>start_vry.vbs</code> once.",
     "state_client_closed": "Client closed",
     "state_menu": "Menu",

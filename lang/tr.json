@@ -81,6 +81,7 @@
     "reading_lobby": "Lobi okunuyor",
     "reading_lobby_text_html": "VALORANT çalışıyor, RankYoinker lobi{version} verilerini alıyor.<br>Birazdan kendini ve partini burada göreceksin.",
     "start_valorant_lobby_autoload": "VALORANT'ı başlat, lobi ve maç otomatik olarak görünecektir.",
+    "valorant_open_vry_connecting": "VALORANT açık, RankYoinker birazdan bağlanacak.",
     "helper_service_unreachable_plain": "Yardımcı hizmete ulaşılamıyor (bağlantı noktası 1101), bir kez <code>start_vry.vbs</code> dosyasını çalıştır.",
     "state_client_closed": "İstemci kapalı",
     "state_menu": "Menü",

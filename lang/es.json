@@ -81,6 +81,7 @@
     "reading_lobby": "Leyendo el lobby",
     "reading_lobby_text_html": "VALORANT está abierto, RankYoinker está obteniendo los datos de tu lobby{version}.<br>Enseguida te verás aquí junto a tu grupo.",
     "start_valorant_lobby_autoload": "Inicia VALORANT, el lobby y la partida aparecerán automáticamente.",
+    "valorant_open_vry_connecting": "VALORANT está abierto, RankYoinker se conectará en un momento.",
     "helper_service_unreachable_plain": "No se puede acceder al servicio auxiliar (puerto 1101), ejecuta una vez <code>start_vry.vbs</code>.",
     "state_client_closed": "Cliente cerrado",
     "state_menu": "Menú",

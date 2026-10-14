@@ -82,6 +82,7 @@
     "reading_lobby": "로비 정보를 읽는 중",
     "reading_lobby_text_html": "VALORANT가 실행 중이며, RankYoinker가 로비 데이터를 가져오고 있습니다{version}.<br>곧 본인과 파티원이 여기에 표시됩니다.",
     "start_valorant_lobby_autoload": "VALORANT를 실행하면 로비와 매치가 자동으로 표시됩니다.",
+    "valorant_open_vry_connecting": "VALORANT가 실행 중입니다. RankYoinker가 곧 연결됩니다.",
     "helper_service_unreachable_plain": "보조 서비스에 접근할 수 없습니다 (포트 1101). <code>start_vry.vbs</code>를 한 번 실행해 주세요.",
     "state_client_closed": "클라이언트 종료됨",
     "state_menu": "메뉴",
