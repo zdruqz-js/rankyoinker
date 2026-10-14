@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.9-dev1"
+APP_VERSION = "2.4.9-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2062,6 +2062,7 @@ def player_stats(puuid, count=1, season=True):
     season=False spart den /mmr-Aufruf fuer die Saison-Bilanz - die
     Spielerkarten brauchen sie nicht (den Rang liefert vry.exe ohnehin), nur
     das Spieler-Fenster (/api/player)."""
+    _snapshot_wait()
     key = "%s:%d" % (puuid, count)
     now = time.time()
     with _cache_lock:
@@ -2308,6 +2309,7 @@ def _load_seasons():
 
 def mmr_summary(puuid):
     """Aktueller Rang + RR + hoechster je erreichter Rang + Saison-Bilanz eines Spielers."""
+    _snapshot_wait()
     now = time.time()
     with _cache_lock:
         hit = _mmr_cache.get(puuid)
@@ -2374,6 +2376,7 @@ def most_played_agent(puuid):
     sobald irgendetwas fehlschlaegt - nie ein Grund, die restliche Anzeige zu
     verzoegern oder abzubrechen.
     """
+    _snapshot_wait()
     now = time.time()
     with _cache_lock:
         hit = _agent_history_cache.get(puuid)
@@ -3102,6 +3105,7 @@ def _premades_build(mid, state, roster):
 
 def premades():
     """Wer spielt hier mit wem zusammen? — auch bei fremden Spielern."""
+    _snapshot_wait()
     mid, state, roster = _lobby_roster()
     if not roster:
         return {"ok": False, "error": "Gerade kein laufendes Match."}
@@ -3167,6 +3171,7 @@ def rr_history(puuid, count=15):
     Endpunkt sporadisch mit 4xx, und ein leeres Ergebnis liess die Kurve frueher
     mal erscheinen und mal nicht.
     """
+    _snapshot_wait()
     key = "%s:%d" % (puuid, count)
     now = time.time()
     with _cache_lock:
@@ -4329,7 +4334,8 @@ _game_roster = {"match": None, "map": "", "queue": "", "players": []}
 def game_state():
     """Spielzustand fuer die Oberflaeche — unabhaengig davon, was vry.exe sieht."""
     out = {"state": _game["state"], "matchId": _game["matchId"],
-           "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state()}
+           "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
+           "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]}}
     if _game["state"] == "INGAME" and _game_roster["match"] and _game_roster["match"] == _game["matchId"]:
         out["roster"] = {"map": _game_roster["map"], "queue": _game_roster["queue"],
                          "players": _game_roster["players"]}
@@ -4526,6 +4532,120 @@ def _prefetch_match(state, mid):
     threading.Thread(target=run, daemon=True).start()
 
 
+# ---- Stand des laufenden Matches ueber einen Neustart retten ----
+# Nach einem Update oder Neustart mitten im Match fragte der Dienst fuer alle
+# zehn Spieler alles neu bei Riot ab (Karten-Stats, Party-Erkennung,
+# meistgespielter Agent, RR-Verlauf) - dutzende pd-Anfragen auf einmal, genau
+# der Stoss, der Cloudflare-Sperren ausloest. Seit 2.4.9 liegt der gesammelte
+# Stand des LAUFENDEN Matches in DATA_DIR/match-snapshot.json, immer nur fuer
+# dieses eine Match (Agentenauswahl und Match haben dieselbe ID). Beim Start
+# prueft der Dienst als Erstes, ob die Datei zum aktuellen Match gehoert, und
+# uebernimmt sie dann; Abfragen warten so lange (_snapshot_wait). Im Menue wird
+# die Datei geloescht. Gegenstueck in vry.exe: src/match_snapshot.py.
+MATCH_SNAPSHOT_FILE = os.path.join(DATA_DIR, "match-snapshot.json")
+_SNAPSHOT_CACHES = (("stats", _stats_cache), ("mmr", _mmr_cache), ("agents", _agent_history_cache),
+                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache))
+_snapshot = {"match": None, "since": 0.0, "sig": None, "restored": 0}   # restored: fuer /api/gamestate
+_snapshot_ready = threading.Event()
+
+
+def _snapshot_wait():
+    """Vor jeder Spielerdaten-Abfrage: erst den gespeicherten Stand pruefen lassen."""
+    _snapshot_ready.wait(6.0)
+
+
+def _snapshot_clear():
+    _snapshot.update(match=None, since=0.0, sig=None, restored=0)
+    for path in (MATCH_SNAPSHOT_FILE, MATCH_SNAPSHOT_FILE + ".tmp"):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _snapshot_restore():
+    """Laeuft beim Start als Erstes: gehoert match-snapshot.json zum aktuellen Match?"""
+    try:
+        snap = _load_json(MATCH_SNAPSHOT_FILE)
+        if not snap.get("match"):
+            return
+        state = mid = None
+        deadline = time.time() + 30.0
+        while time.time() < deadline:
+            if game_ready():
+                try:
+                    state, mid = _live_state()
+                    break
+                except Exception:
+                    pass
+            time.sleep(1.0)
+        if state is None:
+            return                              # Spiel (noch) nicht erreichbar - Datei bleibt
+        if state in ("PREGAME", "INGAME") and mid == snap["match"]:
+            now = time.time()
+            restored = 0
+            with _cache_lock:
+                for name, cache in _SNAPSHOT_CACHES:
+                    for key, value in (snap.get(name) or {}).items():
+                        cache[key] = (now, value)
+                        restored += 1
+                pm = snap.get("premades")
+                if isinstance(pm, dict) and pm.get("data"):
+                    _premade_cache.update({"match": pm.get("match"), "ts": now, "data": pm["data"]})
+            _snapshot.update(match=mid, since=float(snap.get("since") or now), sig=None, restored=restored)
+        elif state == "MENUS":
+            _snapshot_clear()
+    except Exception as e:
+        report_error("match-snapshot", e)
+    finally:
+        _snapshot_ready.set()
+
+
+def _snapshot_tick(state, mid, now):
+    """Aus dem Spielzustands-Takt: neues Match -> neuer Stand, Menue -> loeschen,
+    sonst Geaendertes wegschreiben."""
+    if not _snapshot_ready.is_set():
+        return
+    if state == "MENUS":
+        if _snapshot["match"] or os.path.exists(MATCH_SNAPSHOT_FILE):
+            _snapshot_clear()
+        return
+    if state not in ("PREGAME", "INGAME") or not mid:
+        return
+    if _snapshot["match"] != mid:
+        _snapshot_clear()                       # Stand eines anderen Matches gilt nicht mehr
+        # Vorladen und Seite koennen ein paar Sekunden vor dem ersten Takt anfangen
+        _snapshot.update(match=mid, since=now - GAME_INTERVAL - 2.0, sig=None, restored=0)
+    since = _snapshot["since"]
+    data, newest, count = {}, 0.0, 0
+    with _cache_lock:
+        for name, cache in _SNAPSHOT_CACHES:
+            part = {}
+            for key, value in cache.items():
+                if isinstance(value, tuple) and len(value) == 2 and value[0] >= since:
+                    part[key] = value[1]
+                    newest = max(newest, value[0])
+            data[name] = part
+            count += len(part)
+        pc = _premade_cache
+        if pc.get("data") and pc.get("ts", 0) >= since and str(pc.get("match") or "").startswith(mid + "|"):
+            data["premades"] = {"match": pc["match"], "data": pc["data"]}
+            newest = max(newest, pc["ts"])
+            count += 1
+    sig = (count, newest)
+    if sig == _snapshot["sig"] or not count:
+        return
+    try:
+        payload = dict(data, v=1, match=mid, since=since, savedAt=now)
+        tmp = MATCH_SNAPSHOT_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, default=str)
+        os.replace(tmp, MATCH_SNAPSHOT_FILE)
+        _snapshot["sig"] = sig
+    except Exception as e:
+        report_error("match-snapshot", e)
+
+
 def _game_watcher():
     while True:
         time.sleep(GAME_INTERVAL)
@@ -4549,6 +4669,7 @@ def _game_watcher():
             if state != _game["state"] or mid != _game["matchId"]:
                 _game.update({"state": state, "matchId": mid, "since": now})
             _game["ts"] = now
+            _snapshot_tick(state, mid, now)
             # Begegnungen zählen, sobald der volle Kader steht (INGAME) —
             # unabhängig davon, ob die Seite gerade offen ist
             if state == "INGAME":
@@ -7678,6 +7799,10 @@ if __name__ == "__main__":
     threading.Thread(target=_account_watcher, daemon=True).start()
     # Verfolgt den echten Spielzustand und holt vry.exe zurück, wenn es ein
     # laufendes Match verpasst hat
+    if os.path.exists(MATCH_SNAPSHOT_FILE):
+        threading.Thread(target=_snapshot_restore, daemon=True).start()   # als Erstes: gehoert er zum Match?
+    else:
+        _snapshot_ready.set()
     threading.Thread(target=_game_watcher, daemon=True).start()
     # Instalock: läuft hier statt im Browser, damit ein Hintergrund-Tab die
     # Verzögerung nicht verschleppt. Ein frisches Scharfschalten überlebt
