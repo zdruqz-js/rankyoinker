@@ -7,6 +7,7 @@ import requests
 from colr import color
 import os
 from requests.exceptions import ConnectionError
+from src.paths import data_dir
 
 # fetch() gab bei einem 429 (Rate-Limit) bisher UNBEGRENZT oft mit wachsender
 # Wartezeit neu auf - blieb Riot laenger als ueblich rate-limitiert (kommt
@@ -28,35 +29,130 @@ MAX_FETCH_ATTEMPTS = 2
 # wartete jeder Thread fuer sich und klopfte danach erneut an - das verlaengert
 # so eine Sperre nur. Jetzt: Mindestabstand zwischen pd-Anfragen, und nach
 # einem 429 bzw. einer Cloudflare-Sperre warten ALLE Threads gemeinsam.
-PD_MIN_INTERVAL = 0.25         # hoechstens ~4 Anfragen pro Sekunde
-PD_RATE_PAUSE = 10.0           # nach einem normalen 429 von Riot
-PD_BLOCK_PAUSE = 75.0          # nach einer Cloudflare-Sperre
-_pd_gate = {"next": 0.0, "blocked_until": 0.0}
+#
+# Seit 2.4.9 GEMEINSAM mit dem lokalen Dienst (vry_log_server.py, gleiche
+# Logik, gleiche Datei): Vorher bremste jeder Prozess nur sich selbst, zusammen
+# gingen beim Matchstart ueber 7 Anfragen/s raus, und waehrend einer
+# pausierte, fragte der andere weiter. Takt, Pause und Sperrzaehler liegen in
+# DATA_DIR/pd-gate.json, geschuetzt durch pd-gate.lock (per O_EXCL angelegt).
+# Klappt das nicht, bremst vry.exe wieder nur sich selbst (wie vor 2.4.9).
+# Pause nach einer Cloudflare-Sperre erst 20 s, dann EINE Testanfrage; ist die
+# Sperre noch da, 45 s, dann 90 s. 10 Minuten ohne Sperre setzen das zurueck.
+PD_MIN_INTERVAL = 0.3          # beide Prozesse zusammen hoechstens ~3 Anfragen pro Sekunde
+PD_MAX_INTERVAL = 1.5
+PD_RATE_PAUSE = 12.0           # nach einem normalen 429 von Riot
+PD_BLOCK_PAUSES = (20.0, 45.0, 90.0)   # nach der 1./2./3. Cloudflare-Sperre in Folge
+PD_STRIKE_RESET = 600.0
+PD_PROBE_TIMEOUT = 15.0
+PD_GATE_FILE = os.path.join(data_dir(), "pd-gate.json")
+PD_GATE_LOCKFILE = os.path.join(data_dir(), "pd-gate.lock")
+_pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "reason": "",
+            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0}
 _pd_lock = threading.Lock()
 
 
-def pd_wait():
-    """Wartet auf den naechsten freien Platz fuer eine pd-Anfrage."""
+_pd_shared_off = {"until": 0.0}
+
+
+def _pd_file_lock():
+    # Liess sich die Sperrdatei zuletzt gar nicht bekommen (z. B. haelt ein
+    # Virenscanner sie fest), nicht jede Anfrage erneut 1 s warten lassen.
+    if time.time() < _pd_shared_off["until"]:
+        return False
+    deadline = time.time() + 1.0
     while True:
-        with _pd_lock:
+        try:
+            os.close(os.open(PD_GATE_LOCKFILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            return True
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(PD_GATE_LOCKFILE) > 3.0:
+                    os.remove(PD_GATE_LOCKFILE)   # Halter ist abgestuerzt
+                    continue
+            except OSError:
+                pass
+            if time.time() > deadline:
+                _pd_shared_off["until"] = time.time() + 30.0
+                return False
+            time.sleep(0.003)
+        except OSError:
+            return False
+
+
+class _PdState:
+    """with _PdState() as g: gemeinsamer Zustand beider Prozesse, wird beim Verlassen gespeichert."""
+
+    def __enter__(self):
+        _pd_lock.acquire()
+        self.shared = _pd_file_lock()
+        if self.shared:
+            try:
+                with open(PD_GATE_FILE, encoding="utf-8") as f:
+                    data = json.load(f)
+                for k, v in (data.items() if isinstance(data, dict) else ()):
+                    if k in _pd_gate and isinstance(v, (int, float, str)):
+                        _pd_gate[k] = v
+            except (OSError, ValueError):
+                pass
+        return _pd_gate
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if self.shared:
+                if exc_type is None:
+                    try:
+                        with open(PD_GATE_FILE, "w", encoding="utf-8") as f:
+                            json.dump(_pd_gate, f)
+                    except OSError:
+                        pass
+                try:
+                    os.remove(PD_GATE_LOCKFILE)
+                except OSError:
+                    pass
+        finally:
+            _pd_lock.release()
+        return False
+
+
+def pd_wait():
+    """Wartet auf den naechsten freien Platz fuer eine pd-Anfrage, auch ueber
+    eine Sperre hinweg. Rueckgabe "probe" = die eine Testanfrage nach einer
+    Pause, sonst True - immer an pd_feedback() zurueckgeben."""
+    slot = None
+    while True:
+        with _PdState() as g:
             now = time.time()
-            blocked = _pd_gate["blocked_until"] - now
-            if blocked <= 0:
-                slot = max(now, _pd_gate["next"])
-                _pd_gate["next"] = slot + PD_MIN_INTERVAL
-                break
-        time.sleep(min(blocked, 5.0))
-    delay = slot - time.time()
-    if delay > 0:
-        time.sleep(delay)
+            if now < g["blocked_until"]:
+                slot = None                     # reservierter Platz verfaellt mit der Sperre
+                sleep_for = min(g["blocked_until"] - now, 1.0)
+            elif now < g["probe_until"]:
+                sleep_for = 0.2                 # Testanfrage laeuft gerade
+            elif g["need_probe"]:
+                g["need_probe"] = False
+                g["probe_until"] = now + PD_PROBE_TIMEOUT
+                g["next"] = max(g["next"], now + g["interval"])
+                return "probe"
+            elif slot is not None and slot <= now:
+                return True
+            else:
+                if slot is None:
+                    slot = max(now, g["next"])
+                    g["next"] = slot + g["interval"]
+                    if slot <= now:
+                        return True             # Platz ist sofort frei
+                sleep_for = max(0.0, slot - now)
+        time.sleep(sleep_for)
 
 
 def is_cloudflare_block(response):
-    """Cloudflare-Sperrseite statt Riot-Antwort (HTML, 'Access denied')."""
+    """Cloudflare-Sperre statt Riot-Antwort: HTML-Seite ("Access denied") oder
+    Klartext "error code: 1015" (Cloudflares Ratenlimit - bis 2.4.9 hier als
+    normales 429 behandelt, also nur 10 s Pause bei laufender Sperre)."""
     if response is None or response.status_code not in (403, 429):
         return False
     head = (response.text or "")[:2000].lower()
-    return "cloudflare" in head or "access denied" in head or "<html" in head
+    return ("cloudflare" in head or "access denied" in head or "<html" in head
+            or "error code:" in head)
 
 
 def short_error(response):
@@ -67,12 +163,45 @@ def short_error(response):
     return text[:300] + (" …" if len(text) > 300 else "")
 
 
-def pd_pause(response, log):
-    """Nach einem 429/einer Sperre: alle pd-Anfragen gemeinsam pausieren."""
-    pause = PD_BLOCK_PAUSE if is_cloudflare_block(response) else PD_RATE_PAUSE
-    with _pd_lock:
-        _pd_gate["blocked_until"] = max(_pd_gate["blocked_until"], time.time() + pause)
-    log(f"pd: {short_error(response) if is_cloudflare_block(response) else 'Rate-Limit 429'} - alle pd-Anfragen pausieren {int(pause)} s")
+def pd_feedback(response, ticket, log):
+    """Ergebnis einer pd-Anfrage zurueckmelden (response=None bei Verbindungsfehler):
+    Sperre setzen, Tempo anpassen, Testanfrage abschliessen."""
+    status = response.status_code if response is not None else None
+    probe = ticket == "probe"
+    msg = None
+    with _PdState() as g:
+        now = time.time()
+        if probe:
+            g["probe_until"] = 0.0
+        if is_cloudflare_block(response):
+            # Mehrere gleichzeitig laufende Anfragen melden dieselbe Sperre - nur die erste zaehlt.
+            if now >= g["blocked_until"]:
+                strikes = g["strikes"] + 1 if now - g["last_block"] < PD_STRIKE_RESET else 1
+                pause = PD_BLOCK_PAUSES[min(strikes, len(PD_BLOCK_PAUSES)) - 1]
+                g.update(strikes=strikes, last_block=now, blocked_until=now + pause,
+                         need_probe=True, interval=PD_MAX_INTERVAL, reason="cloudflare")
+                msg = f"pd: {short_error(response)} - alle pd-Anfragen pausieren {int(pause)} s ({strikes}. in Folge)"
+        elif status == 429:
+            try:
+                wait = float(response.headers.get("Retry-After") or 0)
+            except (TypeError, ValueError, AttributeError):
+                wait = 0
+            pause = max(PD_RATE_PAUSE, min(wait, 120))
+            g["blocked_until"] = max(g["blocked_until"], now + pause)
+            g["interval"] = min(PD_MAX_INTERVAL, g["interval"] * 1.6)
+            g["reason"] = "ratelimit"
+            if probe:
+                g["need_probe"] = True
+            msg = f"pd: Rate-Limit 429 - alle pd-Anfragen pausieren {int(pause)} s"
+        elif status and status < 400:
+            g["interval"] = max(PD_MIN_INTERVAL, g["interval"] * 0.97)
+            if probe:
+                # Diese Pause hat gereicht: die naechste Sperre faengt wieder bei ihr an
+                g["strikes"] = max(0, g["strikes"] - 1)
+        elif probe:
+            g["need_probe"] = True              # Testanfrage ohne verwertbare Antwort -> naechste testet
+    if msg and log:
+        log(msg)
 
 class Requests:
     def __init__(self, version, log, Error):
@@ -171,8 +300,13 @@ class Requests:
                 return response.json()
             elif url_type == "pd":
                 # pd.*.a.pvp.net is Riot's real cloud API too - see comment above.
-                pd_wait()
-                response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
+                ticket = pd_wait()
+                try:
+                    response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
+                except Exception:
+                    pd_feedback(None, ticket, self.log)
+                    raise
+                pd_feedback(response, ticket, self.log)
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
@@ -189,10 +323,8 @@ class Requests:
 
                 if not response.ok:
                     blocked = response.status_code == 429 or is_cloudflare_block(response)
-                    if blocked:
-                        # gemeinsame Pause statt Einzel-Schlaf je Thread (siehe pd_wait)
-                        pd_pause(response, self.log)
-                    else:
+                    if not blocked:
+                        # Sperren hat pd_feedback() oben schon gemeldet und fuer alle pausiert
                         self.log(f"response not ok pd endpoint, {short_error(response)}")
                     if attempt >= limit:
                         if limit > 1:
