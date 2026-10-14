@@ -188,6 +188,8 @@
     "update_new_version_generic": "Une nouvelle version de RankYoinker est disponible.",
     "install_now": "Installer maintenant",
     "installing": "Installation en cours...",
+    "update_deferred_match": "Un match est en cours. La mise à jour démarrera automatiquement dès ton retour au salon.",
+    "install_now_anyway": "Installer quand même maintenant",
     "download_in_progress": "Téléchargement en cours, merci de patienter...",
     "install_in_progress_restart": "Installation en cours, RankYoinker va redémarrer...",
     "error_prefix": "Erreur : ",

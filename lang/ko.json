@@ -189,6 +189,8 @@
     "update_new_version_generic": "새로운 RankYoinker 버전이 있습니다.",
     "install_now": "지금 설치",
     "installing": "설치 중...",
+    "update_deferred_match": "매치가 진행 중입니다. 로비로 돌아오면 업데이트가 자동으로 시작됩니다.",
+    "install_now_anyway": "지금 바로 설치",
     "download_in_progress": "다운로드 중입니다, 잠시만 기다려 주세요...",
     "install_in_progress_restart": "설치 중입니다, RankYoinker가 곧 다시 시작됩니다...",
     "error_prefix": "오류: ",

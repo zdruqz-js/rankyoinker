@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.9-dev2"
+APP_VERSION = "2.4.9-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1844,16 +1844,77 @@ def owned_agents():
     return [e.get("ItemID") for e in (j.get("Entitlements") or []) if e.get("ItemID")]
 
 
+# Namen aendern sich waehrend einer Sitzung praktisch nie. Bis 2.4.9-dev2 fragte
+# names_for() bei JEDEM Aufruf Riot (pd) - /api/pregame tat das jede Sekunde,
+# sogar zweimal (Verbuendete und Gegner). Jede dieser Abfragen musste sich in
+# die gemeinsame pd-Warteschlange stellen; zu Beginn der Agentenauswahl, wenn
+# gerade alle Spielerdaten laden, dauerte /api/pregame so mehrere Sekunden, die
+# Seite hatte alle Browser-Verbindungen belegt, und Hovern/Sperren wartete mit
+# (Nutzer-Rueckmeldung beim Live-Test 2026-10-14).
+NAME_TTL = 3600
+_name_cache = {}            # puuid -> (Zeitpunkt, "Name#Tag")
+_bg_pending = set()         # ("names"|"mmr", puuid) - laeuft schon im Hintergrund
+_bg_pending_lock = threading.Lock()
+
+
+def _names_cached(ids, now):
+    out, missing = {}, []
+    with _cache_lock:
+        for p in ids:
+            hit = _name_cache.get(p)
+            if hit and now - hit[0] < NAME_TTL:
+                out[p] = hit[1]
+            else:
+                missing.append(p)
+    return out, missing
+
+
 def names_for(puuids):
-    """puuid -> 'Name#Tag' (eine Anfrage fuer alle)."""
+    """puuid -> 'Name#Tag' (eine Anfrage fuer alle noch unbekannten)."""
     ids = [p for p in puuids if p]
     if not ids:
         return {}
-    status, j = riot_put("pd", "/name-service/v2/players", json.dumps(ids))
-    out = {}
-    if status == 200 and isinstance(j, list):
-        for e in j:
-            out[e.get("Subject")] = "%s#%s" % (e.get("GameName"), e.get("TagLine"))
+    now = time.time()
+    out, missing = _names_cached(ids, now)
+    if missing:
+        status, j = riot_put("pd", "/name-service/v2/players", json.dumps(missing))
+        if status == 200 and isinstance(j, list):
+            with _cache_lock:
+                for e in j:
+                    sub = e.get("Subject")
+                    out[sub] = "%s#%s" % (e.get("GameName"), e.get("TagLine"))
+                    if sub and e.get("GameName"):
+                        _cache_put(_name_cache, sub, (now, out[sub]))
+    return out
+
+
+def _in_background(kind, keys, work):
+    """work(keys) einmal im Hintergrund fuer die Schluessel starten, die nicht schon laufen."""
+    with _bg_pending_lock:
+        todo = [k for k in keys if (kind, k) not in _bg_pending]
+        _bg_pending.update((kind, k) for k in todo)
+    if not todo:
+        return
+
+    def _run():
+        try:
+            work(todo)
+        except Exception:
+            pass
+        finally:
+            with _bg_pending_lock:
+                _bg_pending.difference_update((kind, k) for k in todo)
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def names_for_nonblocking(puuids):
+    """Fuer /api/pregame: sofort die bekannten Namen, fehlende kommen im
+    Hintergrund (eine Anfrage) und stehen beim naechsten 1-s-Poll da."""
+    ids = [p for p in puuids if p]
+    out, missing = _names_cached(ids, time.time())
+    if missing:
+        _in_background("names", missing, names_for)
     return out
 
 
@@ -2365,6 +2426,17 @@ AGENT_HISTORY_TTL = 6 * 3600   # 6h - der Hauptagent eines Spielers aendert sich
 AGENT_HISTORY_MATCHES = 3      # bewusst knapp: jedes Match kostet einen eigenen Match-Details-Aufruf
 
 
+def mmr_summary_nonblocking(puuid):
+    """Fuer /api/pregame: gecachter Rang sofort (sonst {}), Abfrage im Hintergrund."""
+    now = time.time()
+    with _cache_lock:
+        hit = _mmr_cache.get(puuid)
+        if hit and now - hit[0] < MMR_TTL:
+            return hit[1]
+    _in_background("mmr", [puuid], lambda ids: [mmr_summary(u) for u in ids])
+    return {}
+
+
 def most_played_agent(puuid):
     """Meistgespielter Agent der letzten paar Matches - Idee aus der Community:
     schon in der Agentenauswahl einen groben Hinweis geben, was ein Spieler
@@ -2581,15 +2653,26 @@ _config_lock = threading.Lock()
 RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr", "ko")
 
 
-def set_rpc_lang(lang):
+def set_rpc_lang(lang, auto=False, local=True):
     """Schreibt die App-Sprache in config.json, damit vry.exe (Discord Rich
-    Presence, siehe lib/src/rpc.py) sie unabhaengig vom Browser mitliest."""
+    Presence, siehe lib/src/rpc.py) sie unabhaengig vom Browser mitliest.
+
+    auto=True ist der Abgleich beim blossen Laden der Seite. Seit 2.4.9 zaehlt
+    der nur vom PC selbst und nur, solange nie ausdruecklich eine Sprache
+    gewaehlt wurde ("langExplicit") - vorher ueberschrieb jedes Geraet, das
+    die Seite nur ansah (gekoppeltes Handy, zweiter Browser), die Sprache."""
     lang = str(lang or "").lower()
     if lang not in RPC_LANGS:
         return {"ok": False, "error": "Unbekannte Sprache."}
     with _config_lock:
         data = _load_json(CONFIG_JSON_FILE)
+        if auto and (not local or data.get("langExplicit")):
+            return {"ok": True, "ignored": True}
+        if data.get("lang") == lang and (auto or data.get("langExplicit")):
+            return {"ok": True}
         data["lang"] = lang
+        if not auto:
+            data["langExplicit"] = True
         _save_json(CONFIG_JSON_FILE, data)
     return {"ok": True}
 
@@ -3532,7 +3615,7 @@ def _pregame_fetch():
 
     raw = (m.get("AllyTeam") or {}).get("Players") or []
     ally_puuids = [p.get("Subject") for p in raw if p.get("Subject")]
-    name_map = names_for(ally_puuids)
+    name_map = names_for_nonblocking(ally_puuids)
     loadouts_by_puuid = _pregame_loadouts_by_puuid(mid)
     players = []
     for p in raw:
@@ -3767,12 +3850,13 @@ def _pregame_loadouts_enemies(mid, ally_puuids, loadouts_by_puuid=None):
         if not candidates:
             return []
 
-        name_map = names_for(candidates)
+        name_map = names_for_nonblocking(candidates)
         enemy_puuids = [u for u in candidates if name_map.get(u)]
         if not enemy_puuids:
             return []
 
-        ranks = dict(zip(enemy_puuids, _pool.map(mmr_summary, enemy_puuids)))
+        # nicht auf pd warten (siehe names_for) - Raenge kommen im naechsten Poll
+        ranks = {u: mmr_summary_nonblocking(u) for u in enemy_puuids}
         # Community-Idee: meistgespielter Agent der Gegner schon in der
         # Agentenauswahl. Bewusst NICHT blockierend (siehe
         # most_played_agent_nonblocking) - das koennte pro Spieler bis zu vier
@@ -3830,12 +3914,12 @@ def _pregame_enemies_best_effort(match_json, ally_puuids):
         if not candidates:
             return []
 
-        name_map = names_for(candidates)
+        name_map = names_for_nonblocking(candidates)
         enemy_puuids = [u for u in candidates if name_map.get(u)][:5]
         if not enemy_puuids:
             return []
 
-        ranks = dict(zip(enemy_puuids, _pool.map(mmr_summary, enemy_puuids)))
+        ranks = {u: mmr_summary_nonblocking(u) for u in enemy_puuids}
         return [{
             "puuid": u,
             "name": name_map.get(u),
@@ -4544,7 +4628,7 @@ def _prefetch_match(state, mid):
 # die Datei geloescht. Gegenstueck in vry.exe: src/match_snapshot.py.
 MATCH_SNAPSHOT_FILE = os.path.join(DATA_DIR, "match-snapshot.json")
 _SNAPSHOT_CACHES = (("stats", _stats_cache), ("mmr", _mmr_cache), ("agents", _agent_history_cache),
-                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache))
+                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache), ("names", _name_cache))
 _snapshot = {"match": None, "since": 0.0, "sig": None, "restored": 0}   # restored: fuer /api/gamestate
 _snapshot_ready = threading.Event()
 
@@ -7070,7 +7154,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/loadout/apply":
             self._safe(lambda: put_loadout(body))
         elif path == "/api/set-lang":
-            self._safe(lambda: set_rpc_lang(body.get("lang")))
+            local = _is_local(self._client_ip())
+            self._safe(lambda: set_rpc_lang(body.get("lang"), auto=bool(body.get("auto")), local=local))
         elif path == "/api/presets/save":
             self._safe(lambda: preset_save(body.get("name"), body.get("data")))
         elif path == "/api/presets/delete":
