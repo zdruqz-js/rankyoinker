@@ -3774,19 +3774,27 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     return !!(pr && pr.state === 'PREGAME');
   }
 
+  // Antworten können sich überholen (1-s-Takt plus Abfrage nach jedem Klick,
+  // eine Riot-Abfrage dauert oft mehrere hundert ms) - eine ältere Antwort darf
+  // nie über eine neuere geschrieben werden.
+  let pregameReqSeq = 0, pregameAppliedSeq = 0;
   function syncPregame(){
     if(!inPregame()){ stopPregamePoll(); return; }
+    const seq = ++pregameReqSeq;
     fetch(LOG_URL + '/api/pregame', {cache:'no-store'})
       .then(r => r.json())
       .then(j => {
         if(!j || !j.ok) return;
+        if(seq < pregameAppliedSeq) return;
+        pregameAppliedSeq = seq;
         const live = latestData && latestData.state === 'PREGAME' ? latestData : null;
         const mePuuid = (live && live.puuid) || ownPuuid;
+        const players = withPendingPick(j.players || [], mePuuid);
         let changed = false, cardsChanged = false;
 
         // Belegte Agenten (von anderen gelockt) und eigener Stand für die Auswahl
         const taken = {};
-        (j.players || []).forEach(pp => {
+        players.forEach(pp => {
           if(pp.agent && pp.locked && pp.puuid !== mePuuid) taken[String(pp.agent).toLowerCase()] = true;
           if(mePuuid && pp.puuid === mePuuid){
             const sel = pp.agent || null;
@@ -3797,9 +3805,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         if(JSON.stringify(taken) !== JSON.stringify(pickTaken)){ pickTaken = taken; changed = true; }
 
         // Live-Roster für die Ladeansicht
-        const roster = (j.players || []).map(p =>
+        const roster = players.map(p =>
           [p.puuid, p.agent || '', p.locked ? 'L' : p.hovering ? 'H' : '', p.name || ''].join('|')).join(';');
-        if(roster !== pregameSig){ pregameSig = roster; pregameLive = j.players || []; changed = true; }
+        if(roster !== pregameSig){ pregameSig = roster; pregameLive = players; changed = true; }
 
         const side = j.side || null;
         if(side !== pregameSide){
@@ -3822,7 +3830,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
         // Agenten+Skins in die Spielerkarten übernehmen — nur wenn die schon da sind
         if(live){
-          (j.players || []).forEach(pp => {
+          players.forEach(pp => {
             // RankYoinker keyed die Spieler nach puuid — zur Sicherheit trotzdem suchen
             const target = live.players[pp.puuid]
               || Object.values(live.players).find(x => x && x.puuid === pp.puuid);
@@ -4454,6 +4462,50 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // ================= AGENTENAUSWAHL =================
   let ownedAgents = null, pickSelected = null, pickTaken = {}, pickLocked = false, ownPuuid = null;
   let pregameLive = null;   // Live-Stand der Agentenauswahl (alle Verbündeten)
+  // Eigener Klick, den Riot noch nicht bestätigt hat. Bis dahin gilt er statt
+  // des gemeldeten Stands: Vorher übernahm jede /api/pregame-Antwort, die noch
+  // vor dem Klick losgeschickt worden war, den alten Agenten - die Auswahl
+  // sprang zurück und wieder vor, bei schnellen Klicks mehrmals hin und her.
+  let pickPending = null;            // {agent, until}
+  const PICK_PENDING_MS = 4000;
+  function withPendingPick(list, mePuuid){
+    if(!pickPending || !mePuuid) return list;
+    const me = list.find(p => p.puuid === mePuuid);
+    if(!me) return list;
+    if(me.locked || String(me.agent || '').toLowerCase() === pickPending.agent.toLowerCase()
+        || Date.now() > pickPending.until){
+      pickPending = null;   // bestätigt, inzwischen fest gewählt (z. B. Instalock) oder zu alt
+      return list;
+    }
+    return list.map(p => p === me ? Object.assign({}, p, {agent: pickPending.agent, hovering: true, locked: false}) : p);
+  }
+  // Hover/Sperren nacheinander an den Dienst: Gleichzeitige Anfragen konnten
+  // bei Riot in anderer Reihenfolge ankommen, und ein Hover nach dem Sperren
+  // endete als Fehlermeldung. Schnelle Klicks schicken nur den zuletzt
+  // gewählten Agenten hinterher.
+  let pickChain = Promise.resolve(), pickWanted = null;
+  function pickRequest(path, agent){
+    const timeout = new Promise(res => setTimeout(() => res({ok:false, error:t('err_local_service_port')}), 8000));
+    return Promise.race([api(path, {agent}).catch(apiFail), timeout]);
+  }
+  function sendPick(id){
+    pickWanted = id;
+    pickChain = pickChain.then(() => {
+      if(pickWanted !== id) return;
+      return pickRequest('/api/agent/select', id).then(j => {
+        if(pickWanted !== id) return;
+        if(!j.ok){
+          if(pickPending && pickPending.agent === id) pickPending = null;
+          toast('error', t('toast_selection_failed'), j.error || '', {id:'pick', dur:7000});
+        }
+        syncPregame();
+      });
+    }).catch(() => {});   // ein Fehler hier darf die Kette nicht für alle weiteren Klicks blockieren
+  }
+  function ownPregamePuuid(){
+    const live = latestData && latestData.state === 'PREGAME' ? latestData : null;
+    return (live && live.puuid) || ownPuuid;
+  }
   // Gegner-Ränge während der Agentenauswahl: Riot gibt die Gegner-Puuids beim
   // normalen Matchmaking bewusst nicht heraus (Schutz vor Dodging nach Rang) —
   // dieses Array bleibt darum in aller Regel leer und füllt sich nur in
@@ -4601,30 +4653,37 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     // Favoritenreihe UND Raster anbinden
     panel.querySelectorAll('.agent-cell').forEach(cell => {
       cell.addEventListener('click', () => {
+        // Fest gewählt, von einem Mitspieler gesperrt oder nicht freigeschaltet:
+        // Riot lehnt das ohnehin ab, die Anzeige soll dann gar nicht erst wechseln.
+        if(pickLocked || cell.classList.contains('taken') || cell.classList.contains('notowned')) return;
         const id = cell.getAttribute('data-agent');
-        // sofort anzeigen, die Bestätigung von Riot kommt gleich hinterher
+        if(String(pickSelected || '').toLowerCase() === id.toLowerCase() && pickWanted === id) return;
+        // sofort anzeigen (Raster und eigene Zeile), Riot bestätigt gleich hinterher
         pickSelected = id; pickLocked = false;
+        pickPending = {agent: id, until: Date.now() + PICK_PENDING_MS};
+        const me = ownPregamePuuid();
+        if(me && pregameLive) pregameLive = withPendingPick(pregameLive, me);
         applyPregameToDom();
-        api('/api/agent/select', {agent: id}).catch(apiFail).then(j => {
-          if(!j.ok) toast('error', t('toast_selection_failed'), j.error || '', {id:'pick', dur:7000});
-          syncPregame();
-        });
+        sendPick(id);
       });
     });
     const lockBtn = document.getElementById('lockBtn');
     if(lockBtn){
-      const label = lockBtn.querySelector('span');
       lockBtn.addEventListener('click', () => {
-        if(!pickSelected) return;
+        if(!pickSelected || pickLocked) return;
+        const agent = pickSelected;
         lockBtn.disabled = true;
-        label.textContent = t('choosing_ellipsis');
-        api('/api/agent/lock', {agent: pickSelected}).catch(apiFail).then(j => {
+        const label = lockBtn.querySelector('span');
+        if(label) label.textContent = t('choosing_ellipsis');
+        pickWanted = null;   // noch nicht verschickte Hover verwerfen, gesperrt wird nach dem laufenden
+        pickChain = pickChain.then(() => pickRequest('/api/agent/lock', agent).then(j => {
           if(j.ok){
-            pickLocked = true;
-            toast('success', t('toast_agent_locked'), agentById[pickSelected.toLowerCase()] || '', {id:'pick'});
+            pickSelected = agent; pickLocked = true; pickPending = null;
+            toast('success', t('toast_agent_locked'), agentById[agent.toLowerCase()] || '', {id:'pick'});
           } else toast('error', t('toast_lock_failed'), j.error || '', {id:'pick', dur:7000});
           refreshPregameView();
-        });
+          syncPregame();
+        })).catch(() => {});
       });
     }
   }
@@ -8556,7 +8615,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.4.8.1";
+const CURRENT_VERSION = "2.4.8.2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
