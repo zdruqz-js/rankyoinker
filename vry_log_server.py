@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.7"
+APP_VERSION = "2.4.8-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4921,16 +4921,52 @@ def lol_lobby():
             "canStart": bool(j.get("canStartActivity", True)), "members": members}
 
 
+_lol_queue_clock = {"start": None}
+
+
+def _lol_queue_elapsed(searching, lcu_secs):
+    """Sekunden in der Warteschlange. Der Dienst führt eine eigene Uhr (Start
+    einmal gemerkt) und gleicht sie nur bei mehr als 2 s Abweichung an die LCU
+    an - z. B. wenn das Overlay erst mitten in der Suche aufging oder eine neue
+    Suche begann. Fehlt die Angabe der LCU, zählt die eigene Uhr ab dem ersten Sehen."""
+    now = time.monotonic()
+    if not searching:
+        _lol_queue_clock["start"] = None
+        return None
+    cand = now - lcu_secs if _is_num(lcu_secs) and lcu_secs >= 0 else None
+    start = _lol_queue_clock["start"]
+    if start is None:
+        start = cand if cand is not None else now
+    elif cand is not None and abs(cand - start) > 2:
+        start = cand
+    _lol_queue_clock["start"] = start
+    return round(max(0.0, now - start), 2)
+
+
 def lol_search_state():
     try:
         status, j = lcu_get("/lol-lobby/v2/lobby/matchmaking/search-state")
     except LcuError:
-        return {"ok": True, "searching": False}
+        status, j = None, None
     if status != 200 or not j:
+        _lol_queue_elapsed(False, None)
         return {"ok": True, "searching": False}
-    return {"ok": True, "searching": j.get("searchState") == "Searching",
-            "estimatedSeconds": j.get("estimatedQueueTime"),
-            "timeInQueue": j.get("timeInQueue"),
+    searching = j.get("searchState") == "Searching"
+    est, secs = j.get("estimatedQueueTime"), j.get("timeInQueue")
+    if searching:
+        # search-state nennt nur den Zustand; Wartezeit und Schätzung stehen in
+        # /lol-matchmaking/v1/search. Bis 2.4.7 kam darum immer 0 an und die
+        # Uhr im Overlay sprang bei jeder Abfrage auf 0:00 zurück.
+        try:
+            st2, mm = lcu_get("/lol-matchmaking/v1/search")
+        except LcuError:
+            st2, mm = None, None
+        if st2 == 200 and isinstance(mm, dict):
+            est = mm.get("estimatedQueueTime", est)
+            secs = mm.get("timeInQueue", secs)
+    return {"ok": True, "searching": searching,
+            "estimatedSeconds": est if _is_num(est) and est > 0 else None,
+            "timeInQueue": _lol_queue_elapsed(searching, secs),
             "readyCheck": j.get("lowPriorityData") is not None}
 
 
@@ -5090,6 +5126,55 @@ def _lol_resolve_names(summoner_ids):
     return out
 
 
+def _lol_cs_summoners(j, cells):
+    """{cellId: Platz-Objekt aus /lol-champ-select/v1/summoners/{slotId}} für
+    die gewünschten cellIds.
+
+    Der Pfad nimmt die PLATZNUMMER aus Sicht des Clients (0-4 = eigenes Team,
+    danach die Gegner), nicht die cellId. Bis 2.4.7 wurde hier die cellId
+    eingesetzt: Auf der roten Seite haben die Gegner die cellIds 0-4, also
+    standen bei ihnen die Champions der eigenen Mitspieler - auch wenn sie noch
+    gar nichts gewählt hatten (Nutzer-Meldung 2026-10-14). Das Objekt nennt
+    seine cellId selbst; nur wenn sie fehlt, gilt die Reihenfolge myTeam, theirTeam."""
+    if not cells:
+        return {}
+    mine = [c.get("cellId") for c in (j.get("myTeam") or [])]
+    order = mine + [c.get("cellId") for c in (j.get("theirTeam") or [])]
+    want = set(cells)
+    found = {}
+
+    def ask(slot):
+        try:
+            st, sm = lcu_get("/lol-champ-select/v1/summoners/%d" % slot)
+        except LcuError:
+            return None
+        if st != 200 or not isinstance(sm, dict):
+            return None
+        cell = sm.get("cellId")
+        if not isinstance(cell, int) or isinstance(cell, bool):
+            cell = order[slot] if slot < len(order) else None
+        team = sm.get("isOnPlayersTeam")
+        if cell is None or (isinstance(team, bool) and team != (cell in mine)):
+            return None                       # passt nicht zusammen - lieber nichts
+        return cell, sm
+
+    # Erst die erwarteten Plätze; stimmt die Reihenfolge nicht, alle abfragen
+    guessed = sorted(order.index(c) for c in want if c in order)
+    for slot in guessed:
+        r = ask(slot)
+        if r and r[0] in want:
+            found[r[0]] = r[1]
+        if r and r[0] != order[slot]:
+            break
+    else:
+        return found
+    for slot in range(len(order)):
+        r = ask(slot)
+        if r and r[0] in want:
+            found[r[0]] = r[1]
+    return found
+
+
 def _lol_cs_champions(j):
     """{cellId: (championId, nur_gehovert)} für alle Plätze im Champ Select.
 
@@ -5098,9 +5183,9 @@ def _lol_cs_champions(j):
     gegnerische Picks sichtbar). Darum mehrere Quellen, erste mit Wert gewinnt:
       1. championId des Platzes,
       2. die Pick-Aktionen (gelockt bzw. gerade gehovert),
-      3. /lol-champ-select/v1/summoners/{cellId} - daraus liest die
+      3. /lol-champ-select/v1/summoners/{slotId} - daraus liest die
          Client-Oberfläche selbst (nur für Plätze ohne Treffer, kostet je
-         Platz eine LCU-Anfrage),
+         Platz eine LCU-Anfrage; Platz != cellId, siehe _lol_cs_summoners),
       4. championPickIntent (Hover in Planungsphase/fremden Zügen)."""
     out = {}
     cells = (j.get("myTeam") or []) + (j.get("theirTeam") or [])
@@ -5119,18 +5204,13 @@ def _lol_cs_champions(j):
             out[cid] = (c["championId"], bool(picks.get(cid) and picks[cid][1]))
         elif cid in picks:
             out[cid] = picks[cid]
-    for c in cells:
-        cid = c.get("cellId")
-        if cid in out or cid is None:
-            continue
-        try:
-            st, sm = lcu_get("/lol-champ-select/v1/summoners/%s" % cid)
-        except LcuError:
-            st, sm = None, None
-        if st == 200 and isinstance(sm, dict) and sm.get("championId"):
-            out[cid] = (sm["championId"], not sm.get("isDonePicking", True) or bool(sm.get("isPickIntenting")))
-        elif c.get("championPickIntent"):
-            out[cid] = (c["championPickIntent"], True)
+    missing = [c for c in cells if c.get("cellId") is not None and c.get("cellId") not in out]
+    for cell, sm in _lol_cs_summoners(j, [c.get("cellId") for c in missing]).items():
+        if sm.get("championId"):
+            out[cell] = (sm["championId"], not sm.get("isDonePicking", True) or bool(sm.get("isPickIntenting")))
+    for c in missing:
+        if c.get("cellId") not in out and c.get("championPickIntent"):
+            out[c.get("cellId")] = (c["championPickIntent"], True)
     # Nichts gefunden, obwohl die Wahl schon durch ist -> Struktur (ohne
     # persönliche Daten) melden, damit der nächste Fall nachvollziehbar ist.
     phase = (j.get("timer") or {}).get("phase")
