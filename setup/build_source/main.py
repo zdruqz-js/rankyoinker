@@ -197,6 +197,25 @@ try:
         for puuid in expired:
             del match_player_cache["players"][puuid]
 
+    def carry_over_rank(playerRank, previousPlayerRank):
+        """Neuer Act, aber noch kein Ranked-Spiel darin: Riot uebernimmt den Rang
+        aus dem vorherigen Act - hier stand dann bei allen 0/Unranked, waehrend
+        die Lobby (lokaler Dienst, mmr_summary) den Rang zeigte (Live-Test
+        2026-10-14). Keine zusaetzliche Riot-Anfrage: beide Raenge kommen aus
+        derselben, in rank.py gecachten mmr-Antwort."""
+        try:
+            if (isinstance(playerRank, dict) and isinstance(previousPlayerRank, dict)
+                    and not playerRank.get("rank") and (previousPlayerRank.get("rank") or 0) > 2):
+                carried = dict(playerRank)
+                carried["rank"] = previousPlayerRank["rank"]
+                carried["rr"] = previousPlayerRank.get("rr") or 0
+                carried["leaderboard"] = previousPlayerRank.get("leaderboard") or 0
+                carried["rankcarried"] = True
+                return carried
+        except Exception:
+            pass
+        return playerRank
+
     def get_or_fetch_rank_and_stats(player_subject, current_match_id):
         if current_match_id:
             ensure_match_player_cache(current_match_id)
@@ -211,6 +230,7 @@ try:
         # Cache miss -> fetch
         playerRank = rank.get_rank(player_subject, seasonID)
         previousPlayerRank = rank.get_rank(player_subject, previousSeasonID)
+        playerRank = carry_over_rank(playerRank, previousPlayerRank)
         ppstats = last_match_stats(player_subject)
 
         if current_match_id and match_player_cache["match_id"] == current_match_id:
@@ -1155,6 +1175,7 @@ try:
                             previousPlayerRank = rank.get_rank(
                                 player["Subject"], previousSeasonID
                             )
+                            playerRank = carry_over_rank(playerRank, previousPlayerRank)
                             if player["Subject"] == Requests.puuid:
                                 if cfg.get_feature_flag("discord_rpc"):
                                     rpc.set_data(
