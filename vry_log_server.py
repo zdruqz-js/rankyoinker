@@ -523,7 +523,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.4.9-dev4"
+APP_VERSION = "2.4.9-dev5"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1901,9 +1901,18 @@ def owned_agents():
 # Seite hatte alle Browser-Verbindungen belegt, und Hovern/Sperren wartete mit
 # (Nutzer-Rueckmeldung beim Live-Test 2026-10-14).
 NAME_TTL = 3600
-_name_cache = {}            # puuid -> (Zeitpunkt, "Name#Tag")
+# Verborgene Namen (Streamer-Modus, "Hide my name") liefert Riot ohne GameName.
+# Bis 2.4.9-dev4 kamen sie nie in den Cache und wurden bei JEDEM Poll erneut
+# abgefragt (Live-Test: 64 statt 2 Namens-Anfragen in einer Agentenauswahl).
+# Jetzt gemerkt, nur kuerzer; "" = Riot kennt die puuid nicht (kein Eintrag).
+NAME_TTL_HIDDEN = 600
+_name_cache = {}            # puuid -> (Zeitpunkt, "Name#Tag" bzw. "")
 _bg_pending = set()         # ("names"|"mmr", puuid) - laeuft schon im Hintergrund
 _bg_pending_lock = threading.Lock()
+
+
+def _name_hidden(name):
+    return not name or name.startswith("#") or name.startswith("None#")
 
 
 def _names_cached(ids, now):
@@ -1911,8 +1920,9 @@ def _names_cached(ids, now):
     with _cache_lock:
         for p in ids:
             hit = _name_cache.get(p)
-            if hit and now - hit[0] < NAME_TTL:
-                out[p] = hit[1]
+            if hit and now - hit[0] < (NAME_TTL_HIDDEN if _name_hidden(hit[1]) else NAME_TTL):
+                if hit[1]:
+                    out[p] = hit[1]
             else:
                 missing.append(p)
     return out, missing
@@ -1932,8 +1942,11 @@ def names_for(puuids):
                 for e in j:
                     sub = e.get("Subject")
                     out[sub] = "%s#%s" % (e.get("GameName"), e.get("TagLine"))
-                    if sub and e.get("GameName"):
+                    if sub:
                         _cache_put(_name_cache, sub, (now, out[sub]))
+                for p in missing:
+                    if p not in out:                # von Riot gar nicht beantwortet
+                        _cache_put(_name_cache, p, (now, ""))
     return out
 
 
