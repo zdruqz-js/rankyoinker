@@ -34,6 +34,7 @@ from src.table import Table
 from src.websocket import Ws
 from src.os_info import get_os
 from src import valapi
+from src import match_snapshot
 
 from src.account_manager.account_manager import AccountManager
 from src.account_manager.account_config import AccountConfig
@@ -174,9 +175,15 @@ try:
         if not match_id:
             return
 
-        # New match => reset cache
+        # New match => reset cache. Gehoert der gespeicherte Stand zu genau
+        # diesem Match (Neustart/Update mitten im Match), kommen Rang+Stats
+        # von dort statt erneut von Riot - siehe src/match_snapshot.py.
         if match_player_cache["match_id"] != match_id:
             reset_match_player_cache(match_id)
+            restored = match_snapshot.load(match_id)
+            if restored:
+                match_player_cache["players"].update(restored)
+                log(f"Match-Stand uebernommen: {len(restored)} Spieler ohne neue Riot-Abfrage")
             return
 
         # TTL cleanup (safety)
@@ -213,6 +220,7 @@ try:
                 "ppstats": dict(ppstats) if isinstance(ppstats, dict) else ppstats,
                 "ts": time.time(),
             }
+            match_snapshot.save(current_match_id, match_player_cache["players"])
 
         return playerRank, previousPlayerRank, ppstats
 
@@ -347,6 +355,8 @@ try:
                             run = False
                     time.sleep(2)
                 log(f"first game state: {game_state}")
+                if game_state == "MENUS":
+                    match_snapshot.clear()   # Stand eines laengst beendeten Matches
             else:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -358,6 +368,7 @@ try:
                 if previous_game_state != game_state and game_state == "MENUS":
                     rank.invalidate_cached_responses()
                     reset_match_player_cache()
+                    match_snapshot.clear()   # Match vorbei - nur das laufende wird aufgehoben
                     if hasattr(pstats, "clear_runtime_cache"):
                         pstats.clear_runtime_cache()
                 log(f"new game state: {game_state}")
