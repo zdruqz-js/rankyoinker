@@ -581,7 +581,7 @@
     "problem_report": "Сообщить о проблеме",
     "problem_sub": "Кратко опиши, что не работает и когда это происходит. Сообщение попадёт прямо к команде RankYoinker.",
     "problem_placeholder": "Что случилось? Например: после последнего обновления не загружаются ранги.",
-    "problem_contact_ph": "Ник в Discord или e-mail для уточнений (необязательно)",
+    "problem_contact_ph": "Discord или e-mail (необязательно)",
     "problem_attach_logs": "Приложить логи",
     "problem_attach_logs_hint": "Последние строки лога RankYoinker, без паролей и имён пользователей Windows. Очень помогает найти ошибку.",
     "problem_preview": "Что будет отправлено?",

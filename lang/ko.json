@@ -582,7 +582,7 @@
     "problem_report": "문제 신고",
     "problem_sub": "무엇이 안 되는지, 언제 생기는지 짧게 적어 주세요. 신고는 RankYoinker 팀에 바로 전달됩니다.",
     "problem_placeholder": "무슨 일이 있었나요? 예: 지난 업데이트 이후 랭크가 불러와지지 않아요.",
-    "problem_contact_ph": "추가 문의용 디스코드 이름 또는 이메일 (선택)",
+    "problem_contact_ph": "디스코드 또는 이메일 (선택)",
     "problem_attach_logs": "로그 첨부",
     "problem_attach_logs_hint": "RankYoinker 로그의 마지막 줄들이며, 비밀번호와 Windows 사용자 이름은 제외됩니다. 문제 해결에 큰 도움이 돼요.",
     "problem_preview": "무엇이 전송되나요?",

@@ -581,7 +581,7 @@
     "problem_report": "Sorun bildir",
     "problem_sub": "Neyin çalışmadığını ve ne zaman olduğunu kısaca anlat. Bildirimin doğrudan RankYoinker ekibine gider.",
     "problem_placeholder": "Ne oldu? Örneğin: son güncellemeden beri rütbeler yüklenmiyor.",
-    "problem_contact_ph": "Geri dönüş için Discord adı veya e-posta (isteğe bağlı)",
+    "problem_contact_ph": "Discord veya e-posta (isteğe bağlı)",
     "problem_attach_logs": "Günlükleri ekle",
     "problem_attach_logs_hint": "RankYoinker günlüğünün son satırları; şifreler ve Windows kullanıcı adları olmadan. Hatayı bulmaya çok yardımcı olur.",
     "problem_preview": "Neler gönderilir?",

@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev3"
+APP_VERSION = "2.5.0-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5212,9 +5212,37 @@ def _report_get():
         return _report["data"]
 
 
-def match_report_state():
+def _report_current():
+    """Gespeicherte Analyse - aber nur, wenn sie zum angemeldeten Konto gehoert
+    (nach einem Kontowechsel zeigte die Lobby sonst das Match des anderen Kontos)."""
     data = _report_get()
+    if data and data.get("puuid") and _account["puuid"] and data["puuid"] != _account["puuid"]:
+        return None
+    return data
+
+
+def match_report_state():
+    data = _report_current()
     return {"matchId": data.get("matchId") if data else None, "pending": bool(_report["pending"])}
+
+
+def _report_supersede(match_id):
+    """Ein neues Match beginnt: die alte Analyse verwerfen. Sie gilt nur bis zum
+    naechsten Match - scheiterte dessen Analyse, stand sonst wieder die alte da."""
+    if not match_id:
+        return
+    data = _report_get()
+    with _report_lock:
+        if _report["pending"] and _report["pending"] != match_id:
+            _report["pending"] = None          # Analyse des alten Matches kam nicht mehr rechtzeitig
+        if not data or data.get("matchId") == match_id:
+            return
+        _report["data"] = None
+    for path in (MATCH_REPORT_FILE, MATCH_REPORT_FILE + ".tmp"):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def _report_schedule(match_id):
@@ -5493,7 +5521,7 @@ def _match_report_build(match_id):
     highlights.sort(key=lambda h: (h["type"] != "mvp", h.get("round") or 0))
 
     report = {
-        "v": 1, "matchId": match_id, "createdAt": int(time.time()),
+        "v": 1, "matchId": match_id, "puuid": me, "createdAt": int(time.time()),
         "map": info.get("mapId"), "queue": queue, "ffa": ffa,
         "startedAt": info.get("gameStartMillis"), "durationMs": info.get("gameLengthMillis"),
         "rounds": total_rounds, "result": result, "score": score,
@@ -5547,6 +5575,8 @@ def _game_watcher():
                 _game.update({"state": state, "matchId": mid, "since": now})
             _game["ts"] = now
             _snapshot_tick(state, mid, now)
+            if state in ("PREGAME", "INGAME"):
+                _report_supersede(mid)
             _report_tick(now)
             # Begegnungen zählen, sobald der volle Kader steht (INGAME) —
             # unabhängig davon, ob die Seite gerade offen ist
@@ -8244,7 +8274,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(agent_history(puuid, (q.get("map", [""])[0])[:120]))
 
         elif path == "/api/match-report":
-            data = _report_get()
+            data = _report_current()
             self._json({"ok": bool(data), "report": data, "pending": bool(_report["pending"])})
 
         elif path == "/api/kda":

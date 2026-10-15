@@ -581,7 +581,7 @@
     "problem_report": "問題を報告",
     "problem_sub": "何がうまくいかないか、いつ起きるかを簡単に書いてください。報告はRankYoinkerチームに直接届きます。",
     "problem_placeholder": "何が起きましたか？例：前回のアップデート以降、ランクが読み込まれない。",
-    "problem_contact_ph": "連絡用のDiscord名またはメール（任意）",
+    "problem_contact_ph": "Discordまたはメール（任意）",
     "problem_attach_logs": "ログを添付",
     "problem_attach_logs_hint": "RankYoinkerのログの最後の数行です（パスワードやWindowsのユーザー名は除外）。原因の特定に大いに役立ちます。",
     "problem_preview": "送信される内容",
