@@ -2529,6 +2529,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .lrp-m .kd u{width:5px; height:5px; border-radius:1px; background:var(--loss); text-decoration:none;}
 .lrp-m .n{font:600 9.5px var(--font-mono);}
 .lrp-m.sel .n{color:var(--accent);}
+/* Viele schmale Saeulen (quer am Handy, ~35 auf 800 px): nur jede zweite Minute beschriften */
+@media (max-width:1100px){ .lrp-flow.dense .lrp-m:nth-child(even):not(.sel) .n{visibility:hidden;} }
 .lrp-legend{margin-top:10px;} .lrp-legend .w i{background:var(--ally); border:0;} .lrp-legend .l i{background:var(--enemy); border:0;}
 .lrp-flowcard .rp-rd-detail{margin-top:14px;}
 .rp-rdd-body > .wide{grid-column:1 / -1;}
@@ -8563,7 +8565,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <span class="kd">${'<b></b>'.repeat(Math.min(3, b.k))}${'<u></u>'.repeat(Math.min(2, b.d))}</span>
         <span class="n">${b.m}</span></button>`;
     }).join('');
-    return `<div class="lrp-flow" style="--n:${bs.length}" data-step="${lolFlowStep}">${cols}</div>
+    return `<div class="lrp-flow ${bs.length > 24 ? 'dense' : ''}" style="--n:${bs.length}" data-step="${lolFlowStep}">${cols}</div>
       <div class="rp-rlegend lrp-legend"><span class="w"><i></i>${esc(t('your_team'))}</span><span class="l"><i></i>${esc(t('enemies'))}</span><span class="k"><i></i>${esc(t('report_my_kills'))}</span></div>
       <div class="rp-rd-detail" id="lolMinDetail"></div>`;
   }
