@@ -396,7 +396,7 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
 }
 .status-card.swap{animation:cardPop .6s var(--ease) both;}
 @keyframes cardPop{from{opacity:0; transform:translateY(18px) scale(.97); filter:blur(4px);}}
-.status-card h2{font-size:26px; font-weight:750; letter-spacing:-.025em; margin-bottom:10px; position:relative;}
+.status-card h2{font-size:26px; font-weight:750; letter-spacing:-.025em; margin-bottom:10px; position:relative; text-wrap:balance;}
 .status-card p{position:relative; color:var(--text-2); font-size:14px; line-height:1.65; margin:0 0 22px;}
 .status-card p:empty{display:none; margin:0;}
 .status-card .wait-hint{display:block; color:var(--text-2);}
@@ -455,6 +455,7 @@ button svg{flex-shrink:0; display:block;}
 #app, #appLeague{max-width:1440px; margin:0 auto; padding:30px 24px 130px;}
 #app{opacity:0; transform:translateY(14px); transition:opacity .55s ease, transform .7s var(--ease);}
 #app.show{opacity:1; transform:none;}
+body:has(#statusOverlay:not(.hidden)) #app:not(.show){display:none;}
 #appLeague{display:none;}
 body.lol-mode #app, body.lol-mode #statusOverlay{display:none !important;}
 body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
@@ -1558,7 +1559,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   color:var(--accent-ink); background:var(--grad-accent);}
 .lr-name .enc-badge{position:static; flex-shrink:0; padding:2px 7px; font-size:9.5px; box-shadow:0 0 0 2px rgba(244,184,80,.18);}
 .lr-name .enc-slot{display:none;}
-.lr-sub{display:flex; align-items:center; gap:8px; min-width:0; font-size:12px; color:var(--text-2); white-space:nowrap; overflow:hidden;}
+.lr-sub{display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; font-size:12px; color:var(--text-2); white-space:nowrap; overflow:hidden;}
 .lrow.enemy .lr-sub{flex-direction:row-reverse;}
 .lr-lane{display:inline-flex; align-items:center; gap:4px; flex-shrink:0; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-2);}
 .lr-lane .lane-ic{color:var(--lol);}
@@ -2200,6 +2201,8 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   .you-badge, .enc-badge, .lol-mastery-badge{top:8px; padding:3px 7px; font-size:9.5px;}
   /* Team-Vergleich: beide Seiten nebeneinander, Balken darunter */
   .tcmp{grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 12px; padding:14px;}
+  .tside{gap:9px;} .tside .val{font-size:15.5px;}
+  .tcmp.lol .tside .lol-emb.tside-emb{width:40px; height:40px;}
   .tcmp .tmid{grid-column:1 / -1; order:3; width:100%;}
   .tcmp .tvs{display:none;}
   .tside.enemy{flex-direction:row-reverse; text-align:right;}
@@ -2266,7 +2269,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-score .sep{color:var(--text-3); margin:0 10px; font-weight:600;}
 .rp-score small{font-size:.5em; color:var(--text-2); margin-left:4px;}
 .rp-meta{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;}
-.rp-meta span{padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid var(--line-2); font-size:12.5px; color:var(--text-2);}
+.rp-meta span{padding:5px 11px; border-radius:999px; background:rgba(12,12,14,.62); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid var(--line-2); font-size:12.5px; color:var(--text-2);}
 .rp-hero-me{margin-right:min(26%, 300px); text-align:right; min-width:0; padding-bottom:4px;}
 .rp-me-name{font:800 clamp(20px,2.4vw,28px)/1.1 var(--font-display); letter-spacing:-.02em; display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;
   text-shadow:0 2px 18px rgba(0,0,0,.8);}
@@ -5149,7 +5152,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function setTab(name){
     if(!PANELS[name]) return;
     activeTab = name;
-    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === name));
+    // nur die VALORANT-Reiter - '.tab' traf auch #lolTabs (data-ltab), die dann ihr "active" verloren
+    document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === name));
     Object.entries(PANELS).forEach(([k, id]) => document.getElementById(id).classList.toggle('active', k === name));
     movePill();
     if(name !== 'shop') stopShopTick();
@@ -5157,7 +5161,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     else if(name === 'shop') renderShop(false);
     if(typeof updateReportView === 'function') updateReportView();
   }
-  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
+  document.querySelectorAll('#tabs .tab').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
   window.addEventListener('resize', movePill);
   setTimeout(movePill, 60);
 
@@ -9947,7 +9951,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev15";
+const CURRENT_VERSION = "2.5.0-dev16";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
