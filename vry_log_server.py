@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev24"
+APP_VERSION = "2.5.0"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5258,6 +5258,20 @@ def _share_png_ok(data):
     return (w, h) == SHARE_SIZE
 
 
+def _share_link_alive(url):
+    """Gibt es das Bild noch? True/False, None = unklar (dann den Link trotzdem nehmen).
+    Mit Zusatz in der Adresse, damit nicht der Cloudflare-Zwischenspeicher antwortet."""
+    try:
+        req = urllib.request.Request(url + "?check=%d" % int(time.time()), method="HEAD",
+                                     headers={"User-Agent": "RankYoinker-Share/" + APP_VERSION})
+        with _urlopen_public(req, timeout=4) as resp:
+            return resp.status == 200
+    except urllib.error.HTTPError as e:
+        return False if e.code == 404 else None
+    except Exception:
+        return None
+
+
 def share_upload(data, game, match_id):
     game = "lol" if game == "lol" else "val"
     match_id = str(match_id or "")
@@ -5269,7 +5283,10 @@ def share_upload(data, game, match_id):
         hit = links.get(key)
         if isinstance(hit, dict) and SHARE_LINK_RE.match(str(hit.get("url") or "")) \
                 and time.time() - float(hit.get("at") or 0) < SHARE_LINK_MAX_AGE:
-            return {"ok": True, "url": hit["url"], "again": True}
+            # im Dashboard geloescht -> nicht den toten Link zeigen, sondern neu hochladen
+            if _share_link_alive(hit["url"]) is not False:
+                return {"ok": True, "url": hit["url"], "again": True}
+            links.pop(key, None)
         ua = {"User-Agent": "RankYoinker-Share/" + APP_VERSION}
         try:
             with _urlopen_public(urllib.request.Request(SHARE_STATUS_URL, headers=ua), timeout=4) as resp:
