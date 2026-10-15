@@ -582,7 +582,7 @@
     "problem_report": "Zgłoś problem",
     "problem_sub": "Opisz krótko, co nie działa i kiedy to się dzieje. Zgłoszenie trafia prosto do zespołu RankYoinker.",
     "problem_placeholder": "Co się stało? Na przykład: od ostatniej aktualizacji rangi się nie ładują.",
-    "problem_contact_ph": "Nick Discord lub e-mail do kontaktu (opcjonalnie)",
+    "problem_contact_ph": "Discord lub e-mail (opcjonalnie)",
     "problem_attach_logs": "Dołącz logi",
     "problem_attach_logs_hint": "Ostatnie linie logu RankYoinker, bez haseł i nazw użytkowników Windows. Bardzo pomaga w szukaniu błędu.",
     "problem_preview": "Co zostanie wysłane?",

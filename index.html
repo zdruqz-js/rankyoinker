@@ -105,6 +105,9 @@ body{
 }
 h1,h2,h3,h4{margin:0; font-family:var(--font-display); letter-spacing:-.02em;}
 img{max-width:100%; display:block;}
+/* hidden-Attribut gilt immer: Klassen mit eigenem display (z. B. .sidebar-btn) hoben es
+   sonst auf - so stand "Als App installieren" am PC doch in den Einstellungen. */
+[hidden]{display:none !important;}
 ::selection{background:rgba(216,184,124,.35); color:#fff;}
 button{font-family:inherit; color:inherit; outline:none; -webkit-tap-highlight-color:transparent;}
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
@@ -483,12 +486,25 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   background:linear-gradient(90deg, #fff 0%, color-mix(in srgb, var(--team) 70%, #fff) 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
+/* Verlaufs-Schrift (background-clip:text) malt nur innerhalb der eigenen Box: Akzente
+   über Großbuchstaben, Unterlängen und der rechte Rand des letzten Buchstabens
+   (negatives letter-spacing) wurden abgeschnitten. Innenabstand gibt dem Verlauf
+   Platz, der negative Rand gleicht ihn im Layout wieder aus. */
+.mh-title, .rc-card h3, .dc-head h2, .lpf-me h1,
+.team-section.ally .team-banner h2, .team-section.enemy .team-banner h2, .team-section.faction .team-banner h2{
+  padding:.14em .12em .1em 0; margin-top:-.14em; margin-right:-.12em; margin-bottom:-.1em;}
+.team-banner h2{white-space:nowrap;}
 .team-banner .line{flex:1; height:1px; background:linear-gradient(90deg, color-mix(in srgb, var(--team) 40%, transparent), transparent 70%);}
 .team-banner .cnt{
   font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; color:var(--text-2);
   padding:4px 10px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line);
 }
 .team-banner .cnt:empty{display:none;}
+.team-banner .cnt{white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis;}
+@media (max-width:640px){
+  .team-banner .line{display:none;}
+  .team-banner .cnt{margin-left:auto; letter-spacing:0; padding:4px 8px;}
+}
 .faction-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:10px 28px;}
 .faction-icon{width:30px; height:30px; flex-shrink:0; border-radius:50%; object-fit:cover; padding:3px;
   background:color-mix(in srgb, var(--team) 22%, var(--bg-2)); border:1px solid color-mix(in srgb, var(--team) 55%, transparent);}
@@ -1856,6 +1872,26 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   .lm-stats .lm-opt{display:none;}
 }
 
+/* ================= Tooltips (data-tip) =================
+   Eigene Blase statt des grauen Browser-Tooltips (title=""). */
+.ry-tip{position:fixed; left:0; top:0; z-index:1000; pointer-events:none; box-sizing:border-box;
+  max-width:min(320px, calc(100vw - 16px)); padding:7px 11px 8px; border-radius:10px;
+  background:#1a1a1f; border:1px solid var(--line-3); color:var(--text);
+  box-shadow:0 16px 36px -14px rgba(0,0,0,.95), 0 2px 10px rgba(0,0,0,.4);
+  font:500 12px/1.45 var(--font-body); letter-spacing:0; text-align:left; text-transform:none;
+  white-space:pre-line; overflow-wrap:anywhere;
+  opacity:0; visibility:hidden; transform:translateY(5px) scale(.96); transform-origin:var(--ax, 50%) 100%;
+  transition:opacity .14s var(--ease), transform .2s var(--ease), visibility 0s linear .2s;}
+.ry-tip.below{transform:translateY(-5px) scale(.96); transform-origin:var(--ax, 50%) 0;}
+.ry-tip.on{opacity:1; visibility:visible; transform:none; transition:opacity .14s var(--ease), transform .2s var(--ease), visibility 0s;}
+.ry-tip.instant{transition:none;}
+.ry-tip::after{content:""; position:absolute; left:var(--ax, 50%); top:100%; width:9px; height:9px; margin:-4px 0 0 -5px;
+  background:#1a1a1f; border:solid var(--line-3); border-width:0 1px 1px 0; transform:rotate(45deg);}
+.ry-tip.below::after{top:auto; bottom:100%; margin:0 0 -4px -5px; border-width:1px 0 0 1px;}
+.ry-tip b{display:block; font:700 13px/1.35 var(--font-display); letter-spacing:-.005em; color:var(--text); margin-bottom:2px;}
+.ry-tip .tb{color:var(--text-2);}
+@media (prefers-reduced-motion: reduce){ .ry-tip, .ry-tip.on{transition:none;} }
+
 /* ================= Toasts ================= */
 #toastWrap{position:fixed; top:calc(var(--topbar-h) + 12px); right:18px; z-index:900; display:flex; flex-direction:column; gap:10px; align-items:flex-end; pointer-events:none; width:min(370px, calc(100vw - 32px));}
 .toast{
@@ -2241,8 +2277,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   animation:rpRing 1.2s cubic-bezier(.22,1,.36,1) .2s both;}
 @keyframes rpRing{from{stroke-dasharray:0 100;}}
 .rp-ring .in{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-.rp-ring .in b{font:900 52px/1 var(--font-display); color:var(--c); letter-spacing:-.04em; text-shadow:0 0 24px color-mix(in srgb, var(--c) 45%, transparent);}
-.rp-ring.g-s .in b{background:linear-gradient(180deg, #ffe7a8, #d8a84c); -webkit-background-clip:text; background-clip:text; color:transparent;}
+/* Kein negatives letter-spacing: Bei einem einzelnen Buchstaben schob es ihn nach
+   links, und background-clip:text schnitt beim S den rechten Rand ab. Das
+   Padding gibt dem Verlauf Platz bis an die Kante des Glyphs. */
+.rp-ring .in b{display:block; padding:.04em .08em 0; font:900 52px/1 var(--font-display); color:var(--c); letter-spacing:0; text-align:center;
+  text-shadow:0 0 24px color-mix(in srgb, var(--c) 45%, transparent);}
+.rp-ring.g-s .in b{background:linear-gradient(180deg, #ffe7a8, #d8a84c); -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:none; filter:drop-shadow(0 0 14px rgba(232,190,100,.45));}
 .rp-ring .in span{font:600 12px var(--font-mono); color:var(--text-2); margin-top:4px;}
 .rp-perf-text{min-width:0;}
 .rp-perf-text .big{font:750 20px/1.25 var(--font-display); letter-spacing:-.015em;}
@@ -2255,10 +2296,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-ls-avg{position:absolute; top:-6px; bottom:-6px; width:0;}
 .rp-ls-avg i{position:absolute; top:0; bottom:0; left:-1px; width:2px; background:var(--text-3); border-radius:2px;}
 .rp-ls-avg em{position:absolute; top:-18px; left:50%; transform:translateX(-50%); font:500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
-.rp-ls-dot{position:absolute; top:50%; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; border:2px solid rgba(7,7,8,.9);}
+.rp-ls-dot{position:absolute; top:calc(50% + var(--dy, 0px)); width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; border:2px solid rgba(7,7,8,.9);
+  transition:transform .2s var(--spring); cursor:default;}
+.rp-ls-dot::before{content:""; position:absolute; inset:-7px; border-radius:50%;}
+.rp-ls-dot:hover{transform:scale(1.4); z-index:3;}
 .rp-ls-dot.ally{background:var(--ally);} .rp-ls-dot.enemy{background:var(--enemy);}
-.rp-ls-dot.me{width:30px; height:30px; margin:-15px 0 0 -15px; background:var(--grad-accent); border:2px solid #fff3; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2; overflow:hidden;}
+.rp-ls-dot.me{--dy:0px; width:30px; height:30px; margin:-15px 0 0 -15px; background:var(--grad-accent); border:2px solid #fff3; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2; overflow:hidden;}
 .rp-ls-dot.me img{width:100%; height:100%; object-fit:cover; border-radius:50%;}
+.rp-ls-dot.me:hover{transform:scale(1.12);}
 .rp-ls-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3);}
 .rp-ls-legend span{display:inline-flex; align-items:center; gap:6px;}
 .rp-ls-legend i{width:9px; height:9px; border-radius:50%;}
@@ -2356,6 +2401,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-table{width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:780px;}
 .rp-table th{font:500 10px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
 .rp-table th:first-child, .rp-table td:first-child{text-align:left;}
+/* feste Breite der Namensspalte: beide Team-Tabellen stehen sonst verschieden weit */
+.rp-table th:first-child{box-sizing:border-box; width:370px;}
 .rp-table td{padding:9px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .rp-table tr:last-child td{border-bottom:0;}
 .rp-table tr.me td{background:rgba(216,184,124,.14); border-top:1px solid var(--accent-line); border-bottom:1px solid var(--accent-line); font-weight:650; color:var(--text);}
@@ -2393,7 +2440,18 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   .rp-card{padding:16px;}
   .rp-rdd-body{grid-template-columns:repeat(2, minmax(0,1fr));}
   .report-reopen{right:14px;}
+  .rp-side{padding:11px 10px;} .rp-side .lbl{letter-spacing:.04em;}
+  /* Scoreboard am Handy: Spalte mit den Namen bleibt stehen, die Werte wischt man
+     zur Seite (rechts blendet es aus, solange noch etwas kommt) */
+  .rp-table{min-width:600px; font-size:13px;}
+  .rp-table th, .rp-table td{padding:8px 8px;}
+  .rp-table th:first-child, .rp-table td:first-child{position:sticky; left:0; z-index:1; background:#0f0f11;}
+  .rp-table th:first-child{width:152px;}
+  .rp-table tr.me td:first-child{background:linear-gradient(rgba(216,184,124,.14), rgba(216,184,124,.14)), #0f0f11;}
+  .rp-pl{gap:7px;} .rp-pl img.ag{width:28px; height:28px;} .rp-pl img.rk, .rp-table .rp-mvp, .rp-table .rp-you{display:none;}
+  .rp-pl .nm{max-width:98px;}
 }
+.rp-table-wrap.can-r, .rp-flow-scroll.can-r{-webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent);}
 @media (prefers-reduced-motion: reduce){
   #reportView > *, .rp-hero-agent, .rp-ring .fg{animation:none;}
   .rp-chart svg{animation:none;}
@@ -2452,7 +2510,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   <div class="topbar-inner">
     <div class="tb-left">
       <div class="brand">
-        <span class="brand-mark" title="RankYoinker">Y</span>
+        <span class="brand-mark" data-tip="RankYoinker">Y</span>
         <span class="brand-word"><span data-i18n="brand_live">RankYoinker</span></span>
       </div>
     </div>
@@ -2494,11 +2552,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     <div class="tb-right">
       <div class="game-switch" id="gameSwitch">
         <span class="gsw-pill" id="gswPill"></span>
-        <button class="gsw-btn" id="gswAuto" data-choice="auto" data-i18n-title="auto_detect" title="Automatisch erkennen">AUTO</button>
-        <button class="gsw-btn" id="gswValorant" data-choice="valorant" data-i18n-title="show_valorant" title="Valorant anzeigen">VAL</button>
-        <button class="gsw-btn" id="gswLeague" data-choice="league" data-i18n-title="show_league" title="League anzeigen">LOL</button>
+        <button class="gsw-btn" id="gswAuto" data-choice="auto" data-i18n-title="auto_detect" data-tip="Automatisch erkennen">AUTO</button>
+        <button class="gsw-btn" id="gswValorant" data-choice="valorant" data-i18n-title="show_valorant" data-tip="Valorant anzeigen">VAL</button>
+        <button class="gsw-btn" id="gswLeague" data-choice="league" data-i18n-title="show_league" data-tip="League anzeigen">LOL</button>
       </div>
-      <button class="icon-btn" id="sidebarToggle" data-i18n-title="settings" title="Einstellungen">⚙</button>
+      <button class="icon-btn" id="sidebarToggle" data-i18n-title="settings" data-tip="Einstellungen">⚙</button>
     </div>
   </div>
 </header>
@@ -2510,7 +2568,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <span class="eyebrow">RankYoinker</span>
       <h3 data-i18n="settings">Einstellungen</h3>
     </div>
-    <button class="icon-btn" id="sidebarClose" data-i18n-title="close" title="Schließen">✕</button>
+    <button class="icon-btn" id="sidebarClose" data-i18n-title="close" data-tip="Schließen">✕</button>
   </div>
 
   <div class="sidebar-section settings-pop" id="settingsPop">
@@ -2530,16 +2588,16 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
   <div class="sidebar-section">
     <label data-i18n="settings_connect_label">Verbinden</label>
-    <button class="sidebar-btn" id="pairBtn" data-i18n-title="pair_phone" title="Handy verbinden">▢</button>
+    <button class="sidebar-btn" id="pairBtn" data-i18n-title="pair_phone" data-tip="Handy verbinden">▢</button>
     <button class="sidebar-btn" id="installBtn" type="button" hidden></button>
-    <a class="sidebar-btn discord" id="discordBtn" href="https://rankyoinker.de/discord" target="_blank" rel="noopener noreferrer" data-i18n-title="join_discord" title="Discord beitreten"></a>
+    <a class="sidebar-btn discord" id="discordBtn" href="https://rankyoinker.de/discord" target="_blank" rel="noopener noreferrer" data-i18n-title="join_discord" data-tip="Discord beitreten"></a>
   </div>
 
   <div class="sidebar-foot">
     <div class="app-version" id="settingsVersion"></div>
     <div class="sf-btns">
-      <button class="icon-btn sm" id="problemBtn" type="button" data-i18n-title="problem_report" title="Problem melden"></button>
-      <button class="icon-btn sm" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" title="Nach Updates suchen"></button>
+      <button class="icon-btn sm" id="problemBtn" type="button" data-i18n-title="problem_report" data-tip="Problem melden"></button>
+      <button class="icon-btn sm" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" data-tip="Nach Updates suchen"></button>
     </div>
   </div>
 </aside>
@@ -2801,7 +2859,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       el.innerHTML = t(el.getAttribute("data-i18n-html"));
     });
     (root || document).querySelectorAll("[data-i18n-title]").forEach(el => {
-      el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+      const txt = t(el.getAttribute("data-i18n-title"));
+      el.setAttribute("data-tip", txt);
+      // Nur-Symbol-Knöpfe (⚙, ✕, Icons) brauchen den Text als Namen für Screenreader
+      if(el.textContent.trim().length <= 2) el.setAttribute("aria-label", txt);
     });
     (root || document).querySelectorAll("[data-i18n-aria-label]").forEach(el => {
       el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria-label")));
@@ -2812,6 +2873,120 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   document.documentElement.lang = LANG;
   applyStaticI18n();
+
+  // ================= TOOLTIPS =================
+  // Eigene Blase statt der grauen Browser-Tooltips: Alles mit data-tip (optional
+  // data-tip-head als fette erste Zeile) zeigt sie beim Zeigen mit der Maus oder
+  // beim Tastatur-Fokus, auf dem Handy beim Antippen (nur wenn das Element selbst
+  // nichts tut). Ein übersehenes title="" wird beim ersten Zeigen umgebaut, damit
+  // der Browser-Tooltip nie mehr erscheint.
+  (function(){
+    const tip = document.createElement('div');
+    tip.className = 'ry-tip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+    const TAP_SKIP = 'button, a[href], input, select, textarea, label, summary, [role="button"]';
+    let cur = null, timer = 0, watch = 0, tapHide = 0, warmUntil = 0, px = -1, py = -1, shown = '';
+    function find(el){
+      while(el && el.nodeType === 1){
+        const n = el.closest('[data-tip],[title]');
+        if(!n) return null;
+        if(n.hasAttribute('title')){
+          const v = n.getAttribute('title');
+          n.removeAttribute('title');
+          if(v && !n.getAttribute('data-tip')) n.setAttribute('data-tip', v);
+        }
+        if(n.getAttribute('data-tip')) return n;
+        el = n.parentElement;
+      }
+      return null;
+    }
+    const key = n => (n.getAttribute('data-tip-head') || '') + '\n' + (n.getAttribute('data-tip') || '');
+    function fill(n){
+      const head = n.getAttribute('data-tip-head');
+      tip.textContent = '';
+      if(head){ const b = document.createElement('b'); b.textContent = head; tip.appendChild(b); }
+      const s = document.createElement('span');
+      if(head) s.className = 'tb';
+      s.textContent = n.getAttribute('data-tip');
+      tip.appendChild(s);
+      shown = key(n);
+    }
+    function place(){
+      const r = cur.getBoundingClientRect();
+      tip.style.left = '0px';
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const vw = document.documentElement.clientWidth, vh = window.innerHeight, gap = 9;
+      const below = r.top - th - gap < 6 && r.bottom + th + gap <= vh - 6;
+      const left = Math.max(8, Math.min(vw - tw - 8, r.left + r.width / 2 - tw / 2));
+      tip.style.left = Math.round(left) + 'px';
+      tip.style.top = Math.round(below ? r.bottom + gap : r.top - th - gap) + 'px';
+      tip.style.setProperty('--ax', Math.round(Math.max(14, Math.min(tw - 14, r.left + r.width / 2 - left))) + 'px');
+      tip.classList.toggle('below', below);
+    }
+    function show(n, instant){
+      clearTimeout(timer);
+      cur = n;
+      fill(n);
+      tip.classList.toggle('instant', !!instant);
+      place();
+      tip.classList.add('on');
+      clearInterval(watch);
+      watch = setInterval(check, 250);
+    }
+    function hide(){
+      clearTimeout(timer); clearInterval(watch); clearTimeout(tapHide);
+      if(cur) warmUntil = Date.now() + 450;   // gleich zum Nachbarn weiter: ohne Verzögerung
+      cur = null;
+      tip.classList.remove('on', 'instant');
+    }
+    // Die Seite rendert regelmäßig neu (Spielerkarten, Agentenauswahl). Ist das
+    // Element weg, das unter dem Zeiger suchen, statt die Blase zu verlieren.
+    function check(){
+      if(!cur) return;
+      if(!cur.isConnected || !cur.getAttribute('data-tip')){
+        const el = px >= 0 ? document.elementFromPoint(px, py) : null;
+        const n = el && el !== tip ? find(el) : null;
+        if(!n) return hide();
+        cur = n;
+      }
+      if(key(cur) !== shown) fill(cur);
+      tip.classList.add('instant');
+      place();
+    }
+    document.addEventListener('pointermove', e => { if(e.pointerType !== 'touch'){ px = e.clientX; py = e.clientY; } }, {passive: true});
+    document.addEventListener('pointerover', e => {
+      if(e.pointerType === 'touch') return;
+      px = e.clientX; py = e.clientY;
+      const n = find(e.target);
+      if(n === cur) return;
+      clearTimeout(timer);
+      if(cur) hide();
+      if(!n) return;
+      const warm = Date.now() < warmUntil;
+      timer = setTimeout(() => { if(n.isConnected) show(n, warm); }, warm ? 0 : 320);
+    }, true);
+    document.addEventListener('pointerout', e => {
+      if(!e.relatedTarget && e.pointerType !== 'touch'){ hide(); warmUntil = 0; }   // Fenster verlassen
+    }, true);
+    document.addEventListener('pointerdown', e => {
+      clearTimeout(timer);
+      if(e.pointerType !== 'touch'){ hide(); warmUntil = 0; return; }
+      const n = find(e.target);
+      if(!n || n === cur || n.closest(TAP_SKIP)){ hide(); return; }
+      px = e.clientX; py = e.clientY;
+      show(n);
+      tapHide = setTimeout(hide, 2800);
+    }, true);
+    document.addEventListener('focusin', e => {
+      const n = e.target.matches && e.target.matches(':focus-visible') ? find(e.target) : null;
+      if(n && n !== cur){ px = -1; show(n, true); }
+    });
+    document.addEventListener('focusout', () => { if(cur && px < 0) hide(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && cur) hide(); });
+    window.addEventListener('scroll', () => { if(cur) hide(); }, {capture: true, passive: true});
+    window.addEventListener('blur', hide);
+  })();
   // Für das separate Update-Popup-Modul weiter unten (eigenes IIFE, eigener
   // Scope) zugänglich machen, statt die ganze Tabelle zu duplizieren.
   window.ryT = t;
@@ -2990,7 +3165,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function makeDropdown(el, options, selected, onChange, opts){
     let value = selected, hi = -1;
     if(!el.classList.contains('cdrop')) el.classList.add('cdrop');
-    el.innerHTML = `<button type="button" class="cdrop-btn" aria-haspopup="listbox" aria-expanded="false"${opts && opts.title ? ` title="${esc(opts.title)}"` : ''}><span class="cdrop-cur"></span><span class="caret">${svgIcon('chevron', 12)}</span></button><div class="cdrop-list" role="listbox"></div>`;
+    el.innerHTML = `<button type="button" class="cdrop-btn" aria-haspopup="listbox" aria-expanded="false"${opts && opts.title ? ` data-tip="${esc(opts.title)}"` : ''}><span class="cdrop-cur"></span><span class="caret">${svgIcon('chevron', 12)}</span></button><div class="cdrop-list" role="listbox"></div>`;
     const btn = el.querySelector('.cdrop-btn');
     const cur = el.querySelector('.cdrop-cur');
     const listEl = el.querySelector('.cdrop-list');
@@ -3097,7 +3272,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       // sonst bricht das ganze Skript hier ab
       if(!l) return '';
       const badge = l.reviewedBy
-        ? `<span class="lang-reviewed" title="${esc(t('lang_reviewed_by', {name: l.reviewedBy}))}">${svgIcon('check', 9)}</span>`
+        ? `<span class="lang-reviewed" data-tip="${esc(t('lang_reviewed_by', {name: l.reviewedBy}))}">${svgIcon('check', 9)}</span>`
         : '';
       return `<span class="cdrop-cur-inner">${esc(l.label)}${badge}</span>`;
     }
@@ -3347,7 +3522,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       if(show) hint.innerHTML = `<span class="inst-ic" aria-hidden="true">Y</span>
         <div class="tx"><b>${esc(t('install_title'))}</b><span>${esc(t('install_banner_sub'))}</span></div>
         <button type="button" class="go" data-inst="open">${esc(t(installPrompt ? 'install_now' : 'install_how'))}</button>
-        <button type="button" class="x" data-inst="off" title="${esc(t('close'))}">${svgIcon('x', 14)}</button>`;
+        <button type="button" class="x" data-inst="off" data-tip="${esc(t('close'))}">${svgIcon('x', 14)}</button>`;
     }
   }
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; paintInstall(); });
@@ -3600,7 +3775,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   function dodgeBtnHtml(full){
     return `<div class="mh-actions"><span class="side-slot">${sideBadgeHtml()}</span>
-      <button class="dodge-btn" id="dodgeBtn" title="${t(full ? 'dodge_agent_select_title_full' : 'dodge_agent_select_title')}">${svgIcon('exit', 13)}<span>${t('match_dodge_btn')}</span></button></div>`;
+      <button class="dodge-btn" id="dodgeBtn" data-tip="${t(full ? 'dodge_agent_select_title_full' : 'dodge_agent_select_title')}">${svgIcon('exit', 13)}<span>${t('match_dodge_btn')}</span></button></div>`;
   }
 
   // Skeleton-Karten, die sich füllen, während RankYoinker die Spieler nacheinander lädt
@@ -4030,7 +4205,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const games = (e && e.games) || 0;
     if(games < 2) return '';
     const tip = t('enc_badge_tip', {games, ally: e.ally || 0, enemy: e.enemy || 0});
-    return `<span class="enc-badge${games >= 5 ? ' hot' : ''}" title="${esc(tip)}">${games}×</span>`;
+    return `<span class="enc-badge${games >= 5 ? ' hot' : ''}" data-tip="${esc(tip)}">${games}×</span>`;
   }
 
   // Zählstände laden und Badges nachtragen.
@@ -4106,7 +4281,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // gestrichelt = nur aus der Historie abgeleitet. Wer genau, steht im Tooltip.
   function partyBarHtml(p){
     const i = partyInfoOf(p);
-    return i ? `<i class="party-bar${i.likely ? ' likely' : ''}" style="--pc:${i.color};" title="${esc(i.tip)}"></i>` : '';
+    return i ? `<i class="party-bar${i.likely ? ' likely' : ''}" style="--pc:${i.color};" data-tip="${esc(i.tip)}"></i>` : '';
   }
   // Party-Mitglieder nebeneinander: die Rang-Reihenfolge bleibt, nur rückt der
   // Rest einer Party direkt hinter ihr bestplatziertes Mitglied.
@@ -4239,7 +4414,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const tip = (r.won === true ? t('win_upper') : r.won === false ? t('loss_upper') : r.won === 'draw' ? t('draw_upper') : t('unknown_short'))
         + (agentName ? ` · ${agentName}` : '');
       const inner = info && info.icon ? `<img src="${esc(info.icon)}" alt="" loading="lazy">` : '';
-      return `<span class="dot ${cls}${inner ? '' : ' solid'}" style="animation-delay:${i * 60}ms" title="${esc(tip)}">${inner}</span>`;
+      return `<span class="dot ${cls}${inner ? '' : ' solid'}" style="animation-delay:${i * 60}ms" data-tip="${esc(tip)}">${inner}</span>`;
     }).join('');
     const pad = '<span class="dot none solid"></span>'.repeat(Math.max(0, 5 - res.length));
     const summary = draws ? `${wins}W · ${draws}D · ${res.length - wins - draws}L` : `${wins}W · ${res.length - wins}L`;
@@ -4330,7 +4505,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const level = Number(card.getAttribute('data-level'));
       const hit = smurfHint(level, d && d.rankedTotals);
       if(!hit) return;
-      slot.innerHTML = `<span class="smurf-badge" title="${esc(t('smurf_tip', {level, kd: hit.kd.toFixed(2), hs: Math.round(hit.hsPercent), wins: hit.wins, games: hit.games}))}">${esc(t('smurf_badge'))}</span>`;
+      slot.innerHTML = `<span class="smurf-badge" data-tip="${esc(t('smurf_tip', {level, kd: hit.kd.toFixed(2), hs: Math.round(hit.hsPercent), wins: hit.wins, games: hit.games}))}">${esc(t('smurf_badge'))}</span>`;
     });
   }
 
@@ -4364,12 +4539,12 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const hs = card.querySelector('[data-stat="hs"]');
       if(isEmpty(hs) && m.hsPercent != null){
         hs.textContent = Math.round(m.hsPercent) + '%';
-        hs.title = t('computed_from_last_match_tip');
+        hs.dataset.tip = t('computed_from_last_match_tip');
       }
       const kd = card.querySelector('[data-stat="kd"]');
       if(isEmpty(kd) && m.kd != null){
         kd.textContent = Number(m.kd).toFixed(2);
-        kd.title = t('computed_from_last_match_tip');
+        kd.dataset.tip = t('computed_from_last_match_tip');
       }
     });
   }
@@ -4677,7 +4852,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
             ${p.title ? `<div class="mtitle">„${esc(p.title)}"</div>` : ''}
             <div class="msub">${esc(p.agent || '')}${info && info.role ? ' · ' + esc(info.role) : ''} · ${t('level_word')} ${esc(p.level ?? '—')}</div>
           </div>
-          ${trackerUrl(p.name) ? `<a class="tracker-btn" href="${esc(trackerUrl(p.name))}" target="_blank" rel="noopener noreferrer" title="${t('tracker_open_title')}">${svgIcon('external', 13)}<span>${t('tracker_label')}</span></a>` : ''}
+          ${trackerUrl(p.name) ? `<a class="tracker-btn" href="${esc(trackerUrl(p.name))}" target="_blank" rel="noopener noreferrer" data-tip="${t('tracker_open_title')}">${svgIcon('external', 13)}<span>${t('tracker_label')}</span></a>` : ''}
         </div>
       </div>
       <div class="modal-body">
@@ -4774,7 +4949,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const dots = points.map((p, i) => {
       const cls = p.earned > 0 ? 'up' : p.earned < 0 ? 'down' : '';
       const tip = `${RANK_NAMES[p.tier] || ''} · ${p.rr} RR (${p.earned > 0 ? '+' : ''}${p.earned ?? 0})`;
-      return `<i class="rr-pt ${cls}" style="left:${(X(i) / W * 100).toFixed(2)}%; top:${(P[i][1] / H * 100).toFixed(2)}%; animation-delay:${(0.25 + i * 0.07).toFixed(2)}s;" title="${esc(tip)}"></i>`;
+      return `<i class="rr-pt ${cls}" style="left:${(X(i) / W * 100).toFixed(2)}%; top:${(P[i][1] / H * 100).toFixed(2)}%; animation-delay:${(0.25 + i * 0.07).toFixed(2)}s;" data-tip="${esc(tip)}"></i>`;
     }).join('');
     const first = points[0], last = points[points.length - 1];
     const diff = vals[vals.length - 1] - vals[0];
@@ -4784,11 +4959,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           ${bands.join('')}
           <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="rr-svg" aria-hidden="true">
             <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--accent)" stop-opacity=".32"/>
-              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              <stop offset="0%" style="stop-color:var(--accent)" stop-opacity=".32"/>
+              <stop offset="100%" style="stop-color:var(--accent)" stop-opacity="0"/>
             </linearGradient></defs>
             <path class="rr-area" d="${area}" fill="url(#${gid})"/>
-            <path class="rr-line" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" pathLength="1000"
+            <path class="rr-line" d="${d}" fill="none" style="stroke:var(--accent)" stroke-width="2.5" pathLength="1000"
                   vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
           </svg>
           ${dots}
@@ -4863,7 +5038,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const log = (entry.log || []).slice().reverse();
     const missing = Math.max(0, (entry.games || 0) - log.length);
     const rows = log.map(x => `
-      <div class="enc-row" title="${esc(encExact(x.t))}">
+      <div class="enc-row" data-tip="${esc(encExact(x.t))}">
         <span class="enc-side ${x.a ? 'ally' : 'enemy'}">${x.a ? t('in_team') : t('enemies')}</span>
         <span class="enc-when">${esc(encWhen(x.t))}</span>
         <span class="enc-where">${esc(encWhere(x))}</span>
@@ -4905,9 +5080,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const name = agentById[String(agentUuid || '').toLowerCase()];
     const info = name ? agentMap[String(name).toLowerCase()] : null;
     if(info && info.icon){
-      return `<img class="mr-agent" src="${esc(info.icon)}" alt="${esc(name)}" title="${esc(name)}" loading="lazy">`;
+      return `<img class="mr-agent" src="${esc(info.icon)}" alt="${esc(name)}" data-tip="${esc(name)}" loading="lazy">`;
     }
-    return `<div class="mr-agent-fb" title="${esc(name || t('name_unknown'))}">${esc((name || '?').slice(0,2).toUpperCase())}</div>`;
+    return `<div class="mr-agent-fb" data-tip="${esc(name || t('name_unknown'))}">${esc((name || '?').slice(0,2).toUpperCase())}</div>`;
   }
 
   function statBox(value, label){
@@ -4919,7 +5094,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const icon = rankIcon(tier);
     const name = RANK_NAMES[tier];
     if(!icon && !name) return '';
-    return `<div class="mr-rank" title="${esc(name || t('rank_unknown'))}">
+    return `<div class="mr-rank" data-tip="${esc(name || t('rank_unknown'))}">
       ${icon ? `<img src="${esc(icon)}" alt="">` : ''}
       <i>${esc(name || '—')}</i>
     </div>`;
@@ -4932,7 +5107,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <div class="match-row ${cls}">
         <div class="mr-head">
           <div class="mr-map">${esc(mapName(m.map))}</div>
-          <div class="mr-date" title="${esc(encExact(ts))}">${esc(encWhen(ts))}</div>
+          <div class="mr-date" data-tip="${esc(encExact(ts))}">${esc(encWhen(ts))}</div>
           <div class="mr-res">${resLabel}</div>
         </div>
         <div class="mr-kda">${kdaHtml(m)}</div>
@@ -5087,6 +5262,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function syncReport(){
     const g = procStatus && procStatus.game;
     const rs = g && g.report;
+    // Dienst hat die Analyse verworfen (neues Match, anderes Konto) -> hier auch
+    if(rs && !rs.matchId && reportData){ reportData = null; reportRendered = ''; }
     if(rs && rs.matchId && (!reportData || reportData.matchId !== rs.matchId) && !reportLoading){
       reportLoading = true;
       api('/api/match-report').catch(apiFail).then(j => {
@@ -5111,7 +5288,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const show = avail && !dismissed && activeTab === 'match';
     if(show){
       const key = reportData.matchId + '|' + Object.keys(agentMap).length + '|' + Object.keys(mapInfo).length + '|' + Object.keys(tierMap).length;
-      if(key !== reportRendered){ view.innerHTML = reportHtml(reportData); reportRendered = key; rpSelectRound(rpDefaultRound(reportData)); }
+      if(key !== reportRendered){
+        view.innerHTML = reportHtml(reportData); reportRendered = key;
+        rpSelectRound(rpDefaultRound(reportData));
+        // Liegt die vorgewählte Runde am Handy außerhalb, dorthin scrollen
+        const sc = view.querySelector('.rp-flow-scroll'), col = view.querySelector('.rp-col.sel');
+        if(sc && col && col.offsetLeft + col.offsetWidth > sc.clientWidth - 20) sc.scrollLeft = col.offsetLeft - sc.clientWidth / 2;
+        requestAnimationFrame(rpScrollHints);
+      }
     }
     if(app.classList.contains('report-on') !== show){
       app.classList.toggle('report-on', show);
@@ -5167,7 +5351,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const rel = Math.abs(diff) / Math.abs(avg);
     const cls = rel < 0.03 ? '' : (diff > 0 ? 'up' : 'down');
     const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
-    return `<span class="delta ${cls}" title="${esc(t('report_vs_avg_short'))}">${sign}${rpNum(Math.abs(diff), d)}</span>`;
+    return `<span class="delta ${cls}" data-tip="${esc(t('report_vs_avg_short'))}">${sign}${rpNum(Math.abs(diff), d)}</span>`;
   }
   function rpAgent(id){
     const name = id ? agentById[String(id).toLowerCase()] : null;
@@ -5205,7 +5389,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     return `<tr class="${p.me ? 'me' : ''}">
       <td><div class="rp-pl">${a.info && a.info.icon ? `<img class="ag" src="${esc(a.info.icon)}" alt="" loading="lazy">` : '<span class="ag"></span>'}
         ${ri ? `<img class="rk" src="${esc(ri)}" alt="" loading="lazy">` : ''}
-        <span class="nm" title="${esc(p.name || '')}">${esc(p.name || t('unknown_short'))}</span>
+        <span class="nm" data-tip="${esc(p.name || '')}">${esc(p.name || t('unknown_short'))}</span>
         ${p.me ? `<span class="rp-you">${esc(t('report_you'))}</span>` : ''}
         ${p.mvp ? `<span class="rp-mvp ${p.mvp === 'team' ? 'team' : ''}">${p.mvp === 'team' ? 'TEAM MVP' : 'MVP'}</span>` : ''}</div></td>
       <td class="rt"><span class="rtw">${rpGradeChip(p.rating)}<span class="pct">${rpPct(p.rating)}</span></span></td>
@@ -5221,7 +5405,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   function rpTable(list){
     return `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>
-      <th>${esc(t('report_col_player'))}</th><th title="${esc(t('report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
+      <th>${esc(t('report_col_player'))}</th><th data-tip="${esc(t('report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
       </tr></thead><tbody>${list.map(rpRow).join('')}</tbody></table></div>`;
   }
   // Lobby-Leiste: alle Spieler nach Rating auf einer Achse, Mitte = Lobby-Schnitt
@@ -5230,9 +5414,28 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(ps.length < 2) return '';
     const lo = Math.min(0.5, ...ps.map(p => p.rating)), hi = Math.max(1.5, ...ps.map(p => p.rating));
     const x = v => ((v - lo) / (hi - lo) * 100).toFixed(2);
-    const dots = ps.slice().sort((a, b) => (a.me ? 1 : 0) - (b.me ? 1 : 0)).map(p => {
+    // Liegen Punkte fast übereinander, rutscht der nächste eine Spur nach oben
+    // bzw. unten, damit jeder einzeln zu sehen (und anzuzeigen) bleibt
+    // (Wer direkt unter deinem großen Punkt läge, kommt darüber bzw. darunter.)
+    const lanes = [0, -9, 9], lastX = {};
+    const meP = ps.find(p => p.me), mePx = meP ? Number(x(meP.rating)) : null;
+    let nearMe = 0;
+    const placed = ps.slice().sort((a, b) => a.rating - b.rating).map(p => {
+      const px = Number(x(p.rating));
+      let dy = 0;
+      if(!p.me && mePx != null && Math.abs(px - mePx) < 4) dy = nearMe++ % 2 ? 15 : -15;
+      else if(!p.me){
+        const lane = lanes.find(l => lastX[l] == null || px - lastX[l] >= 2.6);
+        dy = lane == null ? lanes[0] : lane;
+        lastX[dy] = px;
+      }
+      return {p, px, dy};
+    });
+    const dots = placed.sort((a, b) => (a.p.me ? 1 : 0) - (b.p.me ? 1 : 0)).map(({p, px, dy}) => {
       const a = rpAgent(p.agent);
-      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${x(p.rating)}%" title="${esc((p.name || '') + ' · ' + rpGrade(p.rating) + ' ' + rpPct(p.rating))}">${p.me && a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="">` : ''}</span>`;
+      const who = p.name || t('unknown_short');
+      const line = t('report_col_perf') + ' ' + rpGrade(p.rating) + ' · ' + rpPerfLine(p.rating) + (a.name ? '\n' + a.name : '');
+      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;${dy ? ` --dy:${dy}px;` : ''}" data-tip-head="${esc(p.me ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${p.me && a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="">` : ''}</span>`;
     }).join('');
     return `<div class="rp-lstrip">
       <div class="rp-ls-track"><span class="rp-ls-avg" style="left:${x(1)}%"><i></i><em>${esc(t('report_lobby_avg'))}</em></span>${dots}</div>
@@ -5268,8 +5471,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="rp-chart">
           <svg viewBox="0 0 ${n * COL} ${H}" preserveAspectRatio="none" aria-hidden="true">
             <defs><linearGradient id="rpFlowGrad" x1="0" y1="0" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="var(--win)"/><stop offset="${(zeroPct / 100).toFixed(3)}" stop-color="var(--win)"/>
-              <stop offset="${(zeroPct / 100).toFixed(3)}" stop-color="var(--loss)"/><stop offset="1" stop-color="var(--loss)"/></linearGradient></defs>
+              <stop offset="0" style="stop-color:var(--win)"/><stop offset="${(zeroPct / 100).toFixed(3)}" style="stop-color:var(--win)"/>
+              <stop offset="${(zeroPct / 100).toFixed(3)}" style="stop-color:var(--loss)"/><stop offset="1" style="stop-color:var(--loss)"/></linearGradient></defs>
             <line class="zero" x1="0" x2="${n * COL}" y1="${H / 2}" y2="${H / 2}"/>
             <path class="area" d="${area}" fill="url(#rpFlowGrad)"/>
             <path class="line" d="${line}" stroke="url(#rpFlowGrad)"/>
@@ -5327,6 +5530,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const det = document.getElementById('rpRdDetail');
     if(det) det.innerHTML = rpRoundDetail(reportData, i);
   }
+  function rpScrollHints(){
+    document.querySelectorAll('#reportView .rp-table-wrap, #reportView .rp-flow-scroll').forEach(el => {
+      el.classList.toggle('can-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    });
+  }
+  document.getElementById('reportView').addEventListener('scroll', rpScrollHints, true);
+  window.addEventListener('resize', rpScrollHints);
   function reportHtml(r){
     const me = r.players.find(p => p.me) || {};
     const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
@@ -5564,9 +5774,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       uid === sel ? (pickLocked ? 'locked' : 'sel') : '',
       taken ? 'taken' : '', owned ? '' : 'notowned'
     ].filter(Boolean).join(' ');
-    return `<div class="agent-cell ${cls}" data-agent="${esc(a.uuid)}" title="${esc(a.name)}${owned ? '' : ' (' + t('agent_not_unlocked') + ')'}">
+    return `<div class="agent-cell ${cls}" data-agent="${esc(a.uuid)}" data-tip="${esc(a.name)}${owned ? '' : ' (' + t('agent_not_unlocked') + ')'}">
       <img src="${esc(a.info.icon)}" alt="" loading="lazy"><div class="an">${esc(a.name)}</div>
-      <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" title="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
+      <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" data-tip="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
       </div>`;
   }
 
@@ -5575,7 +5785,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   let pregameSide = null;
   function sideBadgeHtml(){
     if(pregameSide !== 'attack' && pregameSide !== 'defense') return '';
-    return `<span class="side-badge ${pregameSide}" title="${esc(t('side_first_half_tip'))}"><i></i>${t(pregameSide === 'attack' ? 'side_attack' : 'side_defense')}</span>`;
+    return `<span class="side-badge ${pregameSide}" data-tip="${esc(t('side_first_half_tip'))}"><i></i>${t(pregameSide === 'attack' ? 'side_attack' : 'side_defense')}</span>`;
   }
 
   function agentPickHtml(){
@@ -5750,7 +5960,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const list = need ? tcSuggestions(need, pregameLive, me, mapName) : [];
       if(list.length){
         sug = `<div class="tc-sug"><span class="lbl">${esc(t('tc_for_you', {role: need === 'Viper' ? 'Viper' : need}))}</span>
-          <div class="tc-chips">${list.map(s => `<button type="button" class="tc-chip" data-tc-pick="${esc(s.uid)}" title="${esc(t('tc_pick_hint'))}">
+          <div class="tc-chips">${list.map(s => `<button type="button" class="tc-chip" data-tc-pick="${esc(s.uid)}" data-tip="${esc(t('tc_pick_hint'))}">
             <img src="${esc(s.info.icon)}" alt="" loading="lazy"><span class="nm">${esc(s.name)}</span>${s.why ? `<span class="why">${esc(s.why)}</span>` : ''}</button>`).join('')}</div></div>`;
       }
     }
@@ -5761,8 +5971,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <span class="tc-title">Team-Check</span>${mapName ? `<span class="tc-mapname">${esc(mapName)}</span>` : ''}
         ${sum}
         <span class="tc-sp"></span>
-        <button type="button" class="tc-btn" data-tc="fold" title="${esc(t(folded ? 'tc_expand' : 'tc_collapse'))}" aria-expanded="${folded ? 'false' : 'true'}">${svgIcon('chevron', 13)}</button>
-        <button type="button" class="tc-btn" data-tc="hide" title="${esc(t('tc_hide_match'))}">${svgIcon('x', 13)}</button>
+        <button type="button" class="tc-btn" data-tc="fold" data-tip="${esc(t(folded ? 'tc_expand' : 'tc_collapse'))}" aria-expanded="${folded ? 'false' : 'true'}">${svgIcon('chevron', 13)}</button>
+        <button type="button" class="tc-btn" data-tc="hide" data-tip="${esc(t('tc_hide_match'))}">${svgIcon('x', 13)}</button>
       </div>
       <div class="tc-body">
         <div class="tc-roles">${roles}</div>
@@ -5891,9 +6101,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const owned = agentBase[uid] || !ownedAgents || !ownedAgents.length
         || ownedAgents.some(x => String(x).toLowerCase() === uid);
       const isFav = favNames.some(n => String(n).toLowerCase() === a.name.toLowerCase());
-      return `<div class="agent-cell ${uid === sel ? 'sel' : ''} ${owned ? '' : 'notowned'}" data-il="${esc(a.uuid)}" title="${esc(a.name)}">
+      return `<div class="agent-cell ${uid === sel ? 'sel' : ''} ${owned ? '' : 'notowned'}" data-il="${esc(a.uuid)}" data-tip="${esc(a.name)}">
         <img src="${esc(a.info.icon)}" alt="" loading="lazy"><div class="an">${esc(a.name)}</div>
-        <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" title="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
+        <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" data-tip="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
         </div>`;
     };
     const chosen = instalockAgent ? (agentById[sel] || '—') : null;
@@ -6462,8 +6672,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const p = presets();
       const chips = Object.keys(p).map(name => `
         <span class="preset-chip">
-          <span class="use" data-use="${esc(name)}" title="${t('view_loadout')}">${esc(name)}</span>
-          <button class="del" data-del="${esc(name)}" title="${t('delete_preset')}">${svgIcon('x',11)}</button>
+          <span class="use" data-use="${esc(name)}" data-tip="${t('view_loadout')}">${esc(name)}</span>
+          <button class="del" data-del="${esc(name)}" data-tip="${t('delete_preset')}">${svgIcon('x',11)}</button>
         </span>`).join('') || `<span class="preset-none">${t('no_presets_saved')}</span>`;
 
       // Waffen in Kauf-Reihenfolge (Pistolen -> Gewehre -> Messer) statt Riots zufälliger Reihenfolge
@@ -6486,7 +6696,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="page-head">
           <div><span class="eyebrow">VALORANT · ${t('tab_skins')}</span><h1>${t('current_loadout')}</h1></div>
           <div class="page-head-actions preset-row">
-            <button class="pbtn go" id="savePreset" ${j.ok ? '' : `disabled title="${t('current_loadout_unreadable')}"`}>${svgIcon('save',14)}${t('save_current_loadout')}</button>
+            <button class="pbtn go" id="savePreset" ${j.ok ? '' : `disabled data-tip="${t('current_loadout_unreadable')}"`}>${svgIcon('save',14)}${t('save_current_loadout')}</button>
           </div>
         </div>
         <div class="preset-chips"><span class="eyebrow">${t('tab_lol_presets')}</span>${chips}</div>
@@ -6865,7 +7075,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         const has = ownsItem(ITEM_TYPE.SKIN, o.skinLevelId);
         const tier = sk && contentTiers[sk.tier];
         return `<div class="shop-card ${has ? 'owned' : ''}" style="${tier ? `--tier:${esc(tier.color)};` : ''}animation:cardIn .8s var(--ease) ${i * 80}ms both;">
-          ${tier && tier.icon ? `<img class="tier-ic" src="${esc(tier.icon)}" alt="" title="${esc(tier.name || '')}">` : ''}
+          ${tier && tier.icon ? `<img class="tier-ic" src="${esc(tier.icon)}" alt="" data-tip="${esc(tier.name || '')}">` : ''}
           ${has ? ownedBadge : ''}
           <div class="simg">${sk && sk.icon ? `<img class="sk" src="${esc(sk.icon)}" alt="" loading="lazy">` : ''}</div>
           <div class="sname">${esc(sk ? sk.name : t('shop_unknown_skin'))}</div>
@@ -6884,7 +7094,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         // valorant-api.com haengt bei brandneuen Patches oft ein paar Tage
         // hinterher) - Titel + Tooltip erklaeren das statt einfach nur leer/
         // "Unbekannt" auszusehen (siehe shop_item_not_cataloged_tip).
-        const bundleTip = info ? '' : ` title="${esc(t('shop_item_not_cataloged_tip'))}"`;
+        const bundleTip = info ? '' : ` data-tip="${esc(t('shop_item_not_cataloged_tip'))}"`;
         return `<div class="bundle-card"${bundleTip}>
           ${art ? `<div class="bbg" style="background-image:url('${esc(art)}');"></div>` : ''}
           <div class="bfade"></div>
@@ -6903,7 +7113,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         ${(b.itemList || []).length ? `<div class="bundle-items">${b.itemList.map(it => {
           const info = bundleItemInfo(it);
           const has = ownsItem(it.typeId, it.itemId);
-          const itemTip = info.notCataloged ? ` title="${esc(t('shop_item_not_cataloged_tip'))}"` : '';
+          const itemTip = info.notCataloged ? ` data-tip="${esc(t('shop_item_not_cataloged_tip'))}"` : '';
           const tier = info.tier && contentTiers[info.tier];
           return `<div class="bi ${has ? 'owned' : ''}"${tier ? ` style="--tier:${esc(tier.color)};"` : ''}${itemTip}>
             ${has ? ownedBadge : ''}
@@ -6924,7 +7134,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           const has = ownsItem(o.typeId || ITEM_TYPE.SKIN, o.skinLevelId);
           const tier = sk && contentTiers[sk.tier];
           return `<div class="shop-card night ${has ? 'owned' : ''}" style="animation:cardIn .8s var(--ease) ${i * 70}ms both;">
-            ${tier && tier.icon ? `<img class="tier-ic" src="${esc(tier.icon)}" alt="" title="${esc(tier.name || '')}">` : ''}
+            ${tier && tier.icon ? `<img class="tier-ic" src="${esc(tier.icon)}" alt="" data-tip="${esc(tier.name || '')}">` : ''}
             ${has ? ownedBadge : (o.discount ? `<span class="night-badge">−${Math.round(o.discount)}%</span>` : '')}
             <div class="simg">${sk && sk.icon ? `<img class="sk" src="${esc(sk.icon)}" alt="" loading="lazy">` : ''}</div>
             <div class="sname">${esc(sk ? sk.name : t('shop_hidden_skin'))}</div>
@@ -6942,7 +7152,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="panel-head sub">${t('shop_daily_title')}<span class="line"></span></div>
         <div class="shop-count">
           <span class="cd">${svgIcon('clock',14)} ${t('shop_daily_offers_in')} <span id="shopCountdown">${esc(fmtLeft(shopLeft(j.remaining)))}</span></span>
-          <button class="shop-reload" id="shopRefresh" title="${t('shop_reload_title')}">${svgIcon('refresh',13)}${t('shop_reload')}</button>
+          <button class="shop-reload" id="shopRefresh" data-tip="${t('shop_reload_title')}">${svgIcon('refresh',13)}${t('shop_reload')}</button>
         </div>
         <div class="shop-grid">${offers}</div>
         ${night}`;
@@ -6991,7 +7201,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const pct = Math.max(8, Math.min(92, 50 + diff * 14));
     const tip = `${t('your_team')}: ${RANK_NAMES[a.tier]} · ${a.rr} RR (${t('from_n_rated_players', {n: a.n})})\n`
       + `${t('enemies')}: ${RANK_NAMES[e.tier]} · ${e.rr} RR (${t('from_n_rated_players', {n: e.n})})`;
-    return `<div class="tcmp" title="${esc(tip)}">
+    return `<div class="tcmp" data-tip="${esc(tip)}">
       ${teamSideHtml('ally', t('your_team'), a)}
       <div class="tmid">
         <div class="tvs">VS</div>
@@ -7156,11 +7366,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     old.querySelectorAll('.agent-cell').forEach((c, i) => {
       const f = fc[i];
       if(c.className !== f.className) c.className = f.className;
-      if(c.title !== f.title) c.title = f.title;
+      if(c.dataset.tip !== f.dataset.tip) c.dataset.tip = f.dataset.tip;
       const s = c.querySelector('.fav-star'), fs = f.querySelector('.fav-star');
       if(s && fs){
         if(s.className !== fs.className) s.className = fs.className;
-        if(s.title !== fs.title) s.title = fs.title;
+        if(s.dataset.tip !== fs.dataset.tip) s.dataset.tip = fs.dataset.tip;
       }
     });
     const syncBtn = (b, fb) => {
@@ -8151,7 +8361,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   function lolChipsHtml(){
     const p = lolPresets || {};
-    const chip = (id, on, label, tip) => `<button type="button" class="lb-chip ${on ? 'on' : ''}" data-lact="chip" data-chip="${id}" title="${esc(tip || label)}"><i></i>${esc(label)}</button>`;
+    const chip = (id, on, label, tip) => `<button type="button" class="lb-chip ${on ? 'on' : ''}" data-lact="chip" data-chip="${id}" data-tip="${esc(tip || label)}"><i></i>${esc(label)}</button>`;
     return chip('accept', lolAutoAccept !== false, t('lol_chip_accept'), t('lol_auto_accept'))
       + chip('ban', !!p.autoBan, t('lol_auto_ban_short'), t('lol_auto_ban_toggle'))
       + chip('pick', !!p.autoPick, t('lol_auto_pick_short'), t('lol_auto_pick_toggle'))
@@ -8236,10 +8446,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const sp = String(p.name || '').includes('#') ? splitRiotId(p.name) : [p.name || '', p.tagLine ? '#' + p.tagLine : ''];
     const name = (p.name && p.name !== '—' ? sp[0] : '') || o.fallbackName || t('name_unknown');
     const lane = o.lane || p.position;
-    const laneTxt = lane && LOL_POSITIONS[lane] ? `<span class="lr-lane ${o.guessed ? 'guess' : ''}" title="${o.guessed ? esc(t('mu_guessed')) : ''}">${laneIcon(lane, 13)}${esc(LOL_POSITIONS[lane])}</span>` : '';
+    const laneTxt = lane && LOL_POSITIONS[lane] ? `<span class="lr-lane ${o.guessed ? 'guess' : ''}" data-tip="${o.guessed ? esc(t('mu_guessed')) : ''}">${laneIcon(lane, 13)}${esc(LOL_POSITIONS[lane])}</span>` : '';
     const r = lolBestRank(p);
     const rankHtml = r
-      ? `<div class="lr-rank" style="--tc:${lolTierColor(r.tier)};" title="${esc((r === p.rankSolo ? 'Solo/Duo' : 'Flex') + ' · ' + lolRankName(r) + (r.lp != null ? ' · ' + r.lp + ' LP' : ''))}">${lolEmblemHtml(r.tier, 'lr-emb')}<b>${esc(lolRankName(r))}</b><span>${r.lp ?? 0} LP</span></div>`
+      ? `<div class="lr-rank" style="--tc:${lolTierColor(r.tier)};" data-tip="${esc((r === p.rankSolo ? 'Solo/Duo' : 'Flex') + ' · ' + lolRankName(r) + (r.lp != null ? ' · ' + r.lp + ' LP' : ''))}">${lolEmblemHtml(r.tier, 'lr-emb')}<b>${esc(lolRankName(r))}</b><span>${r.lp ?? 0} LP</span></div>`
       : (o.side === 'enemy' && !o.live ? '' : `<div class="lr-rank none"><span class="lr-unr"></span><b>Unranked</b></div>`);
     const clickable = !!(p.puuid || (o.live && p.name));
     if(clickable) lolCardData.set(o.key, lolModalData(p));
@@ -8248,7 +8458,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const cls = ['lrow', o.side, p.me ? 'me' : '', p.hovering ? 'hovering' : '', p.isDead ? 'dead' : '', champ ? 'has-champ' : 'no-champ', clickable ? 'click' : ''].filter(Boolean).join(' ');
     return `<div class="${cls}"${clickable ? ` data-lolkey="${esc(o.key)}"` : ''}>
       ${champ ? `<div class="lr-bg" style="background-image:url('${lolChampSplash(champ)}');"></div>` : ''}
-      <div class="lr-champ">${champ ? `<img src="${champIconUrl(champ)}" alt="" loading="lazy">` : `<span class="lr-q">?</span>`}${o.live && p.level != null ? `<span class="lr-lvl">${p.level}</span>` : ''}${p.isDead ? `<span class="lr-dead" title="${esc(t('lol_dead'))}">${svgIcon('skull', 16)}</span>` : ''}</div>
+      <div class="lr-champ">${champ ? `<img src="${champIconUrl(champ)}" alt="" loading="lazy">` : `<span class="lr-q">?</span>`}${o.live && p.level != null ? `<span class="lr-lvl">${p.level}</span>` : ''}${p.isDead ? `<span class="lr-dead" data-tip="${esc(t('lol_dead'))}">${svgIcon('skull', 16)}</span>` : ''}</div>
       <div class="lr-info">
         <div class="lr-name"><span class="n">${esc(name)}</span>${p.name && p.name !== '—' && sp[1] ? `<span class="tag">${esc(sp[1])}</span>` : ''}${p.me ? `<span class="lr-you">${t('pregame_you')}</span>` : ''}${enc}</div>
         <div class="lr-sub">${laneTxt}${champName ? `<span class="lr-cn">${esc(champName)}</span>` : ''}${status}</div>
@@ -8378,7 +8588,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function lolMasteryBadgeHtml(m){
     if(!m || !m.level) return '';
     const pts = m.points >= 1000 ? Math.round(m.points / 1000) + 'k' : String(m.points || 0);
-    return `<span class="lol-mastery-badge" title="${t('mastery_tip', {level: m.level, points: numFmt(m.points || 0)})}">M${m.level} · ${pts}</span>`;
+    return `<span class="lol-mastery-badge" data-tip="${t('mastery_tip', {level: m.level, points: numFmt(m.points || 0)})}">M${m.level} · ${pts}</span>`;
   }
 
   // ---- Wiedererkennung: schon mal zusammen gespielt? (eigenes League-Konto) ----
@@ -8388,7 +8598,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const games = (e && e.games) || 0;
     if(games < 2) return '';
     const tip = t('enc_badge_tip_lol', {games, ally: e.ally || 0, enemy: e.enemy || 0});
-    return `<span class="enc-badge${games >= 5 ? ' hot' : ''}" title="${esc(tip)}">${games}×</span>`;
+    return `<span class="enc-badge${games >= 5 ? ' hot' : ''}" data-tip="${esc(tip)}">${games}×</span>`;
   }
   const lolEncPending = new Set();
   function loadLolEncounters(roster){
@@ -8477,7 +8687,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     <div class="pcard ${mode === 'lobby' ? 'menu' : ''} ${isMe ? 'me' : ''} ${p.isDead ? 'dead' : ''}" data-lolkey="${esc(key)}">
       <div class="pcard-portrait">
         ${isMe && mode !== 'live' ? `<span class="you-badge">${t('pregame_you')}</span>` : ''}
-        ${p.leader ? `<span class="lead-badge" title="${esc(t('party_leader'))}">${svgIcon('crown', 12)}</span>` : ''}
+        ${p.leader ? `<span class="lead-badge" data-tip="${esc(t('party_leader'))}">${svgIcon('crown', 12)}</span>` : ''}
         ${portraitInner}
         ${p.puuid ? (lolEncCache[p.puuid] ? lolEncBadgeHtml(p.puuid) : `<span class="enc-slot" data-enc="${esc(p.puuid)}"></span>`) : ''}
         ${isMe ? lolMasteryBadgeHtml(p.mastery) : ''}
@@ -8799,7 +9009,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   const LOL_MU_OPT = {popular: 'mu_opt_popular', winrate: 'mu_opt_winrate', alternative: 'mu_opt_alternative'};
   function lolMuNum(n){ return numFmt(n || 0); }
   function lolMuWr(w){ return w == null ? '–' : (Math.round(w * 10) / 10).toLocaleString(LOCALE) + ' %'; }
-  function lolIcon(url, title, cls){ return url ? `<img class="${cls || ''}" src="${esc(url)}" alt="" title="${esc(title || '')}" loading="lazy">` : ''; }
+  function lolIcon(url, title, cls){ return url ? `<img class="${cls || ''}" src="${esc(url)}" alt="" data-tip="${esc(title || '')}" loading="lazy">` : ''; }
   function lolItemIcons(gd, ids, sep){
     // Gleiche Items nebeneinander zusammenfassen (2x Heiltrank -> ein Icon mit "2")
     const groups = [];
@@ -8867,7 +9077,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <div class="mu-stats">${data && data.ok && data.vs ? `<b>${lolMuWr(data.winrate)}</b><span>${t('mu_games', {n: lolMuNum(data.games)})}</span>` : ''}</div>
     </div>`;
     const enemyChips = ctx.enemies.length ? `<div class="mu-opp-row"><span class="mu-lbl">${t('mu_opponent')}</span>
-      ${ctx.enemies.map(id => `<button type="button" class="mu-opp ${id === ctx.vs ? 'on' : ''}" data-mu-vs="${id}" title="${esc(lolChampName(id))}">${lolIcon(champIconUrl(id))}</button>`).join('')}
+      ${ctx.enemies.map(id => `<button type="button" class="mu-opp ${id === ctx.vs ? 'on' : ''}" data-mu-vs="${id}" data-tip="${esc(lolChampName(id))}">${lolIcon(champIconUrl(id))}</button>`).join('')}
       <button type="button" class="mu-opp any ${!ctx.vs ? 'on' : ''}" data-mu-vs="0">${t('mu_any_opponent')}</button></div>` : '';
     const lanes = ctx.showLanes ? `<div class="lane-seg mu-lanes">${LOL_MU_LANES.map(l => `<button type="button" class="lane-btn ${l === ctx.pos ? 'on' : ''}" data-mu-lane="${l}">${esc(LOL_LANE_LABELS[l])}</button>`).join('')}</div>` : '';
     const tierSel = `<div class="cdrop compact mu-tier" data-mu-tier></div>`;
@@ -8886,7 +9096,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         : (!data.vs && ctx.mode === 'cs' ? `<div class="mu-note">${t('mu_no_opponent')}</div>` : '');
       const spells = (b.spells || []).map(id => { const sp = gd.spellById[id]; return lolIcon(cdAsset(sp && sp.iconPath), sp && sp.name, 'mu-spell'); }).join('');
       main = `${note}
-        <div class="mu-opts">${data.builds.map((x, i) => `<button type="button" class="mu-opt ${i === opt ? 'on' : ''}" data-mu-opt="${i}" title="${esc(t('mu_build_wr_tip'))}">
+        <div class="mu-opts">${data.builds.map((x, i) => `<button type="button" class="mu-opt ${i === opt ? 'on' : ''}" data-mu-opt="${i}" data-tip="${esc(t('mu_build_wr_tip'))}">
           <span class="mu-opt-name">${t(LOL_MU_OPT[x.id] || 'mu_opt_popular')}</span><span class="mu-opt-meta">${lolMuWr(x.winrate)} · ${lolMuNum(x.games)}</span></button>`).join('')}</div>
         <div class="mu-body">
           ${ctx.mode === 'live' ? `<div class="mu-sec"><div class="mu-lbl">${t('mu_skills')}</div>${lolMuSkillsHtml(b)}</div>` : `
@@ -8904,7 +9114,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           <div class="mu-source">${t('mu_source', {src: esc(data.source || ''), patch: esc(data.patch || '?')})}</div>
           ${ctx.mode === 'live'
             ? `<span class="mu-live-note">${t('mu_live_note')}</span>`
-            : `<button type="button" class="pbtn go" data-mu-apply title="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>`}
+            : `<button type="button" class="pbtn go" data-mu-apply data-tip="${esc(t('mu_apply_hint'))}">${svgIcon('check', 12)}${t('mu_apply')}</button>`}
         </div>`;
     }
     return `<div class="lol-card mu-card">
@@ -8991,7 +9201,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const key = `${kind}:${lane}:${i}`;
     const slotName = i === 0 ? t('lol_main_choice') : LOL_FALLBACK_LABELS[i];
     const tip = `${LOL_LANE_LABELS[lane]} · ${kind === 'ban' ? t('lol_ban_col') : t('lol_pick_col')} · ${slotName}${sel ? ': ' + sel.name : ''}`;
-    return `<button type="button" class="lps ${i === 0 ? 'main' : 'alt'} ${sel ? 'filled' : ''}" data-lact="preset" data-key="${esc(key)}" title="${esc(tip)}">
+    return `<button type="button" class="lps ${i === 0 ? 'main' : 'alt'} ${sel ? 'filled' : ''}" data-lact="preset" data-key="${esc(key)}" data-tip="${esc(tip)}">
       <span class="lps-img">${sel ? `<img src="${champIconUrl(sel.id)}" alt="" loading="lazy">` : '<i>+</i>'}</span>
       <span class="lps-name">${sel ? esc(lolChampName(sel.id) !== String(sel.id) ? lolChampName(sel.id) : sel.name) : esc(slotName)}</span>
     </button>`;
@@ -9113,7 +9323,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
 
   function lolChampCellHtml(c, sel, locked){
-    return `<div class="agent-cell ${sel ? 'sel' : ''} ${locked ? 'locked' : ''}" data-champ="${c.id}" title="${esc(c.name)}">
+    return `<div class="agent-cell ${sel ? 'sel' : ''} ${locked ? 'locked' : ''}" data-champ="${c.id}" data-tip="${esc(c.name)}">
       <img src="https://cdn.communitydragon.org/latest/champion/${c.id}/square" alt="" loading="lazy">
       <div class="an">${esc(c.name)}</div></div>`;
   }
@@ -9142,7 +9352,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         </div>
         ${quick.length && !action.completed ? `<div class="fav-label">${esc(t('lol_presets_for_lane', {lane: LOL_LANE_LABELS[laneKey]}))}</div><div class="fav-row lpk-quick">${quick.map(cell).join('')}</div>` : ''}
         <div class="lpk-tools">
-          <div class="lane-filter">${lanes.map(l => `<button type="button" class="lf-btn ${l === lolChampLaneFilter ? 'on' : ''}" data-lact="lfilter" data-lane="${l}" title="${esc(l === 'ALL' ? t('lol_all_lanes') : LOL_LANE_LABELS[l])}">${l === 'ALL' ? `<span>${t('lol_all_lanes')}</span>` : laneIcon(l, 18)}</button>`).join('')}</div>
+          <div class="lane-filter">${lanes.map(l => `<button type="button" class="lf-btn ${l === lolChampLaneFilter ? 'on' : ''}" data-lact="lfilter" data-lane="${l}" data-tip="${esc(l === 'ALL' ? t('lol_all_lanes') : LOL_LANE_LABELS[l])}">${l === 'ALL' ? `<span>${t('lol_all_lanes')}</span>` : laneIcon(l, 18)}</button>`).join('')}</div>
           <input class="lol-champ-filter" id="lolChampFilter" type="text" placeholder="${t('champion_search_placeholder')}" autocomplete="off" value="${esc(lolChampFilterText)}">
         </div>
         <div class="agent-grid" id="lolChampGrid">${list.map(cell).join('')}</div>
@@ -9252,7 +9462,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     }).catch(() => { btn.disabled = false; toast('error', t('generic_error'), t('err_local_service_port')); });
   }
   function lolLanePickerHtml(slot, cur, off){
-    return `<div class="lane-pick ${off ? 'off' : ''}">${LOL_LANE_OPTS.map(l => `<button type="button" class="lpk ${l === cur ? 'on' : ''}" data-lact="lane" data-slot="${slot}" data-lane="${l}" title="${esc(LOL_POSITIONS[l])}" ${off ? 'disabled' : ''}>${laneIcon(l, 20)}<span>${esc(LOL_POSITIONS[l])}</span></button>`).join('')}</div>`;
+    return `<div class="lane-pick ${off ? 'off' : ''}">${LOL_LANE_OPTS.map(l => `<button type="button" class="lpk ${l === cur ? 'on' : ''}" data-lact="lane" data-slot="${slot}" data-lane="${l}" data-tip="${esc(LOL_POSITIONS[l])}" ${off ? 'disabled' : ''}>${laneIcon(l, 20)}<span>${esc(LOL_POSITIONS[l])}</span></button>`).join('')}</div>`;
   }
   // Einstellungsleiste: eigene Signatur, weil das Warteschlangen-Dropdown ein
   // eigenes Widget ist (makeDropdown) und nicht gemorpht werden kann.
@@ -9447,9 +9657,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   const LOL_NO_BAN_ICON = 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-champ-select/global/default/images/team-bans/icon-ban-small.png';
   function lolBanSlotHtml(s){
     const img = (id) => `<img src="${champIconUrl(id)}" alt="" loading="lazy">`;
-    if(s.state === 'done' && s.championId) return `<span class="ban-ic" title="${esc(lolChampName(s.championId))}">${img(s.championId)}</span>`;
-    if(s.state === 'none') return `<span class="ban-ic none" title="${esc(t('lol_no_ban'))}"><img src="${LOL_NO_BAN_ICON}" alt="" loading="lazy"></span>`;
-    if(s.state === 'active') return `<span class="ban-ic active"${s.championId ? ` title="${esc(lolChampName(s.championId))}"` : ''}>${s.championId ? img(s.championId) : ''}</span>`;
+    if(s.state === 'done' && s.championId) return `<span class="ban-ic" data-tip="${esc(lolChampName(s.championId))}">${img(s.championId)}</span>`;
+    if(s.state === 'none') return `<span class="ban-ic none" data-tip="${esc(t('lol_no_ban'))}"><img src="${LOL_NO_BAN_ICON}" alt="" loading="lazy"></span>`;
+    if(s.state === 'active') return `<span class="ban-ic active"${s.championId ? ` data-tip="${esc(lolChampName(s.championId))}"` : ''}>${s.championId ? img(s.championId) : ''}</span>`;
     return '<span class="ban-ic empty"></span>';
   }
   function lolBansHtml(bans){
@@ -9573,10 +9783,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function lolLaneBoardHtml(ally, enemy){
     const rows = lolPairLanes(ally, enemy).map((r, i) => {
       const d = r.a && r.e ? (r.a.cs || 0) - (r.e.cs || 0) : null;
-      const csd = d == null ? '' : `<span class="csd ${d > 0 ? 'up' : d < 0 ? 'down' : ''}" title="CS">${d > 0 ? '+' : ''}${d}</span>`;
+      const csd = d == null ? '' : `<span class="csd ${d > 0 ? 'up' : d < 0 ? 'down' : ''}" data-tip="CS">${d > 0 ? '+' : ''}${d}</span>`;
       return `<div class="lb-row">
         ${lolRowHtml(r.a, {key: 'l' + ((r.a && (r.a.puuid || r.a.name)) || 'a' + i), side: 'ally', live: true})}
-        <div class="lb-mid">${r.lane ? `<span class="lb-lane" title="${esc(LOL_POSITIONS[r.lane])}">${laneIcon(r.lane, 22)}</span>` : ''}${csd}</div>
+        <div class="lb-mid">${r.lane ? `<span class="lb-lane" data-tip="${esc(LOL_POSITIONS[r.lane])}">${laneIcon(r.lane, 22)}</span>` : ''}${csd}</div>
         ${lolRowHtml(r.e, {key: 'l' + ((r.e && (r.e.puuid || r.e.name)) || 'e' + i), side: 'enemy', live: true})}
       </div>`;
     }).join('');
@@ -9743,7 +9953,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           </div>
           <div class="lpf-pool">
             <div class="lc-lbl">${t('lol_champ_pool')}</div>
-            ${champs.map(c => `<div class="pool-row" title="${esc(t('games_and_winrate_title', {games: c.games, wr: c.winrate}))}">
+            ${champs.map(c => `<div class="pool-row" data-tip="${esc(t('games_and_winrate_title', {games: c.games, wr: c.winrate}))}">
               <img src="${champIconUrl(c.championId)}" alt="" loading="lazy">
               <div class="pool-mid"><div class="pool-name">${esc(lolChampName(c.championId))}<span>${c.games}×</span></div>
                 <div class="pool-bar"><i style="width:${(100 * c.games / maxGames).toFixed(0)}%;"></i></div></div>
@@ -9785,7 +9995,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev3";
+const CURRENT_VERSION = "2.5.0-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

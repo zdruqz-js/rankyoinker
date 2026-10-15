@@ -581,7 +581,7 @@
     "problem_report": "Relatar um problema",
     "problem_sub": "Descreva rapidamente o que não está funcionando e quando acontece. O relato vai direto para a equipe do RankYoinker.",
     "problem_placeholder": "O que aconteceu? Por exemplo: os ranks pararam de carregar depois da última atualização.",
-    "problem_contact_ph": "Nome no Discord ou e-mail para contato (opcional)",
+    "problem_contact_ph": "Discord ou e-mail (opcional)",
     "problem_attach_logs": "Anexar logs",
     "problem_attach_logs_hint": "As últimas linhas do log do RankYoinker, sem senhas e sem nomes de usuário do Windows. Ajuda muito a encontrar o erro.",
     "problem_preview": "O que é enviado?",

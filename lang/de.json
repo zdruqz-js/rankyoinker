@@ -582,7 +582,7 @@
     "problem_report": "Problem melden",
     "problem_sub": "Beschreib kurz, was nicht klappt und wann es passiert. Die Meldung geht direkt an das RankYoinker-Team.",
     "problem_placeholder": "Was ist passiert? Zum Beispiel: Ränge laden seit dem letzten Update nicht mehr.",
-    "problem_contact_ph": "Discord-Name oder E-Mail für Rückfragen (optional)",
+    "problem_contact_ph": "Discord oder E-Mail (optional)",
     "problem_attach_logs": "Logs anhängen",
     "problem_attach_logs_hint": "Die letzten Zeilen des RankYoinker-Logs, ohne Passwörter und Windows-Benutzernamen. Hilft sehr bei der Fehlersuche.",
     "problem_preview": "Was wird gesendet?",
