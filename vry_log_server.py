@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev4"
+APP_VERSION = "2.5.0-dev5"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1027,6 +1027,26 @@ def _ps_quote(value):
 
 
 UPDATE_PENDING_PATH = os.path.join(DATA_DIR, "rankyoinker-update-pending.json")
+# Gerade per Selbst-Update gekommen? (check_pending_update) - /status meldet es
+# 15 Minuten lang; eine auf dem PC im normalen Browser-Tab offene Seite oeffnet
+# daraufhin einmal das App-Fenster (/api/open-app), siehe updated_state().
+_just_updated = {}
+JUST_UPDATED_SECS = 15 * 60
+
+
+def updated_state():
+    if _just_updated and time.time() - _just_updated.get("at", 0) < JUST_UPDATED_SECS:
+        return {"from": _just_updated.get("from"), "to": _just_updated.get("to")}
+    return None
+
+
+def open_app_after_update():
+    """Einmal je Update das App-Fenster oeffnen (mehrere offene Tabs fragen evtl. alle)."""
+    if not updated_state() or _just_updated.get("opened"):
+        return {"ok": True, "opened": False}
+    _just_updated["opened"] = True
+    threading.Thread(target=open_overlay_window, daemon=True).start()
+    return {"ok": True, "opened": True}
 
 
 def _write_update_pending(version):
@@ -1057,6 +1077,7 @@ def check_pending_update():
     if not target or target == APP_VERSION:
         if target:
             _ulog("Update auf %s erfolgreich (laeuft jetzt)." % target)
+            _just_updated.update({"from": str(info.get("from") or ""), "to": APP_VERSION, "at": time.time()})
         return
     if time.time() - float(info.get("at") or 0) > 6 * 3600:
         return                                # uralt, nicht mehr aussagekraeftig
@@ -4891,31 +4912,75 @@ def _snapshot_tick(state, mid, now):
 
 # ============================ Eigenes App-Fenster am PC (2.5.0) ============================
 # Statt eines normalen Browser-Tabs oeffnet RankYoinker am PC ein eigenes
-# Fenster ohne Adressleiste: Edge (auf Windows 10/11 immer da) bzw. Chrome im
-# App-Modus (--app=<Adresse>). Gilt fuer Tray, Startmenue/Desktop-Symbol
-# (open_app.vbs -> "vry_log_server.py --open-app") und das Oeffnen nach der
-# Installation (setup/open_overlay.bat). Ohne Edge/Chrome: Standardbrowser.
+# Fenster ohne Adressleiste (App-Modus, --app=<Adresse>). Gilt fuer Tray,
+# Startmenue/Desktop-Symbol (open_app.vbs -> "vry_log_server.py --open-app")
+# und das Oeffnen nach der Installation (setup/open_overlay.bat).
+# Browser (seit 2.5.0-dev5): der STANDARDBROWSER des Nutzers, wenn er den
+# App-Modus kann (Chrome, Edge, Brave, Vivaldi, Chromium) - vorher war es
+# immer Edge, auch wenn Chrome der Standard war. Opera/Opera GX und Firefox
+# koennen kein App-Fenster (Opera oeffnet mit --app ein normales Fenster samt
+# aller alten Tabs, am PC eines Nutzers geprueft) - dann Chrome, sonst Edge
+# (auf Windows 10/11 immer da). Das Fenster hat trotzdem einen eigenen
+# Taskleisten-Knopf mit dem RankYoinker-Symbol.
 _APP_BROWSER_PATHS = (
-    r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
-    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
-    r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
     r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
     r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
     r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe",
+    r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+    r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
 )
+_APP_CAPABLE_EXES = ("chrome.exe", "msedge.exe", "brave.exe", "vivaldi.exe", "chromium.exe")
 APP_WINDOW_MARK = os.path.join(DATA_DIR, ".app_window")
 HOSTS_FILE = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "drivers", "etc", "hosts")
 DETACHED_PROCESS = 0x00000008
 
 
+def _exe_from_command(cmd):
+    """'"C:\\...\\chrome.exe" --single-argument %1' -> 'C:\\...\\chrome.exe'"""
+    m = re.match(r'\s*"([^"]+?\.exe)"', cmd or "", re.I) or re.match(r"\s*(.+?\.exe)\b", cmd or "", re.I)
+    return os.path.expandvars(m.group(1)) if m else None
+
+
+def _default_browser():
+    """(ProgId, exe) des Standardbrowsers aus der Windows-Zuordnung fuer https/http,
+    (None, None) wenn nicht ermittelbar."""
+    try:
+        import winreg
+    except ImportError:
+        return None, None
+    for proto in ("https", "http"):
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\Shell\Associations"
+                                r"\UrlAssociations\%s\UserChoice" % proto) as k:
+                progid = winreg.QueryValueEx(k, "ProgId")[0]
+        except OSError:
+            continue
+        if not progid:
+            continue
+        try:
+            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + r"\shell\open\command") as k:
+                return progid, _exe_from_command(winreg.QueryValue(k, None))
+        except OSError:
+            return progid, None
+    return None, None
+
+
 def _app_browser():
+    """Browser fuer das App-Fenster, None = keiner da (dann Standardbrowser normal)."""
+    try:
+        _, exe = _default_browser()
+    except Exception:
+        exe = None
+    if exe and os.path.basename(exe).lower() in _APP_CAPABLE_EXES and os.path.isfile(exe):
+        return exe
     for raw in _APP_BROWSER_PATHS:
         path = os.path.expandvars(raw)
         if "%" not in path and os.path.isfile(path):
             return path
     try:
         import winreg
-        for name in ("msedge.exe", "chrome.exe"):
+        for name in ("chrome.exe", "msedge.exe"):
             for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
                 try:
                     with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\%s" % name) as k:
@@ -4954,7 +5019,12 @@ def open_overlay_window(url=None):
     url = url or overlay_url()
     exe = _app_browser()
     if exe:
-        args = [exe, "--app=" + url]
+        # --no-first-run: ein nie benutzter Browser zeigt sonst seinen Einrichtungs-
+        # Assistenten statt des Fensters (wirkt nur, wenn er noch nicht laeuft)
+        # ?app=1: die Seite merkt daran, dass sie im eigenen Fenster laeuft (der
+        # Browser leitet die App-Identitaet nur aus Host + Pfad ab, nicht aus der Query)
+        app_url = url + ("&" if "?" in url else "?") + "app=1"
+        args = [exe, "--app=" + app_url, "--no-first-run", "--no-default-browser-check"]
         if not os.path.exists(APP_WINDOW_MARK):
             # Nur beim ersten Mal eine sinnvolle Groesse vorgeben - danach merkt
             # sich der Browser Groesse und Position des App-Fensters selbst.
@@ -7973,6 +8043,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path.startswith("/api/party/"):
             action = path.rsplit("/", 1)[-1]
             self._safe(lambda: party_action(action, body))
+        elif path == "/api/open-app":
+            if self._local_only():
+                self._safe(open_app_after_update)
         elif path == "/api/problem-report":
             self._safe(lambda: problem_report_send(body.get("text"), body.get("contact"), bool(body.get("logs"))))
         elif path == "/api/agent/select":
@@ -8229,7 +8302,7 @@ class Handler(BaseHTTPRequestHandler):
             # nicht — sie fragt /api/instalock nur, solange sie es selbst kennt.
             with _il_lock:
                 il = {"on": bool(_il["on"]), "gen": _il["gen"]}
-            out = {"appVersion": APP_VERSION,
+            out = {"appVersion": APP_VERSION, "updated": updated_state(),
                    "progress": parse_progress(lines), "game": game_state(),
                    "instalock": il, "activeGame": detect_active_game(),
                    "lol": lol_gamestate()}
