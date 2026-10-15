@@ -3886,9 +3886,11 @@ def _pregame_fetch():
     # und "Blue" (verteidigt). Nach der Halbzeit wird getauscht.
     team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
     side = {"red": "attack", "blue": "defense"}.get(team.lower())
+    # Karte als Riot-Pfad ("/game/maps/jam/jam"): vry.exe schickt in der Agentenauswahl
+    # keine, das Kopfbild blieb dort leer
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
-            "enemies": enemies, "side": side}
+            "enemies": enemies, "side": side, "map": (m.get("MapID") or "").lower() or None}
 
 
 UUID_RE = re.compile(
