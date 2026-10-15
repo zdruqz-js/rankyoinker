@@ -67,24 +67,36 @@ jobs:
               }
             }
           }
+          $sm = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\RankYoinker"
           # --- 1. alte Version ---
           Install (Get-ChildItem old\*.exe)[0].FullName
           DumpKeys "alt"
-          Check (Test-Path "$old\vry_log_server.py") "alte Version liegt in ProgramData"
-          Check (Test-Path $key32) "alte Version hat 32-Bit-Deinstallationseintrag"
-          '{"x":1}' | Set-Content "$old\vry_pair.json"
-          'boese' | Set-Content "$old\version.dll"
+          # Ab 2.4.2 liegt schon die alte Version in Program Files - dann ist es ein
+          # normales Update (z. B. 2.4.9 -> 2.5.0) ohne Umzug aus ProgramData.
+          $pfOld = (Test-Path "$new\vry_log_server.py") -and -not (Test-Path "$old\vry_log_server.py")
+          if ($pfOld) {
+            Write-Host "Alte Version liegt bereits in Program Files: Update-Test ohne Umzug"
+            Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue (alt): $($_.Name)" }
+            Check (Test-Path "$sm\Open overlay in browser.url") "alte Version hat die Browser-Verknuepfung"
+          } else {
+            Check (Test-Path "$old\vry_log_server.py") "alte Version liegt in ProgramData"
+            Check (Test-Path $key32) "alte Version hat 32-Bit-Deinstallationseintrag"
+            '{"x":1}' | Set-Content "$old\vry_pair.json"
+            'boese' | Set-Content "$old\version.dll"
+          }
 
           # --- 2. neue Version darueber ---
           Install (Get-ChildItem new\*.exe)[0].FullName
           DumpKeys "neu"
           Check (Test-Path "$new\vry_log_server.py") "neue Version liegt in Program Files"
           Check (Test-Path "$new\pythonw.exe") "pythonw.exe in Program Files"
-          Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
-          Check (-not (Test-Path "$old\version.dll")) "untergeschobene Datei entfernt"
-          Check (-not (Test-Path "$old\unins000.exe")) "alter Uninstaller entfernt"
-          Check (Test-Path "$old\vry_pair.json") "Altdaten (vor 2.3.14) bleiben fuer den Datenumzug liegen"
-          Check (-not (Test-Path $key32)) "alter 32-Bit-Deinstallationseintrag entfernt"
+          if (-not $pfOld) {
+            Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
+            Check (-not (Test-Path "$old\version.dll")) "untergeschobene Datei entfernt"
+            Check (-not (Test-Path "$old\unins000.exe")) "alter Uninstaller entfernt"
+            Check (Test-Path "$old\vry_pair.json") "Altdaten (vor 2.3.14) bleiben fuer den Datenumzug liegen"
+          }
+          Check (-not (Test-Path $key32)) "kein 32-Bit-Deinstallationseintrag"
           Check (Test-Path $key64) "64-Bit-Deinstallationseintrag vorhanden"
           if (Test-Path $key64) {
             $loc = (Get-ItemProperty $key64)."Inno Setup: App Path"
@@ -109,7 +121,6 @@ jobs:
 
           # --- 2b. App-Fenster (ab 2.5.0): Startmenue-Eintrag + "--open-app" ---
           if (Test-Path "$new\open_app.vbs") {
-            $sm = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\RankYoinker"
             Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue: $($_.Name)" }
             Check (Test-Path "$sm\Open RankYoinker.lnk") "Startmenue-Eintrag 'Open RankYoinker'"
             Check (-not (Test-Path "$sm\Open overlay in browser.url")) "alte Browser-Verknuepfung entfernt"
