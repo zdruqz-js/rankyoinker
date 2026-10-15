@@ -1958,7 +1958,9 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   .topbar{height:calc(var(--topbar-h) + env(safe-area-inset-top)); padding-top:env(safe-area-inset-top);}
 }
 .prob-box{max-width:520px; margin:auto;}
-.prob-text{height:120px; padding:12px 16px; resize:vertical; line-height:1.5; min-height:80px; max-height:40vh;}
+/* .ask-input (spaeter definiert, height 48px + padding 0 16px) gewann vorher: der Text
+   klebte oben am Rand, das Feld war nur 80 px hoch */
+.ask-input.prob-text{height:120px; padding:12px 16px; resize:vertical; line-height:1.5; min-height:96px; max-height:40vh;}
 #probContact{margin-top:10px;}
 .prob-consent{margin-top:12px;}
 .prob-consent .consent-txt small{display:block; margin-top:3px; font-family:var(--font-body); font-weight:400; font-size:12px; color:var(--text-3);}
@@ -2405,6 +2407,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-rdd-head .res.loss{background:color-mix(in srgb, var(--loss) 18%, transparent); color:var(--loss);}
 .rp-rdd-head .side{font-size:12.5px; color:var(--text-2);}
 .rp-rdd-head .cer{padding:3px 9px; border-radius:999px; font:800 10.5px var(--font-mono); letter-spacing:.08em; background:var(--grad-accent); color:var(--accent-ink);}
+.rp-rdd-head .cer.team{background:rgba(255,255,255,.08); color:var(--text);}
+.rp-rdd-head .cer.enemy{background:color-mix(in srgb, var(--loss) 14%, transparent); color:var(--loss);}
 .rp-rdd-head .score{margin-left:auto; font:750 15px var(--font-mono); color:var(--text-2); font-variant-numeric:tabular-nums;}
 .rp-rdd-body{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 14px; margin-top:14px;}
 .rp-rdd-body > div{min-width:0;}
@@ -2485,6 +2489,66 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 @media (prefers-reduced-motion: reduce){
   #reportView > *, .rp-hero-agent, .rp-ring .fg{animation:none;}
 }
+/* ================= League-Match-Analyse (2.5.0-dev17) ================= */
+#lolReportView{display:none; --g-s:#f5cf7a; --g-a:var(--win); --g-b:#6fb6ff; --g-c:#a7a59d; --g-d:var(--loss);}
+#appLeague.report-on #lolContent{display:none;}
+#appLeague.report-on #lolReportView{display:block; animation:panelIn .55s cubic-bezier(.22,1,.36,1) both;}
+#lolReportView > *{animation:rpUp .6s cubic-bezier(.22,1,.36,1) both;}
+#lolReportView > *:nth-child(2){animation-delay:.06s;} #lolReportView > *:nth-child(3){animation-delay:.12s;} #lolReportView > *:nth-child(4){animation-delay:.18s;}
+.lrp-hero .rp-bg{opacity:.62; background-position:72% 22%;}
+.lrp-hero .rp-hero-me{margin-right:0;}
+.lrp-objs .lrp-obj{display:grid; grid-template-columns:96px 26px minmax(0,1fr) 26px; align-items:center; gap:10px; padding:6px 0; font-size:13px;}
+.lrp-obj .lbl{color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.lrp-obj b{font:700 13px var(--font-mono); text-align:center; font-variant-numeric:tabular-nums;}
+.lrp-obj b.a{color:var(--ally);} .lrp-obj b.e{color:var(--enemy);}
+.lrp-obj .bar{height:7px; border-radius:7px; background:color-mix(in srgb, var(--enemy) 55%, transparent); overflow:hidden;}
+.lrp-obj .bar i{display:block; height:100%; background:var(--ally); border-radius:7px 0 0 7px;}
+/* Goldverlauf */
+.lrp-flow{display:grid; grid-template-columns:repeat(var(--n), minmax(0,1fr)); gap:3px; height:190px; align-items:stretch;}
+.lrp-m{position:relative; display:grid; grid-template-rows:1fr 18px 10px 14px; align-items:center; justify-items:center; gap:2px; padding:4px 0 2px; border:1px solid transparent;
+  border-radius:9px; background:transparent; color:var(--text-3); font:inherit; cursor:pointer; min-width:0; transition:background .18s, border-color .18s;}
+.lrp-m:hover{background:var(--surface-2);}
+.lrp-m.sel{background:color-mix(in srgb, var(--accent) 12%, transparent); border-color:var(--accent-line);}
+.lrp-m .col{position:relative; width:100%; height:100%;}
+.lrp-m .col::before{content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--line-2);}
+.lrp-m .bar{position:absolute; left:20%; right:20%; border-radius:3px; min-height:2px;}
+.lrp-m.up .bar{bottom:50%; background:linear-gradient(0deg, color-mix(in srgb, var(--win) 55%, transparent), var(--win));}
+.lrp-m.down .bar{top:50%; background:linear-gradient(180deg, color-mix(in srgb, var(--loss) 55%, transparent), var(--loss));}
+.lrp-m .ev{display:flex; gap:1px; height:16px; align-items:center;}
+.lrp-m .ev i{display:grid; place-items:center; width:13px; height:13px;} .lrp-m .ev svg{width:12px; height:12px;}
+.lrp-m .ev i.ally{color:var(--ally);} .lrp-m .ev i.enemy{color:var(--enemy);}
+.lrp-m .kd{display:flex; gap:2px; height:8px; align-items:center;}
+.lrp-m .kd b{width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 5px rgba(216,184,124,.8);}
+.lrp-m .kd u{width:5px; height:5px; border-radius:1px; background:var(--loss); text-decoration:none;}
+.lrp-m .n{font:600 9.5px var(--font-mono);}
+.lrp-m.sel .n{color:var(--accent);}
+.lrp-legend{margin-top:10px;} .lrp-legend .w i{background:var(--ally); border:0;} .lrp-legend .l i{background:var(--enemy); border:0;}
+.lrp-flowcard .rp-rd-detail{margin-top:14px;}
+.rp-rdd-body > .wide{grid-column:1 / -1;}
+.lrp-evs{flex-wrap:wrap; gap:6px !important;}
+.lrp-evt{display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 7px; border-radius:999px; font:600 12px var(--font-body); background:var(--surface-3);}
+.lrp-evt svg{width:13px; height:13px;} .lrp-evt.ally{color:var(--ally);} .lrp-evt.enemy{color:var(--enemy);}
+/* Scoreboard */
+.lrp-champ{position:relative; flex-shrink:0;}
+.lrp-champ img{width:32px; height:32px; border-radius:9px; background:var(--bg-3); display:block;}
+.lrp-champ b{position:absolute; right:-4px; bottom:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:6px; background:#0d0d10; border:1px solid var(--line-3);
+  font:700 9.5px/14px var(--font-mono); text-align:center; color:var(--text-2);}
+.rp-table tr.me .lrp-champ img{box-shadow:0 0 0 2px var(--accent);}
+.lrp-role{display:grid; place-items:center; color:var(--text-3); flex-shrink:0;}
+.lrp-table th:last-child{width:196px;} .lrp-table td.lrp-items{text-align:right; white-space:nowrap;}
+.lrp-it{display:inline-block; width:22px; height:22px; border-radius:5px; margin-left:2px; vertical-align:middle; background:var(--surface-3);}
+.lrp-it.empty{border:1px dashed var(--line-2); background:transparent;}
+.lrp-it.trinket{border-radius:50%; margin-left:6px;}
+.lrp-dmg{position:relative; display:inline-flex; align-items:center; justify-content:flex-end; min-width:70px; padding:2px 6px; border-radius:6px; overflow:hidden; isolation:isolate;}
+.lrp-dmg i{position:absolute; left:0; top:0; bottom:0; z-index:-1; background:color-mix(in srgb, var(--loss) 26%, transparent); border-radius:6px;}
+@media (max-width:640px){
+  .lrp-table{min-width:820px;}
+  .lrp-flow{height:150px; gap:2px;}
+  .lrp-m{grid-template-rows:1fr 16px 8px 12px; border-radius:6px;}
+  .lrp-m .ev i{width:10px; height:10px;} .lrp-m .ev svg{width:9px; height:9px;}
+  .lrp-objs .lrp-obj{grid-template-columns:84px 22px minmax(0,1fr) 22px; gap:8px;}
+}
+@media (prefers-reduced-motion: reduce){ #lolReportView > *{animation:none;} }
 /* ueber der unteren Tab-Leiste (Tablet/Handy) */
 @media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
 </style>
@@ -2625,6 +2689,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
 <main id="appLeague">
   <div id="lolContent" class="tabpanel active"></div>
+  <div id="lolReportView"></div>
+  <button type="button" class="report-reopen" id="lolReportReopen" hidden></button>
   <div id="lolPanelPresets" class="tabpanel"></div>
   <div id="lolPanelHistory" class="tabpanel"></div>
 </main>
@@ -5321,7 +5387,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       </tr></thead><tbody>${list.map(rpRow).join('')}</tbody></table></div>`;
   }
   // Lobby-Leiste: alle Spieler nach Rating auf einer Achse, Mitte = Lobby-Schnitt
-  function rpLobbyStrip(r){
+  function rpLobbyStrip(r, pic){
+    // pic(p) -> {name, icon}; ohne Angabe VALORANT-Agent
+    pic = pic || (p => { const a = rpAgent(p.agent); return {name: a.name, icon: a.info && a.info.icon}; });
     const ps = r.players.filter(p => p.rating != null && !isNaN(p.rating));
     if(ps.length < 2) return '';
     const lo = Math.min(0.5, ...ps.map(p => p.rating)), hi = Math.max(1.5, ...ps.map(p => p.rating));
@@ -5330,10 +5398,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     // rpLayoutStrip() nach dem Einfuegen fest (echte Breite, keine Ueberlappung).
     const placed = ps.slice().sort((a, b) => a.rating - b.rating).map(p => ({p, px: Number(x(p.rating))}));
     const dots = placed.sort((a, b) => (a.p.me ? 1 : 0) - (b.p.me ? 1 : 0)).map(({p, px}) => {
-      const a = rpAgent(p.agent);
+      const a = pic(p);
       const who = p.name || t('unknown_short');
       const line = t('report_col_perf') + ' ' + rpGrade(p.rating) + ' · ' + rpPerfLine(p.rating) + (a.name ? '\n' + a.name : '');
-      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;" data-tip-head="${esc(p.me ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="" loading="lazy">` : ''}</span>`;
+      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;" data-tip-head="${esc(p.me ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${a.icon ? `<img src="${esc(a.icon)}" alt="" loading="lazy">` : ''}</span>`;
     }).join('');
     return `<div class="rp-lstrip">
       <div class="rp-ls-track"><span class="rp-ls-avg" style="left:${x(1)}%"><i></i><em>${esc(t('report_lobby_avg'))}</em></span>${dots}</div>
@@ -5343,8 +5411,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Kreise der Lobby-Leiste ohne Ueberlappung auslegen (Beeswarm): du in der Mitte,
   // die anderen von links nach rechts so nah an der Mittellinie wie moeglich. Wird
   // es eng, wird die Leiste hoeher. Braucht die echte Breite -> nach dem Einfuegen.
-  function rpLayoutStrip(){
-    const track = document.querySelector('#reportView .rp-ls-track');
+  function rpLayoutStrip(root){
+    const track = (root && root.querySelector ? root : document.getElementById('reportView')).querySelector('.rp-ls-track');
     const W = track ? track.clientWidth : 0;
     if(!W) return;
     const items = [...track.querySelectorAll('.rp-ls-dot')].map(d => ({d, x: parseFloat(d.style.left) / 100 * W, r: d.offsetWidth / 2, me: d.classList.contains('me')}));
@@ -5367,7 +5435,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     track.style.height = Math.max(48, Math.ceil(maxY * 2 + 12)) + 'px';
   }
   let rpStripTimer = 0;
-  window.addEventListener('resize', () => { clearTimeout(rpStripTimer); rpStripTimer = setTimeout(rpLayoutStrip, 120); });
+  window.addEventListener('resize', () => { clearTimeout(rpStripTimer); rpStripTimer = setTimeout(() => { rpLayoutStrip(); rpLayoutStrip(document.getElementById('lolReportView')); }, 120); });
   // Spielverlauf: je Halbzeit eine Reihe Runden-Kacheln (gruen = gewonnen, rot =
   // verloren), darin wie die Runde endete und deine Kills als Punkte. Ace/Clutch mit
   // Goldrand. Runde antippen oder zeigen -> Details daneben (am Handy darunter).
@@ -5379,13 +5447,28 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(2 * h < tl.length) rows.push({key: 'report_overtime', from: 2 * h, to: tl.length, ot: true});
     return {rows, cols: h};
   }
+  // Zeremonien gehoeren dem Team, das die Runde gewinnt (live gesehen: der
+  // "Flawless" einer verlorenen Runde war der des Gegners). Goldrand und ACE/CLUTCH
+  // nur fuer eigene Leistung: 4K/Ace bzw. der eigene Clutch aus players[].clutches.
+  const RP_CER_LABEL = {ace: 'ACE', teamace: 'TEAM ACE', clutch: 'CLUTCH', flawless: 'FLAWLESS', thrifty: 'THRIFTY'};
+  function rpMyClutch(r, rd){
+    const me = (r.players || []).find(p => p.me);
+    return !!(me && rd.win === 'ally' && (me.clutches || []).some(c => c.round === rd.n));
+  }
+  function rpRoundCer(r, rd){
+    if(rd.win === 'ally' && (rd.myKills || 0) >= 5) return {label: 'ACE', kind: 'own'};
+    if(rpMyClutch(r, rd)) return {label: 'CLUTCH', kind: 'own'};
+    const label = RP_CER_LABEL[rd.ceremony];
+    if(!label) return null;
+    return {label, kind: rd.win === 'enemy' ? 'enemy' : 'team'};
+  }
   function rpFlow(r){
     const tl = r.timeline || [];
     if(!tl.length) return '';
     const {rows, cols} = rpFlowRows(tl);
     const tile = (rd, i) => {
       const k = Math.min(5, rd.myKills || 0);
-      const cer = rd.ceremony === 'ace' || rd.ceremony === 'clutch' || (rd.myKills || 0) >= 4;
+      const cer = (rd.myKills || 0) >= 4 || rpMyClutch(r, rd);
       return `<button type="button" class="rp-rt ${rd.win} ${cer ? 'cer' : ''}" data-rd="${i}" aria-label="${esc(t('report_round_n', {n: rd.n}))}">
         <span class="n">${rd.n}</span><span class="ic">${RP_HOW_ICON[rd.how] || ''}</span><span class="pk">${'<i></i>'.repeat(k)}</span></button>`;
     };
@@ -5412,13 +5495,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     let a = 0, e = 0;
     tl.slice(0, i + 1).forEach(x => { if(x.win === 'ally') a++; else if(x.win === 'enemy') e++; });
     const res = rd.win === 'ally' ? `<span class="res win">${esc(t('report_rd_won'))}</span>` : rd.win === 'enemy' ? `<span class="res loss">${esc(t('report_rd_lost'))}</span>` : '';
-    const cer = rd.ceremony === 'ace' || (rd.myKills || 0) >= 5 ? 'ACE' : rd.ceremony === 'clutch' ? 'CLUTCH' : rd.ceremony === 'flawless' || rd.ceremony === 'teamace' ? 'FLAWLESS' : '';
+    const cer = rpRoundCer(r, rd);
     const buy = RP_BUY[rd.buy] && RP_BUY[rd.enemyBuy] ? t('report_rd_econ', {a: RP_BUY[rd.buy], b: RP_BUY[rd.enemyBuy]}) : (RP_BUY[rd.buy] || '');
     const pips = '<i></i>'.repeat(Math.min(5, rd.myKills || 0));
     return `<div class="rp-rdd-head">
         <b>${esc(t('report_round_n', {n: rd.n}))}</b>${res}
         <span class="side">${esc(t(rd.side === 'atk' ? 'report_attack' : 'report_defense'))}</span>
-        ${cer ? `<span class="cer">${cer}</span>` : ''}
+        ${cer ? `<span class="cer ${cer.kind === 'own' ? '' : cer.kind}">${cer.kind === 'enemy' ? esc(t('enemies')) + ' · ' : ''}${cer.label}</span>` : ''}
         <span class="score">${a} : ${e}</span>
       </div>
       <div class="rp-rdd-body">
@@ -5433,7 +5516,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const tl = r.timeline || [];
     let best = tl.length - 1, bestScore = -1;
     tl.forEach((rd, i) => {
-      const sc = (rd.ceremony === 'ace' ? 10 : rd.ceremony === 'clutch' ? 8 : 0) + (rd.myKills || 0) * 2 + (rd.win === 'ally' ? 1 : 0);
+      const sc = (rpMyClutch(r, rd) ? 8 : 0) + (rd.myKills || 0) * 2 + (rd.win === 'ally' ? 1 : 0);
       if(sc > bestScore){ bestScore = sc; best = i; }
     });
     return best;
@@ -5447,13 +5530,16 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const det = document.getElementById('rpRdDetail');
     if(det) det.innerHTML = rpRoundDetail(reportData, i);
   }
-  function rpScrollHints(){
-    document.querySelectorAll('#reportView .rp-table-wrap').forEach(el => {
+  // ohne root: beide Analysen (VALORANT + League); als Listener nie direkt
+  // uebergeben, sonst kommt das Event als root an
+  function rpScrollHints(root){
+    const roots = root && root.querySelectorAll ? [root] : [document.getElementById('reportView'), document.getElementById('lolReportView')];
+    roots.forEach(r => r && r.querySelectorAll('.rp-table-wrap').forEach(el => {
       el.classList.toggle('can-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-    });
+    }));
   }
-  document.getElementById('reportView').addEventListener('scroll', rpScrollHints, true);
-  window.addEventListener('resize', rpScrollHints);
+  ['reportView', 'lolReportView'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('scroll', e => rpScrollHints(el), true); });
+  window.addEventListener('resize', () => rpScrollHints());
   function reportHtml(r){
     const me = r.players.find(p => p.me) || {};
     const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
@@ -5584,7 +5670,39 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     x.beginPath();
     if(x.roundRect) x.roundRect(X, Y, w, hh, rad); else x.rect(X, Y, w, hh);
   }
-  function rpDrawBanner(c, r, bg, portrait){
+  // Inhalt des Banners, fuer beide Spiele gleich aufgebaut (rpDrawBanner zeichnet nur)
+  function rpBannerModel(r){
+    const me = r.players.find(p => p.me) || {};
+    if(r.game === 'lol'){
+      const champ = lolChampName(me.championId) || '';
+      const res = r.result;
+      const kfmt = v => v >= 1000 ? (Math.round(v / 100) / 10).toLocaleString(LOCALE) + 'k' : String(v);
+      return {res, kind: 'lol',
+        eyebrow: [t('report_title'), lolMapName(r.mapId), lolReportQueue(r.queueId)],
+        resLabel: t(res === 'win' ? 'report_victory' : res === 'remake' ? 'lol_report_remake' : 'report_defeat'),
+        score: {a: r.score.ally, e: r.score.enemy},
+        name: me.name || '', mvp: me.mvp, sub: [champ, me.role && LOL_POSITIONS[me.role]].filter(Boolean).join('  ·  '),
+        kda: [me.kills, me.deaths, me.assists],
+        stats: [['CS', String(me.cs)], ['GOLD', kfmt(me.gold || 0)], [t('lol_stat_dmg_short').toUpperCase(), kfmt(me.dmg || 0)], ['KP', (me.kp || 0) + '%']],
+        tint: '#c8aa6e', bgUrl: lolChampSplash(me.championId), portraitUrl: null, splash: true,
+        tagline: t('lol_banner_tagline'), fileBase: [champ, r.score.ally + '-' + r.score.enemy]};
+    }
+    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
+    const ag = rpAgent(me.agent);
+    const res = r.ffa ? (r.score.place === 1 ? 'win' : 'loss') : r.result;
+    return {res, kind: 'val',
+      eyebrow: [t('report_title'), mi ? mi.name : '', QUEUE_NAMES[r.queue] || r.queue || ''],
+      resLabel: r.ffa ? t('report_place', {n: r.score.place, of: r.score.of})
+        : t(r.result === 'win' ? 'report_victory' : r.result === 'loss' ? 'report_defeat' : 'report_draw'),
+      score: r.ffa ? {ffa: true, a: r.score.ally} : {a: r.score.ally, e: r.score.enemy},
+      name: me.name || '', mvp: me.mvp, sub: [ag.name, ag.info && ag.info.role].filter(Boolean).join('  ·  '),
+      kda: [me.kills, me.deaths, me.assists],
+      stats: [['ACS', rpNum(me.acs)], ['ADR', rpNum(me.adr)], ['HS%', me.hs == null ? '—' : rpNum(me.hs) + '%'], ['KAST', me.kast == null ? '—' : me.kast + '%']],
+      tint: ag.info && ag.info.tint, bgUrl: mi && mi.splash, portraitUrl: ag.info && ag.info.portrait, splash: false,
+      tagline: t('report_banner_tagline'),
+      fileBase: [mi && mi.name, r.ffa ? '#' + r.score.place : r.score.ally + '-' + r.score.enemy]};
+  }
+  function rpDrawBanner(c, m, bg, portrait){
     const W = RP_BANNER_W, H = RP_BANNER_H, x = c.getContext('2d');
     const css = getComputedStyle(document.getElementById('reportView') || document.documentElement);
     const col = (n, f) => (css.getPropertyValue(n) || '').trim() || f;
@@ -5592,16 +5710,20 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const withA = (c, a) => /^#[0-9a-f]{6}$/i.test(c) ? c + Math.round(a * 255).toString(16).padStart(2, '0') : c;
     const WIN = col('--win', '#3ddc84'), LOSS = col('--loss', '#ff6b7a'), DRAW = col('--draw', '#9a9a95'), ACC = col('--accent', '#d8b87c');
     const DISP = '"Inter Tight", Inter, system-ui, sans-serif', BODY = 'Inter, system-ui, sans-serif', MONO = '"Geist Mono", ui-monospace, Consolas, monospace';
-    const me = r.players.find(p => p.me) || {};
-    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
-    const ag = rpAgent(me.agent);
-    const res = r.ffa ? (r.score.place === 1 ? 'win' : 'loss') : r.result;
+    const res = m.res;
     const RES = res === 'win' ? WIN : res === 'loss' ? LOSS : DRAW;
-    const tint = (ag.info && ag.info.tint) || ACC;
+    const tint = m.tint || ACC;
     const spacing = v => { try{ x.letterSpacing = v; }catch(e){} };
     x.clearRect(0, 0, W, H);
     x.fillStyle = '#0a0a0c'; x.fillRect(0, 0, W, H);
-    if(bg){
+    if(bg && m.splash){
+      // League: der Champion-Splash ist das Bild - rechts betont, links dunkel
+      const s = Math.max(W * .82 / bg.naturalWidth, H / bg.naturalHeight);
+      const bw = bg.naturalWidth * s, bh = bg.naturalHeight * s;
+      x.globalAlpha = .9;
+      x.drawImage(bg, W * .66 - bw / 2, (H - bh) / 2, bw, bh);   // Mitte bei 66 %, rechts bis zum Rand
+      x.globalAlpha = 1;
+    } else if(bg){
       const s = Math.max(W / bg.naturalWidth, H / bg.naturalHeight);
       x.globalAlpha = .55;
       x.drawImage(bg, (W - bg.naturalWidth * s) / 2, (H - bg.naturalHeight * s) / 2, bg.naturalWidth * s, bg.naturalHeight * s);
@@ -5628,54 +5750,52 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     x.textBaseline = 'alphabetic'; x.textAlign = 'left';
     // Kopfzeile: Punkt + MATCH-ANALYSE · KARTE · MODUS
     x.fillStyle = RES; x.beginPath(); x.arc(X0 + 8, 92, 8, 0, Math.PI * 2); x.fill();
-    const eyebrow = [t('report_title'), mi ? mi.name : '', QUEUE_NAMES[r.queue] || r.queue || ''].filter(Boolean).join('  ·  ').toUpperCase();
+    const eyebrow = m.eyebrow.filter(Boolean).join('  ·  ').toUpperCase();
     spacing('5px'); x.font = `600 24px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.78)';
     x.fillText(eyebrow, X0 + 30, 101);
     spacing('0px');
     // Ergebnis + Punktestand
-    const resLabel = (r.ffa ? t('report_place', {n: r.score.place, of: r.score.of})
-      : t(r.result === 'win' ? 'report_victory' : r.result === 'loss' ? 'report_defeat' : 'report_draw')).toUpperCase();
+    const resLabel = m.resLabel.toUpperCase();
     rpFitFont(x, resLabel, 900, 150, DISP, 780);
     x.save(); x.shadowColor = withA(RES, .55); x.shadowBlur = 60; x.fillStyle = RES; x.fillText(resLabel, X0 - 4, 262); x.restore();
     let sx = X0;
     const part = (txt, font, color) => { x.font = font; x.fillStyle = color; x.fillText(txt, sx, 380); sx += x.measureText(txt).width; };
-    if(r.ffa){
-      part(String(r.score.ally), `850 104px ${DISP}`, '#f5f5f2');
+    if(m.score.ffa){
+      part(String(m.score.a), `850 104px ${DISP}`, '#f5f5f2');
       part('  ' + t('report_kills_word'), `600 34px ${BODY}`, 'rgba(245,245,242,.6)');
     } else {
-      part(String(r.score.ally), `850 104px ${DISP}`, res === 'win' ? WIN : '#f5f5f2');
+      part(String(m.score.a), `850 104px ${DISP}`, res === 'win' ? WIN : '#f5f5f2');
       part('  :  ', `700 70px ${DISP}`, 'rgba(245,245,242,.4)');
-      part(String(r.score.enemy), `850 104px ${DISP}`, res === 'loss' ? LOSS : 'rgba(245,245,242,.7)');
+      part(String(m.score.e), `850 104px ${DISP}`, res === 'loss' ? LOSS : 'rgba(245,245,242,.7)');
     }
     // Trennlinie
     g = x.createLinearGradient(X0, 0, X0 + 760, 0);
     g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = g; x.fillRect(X0, 428, 760, 2);
     // Name (+ MVP), Agent · Rolle
-    const name = me.name || '';
+    const name = m.name;
     const nsz = rpFitFont(x, name, 800, 56, DISP, 560);
     x.fillStyle = '#f5f5f2'; x.fillText(name, X0, 506);
-    if(me.mvp){
-      const lab = me.mvp === 'team' ? 'TEAM MVP' : 'MVP';
+    if(m.mvp){
+      const lab = m.mvp === 'team' ? 'TEAM MVP' : 'MVP';
       const nw = x.measureText(name).width;
       spacing('3px'); x.font = `800 20px ${MONO}`;
       const bw = x.measureText(lab).width + 34, bx = X0 + nw + 22, by = 506 - nsz * .72;
       rpRoundRect(x, bx, by, bw, 38, 19);
-      if(me.mvp === 'team'){ x.fillStyle = 'rgba(255,255,255,.14)'; x.fill(); x.fillStyle = '#f5f5f2'; }
+      if(m.mvp === 'team'){ x.fillStyle = 'rgba(255,255,255,.14)'; x.fill(); x.fillStyle = '#f5f5f2'; }
       else { g = x.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#f3d79c'); g.addColorStop(1, ACC); x.fillStyle = g; x.fill(); x.fillStyle = '#1b1408'; }
       x.fillText(lab, bx + 17, by + 26);
       spacing('0px');
     }
     x.font = `500 28px ${BODY}`; x.fillStyle = 'rgba(245,245,242,.62)';
-    x.fillText([ag.name, ag.info && ag.info.role].filter(Boolean).join('  ·  '), X0, 552);
+    x.fillText(m.sub, X0, 552);
     // K / D / A
     sx = X0;
     const kda = (txt, color) => { x.font = `850 84px ${DISP}`; x.fillStyle = color; x.fillText(txt, sx, 664); sx += x.measureText(txt).width; };
-    kda(String(me.kills), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.deaths), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.assists), '#f5f5f2');
+    kda(String(m.kda[0]), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(m.kda[1]), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(m.kda[2]), '#f5f5f2');
     spacing('4px'); x.font = `600 20px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText('K / D / A', X0, 698); spacing('0px');
     // Werte
-    const stats = [['ACS', rpNum(me.acs)], ['ADR', rpNum(me.adr)], ['HS%', me.hs == null ? '—' : rpNum(me.hs) + '%'], ['KAST', me.kast == null ? '—' : me.kast + '%']];
-    stats.forEach(([lbl, val], i) => {
+    m.stats.forEach(([lbl, val], i) => {
       const bx = X0 + i * 190;
       spacing('4px'); x.font = `600 19px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText(lbl, bx, 752); spacing('0px');
       x.font = `800 44px ${DISP}`; x.fillStyle = '#f5f5f2'; x.fillText(val, bx, 800);
@@ -5701,7 +5821,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     x.save(); x.shadowColor = 'rgba(255,70,85,.55)'; x.shadowBlur = 26; rpRoundRect(x, lx, ly, 74, 74, 22); x.fillStyle = g; x.fill(); x.restore();
     x.textAlign = 'center'; x.font = `900 50px ${DISP}`; x.fillStyle = '#140a0b'; x.fillText('Y', lx + 37, ly + 55);
     x.textAlign = 'right'; x.font = `600 21px ${BODY}`; x.fillStyle = 'rgba(245,245,242,.82)';
-    x.fillText(t('report_banner_tagline'), W - 70, by - 66);
+    x.fillText(m.tagline, W - 70, by - 66);
     x.textAlign = 'left';
   }
   async function rpBannerBlob(r){
@@ -5709,42 +5829,39 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       await Promise.all(['900 150px "Inter Tight"', '850 104px "Inter Tight"', '800 56px "Inter Tight"', '600 24px "Geist Mono"', '500 28px Inter']
         .map(f => document.fonts && document.fonts.load ? document.fonts.load(f) : null));
     }catch(e){}
-    const me = r.players.find(p => p.me) || {};
-    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
-    const ag = rpAgent(me.agent);
-    const [bg, portrait] = await Promise.all([rpLoadImg(mi && mi.splash), rpLoadImg(ag.info && ag.info.portrait)]);
+    const m = rpBannerModel(r);
+    const [bg, portrait] = await Promise.all([rpLoadImg(m.bgUrl), rpLoadImg(m.portraitUrl)]);
     const c = document.createElement('canvas');
     c.width = RP_BANNER_W; c.height = RP_BANNER_H;
     const toBlob = () => new Promise((res, rej) => { try{ c.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/png'); }catch(e){ rej(e); } });
-    rpDrawBanner(c, r, bg, portrait);
+    rpDrawBanner(c, m, bg, portrait);
     try{ return await toBlob(); }
-    catch(e){ rpDrawBanner(c, r, null, null); return await toBlob(); }   // Bild ohne CORS-Freigabe -> ohne Bilder
+    catch(e){ rpDrawBanner(c, m, null, null); return await toBlob(); }   // Bild ohne CORS-Freigabe -> ohne Bilder
   }
   (function initShare(){
     const wrap = document.getElementById('shareWrap');
     if(!wrap) return;
     const $ = id => document.getElementById(id);
-    let blob = null, url = null, busy = false;
+    let blob = null, url = null, busy = false, cur = null;
     const hint = (txt, good) => { $('shareHint').textContent = txt || ''; $('shareHint').classList.toggle('prob-hint-ok', !!good); };
     $('shareSave').innerHTML = svgIcon('download', 14) + esc(t('report_share_save'));
     $('shareCopy').innerHTML = svgIcon('copy', 14) + esc(t('report_share_copy'));
     $('shareNative').innerHTML = svgIcon('share', 14) + esc(t('report_share_native'));
     const fileName = () => {
-      const r = reportData || {};
-      const mi = mapInfo[String(r.map || '').toLowerCase()];
-      const sc = r.score ? (r.ffa ? '#' + r.score.place : r.score.ally + '-' + r.score.enemy) : '';
-      return ('RankYoinker-' + [mi && mi.name, sc].filter(Boolean).join('-')).replace(/[^\w.#-]+/g, '_') + '.png';
+      let base = [];
+      try{ base = cur ? rpBannerModel(cur).fileBase : []; }catch(e){}
+      return ('RankYoinker-' + base.filter(Boolean).join('-')).replace(/[^\w.#-]+/g, '_') + '.png';
     };
     const fileOf = () => new File([blob], fileName(), {type: 'image/png'});
     function close(){ wrap.classList.remove('open'); }
-    async function open(){
-      if(!reportData || busy) return;
-      busy = true;
+    async function open(report){
+      if(!report || busy) return;
+      busy = true; cur = report;
       wrap.classList.add('open');
       hint('');
       $('sharePrev').innerHTML = '<span class="spin"></span>';
       ['shareSave', 'shareCopy', 'shareNative'].forEach(id => { $(id).disabled = true; });
-      try{ blob = await rpBannerBlob(reportData); }catch(e){ blob = null; }
+      try{ blob = await rpBannerBlob(report); }catch(e){ blob = null; }
       busy = false;
       if(!blob){ $('sharePrev').textContent = ''; hint(t('report_share_fail')); return; }
       if(url) URL.revokeObjectURL(url);
@@ -5758,7 +5875,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       $('shareNative').hidden = !canShare;
       $('shareNative').disabled = false;
     }
-    document.getElementById('reportView').addEventListener('click', e => { if(e.target.closest('[data-report-share]')) open(); });
+    document.getElementById('reportView').addEventListener('click', e => { if(e.target.closest('[data-report-share]')) open(reportData); });
+    window.ryOpenShare = open;
     $('shareClose').addEventListener('click', close);
     wrap.addEventListener('click', e => { if(e.target === wrap) close(); });
     document.addEventListener('keydown', e => { if(e.key === 'Escape' && wrap.classList.contains('open')) close(); });
@@ -8155,6 +8273,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     document.querySelectorAll('#lolTabs .tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-ltab') === name));
     Object.entries(LOL_PANELS).forEach(([k, id]) => document.getElementById(id).classList.toggle('active', k === name));
     moveLolPill();
+    updateLolReportView(lolLastState);
     if(name === 'history') renderLolHistory();
     else if(name === 'presets') renderLolPresetsTab();
   }
@@ -8212,6 +8331,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       if(pl.innerHTML !== html) pl.innerHTML = html;
     }
     if(!lolSelfPuuid) loadLolSelf();
+    syncLolReport(gs, state);
     // Stände für die Schnellschalter in der Kopfleiste
     if(state !== 'OFFLINE'){
       if(!lolPresets) loadLolPresets();
@@ -8226,6 +8346,269 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     else if(state === 'READYCHECK') renderLolReadyCheck(state);
     else renderLolLobby(state);
   }
+
+  // ================= LEAGUE-MATCH-ANALYSE (2.5.0-dev17) =================
+  // Wie bei VALORANT: Nach dem Spiel zeigt der Live-Reiter statt der Lobby die
+  // Auswertung (Dienst: _lol_report_from_game, /api/lol/match-report), bis "Zur
+  // Lobby" oder das naechste Spiel. In Queue/Ready-Check kommt die Live-Ansicht
+  // zurueck, damit man den Ready-Check sieht.
+  const LOL_REPORT_DISMISS_KEY = 'ry_lol_report_dismissed';
+  let lolReportData = null, lolReportLoading = false, lolReportRendered = '';
+  const LOL_QUEUE_FALLBACK = {420: 'Ranked Solo/Duo', 440: 'Ranked Flex', 400: 'Normal Draft', 430: 'Normal Blind', 490: 'Quickplay', 450: 'ARAM', 900: 'URF', 1900: 'URF'};
+  const LOL_MULTI = {2: 'Double Kill', 3: 'Triple Kill', 4: 'Quadra Kill', 5: 'Pentakill'};
+  function lolReportQueue(id){ return (typeof lolQueueName === 'function' && lolQueueName(id)) || LOL_QUEUE_FALLBACK[id] || ''; }
+  function lolMapName(id){ return id === 11 ? "Summoner's Rift" : id === 12 ? 'Howling Abyss' : ''; }
+  function lolKfmt(v){ return v >= 1000 ? (Math.round(v / 100) / 10).toLocaleString(LOCALE) + 'k' : String(v || 0); }
+  function lolReportDismissed(){ try{ return localStorage.getItem(LOL_REPORT_DISMISS_KEY); }catch(e){ return null; } }
+  function syncLolReport(gs, state){
+    const rs = gs && gs.report;
+    if(rs && !rs.gameId && lolReportData){ lolReportData = null; lolReportRendered = ''; }
+    if(rs && rs.gameId && (!lolReportData || String(lolReportData.gameId) !== String(rs.gameId)) && !lolReportLoading){
+      lolReportLoading = true;
+      api('/api/lol/match-report').catch(apiFail).then(j => {
+        lolReportLoading = false;
+        if(j && j.ok && j.report){ lolReportData = j.report; lolReportRendered = ''; updateLolReportView(lolLastState); }
+      });
+    }
+    updateLolReportView(state);
+  }
+  function updateLolReportView(state){
+    const app = document.getElementById('appLeague'), view = document.getElementById('lolReportView'), reopen = document.getElementById('lolReportReopen');
+    if(!app || !view || !reopen) return;
+    const r = lolReportData;
+    const own = !!r && (!lolSelfPuuid || !r.puuid || r.puuid === lolSelfPuuid);
+    const idle = state === 'LOBBY' || state === 'NONE' || state === 'POSTGAME';
+    const avail = own && idle && lolTab === 'live';
+    const dismissed = avail && lolReportDismissed() === String(r.gameId);
+    const show = avail && !dismissed;
+    if(show){
+      const key = String(r.gameId);
+      if(key !== lolReportRendered){
+        lolReportRendered = key;
+        Promise.all([loadLolChampions().catch(() => null), loadLolGameData().catch(() => null)]).then(([, gd]) => {
+          if(lolReportRendered !== key || !lolReportData) return;
+          view.innerHTML = lolReportHtml(lolReportData, gd);
+          lolSelectMinute(lolDefaultMinute(lolReportData));
+          requestAnimationFrame(() => { rpLayoutStrip(view); rpScrollHints(view); });
+        });
+      }
+    }
+    if(app.classList.contains('report-on') !== show) app.classList.toggle('report-on', show);
+    reopen.hidden = !(avail && dismissed);
+    if(!reopen.hidden && !reopen.innerHTML) reopen.innerHTML = `${svgIcon('chart', 14)}<span>${esc(t('report_reopen'))}</span>`;
+  }
+  function lolItemImg(gd, id, cls){
+    if(!id) return `<span class="lrp-it empty ${cls || ''}"></span>`;
+    const it = gd && gd.itemById ? gd.itemById[id] : null;
+    return it ? `<img class="lrp-it ${cls || ''}" src="${esc(cdAsset(it.iconPath))}" alt="" data-tip="${esc(it.name || '')}" loading="lazy">` : `<span class="lrp-it empty ${cls || ''}"></span>`;
+  }
+  // Goldverlauf: je Minute (am Handy zusammengefasst) eine Saeule - nach oben =
+  // dein Team vorne, nach unten = Gegner vorne; darunter Ereignisse und deine Kills
+  function lolFlowBuckets(r){
+    const tl = r.timeline || [];
+    if(tl.length < 3) return [];
+    const step = Math.max(1, Math.ceil(tl.length / (window.innerWidth < 640 ? 18 : 40)));
+    const out = [];
+    for(let i = 0; i < tl.length; i += step){
+      const part = tl.slice(i, i + step), last = part[part.length - 1];
+      out.push({m: last.m, from: part[0].m, lead: last.lead, gold: last.gold, cs: last.cs, lvl: last.lvl,
+        k: part.reduce((s, f) => s + (f.k || 0), 0), d: part.reduce((s, f) => s + (f.d || 0), 0), a: part.reduce((s, f) => s + (f.a || 0), 0),
+        ev: [].concat(...part.map(f => f.ev || []))});
+    }
+    return out;
+  }
+  const LOL_EV_ICON = {
+    dragon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3 4 4 6 4-1 2-1 4 0 6l-3-1-3 9-3-9-3 1c1-2 1-4 0-6 2 0 5-1 6-4z"/></svg>',
+    baron: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18 2 6l6 4 4-7 4 7 6-4-2 12z"/></svg>',
+    herald: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3" fill="#000" opacity=".5"/></svg>',
+    grub: '<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="7" ry="5"/></svg>',
+    tower: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 3h8l-1 5h2v3H7V8h2zM8 12h8l1 9H7z"/></svg>',
+    inhib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>'
+  };
+  function lolFlowHtml(r){
+    const bs = lolFlowBuckets(r);
+    if(!bs.length) return '';
+    const maxAbs = Math.max(1000, ...bs.map(b => Math.abs(b.lead)));
+    const cols = bs.map((b, i) => {
+      const pct = Math.round(Math.abs(b.lead) / maxAbs * 100);
+      const ev = b.ev.slice(0, 3).map(e => `<i class="${e.side}">${LOL_EV_ICON[e.t] || ''}</i>`).join('');
+      return `<button type="button" class="lrp-m ${b.lead >= 0 ? 'up' : 'down'}" data-mi="${i}" aria-label="${esc(t('lol_flow_minute', {n: b.m}))}">
+        <span class="col"><span class="bar" style="height:${Math.max(3, pct / 2)}%"></span></span>
+        <span class="ev">${ev}</span>
+        <span class="kd">${'<b></b>'.repeat(Math.min(3, b.k))}${'<u></u>'.repeat(Math.min(2, b.d))}</span>
+        <span class="n">${b.m}</span></button>`;
+    }).join('');
+    return `<div class="lrp-flow" style="--n:${bs.length}">${cols}</div>
+      <div class="rp-rlegend lrp-legend"><span class="w"><i></i>${esc(t('your_team'))}</span><span class="l"><i></i>${esc(t('enemies'))}</span><span class="k"><i></i>${esc(t('report_my_kills'))}</span></div>
+      <div class="rp-rd-detail" id="lolMinDetail"></div>`;
+  }
+  function lolEventName(e){
+    return t('lol_obj_' + {dragon: 'dragons', baron: 'barons', herald: 'heralds', grub: 'grubs', tower: 'towers', inhib: 'inhibs'}[e.t]);
+  }
+  function lolMinuteDetail(r, i){
+    const b = lolFlowBuckets(r)[i];
+    if(!b) return '';
+    const lead = (b.lead > 0 ? '+' : b.lead < 0 ? '−' : '±') + Math.abs(b.lead).toLocaleString(LOCALE);
+    const evs = b.ev.length ? b.ev.map(e => `<span class="lrp-evt ${e.side}">${LOL_EV_ICON[e.t] || ''}${esc(lolEventName(e))}</span>`).join('')
+      : `<span class="v">${esc(t('lol_flow_quiet'))}</span>`;
+    return `<div class="rp-rdd-head"><b>${esc(t('lol_flow_minute', {n: b.from === b.m ? b.m : b.from + '–' + b.m}))}</b>
+        <span class="res ${b.lead >= 0 ? 'win' : 'loss'}">${esc(t('lol_flow_lead'))} ${lead}</span></div>
+      <div class="rp-rdd-body">
+        <div><span class="lbl">${esc(t('lol_flow_you'))}</span><span class="v">${lolKfmt(b.gold)}&nbsp;Gold · ${b.cs}&nbsp;CS · Lvl&nbsp;${b.lvl}</span></div>
+        <div><span class="lbl">K / D / A</span><span class="v">${b.k} / ${b.d} / ${b.a}</span></div>
+        <div class="wide"><span class="lbl">${esc(t('lol_flow_events'))}</span><span class="v lrp-evs">${evs}</span></div>
+      </div>`;
+  }
+  function lolDefaultMinute(r){
+    const bs = lolFlowBuckets(r);
+    let best = bs.length - 1, sc = -1;
+    bs.forEach((b, i) => { const s = b.k * 3 + b.ev.filter(e => e.side === 'ally' && (e.t === 'baron' || e.t === 'dragon')).length * 2; if(s > sc){ sc = s; best = i; } });
+    return best;
+  }
+  function lolSelectMinute(i){
+    const view = document.getElementById('lolReportView');
+    if(!view || !lolReportData) return;
+    view.querySelectorAll('.lrp-m').forEach(c => c.classList.toggle('sel', Number(c.dataset.mi) === i));
+    const det = document.getElementById('lolMinDetail');
+    if(det) det.innerHTML = lolMinuteDetail(lolReportData, i);
+  }
+  function lolReportRow(p, gd, maxDmg){
+    const name = p.name || t('unknown_short');
+    const items = p.items.slice(0, 6).map(id => lolItemImg(gd, id)).join('') + lolItemImg(gd, p.items[6], 'trinket');
+    return `<tr class="${p.me ? 'me' : ''}">
+      <td><div class="rp-pl"><span class="lrp-champ"><img src="${esc(champIconUrl(p.championId))}" alt="" data-tip="${esc(lolChampName(p.championId) || '')}" loading="lazy"><b>${p.level || ''}</b></span>
+        ${p.role ? `<span class="lrp-role" data-tip="${esc(LOL_POSITIONS[p.role] || '')}">${laneIcon(p.role, 15)}</span>` : ''}
+        <span class="nm" data-tip="${esc(name)}">${esc(name)}</span>
+        ${p.me ? `<span class="rp-you">${esc(t('report_you'))}</span>` : ''}
+        ${p.mvp ? `<span class="rp-mvp ${p.mvp === 'team' ? 'team' : ''}">${p.mvp === 'team' ? 'TEAM MVP' : 'MVP'}</span>` : ''}</div></td>
+      <td class="rt"><span class="rtw">${rpGradeChip(p.rating)}<span class="pct">${rpPct(p.rating)}</span></span></td>
+      <td>${p.kills} / ${p.deaths} / ${p.assists}</td>
+      <td>${p.cs}</td>
+      <td>${lolKfmt(p.gold)}</td>
+      <td><span class="lrp-dmg"><i style="width:${maxDmg ? Math.round(p.dmg / maxDmg * 100) : 0}%"></i><span>${lolKfmt(p.dmg)}</span></span></td>
+      <td>${p.vision}</td>
+      <td class="lrp-items">${items}</td>
+    </tr>`;
+  }
+  function lolReportTable(list, gd, maxDmg){
+    return `<div class="rp-table-wrap"><table class="rp-table lrp-table"><thead><tr>
+      <th>${esc(t('report_col_player'))}</th><th class="rt" data-tip="${esc(t('lol_report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>K / D / A</th><th>CS</th><th>Gold</th><th>${esc(t('lol_stat_dmg_short'))}</th><th>${esc(t('lol_stat_vision'))}</th><th>Items</th>
+      </tr></thead><tbody>${list.map(p => lolReportRow(p, gd, maxDmg)).join('')}</tbody></table></div>`;
+  }
+  function lolReportHtml(r, gd){
+    const me = r.players.find(p => p.me) || {};
+    const res = r.result;
+    const resLabel = t(res === 'win' ? 'report_victory' : res === 'remake' ? 'lol_report_remake' : 'report_defeat');
+    const when = r.startedAt ? new Date(r.startedAt).toLocaleString(LOCALE, {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : '';
+    const meta = [lolReportQueue(r.queueId), lolMapName(r.mapId), t('report_minutes', {n: Math.round((r.duration || 0) / 60)}), when].filter(Boolean);
+    const champ = lolChampName(me.championId) || '';
+    const byRating = r.players.slice().sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const place = byRating.findIndex(p => p.me) + 1;
+    const grade = rpGrade(me.rating);
+    const ringP = me.rating == null ? 0 : Math.max(0.04, Math.min(1, (me.rating - 0.5) / 1.1));
+    const stat = (lbl, val, sub) => `<div class="rp-stat"><div class="lbl">${esc(lbl)}</div><div class="val">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    const stats = [
+      stat('K / D / A', `${me.kills}/${me.deaths}/${me.assists}`, `KDA ${rpNum(me.kda, 2)}`),
+      stat(t('lol_stat_kp'), (me.kp || 0) + '%'),
+      stat(t('lol_stat_dmg_short'), rpNum(me.dmg), esc(t('lol_stat_dmg_share', {n: me.dmgShare || 0})) + ' · ' + rpNum(me.dmgMin) + '/min'),
+      stat('Gold', rpNum(me.gold), rpNum(me.goldMin) + '/min'),
+      stat('CS', rpNum(me.cs), rpNum(me.csMin, 1) + '/min'),
+      stat(t('lol_stat_vision'), rpNum(me.vision), esc(t('lol_stat_vision_sub', {w: me.wards || 0, c: me.controlWards || 0}))),
+      stat(t('lol_stat_taken'), rpNum(me.dmgTaken)),
+      stat('Multikills', me.multi >= 2 ? LOL_MULTI[Math.min(5, me.multi)] : '—', `2× ${me.doubles || 0} · 3× ${me.triples || 0} · 4× ${me.quadras || 0} · 5× ${me.pentas || 0}`)
+    ].join('');
+    const hl = (r.highlights || []).map(x => {
+      if(x.type === 'mvp') return `<div class="rp-hl-item mvp"><span class="ic">${RP_HL_ICON.mvp}</span><b>${esc(t(x.kind === 'team' ? 'report_team_mvp' : 'report_mvp'))}</b></div>`;
+      const map = {multi: [x.n >= 4 ? 'gold' : '', RP_HL_ICON.ace, (LOL_MULTI[x.n] || '') + (x.count > 1 ? ' ×' + x.count : '')],
+        firstblood: ['', RP_HL_ICON.firstbloods, 'First Blood'], topdamage: ['', RP_HL_ICON['4k'], t('lol_hl_topdamage')],
+        topvision: ['', svgIcon('eye', 16), t('lol_hl_topvision')], topcs: ['', RP_HL_ICON.flawless, t('lol_hl_topcs')],
+        deathless: ['gold', RP_HL_ICON.clutch, t('lol_hl_deathless')]}[x.type];
+      return map ? `<div class="rp-hl-item ${map[0]}"><span class="ic">${map[1]}</span><b>${esc(map[2])}</b></div>` : '';
+    }).join('') || `<span class="none">${esc(t('report_no_highlights'))}</span>`;
+    const ta = r.teams.ally, te = r.teams.enemy;
+    const objRow = (k, a, e) => a == null && e == null ? '' : `<div class="lrp-obj"><span class="lbl">${esc(t('lol_obj_' + k))}</span><b class="a">${a || 0}</b>
+      <div class="bar"><i style="width:${(a || 0) + (e || 0) ? Math.round((a || 0) / ((a || 0) + (e || 0)) * 100) : 50}%"></i></div><b class="e">${e || 0}</b></div>`;
+    const objHtml = `<div class="rp-econ lrp-objs"><div class="sub">${esc(t('lol_obj_title'))}</div>
+      ${objRow('towers', ta.towers, te.towers)}${objRow('dragons', ta.dragons, te.dragons)}${objRow('barons', ta.barons, te.barons)}
+      ${objRow('heralds', ta.heralds, te.heralds)}${ta.grubs != null || te.grubs != null ? objRow('grubs', ta.grubs, te.grubs) : ''}${objRow('inhibs', ta.inhibs, te.inhibs)}</div>`;
+    const allies = r.players.filter(p => p.ally), enemies = r.players.filter(p => !p.ally);
+    const maxDmg = Math.max(1, ...r.players.map(p => p.dmg || 0));
+    const flow = lolFlowHtml(r);
+    return `
+      <section class="rp-hero lrp-hero ${res === 'remake' ? 'draw' : res}" style="--tint:#c8aa6e">
+        ${me.championId ? `<div class="rp-bg lrp-bg" style="background-image:url('${esc(lolChampSplash(me.championId))}')"></div>` : ''}
+        <div class="rp-shade"></div>
+        <div class="rp-top">
+          <button type="button" class="rp-share" data-lrep-share>${svgIcon('share', 14)}<span>${esc(t('report_share_btn'))}</span></button>
+          <button type="button" class="rp-back" data-lrep-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
+        </div>
+        <div class="rp-hero-inner">
+          <div class="rp-hero-main">
+            <div class="rp-eyebrow"><span class="dot"></span>${esc(t('report_title'))}${lolMapName(r.mapId) ? ' · ' + esc(lolMapName(r.mapId)) : ''}</div>
+            <div class="rp-result">${esc(resLabel)}</div>
+            <div class="rp-score"><b class="a">${r.score.ally}</b><span class="sep">:</span><b class="e">${r.score.enemy}</b></div>
+            <div class="rp-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
+          </div>
+          <div class="rp-hero-me">
+            <div class="rp-me-name">${esc(me.name || '')}${me.mvp ? `<span class="rp-badge ${me.mvp === 'team' ? 'team' : ''}">${RP_HL_ICON.mvp}${esc(t(me.mvp === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>` : ''}</div>
+            <div class="rp-me-sub">${esc(champ)}${me.role ? ' · ' + esc(LOL_POSITIONS[me.role] || '') : ''}</div>
+            <div class="rp-me-kda"><b>${me.kills}</b><i>/</i><b>${me.deaths}</b><i>/</i><b>${me.assists}</b><span>CS ${me.cs}</span></div>
+          </div>
+        </div>
+      </section>
+      <div class="rp-grid">
+        <div class="rp-card rp-perf">
+          <h3>${esc(t('report_perf_title'))}</h3>
+          <div class="rp-perf-head">
+            <div class="rp-ring g-${grade.toLowerCase()}">
+              <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" pathLength="100" style="stroke-dasharray:${(ringP * 100).toFixed(1)} 100"/></svg>
+              <div class="in"><b>${grade}</b><span>${rpPct(me.rating)}</span></div>
+            </div>
+            <div class="rp-perf-text">
+              <div class="big">${esc(rpPerfLine(me.rating))}</div>
+              ${place ? `<div class="sub">${esc(t('report_perf_place', {n: place, of: r.players.length}))}</div>` : ''}
+              <div class="explain">${esc(t('lol_report_perf_explain'))}</div>
+            </div>
+          </div>
+          ${rpLobbyStrip(r, p => ({name: lolChampName(p.championId), icon: champIconUrl(p.championId)}))}
+          <div class="rp-stats">${stats}</div>
+        </div>
+        <div class="rp-card rp-hlcard">
+          <h3>${esc(t('report_highlights'))}</h3>
+          <div class="rp-hl">${hl}</div>
+          ${objHtml}
+        </div>
+      </div>
+      ${flow ? `<div class="rp-card lrp-flowcard">
+        <h3>${esc(t('lol_flow_title'))}<small>${esc(t('lol_flow_hint'))}</small></h3>
+        ${flow}
+      </div>` : ''}
+      <div class="rp-card">
+        <h3>Scoreboard</h3>
+        <div class="rp-team"><div class="rp-team-title"><i></i>${esc(t('your_team'))}<span class="sc">${r.score.ally}</span></div>${lolReportTable(allies, gd, maxDmg)}</div>
+        <div class="rp-team"><div class="rp-team-title enemy"><i></i>${esc(t('enemies'))}<span class="sc">${r.score.enemy}</span></div>${lolReportTable(enemies, gd, maxDmg)}</div>
+      </div>`;
+  }
+  document.getElementById('lolReportView').addEventListener('mouseover', e => {
+    const col = e.target.closest('.lrp-m');
+    if(col && matchMedia('(hover: hover)').matches) lolSelectMinute(Number(col.dataset.mi));
+  });
+  document.getElementById('lolReportView').addEventListener('click', e => {
+    const col = e.target.closest('.lrp-m');
+    if(col){ lolSelectMinute(Number(col.dataset.mi)); return; }
+    if(e.target.closest('[data-lrep-share]') && lolReportData && window.ryOpenShare){ window.ryOpenShare(lolReportData); return; }
+    if(e.target.closest('[data-lrep-close]') && lolReportData){
+      try{ localStorage.setItem(LOL_REPORT_DISMISS_KEY, String(lolReportData.gameId)); }catch(err){}
+      updateLolReportView(lolLastState);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+  });
+  document.getElementById('lolReportReopen').addEventListener('click', () => {
+    try{ localStorage.removeItem(LOL_REPORT_DISMISS_KEY); }catch(err){}
+    lolReportRendered = '';
+    updateLolReportView(lolLastState);
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
 
   // ================= League: Bausteine der Ansicht =================
   // Lane-Symbole: dieselben Formen wie im League-Client (Community Dragon,
@@ -9951,7 +10334,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev16";
+const CURRENT_VERSION = "2.5.0-dev17";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev16"
+APP_VERSION = "2.5.0-dev17"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1594,8 +1594,11 @@ PD_STRIKE_RESET = 600.0        # so lange ohne Sperre -> wieder bei 20 s anfange
 PD_PROBE_TIMEOUT = 15.0        # Testanfrage ohne Antwort gilt danach als verloren
 PD_GATE_FILE = os.path.join(DATA_DIR, "pd-gate.json")
 PD_GATE_LOCKFILE = os.path.join(DATA_DIR, "pd-gate.lock")
+# hi_until (seit 2.5.0-dev17): bis wann vry.exe gerade Namen/Raenge laedt - so
+# lange halten sich die "Letzte 5"-Abfragen des Dienstes zurueck (_pd_bulk_wait)
+PD_HI_HOLD = 3.0
 _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "reason": "",
-            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0}
+            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0}
 _pd_gate_lock = threading.Lock()
 
 
@@ -1742,9 +1745,8 @@ def _pd_feedback(status, info, probe=False):
         report_error("riot-ratelimit", blocked_msg)
 
 
-def pd_gate_state():
-    """Fuer die Oberflaeche: laeuft gerade eine Riot-Pause, und warum? Liest den
-    gemeinsamen Stand, zeigt also auch eine Pause, die vry.exe ausgeloest hat."""
+def _pd_gate_read():
+    """Gemeinsamer Stand ohne Sperrdatei (nur lesen)."""
     g = _pd_gate
     try:
         with open(PD_GATE_FILE, encoding="utf-8") as f:
@@ -1753,6 +1755,13 @@ def pd_gate_state():
             g = dict(_pd_gate, **{k: v for k, v in data.items() if k in _pd_gate})
     except (OSError, ValueError):
         pass
+    return g
+
+
+def pd_gate_state():
+    """Fuer die Oberflaeche: laeuft gerade eine Riot-Pause, und warum? Liest den
+    gemeinsamen Stand, zeigt also auch eine Pause, die vry.exe ausgeloest hat."""
+    g = _pd_gate_read()
     left = g["blocked_until"] - time.time()
     return {"paused": left > 0, "seconds": max(0, int(left + 0.5)), "reason": g["reason"] if left > 0 else ""}
 
@@ -1763,8 +1772,21 @@ def pd_gate_state():
 # Anfragen (markiert per _low_priority, eigener Pool), solange Kachel- und
 # andere Abfragen anstehen, hoechstens PD_LOW_MAX_WAIT.
 PD_LOW_MAX_WAIT = 25.0
+# Seit 2.5.0-dev17 eine dritte, unterste Stufe: "Letzte 5" (Kacheln, meistgespielter
+# Agent; markiert per _bulk_priority). Live 2026-10-15: 49 von 62 pd-Anfragen eines
+# Matches waren Letzte 5, die Cloudflare-Sperre kam mitten darin, und vry.exe wartete
+# danach 27 s auf die Namen. Nutzerwunsch: Letzte 5 ganz zuletzt. Sie warten jetzt,
+# solange Namen/Raenge (auch aus vry.exe, siehe hi_until) oder die Party-Erkennung
+# anstehen, gehen hoechstens alle PD_BULK_INTERVAL raus und pausieren nach einer
+# Sperre ab deren Beginn PD_BULK_AFTER_BLOCK - die Grunddaten fragen als Erste wieder.
+PD_BULK_INTERVAL = 1.2
+PD_BULK_AFTER_BLOCK = 90.0
+PD_BULK_MAX_WAIT = 45.0
 _tl = threading.local()
 _pd_high = {"n": 0}
+_pd_low = {"n": 0}                      # Party-Erkennung: wartend oder laufend
+_pd_bulk = {"next": 0.0}
+_pd_bulk_lock = threading.Lock()
 _pd_counts = collections.Counter()      # pd-Anfragen im laufenden Match, je Art (fuer /api/gamestate)
 _pd_count_lock = threading.Lock()
 
@@ -1777,6 +1799,43 @@ def _low_priority(fn):
         finally:
             _tl.low = False
     return wrapper
+
+
+def _bulk_priority(fn):
+    def wrapper(*a, **k):
+        prev = getattr(_tl, "bulk", False)
+        _tl.bulk = True
+        try:
+            return fn(*a, **k)
+        finally:
+            _tl.bulk = prev
+    return wrapper
+
+
+def _pd_bulk_paused(g=None):
+    """Riot-Pause oder kurz danach: "Letzte 5" fragen dann noch nicht wieder."""
+    g = g or _pd_gate_read()
+    now = time.time()
+    return now < g["blocked_until"] or (g["last_block"] > 0 and now - g["last_block"] < PD_BULK_AFTER_BLOCK)
+
+
+def _pd_bulk_wait():
+    """Platz fuer eine "Letzte 5"-Anfrage. False = wegen einer Riot-Sperre (noch)
+    nicht - der Aufrufer zeigt dann "Riot-Pause" und versucht es spaeter erneut."""
+    deadline = time.time() + PD_BULK_MAX_WAIT
+    while True:
+        g = _pd_gate_read()
+        now = time.time()
+        paused = _pd_bulk_paused(g)
+        busy = paused or _pd_high["n"] > 0 or _pd_low["n"] > 0 or now < g.get("hi_until", 0)
+        if paused and now >= deadline:
+            return False
+        if not busy or now >= deadline:     # wichtige Abfragen ohne Ende: im Bulk-Takt trotzdem weiter
+            with _pd_bulk_lock:
+                if now >= _pd_bulk["next"]:
+                    _pd_bulk["next"] = now + PD_BULK_INTERVAL
+                    return True
+        time.sleep(0.2)
 
 
 def _pd_kind(path):
@@ -1795,7 +1854,14 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
     if base_key != "pd":
         return _http(auth[base_key] + path, auth["headers"], method=method, body=body)
     low = getattr(_tl, "low", False)
-    if low:
+    bulk = getattr(_tl, "bulk", False) and not low
+    if bulk:
+        if not _pd_bulk_wait():
+            _tl.bulk_denied = True
+            return 429, None
+    elif low:
+        with _pd_count_lock:
+            _pd_low["n"] += 1
         deadline = time.time() + PD_LOW_MAX_WAIT
         while _pd_high["n"] > 0 and time.time() < deadline:
             time.sleep(0.15)
@@ -1817,7 +1883,10 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
             _pd_counts[_pd_kind(path)] += 1
         return status, j
     finally:
-        if not low:
+        if low:
+            with _pd_count_lock:
+                _pd_low["n"] -= 1
+        elif not bulk:
             with _pd_count_lock:
                 _pd_high["n"] -= 1
 
@@ -2252,9 +2321,10 @@ def _player_stats_fetch(puuid, count, season, key):
     now = time.time()
     out = {"puuid": puuid, "matches": [], "totals": None}
     incomplete = False
+    _tl.bulk_denied = False
     try:
         ids = _recent_match_ids(puuid, count)
-        if not ids and pd_gate_state()["paused"]:
+        if not ids and (pd_gate_state()["paused"] or _tl.bulk_denied):
             return {"puuid": puuid, "error": "riot-ratelimit", "matches": [], "totals": None}
         for mid in ids:
             m = _match_details(mid)
@@ -2307,7 +2377,7 @@ def _player_stats_fetch(puuid, count, season, key):
             out["seasonWins"] = None
             out["seasonGames"] = None
 
-    if incomplete and pd_gate_state()["paused"]:
+    if incomplete and (pd_gate_state()["paused"] or _tl.bulk_denied):
         out["error"] = "riot-ratelimit"      # Teilstand anzeigen, aber nicht cachen
         return out
     with _cache_lock:
@@ -2315,6 +2385,7 @@ def _player_stats_fetch(puuid, count, season, key):
     return out
 
 
+@_bulk_priority
 def card_data(puuid):
     """Was die Spielerkarte braucht: Punktreihe (inkl. gespieltem Agent pro
     Match) + letztes Match fuer HS/KD-Luecken.
@@ -2572,6 +2643,7 @@ def mmr_summary_nonblocking(puuid):
     return {}
 
 
+@_bulk_priority
 def most_played_agent(puuid):
     """Meistgespielter Agent der letzten paar Matches - Idee aus der Community:
     schon in der Agentenauswahl einen groben Hinweis geben, was ein Spieler
@@ -4735,19 +4807,24 @@ def _prefetch_match(state, mid):
     _prefetch_done["key"] = key
 
     def run():
+        # Party-Erkennung zuerst (eigener Thread): seit dev17 warten die "Letzte 5"
+        # auf sie (_pd_bulk_wait) statt umgekehrt
+        def party():
+            try:
+                premades()
+            except Exception:
+                pass
+        threading.Thread(target=party, daemon=True).start()
+        time.sleep(0.3)
         # Nacheinander: die Riot-Bremse laesst ohnehin nur ~3 Anfragen/s durch,
         # so ist wenigstens eine Karte nach der anderen fertig statt alle zuletzt
         for pu in puuids:
-            if pd_gate_state()["paused"]:
+            if _pd_bulk_paused():
                 return                        # Riot-Pause: den Rest holt die Seite spaeter selbst
             try:
                 card_data(pu)
             except Exception:
                 pass
-        try:
-            premades()
-        except Exception:
-            pass
 
     threading.Thread(target=run, daemon=True).start()
 
@@ -5176,6 +5253,14 @@ def _buy_type(avg_loadout, pistol):
     return "full"
 
 
+def _report_tier_cached(puuid):
+    """Ausserhalb von Competitive (Swiftplay, Unrated ...) steht in match-details
+    competitiveTier 0 -> aktueller Rang aus dem MMR-Cache des Matches (keine Anfrage)."""
+    with _cache_lock:
+        hit = _mmr_cache.get(puuid)
+    return ((hit[1] or {}).get("rank") or 0) if hit and isinstance(hit[1], dict) else 0
+
+
 def _match_report_build(match_id):
     status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
     if status != 200 or not isinstance(j, dict) or not j.get("players"):
@@ -5334,7 +5419,8 @@ def _match_report_build(match_id):
         out_players.append({
             "puuid": pu, "name": ("%s#%s" % (p.get("gameName"), p.get("tagLine"))) if p.get("gameName") else None,
             "team": team_of[pu], "ally": team_of[pu] == my_team, "me": pu == me, "party": p.get("partyId"),
-            "agent": p.get("characterId"), "tier": p.get("competitiveTier"), "level": p.get("accountLevel"),
+            "agent": p.get("characterId"), "tier": p.get("competitiveTier") or _report_tier_cached(pu),
+            "level": p.get("accountLevel"),
             "kills": k, "deaths": d, "assists": a, "score": ps_.get("score") or 0, "rounds": rds,
             "acs": round((ps_.get("score") or 0) / rds, 1) if rds else None,
             "adr": round(s["dmg"] / rds, 1) if rds and not ffa else None,
@@ -5346,6 +5432,19 @@ def _match_report_build(match_id):
             "econ": round(s["dmg"] / (s["spent"] / 1000.0)) if s["spent"] else None,
             "avgLoadout": round(s["loadout"] / rds) if rds and not ffa else None,
         })
+
+    # Riot liefert in match-details keine Namen mehr (gameName leer, live gesehen
+    # 2026-10-15: alle 10 null) -> Namens-Cache, fuer den Rest EINE name-service-Anfrage
+    missing = [x["puuid"] for x in out_players if not x["name"]]
+    if missing:
+        try:
+            got = names_for(missing)
+        except Exception:
+            got = {}
+        for x in out_players:
+            n = got.get(x["puuid"])
+            if not x["name"] and n and not _name_hidden(n):
+                x["name"] = n
 
     def avg(key):
         vals = [x[key] for x in out_players if x.get(key) is not None]
@@ -5364,8 +5463,10 @@ def _match_report_build(match_id):
     ranked = sorted([x for x in out_players if x["rating"] is not None], key=lambda x: -x["rating"])
     if ranked:
         ranked[0]["mvp"] = "match"
+        # Team-MVP = Bester des ANDEREN Teams; im Team des Match-MVP ist er das schon
+        # (vorher bekam dort zusaetzlich der Zweitbeste "Team-MVP")
         for t in team_ids:
-            best = next((x for x in ranked if x["team"] == t and not x.get("mvp")), None)
+            best = next((x for x in ranked if x["team"] == t), None)
             if best and best is not ranked[0] and not ffa:
                 best["mvp"] = "team"
     out_players.sort(key=lambda x: (not x["ally"], -(x["acs"] or 0)))
@@ -6115,6 +6216,48 @@ def lol_accept_ready_check():
 
 
 LOL_WATCH_INTERVAL = 1.0
+# Annehmen/Bannen/Picken laufen seit 2.5.0-dev17 in einem eigenen, schnellen Takt:
+# Vorher teilten sie sich die Sekunden-Schleife mit den Auto-Builds, und deren
+# Abfrage an rankyoinker.de (Matchup-Daten) hielt die ganze Schleife teils
+# Sekunden auf - "Auto-Pick dauert lange" (Nutzer). Gefragt wird nur die Phase
+# (ein kurzer LCU-Aufruf), Ready-Check und Champ-Select erst, wenn sie laufen.
+LOL_FAST_INTERVAL = 0.35
+
+
+def _lol_fast_watcher():
+    while True:
+        time.sleep(LOL_FAST_INTERVAL)
+        try:
+            if not league_present():
+                time.sleep(1.0)
+                continue
+            status, phase = lcu_get("/lol-gameflow/v1/gameflow-phase")
+            phase = phase if status == 200 and isinstance(phase, str) else ""
+        except Exception:
+            time.sleep(1.0)
+            continue
+        if phase == "ReadyCheck":
+            try:
+                with _lol_cfg_lock:
+                    auto = _lol_cfg["autoAccept"]
+                if auto:
+                    status, rc = lcu_get("/lol-matchmaking/v1/ready-check")
+                    if status == 200 and isinstance(rc, dict):
+                        if rc.get("state") == "InProgress" and rc.get("playerResponse") == "None":
+                            lcu_post("/lol-matchmaking/v1/ready-check/accept")
+            except Exception:
+                pass
+        if phase == "ChampSelect" or _lol_auto.get("phase") is not None:
+            try:
+                _lol_auto_tick()
+            except Exception as e:
+                # Bewusst mitschreiben statt nur zu verschlucken: ein Absturz hier
+                # sah bisher von aussen exakt so aus wie "tut einfach nichts" —
+                # ohne Spur war das nur noch Raten.
+                _lol_auto["lastCrash"] = {"error": "%s: %s" % (type(e).__name__, e), "at": time.time()}
+                report_error("lol-auto", e)
+        elif phase not in ("ReadyCheck", "Matchmaking"):
+            time.sleep(0.65)          # Lobby/Spiel/kein Client: gemaechlicher fragen
 
 
 def _lol_watcher():
@@ -6123,23 +6266,14 @@ def _lol_watcher():
         try:
             if not league_present():
                 continue
-            with _lol_cfg_lock:
-                auto = _lol_cfg["autoAccept"]
-            if auto:
-                status, rc = lcu_get("/lol-matchmaking/v1/ready-check")
-                if status == 200 and isinstance(rc, dict):
-                    if rc.get("state") == "InProgress" and rc.get("playerResponse") == "None":
-                        lcu_post("/lol-matchmaking/v1/ready-check/accept")
         except Exception:
-            pass
+            continue
         try:
-            _lol_auto_tick()
+            gs = lol_gamestate()
+            _lol_report_track(gs.get("phase"))
+            _lol_report_tick(time.time())
         except Exception as e:
-            # Bewusst mitschreiben statt nur zu verschlucken: ein Absturz hier
-            # sah bisher von aussen exakt so aus wie "tut einfach nichts" —
-            # ohne Spur war das nur noch Raten.
-            _lol_auto["lastCrash"] = {"error": "%s: %s" % (type(e).__name__, e), "at": time.time()}
-            report_error("lol-auto", e)
+            report_error("lol-match-report", e)
         try:
             _lol_autobuild_tick()
         except Exception as e:
@@ -6489,18 +6623,19 @@ _lol_presets = {
 
 # Kleine, zufällige Verzögerung vor dem Sperren, damit ein Preset nicht
 # unmenschlich sofort feuert, sobald die eigene Aktion beginnt. Gehovert wird
-# trotzdem sofort (siehe _lol_auto_tick) — nur das Sperren wartet.
-LOL_AUTO_DELAY = 2.0
-LOL_AUTO_JITTER = 1.2
-# Ein Versuch je Watcher-Takt (~1x/Sekunde) statt einer schnellen Serie —
+# trotzdem sofort (siehe _lol_auto_tick) — nur das Sperren wartet. Bis dev16
+# 2,0 s +/- 1,2 s ("Pick dauert lange"), seit dev17 0,4 bis 1 s.
+LOL_AUTO_DELAY = 0.7
+LOL_AUTO_JITTER = 0.3
+# Ein Versuch je Takt des schnellen Watchers (~3x/Sekunde) statt einer Serie —
 # ein einzelner abgelehnter Sperrversuch (z. B. weil die LCU kurz nach dem
 # Hovern noch nicht so weit ist) darf nicht dauerhaft aufgeben. Erst nach
-# LOL_AUTO_MAX_ATTEMPTS Sekunden ohne Erfolg wird's dem manuellen Klicken
+# LOL_AUTO_MAX_ATTEMPTS Versuchen ohne Erfolg wird's dem manuellen Klicken
 # überlassen. Gezaehlt wird nur ausserhalb der Planungsphase - siehe
 # _lol_auto_tick(): dort ist Sperren grundsaetzlich nicht moeglich, und
 # frueher verbrannte eine lange Planungsphase das ganze Budget, bevor
 # Sperren ueberhaupt erlaubt war.
-LOL_AUTO_MAX_ATTEMPTS = 15
+LOL_AUTO_MAX_ATTEMPTS = 40       # ~14 s bei LOL_FAST_INTERVAL
 LOL_AUTO_HISTORY_MAX = 20
 
 _lol_auto = {"actionId": None, "hoveredChampionId": None, "fireAt": 0.0, "attempts": 0,
@@ -7359,6 +7494,304 @@ def lol_season_stats(puuid, count=20):
             "avgKills": avg("kills"), "avgDeaths": avg("deaths"), "avgAssists": avg("assists"),
             "avgKda": round(sum(m["kda"] for m in matches) / n, 2),
             "champs": champs}
+
+
+# ============================ League-Match-Analyse (2.5.0-dev17) ============================
+# Gegenstueck zur VALORANT-Analyse. Nach dem Spielende (Gameflow InProgress ->
+# Nachspiel) holt der Dienst das Spiel aus der lokalen LCU-Historie
+# (/lol-match-history/v1/games/<id>, dazu wenn vorhanden die Zeitleiste) und
+# rechnet daraus die Auswertung: K/D/A, Kill-Beteiligung, Schaden, Gold, CS und
+# Sicht je Spieler, Team-Ziele, Goldverlauf und eine Note relativ zur Lobby
+# (1,00 = Schnitt, gleiche Schwellen wie bei VALORANT). Liegt in
+# lol-match-report.json und gilt bis zum naechsten Spiel. Nur der lokale Client,
+# keine Riot-Web-API.
+LOL_MATCH_REPORT_FILE = os.path.join(DATA_DIR, "lol-match-report.json")
+LOL_REPORT_RETRY = 20.0
+LOL_REPORT_TRIES = 30            # ~10 min: die Historie kennt das Spiel erst nach einer Weile
+LOL_REPORT_TL_TRIES = 6          # so oft auf die Zeitleiste warten, dann ohne sie
+LOL_INGAME_PHASES = ("GameStart", "InProgress", "Reconnect")
+_lol_report = {"current": None, "pending": None, "tries": 0, "next": 0.0, "data": None,
+               "loaded": False, "busy": False}
+_lol_report_lock = threading.Lock()
+
+
+def _lol_report_get():
+    with _lol_report_lock:
+        if not _lol_report["loaded"]:
+            _lol_report["loaded"] = True
+            data = _load_json(LOL_MATCH_REPORT_FILE)
+            if data.get("gameId"):
+                _lol_report["data"] = data
+        return _lol_report["data"]
+
+
+def lol_match_report_state():
+    data = _lol_report_get()
+    return {"gameId": data.get("gameId") if data else None, "puuid": data.get("puuid") if data else None,
+            "pending": bool(_lol_report["pending"])}
+
+
+def _lol_report_drop(keep_game=None):
+    data = _lol_report_get()
+    with _lol_report_lock:
+        if _lol_report["pending"] and _lol_report["pending"] != keep_game:
+            _lol_report["pending"] = None
+        if not data or (keep_game and data.get("gameId") == keep_game):
+            return
+        _lol_report["data"] = None
+    for path in (LOL_MATCH_REPORT_FILE, LOL_MATCH_REPORT_FILE + ".tmp"):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _lol_report_track(phase):
+    """Aus dem League-Watcher, einmal je Sekunde: merkt sich die gameId des
+    laufenden Spiels und plant nach dem Ende die Auswertung."""
+    if phase == "ChampSelect":
+        _lol_report_drop()                      # neues Spiel beginnt: alte Analyse weg
+        return
+    if phase in LOL_INGAME_PHASES:
+        if not _lol_report["current"]:
+            try:
+                status, s = lcu_get("/lol-gameflow/v1/session")
+                gid = ((s or {}).get("gameData") or {}).get("gameId") if status == 200 else None
+            except LcuError:
+                gid = None
+            if gid:
+                _lol_report["current"] = gid
+                _lol_report_drop(keep_game=gid)
+        return
+    gid = _lol_report["current"]
+    if gid and phase:
+        _lol_report["current"] = None
+        with _lol_report_lock:
+            _lol_report.update(pending=gid, tries=0, next=time.time() + 8.0)
+
+
+def _lol_report_tick(now):
+    with _lol_report_lock:
+        gid = _lol_report["pending"]
+        if not gid or _lol_report["busy"] or now < _lol_report["next"]:
+            return
+        _lol_report["busy"] = True
+        attempt = _lol_report["tries"]
+
+    def run():
+        ok = False
+        try:
+            data = _lol_report_build(gid, attempt)
+            if data:
+                _save_json(LOL_MATCH_REPORT_FILE, data)
+                with _lol_report_lock:
+                    _lol_report.update(data=data, loaded=True)
+                ok = True
+        except Exception as e:
+            report_error("lol-match-report", e)
+        finally:
+            with _lol_report_lock:
+                _lol_report["busy"] = False
+                if ok or _lol_report["tries"] + 1 >= LOL_REPORT_TRIES:
+                    if _lol_report["pending"] == gid:
+                        _lol_report["pending"] = None
+                else:
+                    _lol_report["tries"] += 1
+                    _lol_report["next"] = time.time() + LOL_REPORT_RETRY
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def _lol_report_build(game_id, attempt=0):
+    status, game = lcu_get("/lol-match-history/v1/games/%s" % game_id)
+    if status != 200 or not isinstance(game, dict) or not game.get("participants"):
+        return None
+    me = lol_current_summoner().get("puuid")
+    tl = None
+    try:
+        st2, tl = lcu_get("/lol-match-history/v1/game-timelines/%s" % game_id)
+        tl = tl if st2 == 200 and isinstance(tl, dict) and tl.get("frames") else None
+    except LcuError:
+        tl = None
+    if tl is None and attempt < LOL_REPORT_TL_TRIES:
+        return None                             # Zeitleiste kommt oft etwas spaeter
+    return _lol_report_from_game(game, tl, me)
+
+
+_LOL_LANE_ROLE = {"TOP": "TOP", "JUNGLE": "JUNGLE", "MIDDLE": "MIDDLE", "MID": "MIDDLE"}
+# Gewichte der Note je Rolle: Supporter farmen nicht und machen wenig Schaden,
+# dafuer zaehlen Sicht und Kill-Beteiligung mehr
+_LOL_RATING_W = {"default": {"kda": .25, "kp": .15, "dpm": .25, "gpm": .15, "cspm": .10, "vpm": .10},
+                 "UTILITY": {"kda": .25, "kp": .25, "dpm": .10, "gpm": .05, "cspm": 0.0, "vpm": .35}}
+
+
+def _lol_role(p):
+    tl = p.get("timeline") or {}
+    lane, role = str(tl.get("lane") or "").upper(), str(tl.get("role") or "").upper()
+    if lane in ("BOTTOM", "BOT"):
+        return "UTILITY" if "SUPPORT" in role else "BOTTOM"
+    return _LOL_LANE_ROLE.get(lane)
+
+
+def _lol_report_from_game(game, tl, me_puuid):
+    idents = {i.get("participantId"): (i.get("player") or {}) for i in (game.get("participantIdentities") or [])}
+    parts = [p for p in (game.get("participants") or []) if p.get("participantId") in idents]
+    me_pid = next((pid for pid, pl in idents.items() if me_puuid and pl.get("puuid") == me_puuid), None)
+    teams_seen = sorted({p.get("teamId") for p in parts})
+    if me_pid is None or len(teams_seen) != 2:
+        return None                             # nur klassische 5-gegen-5-Spiele (kein Arena)
+    me_p = next(p for p in parts if p.get("participantId") == me_pid)
+    my_team = me_p.get("teamId")
+    enemy_team = next(t for t in teams_seen if t != my_team)
+    dur = max(60, int(game.get("gameDuration") or 0))
+    if dur > 20000:                             # manche Clients liefern Millisekunden
+        dur //= 1000
+    mins = dur / 60.0
+    team_kills, team_dmg = collections.Counter(), collections.Counter()
+    for p in parts:
+        st = p.get("stats") or {}
+        team_kills[p.get("teamId")] += st.get("kills") or 0
+        team_dmg[p.get("teamId")] += st.get("totalDamageDealtToChampions") or 0
+    players = []
+    for p in parts:
+        st, pl = p.get("stats") or {}, idents.get(p.get("participantId")) or {}
+        k, d, a = st.get("kills") or 0, st.get("deaths") or 0, st.get("assists") or 0
+        cs = (st.get("totalMinionsKilled") or 0) + (st.get("neutralMinionsKilled") or 0)
+        tid = p.get("teamId")
+        gn = pl.get("gameName") or pl.get("summonerName") or ""
+        dmg = st.get("totalDamageDealtToChampions") or 0
+        players.append({
+            "pid": p.get("participantId"), "puuid": pl.get("puuid"),
+            "name": ("%s#%s" % (gn, pl.get("tagLine"))) if gn and pl.get("tagLine") else (gn or None),
+            "me": p.get("participantId") == me_pid, "ally": tid == my_team, "team": tid,
+            "championId": p.get("championId"), "level": st.get("champLevel"), "role": _lol_role(p),
+            "kills": k, "deaths": d, "assists": a, "kda": round((k + a) / (d or 1), 2),
+            "kp": round((k + a) / team_kills[tid] * 100) if team_kills[tid] else 0,
+            "cs": cs, "csMin": round(cs / mins, 1), "gold": st.get("goldEarned") or 0,
+            "goldMin": round((st.get("goldEarned") or 0) / mins), "dmg": dmg,
+            "dmgMin": round(dmg / mins), "dmgShare": round(dmg / team_dmg[tid] * 100) if team_dmg[tid] else 0,
+            "dmgTaken": st.get("totalDamageTaken") or 0, "vision": st.get("visionScore") or 0,
+            "visionMin": round((st.get("visionScore") or 0) / mins, 2),
+            "wards": st.get("wardsPlaced") or 0, "wardsKilled": st.get("wardsKilled") or 0,
+            "controlWards": st.get("visionWardsBoughtInGame") or 0,
+            "items": [st.get("item%d" % i) or 0 for i in range(7)],
+            "spells": [p.get("spell1Id"), p.get("spell2Id")], "keystone": st.get("perk0"),
+            "subStyle": st.get("perkSubStyle"),
+            "multi": st.get("largestMultiKill") or 0, "doubles": st.get("doubleKills") or 0,
+            "triples": st.get("tripleKills") or 0, "quadras": st.get("quadraKills") or 0,
+            "pentas": st.get("pentaKills") or 0, "firstBlood": bool(st.get("firstBloodKill")),
+            "turrets": st.get("turretKills") or 0, "win": bool(st.get("win")),
+        })
+    # Note relativ zur Lobby
+    metric = {"kda": lambda x: (x["kills"] + x["assists"]) / (x["deaths"] + 1), "kp": lambda x: x["kp"],
+              "dpm": lambda x: x["dmgMin"], "gpm": lambda x: x["goldMin"], "cspm": lambda x: x["csMin"],
+              "vpm": lambda x: x["visionMin"]}
+    avg = {m: sum(f(x) for x in players) / len(players) for m, f in metric.items()}
+    for x in players:
+        w = _LOL_RATING_W.get(x["role"]) or _LOL_RATING_W["default"]
+        parts_ = [(w[m], metric[m](x) / avg[m]) for m in metric if w[m] and avg[m]]
+        ws = sum(wt for wt, _ in parts_)
+        x["rating"] = round(sum(wt * v for wt, v in parts_) / ws, 2) if ws else None
+    ranked = sorted([x for x in players if x["rating"] is not None], key=lambda x: -x["rating"])
+    if ranked:
+        ranked[0]["mvp"] = "match"
+        for t in teams_seen:                    # Team-MVP nur im anderen Team (siehe VALORANT)
+            best = next((x for x in ranked if x["team"] == t), None)
+            if best and best is not ranked[0]:
+                best["mvp"] = "team"
+    players.sort(key=lambda x: (not x["ally"], ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", None].index(x["role"])))
+
+    def team_obj(tid):
+        t = next((t for t in (game.get("teams") or []) if t.get("teamId") == tid), {}) or {}
+        return {"kills": team_kills[tid], "towers": t.get("towerKills") or 0, "inhibs": t.get("inhibitorKills") or 0,
+                "dragons": t.get("dragonKills") or 0, "barons": t.get("baronKills") or 0,
+                "heralds": t.get("riftHeraldKills") or 0, "grubs": t.get("hordeKills"),
+                "firstBlood": bool(t.get("firstBlood")), "firstTower": bool(t.get("firstTower")),
+                "firstDragon": bool(t.get("firstDargon") or t.get("firstDragon")), "firstBaron": bool(t.get("firstBaron")),
+                "win": str(t.get("win") or "").lower() in ("win", "true")}
+    ally_o, enemy_o = team_obj(my_team), team_obj(enemy_team)
+    me = next(x for x in players if x["me"])
+    result = "win" if me["win"] else "loss"
+    if dur < 300 and not ally_o["towers"] and not enemy_o["towers"]:
+        result = "remake"
+
+    highlights = []
+    if me.get("mvp"):
+        highlights.append({"type": "mvp", "kind": me["mvp"]})
+    for key, n in (("pentas", 5), ("quadras", 4), ("triples", 3)):
+        if me[key]:
+            highlights.append({"type": "multi", "n": n, "count": me[key]})
+            break
+    if me["firstBlood"]:
+        highlights.append({"type": "firstblood"})
+    if me["dmg"] and me["dmg"] == max(x["dmg"] for x in players):
+        highlights.append({"type": "topdamage", "value": me["dmg"]})
+    if me["vision"] and me["vision"] == max(x["vision"] for x in players):
+        highlights.append({"type": "topvision", "value": me["vision"]})
+    if me["cs"] and me["cs"] == max(x["cs"] for x in players):
+        highlights.append({"type": "topcs", "value": me["cs"]})
+    if me["deaths"] == 0 and mins >= 15:
+        highlights.append({"type": "deathless"})
+
+    return {
+        "v": 1, "game": "lol", "gameId": game.get("gameId"), "puuid": me_puuid, "createdAt": int(time.time()),
+        "queueId": game.get("queueId"), "mode": game.get("gameMode"), "mapId": game.get("mapId"),
+        "startedAt": game.get("gameCreation"), "duration": dur, "result": result,
+        "score": {"ally": ally_o["kills"], "enemy": enemy_o["kills"]},
+        "teams": {"ally": ally_o, "enemy": enemy_o},
+        "players": players, "highlights": highlights[:8],
+        "timeline": _lol_report_timeline(tl, idents, parts, my_team, me_pid) if tl else None,
+    }
+
+
+def _lol_report_timeline(tl, idents, parts, my_team, me_pid):
+    """Je Minute: Goldvorsprung des eigenen Teams, eigenes Gold/CS und was passiert
+    ist (Drachen, Baron, Herold, Tuerme, Inhibitoren, eigene Kills/Tode)."""
+    team_of = {p.get("participantId"): p.get("teamId") for p in parts}
+    out = []
+    for f in tl.get("frames") or []:
+        pf = f.get("participantFrames") or {}
+        ally = enemy = 0
+        mine = {}
+        for key, v in pf.items():
+            try:
+                pid = int(v.get("participantId") or key)
+            except (TypeError, ValueError):
+                continue
+            g = v.get("totalGold") or 0
+            if team_of.get(pid) == my_team:
+                ally += g
+            else:
+                enemy += g
+            if pid == me_pid:
+                mine = v
+        ev = []
+        mk = md = ma = 0
+        for e in f.get("events") or []:
+            typ = e.get("type")
+            if typ == "CHAMPION_KILL":
+                if e.get("killerId") == me_pid:
+                    mk += 1
+                if e.get("victimId") == me_pid:
+                    md += 1
+                if me_pid in (e.get("assistingParticipantIds") or []):
+                    ma += 1
+            elif typ == "ELITE_MONSTER_KILL":
+                mt = str(e.get("monsterType") or "").upper()
+                kind = {"DRAGON": "dragon", "BARON_NASHOR": "baron", "RIFTHERALD": "herald", "HORDE": "grub"}.get(mt)
+                killer_team = e.get("killerTeamId") or team_of.get(e.get("killerId"))
+                if kind:
+                    ev.append({"t": kind, "side": "ally" if killer_team == my_team else "enemy"})
+            elif typ == "BUILDING_KILL":
+                kind = {"TOWER_BUILDING": "tower", "INHIBITOR_BUILDING": "inhib"}.get(str(e.get("buildingType") or ""))
+                lost_team = e.get("teamId")
+                if kind and lost_team:
+                    ev.append({"t": kind, "side": "enemy" if lost_team == my_team else "ally"})
+        out.append({"m": int(round((f.get("timestamp") or 0) / 60000.0)), "lead": ally - enemy,
+                    "gold": mine.get("totalGold") or 0,
+                    "cs": (mine.get("minionsKilled") or 0) + (mine.get("jungleMinionsKilled") or 0),
+                    "lvl": mine.get("level") or 0, "k": mk, "d": md, "a": ma, "ev": ev})
+    return out
 
 
 # ---- Champion-Katalog (Name -> numerische ID, für Portraits) ----
@@ -8233,7 +8666,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
 
         elif path == "/api/lol/gamestate":
-            self._json(lol_gamestate())
+            out = lol_gamestate()
+            out["report"] = lol_match_report_state()
+            self._json(out)
+
+        elif path == "/api/lol/match-report":
+            data = _lol_report_get()
+            self._json({"ok": bool(data), "report": data, "pending": bool(_lol_report["pending"])})
 
         elif path == "/api/lol/lobby":
             self._json(lol_lobby())
@@ -8649,6 +9088,7 @@ if __name__ == "__main__":
     _lol_cfg_restore()
     _lol_presets_restore()
     threading.Thread(target=_lol_watcher, daemon=True).start()
+    threading.Thread(target=_lol_fast_watcher, daemon=True).start()
     # RankYoinker: anonymer Aktiv-Nutzer-Ping für die Website (siehe oben)
     threading.Thread(target=_active_user_heartbeat, daemon=True).start()
     # RankYoinker: Account+Feature-Bericht alle 5 Minuten fürs Admin-Dashboard
