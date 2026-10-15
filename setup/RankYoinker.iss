@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.0-dev2"
+#define MyAppVersion "2.5.0-dev3"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -126,13 +126,13 @@ spanish.StartMenuStopName=Detener RankYoinker
 turkish.StartMenuStopName=RankYoinker'ı durdur
 korean.StartMenuStopName=RankYoinker 종료
 
-english.StartMenuOverlayName=Open overlay in browser
-german.StartMenuOverlayName=Overlay im Browser öffnen
-polish.StartMenuOverlayName=Otwórz nakładkę w przeglądarce
-french.StartMenuOverlayName=Ouvrir l'overlay dans le navigateur
-spanish.StartMenuOverlayName=Abrir el overlay en el navegador
-turkish.StartMenuOverlayName=Overlay'i tarayıcıda aç
-korean.StartMenuOverlayName=브라우저에서 오버레이 열기
+english.StartMenuOverlayName=Open RankYoinker
+german.StartMenuOverlayName=RankYoinker öffnen
+polish.StartMenuOverlayName=Otwórz RankYoinker
+french.StartMenuOverlayName=Ouvrir RankYoinker
+spanish.StartMenuOverlayName=Abrir RankYoinker
+turkish.StartMenuOverlayName=RankYoinker'ı aç
+korean.StartMenuOverlayName=RankYoinker 열기
 
 english.InstallStatusMsg=Setting up autostart, firewall and short address...
 german.InstallStatusMsg=Richte Autostart, Firewall und Kurzadresse ein...
@@ -142,13 +142,13 @@ spanish.InstallStatusMsg=Configurando el inicio automático, el firewall y la di
 turkish.InstallStatusMsg=Otomatik başlatma, güvenlik duvarı ve kısa adres ayarlanıyor...
 korean.InstallStatusMsg=자동 시작, 방화벽, 단축 주소를 설정하는 중...
 
-english.OpenOverlayNowDesc=Open the RankYoinker overlay in the browser now
-german.OpenOverlayNowDesc=RankYoinker-Overlay jetzt im Browser öffnen
-polish.OpenOverlayNowDesc=Otwórz teraz nakładkę RankYoinker w przeglądarce
-french.OpenOverlayNowDesc=Ouvrir l'overlay RankYoinker dans le navigateur maintenant
-spanish.OpenOverlayNowDesc=Abrir ahora el overlay de RankYoinker en el navegador
-turkish.OpenOverlayNowDesc=RankYoinker overlay'ini şimdi tarayıcıda aç
-korean.OpenOverlayNowDesc=지금 브라우저에서 RankYoinker 오버레이 열기
+english.OpenOverlayNowDesc=Open RankYoinker now
+german.OpenOverlayNowDesc=RankYoinker jetzt öffnen
+polish.OpenOverlayNowDesc=Otwórz teraz RankYoinker
+french.OpenOverlayNowDesc=Ouvrir RankYoinker maintenant
+spanish.OpenOverlayNowDesc=Abrir RankYoinker ahora
+turkish.OpenOverlayNowDesc=RankYoinker'ı şimdi aç
+korean.OpenOverlayNowDesc=지금 RankYoinker 열기
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIconDesc}"; GroupDescription: "{cm:AdditionalIconsGroup}"
@@ -217,15 +217,31 @@ Source: "..\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs cr
 Source: "install_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion
 Source: "uninstall_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion
 Source: "open_overlay.bat"; DestDir: "{app}\setup"; Flags: ignoreversion
+; Startmenue/Desktop "RankYoinker" (ab 2.5.0): oeffnet die Oberflaeche als
+; eigenes Fenster (Edge/Chrome im App-Modus), siehe open_overlay_window()
+Source: "..\open_app.vbs"; DestDir: "{app}"; Flags: ignoreversion
 ; Lizenzhinweis fürs Basiswerk (ISC-Pflichthinweis, siehe oben)
 Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags: ignoreversion
+
+[InstallDelete]
+; Alte Startmenue-Verknuepfung "Overlay im Browser oeffnen" (bis 2.4.9, URL-
+; Verknuepfung) - heisst seit 2.5.0 "RankYoinker oeffnen" und oeffnet ein App-Fenster
+Type: files; Name: "{group}\Open overlay in browser.url"
+Type: files; Name: "{group}\Overlay im Browser öffnen.url"
+Type: files; Name: "{group}\Otwórz nakładkę w przeglądarce.url"
+Type: files; Name: "{group}\Ouvrir l'overlay dans le navigateur.url"
+Type: files; Name: "{group}\Abrir el overlay en el navegador.url"
+Type: files; Name: "{group}\Overlay'i tarayıcıda aç.url"
+Type: files; Name: "{group}\브라우저에서 오버레이 열기.url"
 
 [Icons]
 Name: "{group}\{cm:StartMenuStartName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{group}\{cm:StartMenuStopName}"; Filename: "{app}\stop_vry.bat"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\{cm:StartMenuOverlayName}"; Filename: "http://localhost:1101/"; IconFilename: "{app}\rankyoinker.ico"
+Name: "{group}\{cm:StartMenuOverlayName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{group}\{cm:UninstallProgram,RankYoinker}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\RankYoinker"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
+; Desktop-Symbol oeffnet seit 2.5.0 das App-Fenster statt vry.exe (das startet
+; der Dienst ohnehin selbst, sobald VALORANT laeuft)
+Name: "{autodesktop}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
 
 [Run]
 ; Führt die vorhandene, bereits erprobte Einrichtung aus: Start/Stop-
