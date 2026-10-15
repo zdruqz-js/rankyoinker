@@ -5964,10 +5964,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const live = latestData && latestData.state === 'PREGAME' ? latestData : null;
     return (live && live.puuid) || ownPuuid;
   }
-  // Gegner-Ränge während der Agentenauswahl: Riot gibt die Gegner-Puuids beim
-  // normalen Matchmaking bewusst nicht heraus (Schutz vor Dodging nach Rang) —
-  // dieses Array bleibt darum in aller Regel leer und füllt sich nur in
-  // Sonderfällen, in denen der Proxy trotzdem etwas findet (siehe Server).
+  // Gegner während der Agentenauswahl: Der Match-Endpunkt hält ihre Puuids zurück,
+  // der Loadouts-Endpunkt nennt aber alle zehn (siehe _pregame_loadouts_by_puuid im
+  // Dienst) - live am 2026-10-15 in jedem Competitive-Match schon in der Auswahl
+  // gefüllt. Leer bleibt das Array nur, wenn Riot dort (noch) nichts liefert.
   let pregameEnemies = [], pregameEnemiesSig = '';
   // Bleibt true, solange eine erkannte Aenderung an Spielerkarten (Gegner
   // oder Skins/Agent) noch NICHT gerendert wurde, weil syncPregame() das
