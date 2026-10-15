@@ -5780,9 +5780,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     });
     // Marke unten rechts: Logo + RankYoinker + rankyoinker.de (auf dunklem Grund,
     // sonst stand der Werbesatz kontrastarm auf dem Agentenbild)
+    // ueber die ganze Flaeche fuellen - ein kleineres Rechteck schnitt den Verlauf
+    // vor seinem Auslaufen ab (harte Kante quer ueber den Agenten)
     g = x.createRadialGradient(W - 230, H - 70, 20, W - 230, H - 70, 420);
     g.addColorStop(0, 'rgba(8,8,10,.86)'); g.addColorStop(.55, 'rgba(8,8,10,.6)'); g.addColorStop(1, 'rgba(8,8,10,0)');
-    x.fillStyle = g; x.fillRect(W - 700, H - 330, 700, 330);
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
     const by = H - 70;
     x.textAlign = 'right';
     x.font = `600 24px ${MONO}`; x.fillStyle = ACC;
@@ -10040,7 +10042,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev12";
+const CURRENT_VERSION = "2.5.0-dev13";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
