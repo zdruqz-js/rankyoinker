@@ -541,7 +541,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .mh-eyebrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .mh-title{
   font-family:var(--font-display); font-weight:850; font-size:clamp(40px, 6vw, 68px); line-height:.95;
-  letter-spacing:-.045em; text-transform:uppercase;
+  letter-spacing:-.015em; text-transform:uppercase;
   background:linear-gradient(180deg,#fff 30%, rgba(255,255,255,.62)); -webkit-background-clip:text; background-clip:text; color:transparent;
   filter:drop-shadow(0 6px 24px rgba(0,0,0,.5));
 }
@@ -1121,7 +1121,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 /* ================= Skins ================= */
 #panelSkins, #panelShop{--accent-head:var(--accent);}
 .page-head{display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:24px;}
-.page-head h1{font-size:34px; font-weight:800; letter-spacing:-.04em; line-height:1;}
+.page-head h1{font-size:34px; font-weight:800; letter-spacing:-.025em; line-height:1;}
 .page-head .eyebrow{display:block; margin-bottom:8px;}
 .page-head p{margin:8px 0 0; color:var(--text-2); font-size:14px; max-width:60ch;}
 .page-head-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
@@ -1273,7 +1273,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .bundle-card:hover .bbg{transform:scale(1.05);}
 .bundle-card .bfade{position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg, rgba(10,10,12,.95) 15%, rgba(10,10,12,.55) 55%, rgba(10,10,12,.85));}
 .bundle-card > .bin{position:relative; display:flex; align-items:flex-end; gap:18px; width:100%; flex-wrap:wrap;}
-.bundle-card .bn{font-family:var(--font-display); font-weight:850; font-size:34px; letter-spacing:-.04em; line-height:1; text-transform:uppercase;}
+.bundle-card .bn{font-family:var(--font-display); font-weight:850; font-size:34px; letter-spacing:-.015em; line-height:1; text-transform:uppercase;}
 .bundle-card .bs{font-size:13px; color:var(--text-2); margin-top:10px;}
 .bundle-card .bs span{font-family:var(--font-mono); color:var(--text);}
 .bundle-card .bdisc{display:inline-block; margin-top:10px; padding:4px 10px; border-radius:999px; font-family:var(--font-mono); font-weight:600; font-size:11px; color:#06210f; background:var(--win);}
@@ -1453,7 +1453,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .rc-card{text-align:center; padding:44px 22px 40px; overflow:hidden; max-width:780px; margin:0 auto 16px;}
 .rc-glow{position:absolute; left:0; right:0; top:0; height:1px; pointer-events:none; background:linear-gradient(90deg, transparent, rgba(244,184,80,.7), transparent);}
 .rc-card.ok .rc-glow{background:linear-gradient(90deg, transparent, rgba(61,220,132,.7), transparent);}
-.rc-card h3{position:relative; font-size:clamp(30px, 5vw, 46px); font-weight:850; letter-spacing:-.04em; text-transform:uppercase; margin-bottom:20px;
+.rc-card h3{position:relative; font-size:clamp(30px, 5vw, 46px); font-weight:850; letter-spacing:-.015em; text-transform:uppercase; margin-bottom:20px;
   background:linear-gradient(180deg, #fff, #f4d899); -webkit-background-clip:text; background-clip:text; color:transparent; animation:rcPulse 1.6s ease-in-out infinite;}
 .rc-card.ok h3{animation:none; background:linear-gradient(180deg, #fff, #b9f5d3); -webkit-background-clip:text; background-clip:text;}
 @keyframes rcPulse{0%,100%{transform:scale(1);} 50%{transform:scale(1.03);}}
@@ -1726,7 +1726,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .lpf-icon span{position:absolute; left:50%; bottom:-10px; transform:translateX(-50%); padding:2px 9px; border-radius:99px; background:#121215; border:1px solid var(--accent-line);
   font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--accent);}
 .lpf-me .eyebrow{color:var(--lol);}
-.lpf-me h1{font-size:clamp(30px, 4.4vw, 48px); font-weight:850; letter-spacing:-.04em; line-height:1.02;
+.lpf-me h1{font-size:clamp(30px, 4.4vw, 48px); font-weight:850; letter-spacing:-.025em; line-height:1.02;
   background:linear-gradient(180deg,#fff 30%, rgba(255,255,255,.7)); -webkit-background-clip:text; background-clip:text; color:transparent;}
 .lpf-me h1 span{font-family:var(--font-mono); font-weight:500; font-size:.4em; letter-spacing:0; margin-left:8px; -webkit-text-fill-color:var(--text-3);}
 .lpf-ranks{display:flex; gap:12px; flex-wrap:wrap;}
@@ -2247,7 +2247,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-hero-main{min-width:0;}
 .rp-eyebrow{font:600 11px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); display:flex; gap:10px; align-items:center;}
 .rp-eyebrow .dot{width:8px; height:8px; border-radius:50%; background:var(--res); box-shadow:0 0 14px var(--res); animation:pulse 1.8s ease-in-out infinite;}
-.rp-result{font:900 clamp(44px,7vw,84px)/.95 var(--font-display); letter-spacing:-.05em; color:var(--res); text-transform:uppercase; margin-top:12px;
+/* Buchstabenabstand nicht enger als -0,01em: Inter Tight in 900 ist schon schmal,
+   bei -0,05em liefen die Grossbuchstaben (DEFEAT, NIEDERLAGE) ineinander */
+.rp-result{font:900 clamp(44px,7vw,84px)/.95 var(--font-display); letter-spacing:-.01em; color:var(--res); text-transform:uppercase; margin-top:12px;
   text-shadow:0 0 40px color-mix(in srgb, var(--res) 45%, transparent);}
 .rp-score{font:850 clamp(30px,4.2vw,46px)/1 var(--font-display); letter-spacing:-.03em; margin-top:8px; font-variant-numeric:tabular-nums; display:flex; align-items:baseline;}
 .rp-score .a{color:var(--text);} .rp-score .e{color:var(--text-2);}
@@ -9762,7 +9764,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev9";
+const CURRENT_VERSION = "2.5.0-dev10";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
