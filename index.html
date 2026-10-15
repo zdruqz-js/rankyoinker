@@ -3734,6 +3734,16 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // ---------- Match-Kopf: Map-Bild, Modus, rechts Team-Vergleich bzw. Dodge ----------
   // vry.exe schickt als "map" nur den Anzeigenamen ("Ascent"); die Splash-Grafik
   // kommt aus valorant-api.com (mapInfo). Eine volle Bild-URL geht aber auch.
+  // Karte fuers Kopfbild: zuerst der Riot-Pfad vom Dienst (Agentenauswahl: /api/pregame,
+  // Match: game.roster), sonst der Name aus vry.exe. vry.exe schickt in der Agentenauswahl
+  // keine Karte, und im Match nur, was sein eigener Katalog kennt - das Bild fehlte dann.
+  function heroMap(state, fallback){
+    const g = procStatus && procStatus.game;
+    const svc = state === 'PREGAME' ? pregameMap
+      : state === 'INGAME' && g && g.roster && g.matchId ? g.roster.map : null;
+    const cands = [svc, fallback].filter(Boolean);
+    return cands.find(c => mapInfo[String(c).toLowerCase()]) || cands[0] || null;
+  }
   function matchHeroHtml(state, mapRaw, mode, sub, rightHtml){
     const raw = String(mapRaw || '');
     const info = raw ? (mapInfo[raw.toLowerCase()] || null) : null;
@@ -3836,7 +3846,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const loadedSet = new Set(pr.puuids || []);
     // Nur was die Ansicht wirklich ändert — der Auswahlstand wird über
     // applyPregameToDom() nachgezogen, ohne die Ansicht neu aufzubauen.
-    const key = [pr.state, pr.phase, loaded, total, pregameLive ? pregameLive.length : 0,
+    const key = [pr.state, pr.phase, loaded, total, pregameLive ? pregameLive.length : 0, isPre ? pregameMap : '',
       roster ? roster.map + roster.players.length : '', Array.from(loadedSet).join(','), pause].join('|');
     if(key === lastLoadKey) return;
     const fresh = lastLoadKey === '';
@@ -3849,7 +3859,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       // live, wer welchen Agenten hovert/gelockt hat (direkt von Riot).
       // Karte nur, wenn sie zu DIESER Agentenauswahl gehört - sonst stand hier die des vorigen Matches
       const preData = latestData && latestData.state === 'PREGAME' ? latestData : null;
-      const mapHint = preData && Array.isArray(preData.map) ? preData.map[0] : null;
+      const mapHint = heroMap('PREGAME', preData && Array.isArray(preData.map) ? preData.map[0] : null);
       const live = pregameLive && pregameLive.length;
       html = matchHeroHtml('PREGAME', mapHint, preData && preData.mode, '', dodgeBtnHtml(false))
         + agentPickHtml()
@@ -3860,7 +3870,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     } else {
       const ally = roster ? roster.players.filter(p => p.ally) : [];
       const enemy = roster ? roster.players.filter(p => !p.ally) : [];
-      html = matchHeroHtml('INGAME', roster ? roster.map : null, roster ? (QUEUE_NAMES[roster.queue] || '') : '', '', '')
+      html = matchHeroHtml('INGAME', heroMap('INGAME', roster ? roster.map : null), roster ? (QUEUE_NAMES[roster.queue] || '') : '', '', '')
         + loadStripHtml(pr, loaded, total, pause)
         + (roster
             ? loadTeamHtml('ally', t('your_team'), ally, loadedSet) + loadTeamHtml('enemy', t('enemies'), enemy, loadedSet)
@@ -4586,6 +4596,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           [p.puuid, p.agent || '', p.locked ? 'L' : p.hovering ? 'H' : '', p.name || ''].join('|')).join(';');
         if(roster !== pregameSig){ pregameSig = roster; pregameLive = players; changed = true; }
 
+        if((j.map || null) !== pregameMap){ pregameMap = j.map || null; changed = true; cardsChanged = true; }
+
         const side = j.side || null;
         if(side !== pregameSide){
           pregameSide = side;
@@ -4648,7 +4660,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     pregameTimer = setInterval(syncPregame, 1000);   // nahezu live; Server cacht 0,7 s
     syncPregame();
   }
-  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; }   // Seite gilt nur für diese eine Auswahl
+  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; }   // Seite gilt nur für diese eine Auswahl
 
   // variant 'peak' = kompakte Zeile (Peak bzw. Flex), sonst die große Kachel mit RR-Balken
   function rankTileHtml(label, rankNum, opts){
@@ -5969,6 +5981,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Dienst) - live am 2026-10-15 in jedem Competitive-Match schon in der Auswahl
   // gefüllt. Leer bleibt das Array nur, wenn Riot dort (noch) nichts liefert.
   let pregameEnemies = [], pregameEnemiesSig = '';
+  let pregameMap = null;      // Riot-Kartenpfad aus /api/pregame (siehe heroMap)
   // Bleibt true, solange eine erkannte Aenderung an Spielerkarten (Gegner
   // oder Skins/Agent) noch NICHT gerendert wurde, weil syncPregame() das
   // beim Eintreffen gerade nicht durfte (live/loadingShown siehe unten) -
@@ -7476,14 +7489,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const lobbySeats = state === 'MENUS' ? lobbySig : '';
     const sceneSig = state + '|' + Object.keys(players).sort().join(',') + '|'
       + (lobbyMembers && state === 'MENUS' ? lobbyMembers.map(m => m.puuid).sort().join(',') : '');
-    const fullSig = sceneSig + '|' + lobbySeats + '|' + primaryWeapon + '|' + Object.keys(agentMap).length + '|' + Object.keys(tierMap).length + '|'
+    const fullSig = sceneSig + '|' + lobbySeats + '|' + primaryWeapon + '|' + Object.keys(agentMap).length + '|' + Object.keys(tierMap).length + '|' + heroMap(state, null) + '|'
       // "time" ändert sich mit jedem Heartbeat, ohne dass sich etwas Sichtbares tut
       + JSON.stringify(latestData, (k, v) => k === 'time' ? undefined : v);
     if(fullSig === lastFullSig) return;
     const sceneChanged = sceneSig !== lastSceneSig;
     lastFullSig = fullSig; lastSceneSig = sceneSig;
     const own = players[latestData.puuid] || null;
-    const mapUrl = Array.isArray(latestData.map) ? latestData.map[0] : null;
+    const mapUrl = heroMap(state, Array.isArray(latestData.map) ? latestData.map[0] : null);
     const list = Object.values(players);
     const playersByKey = {};
     Object.entries(players).forEach(([k, p]) => {
