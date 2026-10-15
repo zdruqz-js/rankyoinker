@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev5"
+APP_VERSION = "2.5.0-dev6"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -7871,7 +7871,10 @@ def _lol_record_encounter_now():
 
 # Antworten werden nur für die eigene Seite freigegeben, nicht mehr für jede
 # beliebige Website. Vom Handy läuft alles ohnehin same-origin.
-_ORIGIN_OK = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\]|vry)(:\d+)?$", re.I)
+# "rankyoinker" gehoert dazu: install_all.py traegt http://rankyoinker/ in die hosts-Datei
+# ein, und das App-Fenster (overlay_url) oeffnet genau diese Adresse. Fehlte bis
+# 2.5.0-dev5 - von dort wurde jeder POST (Instalock, Agent waehlen, Update ...) abgelehnt.
+_ORIGIN_OK = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\]|vry|rankyoinker)(:\d+)?$", re.I)
 
 
 class Handler(BaseHTTPRequestHandler):
