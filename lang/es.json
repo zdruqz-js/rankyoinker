@@ -634,6 +634,8 @@
     "report_rd_buy": "Compra",
     "report_rd_econ": "{a} contra {b}",
     "report_rd_you": "Tú",
-    "report_rd_survived": "sobreviviste"
+    "report_rd_survived": "sobreviviste",
+    "app_window_opened_title": "RankYoinker ahora tiene su propia ventana",
+    "app_window_opened_msg": "Se acaba de abrir. Puedes cerrar esta pestaña del navegador: a partir de ahora, abre RankYoinker desde el icono del escritorio o el menú Inicio."
   }
 }
