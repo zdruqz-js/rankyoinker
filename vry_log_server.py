@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev18"
+APP_VERSION = "2.5.0-dev19"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2010,13 +2010,21 @@ def _names_cached(ids, now):
     return out, missing
 
 
-def names_for(puuids):
-    """puuid -> 'Name#Tag' (eine Anfrage fuer alle noch unbekannten)."""
+def names_for(puuids, retry_unknown=False):
+    """puuid -> 'Name#Tag' (eine Anfrage fuer alle noch unbekannten).
+
+    retry_unknown: auch gemerkte leere/verborgene Namen neu fragen (Match-Analyse,
+    einmal pro Match) - sonst sperrte so ein Eintrag NAME_TTL_HIDDEN lang."""
     ids = [p for p in puuids if p]
     if not ids:
         return {}
     now = time.time()
     out, missing = _names_cached(ids, now)
+    if retry_unknown:
+        again = [p for p in ids if p not in missing and _name_hidden(out.get(p))]
+        for p in again:
+            out.pop(p, None)
+        missing += again
     if missing:
         status, j = riot_put("pd", "/name-service/v2/players", json.dumps(missing))
         if status == 200 and isinstance(j, list):
@@ -4979,6 +4987,11 @@ def _snapshot_restore():
                     if not same(name):
                         continue
                     for key, value in (snap.get(name) or {}).items():
+                        # leere/verborgene Namen nicht: sie bekaemen hier einen frischen
+                        # Zeitstempel und sperrten die Nachfrage weitere NAME_TTL_HIDDEN
+                        # (live 2026-10-15: Update mitten im Match, Bericht mit "Unknown")
+                        if name == "names" and (not isinstance(value, str) or _name_hidden(value)):
+                            continue
                         cache[key] = (now, value)
                         restored += 1
                 pm = snap.get("premades")
@@ -5515,7 +5528,7 @@ def _match_report_build(match_id):
     missing = [x["puuid"] for x in out_players if not x["name"]]
     if missing:
         try:
-            got = names_for(missing)
+            got = names_for(missing, retry_unknown=True)
         except Exception:
             got = {}
         for x in out_players:
