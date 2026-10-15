@@ -3453,32 +3453,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // "rankyoinker" (Kurzadresse aus der hosts-Datei, seit 2.4.2) ist ebenfalls der PC -
   // fehlte hier, dadurch war dort u. a. der Kopplungs-Knopf ausgeblendet.
   const ON_PHONE = !/^(localhost|127\.0\.0\.1|\[::1\]|::1|vry|rankyoinker)$/i.test(NET_HOST);
-  // Läuft die Seite im eigenen App-Fenster? open_overlay_window() im Dienst hängt
-  // ?app=1 an (gilt für die ganze Sitzung des Fensters, auch nach F5);
-  // zusätzlich meldet der Browser App-Fenster als display-mode "standalone".
-  const IN_APP_WINDOW = (() => {
-    try{
-      if(new URLSearchParams(location.search).get('app') === '1'){
-        sessionStorage.setItem('ry_app_window', '1');
-        history.replaceState(null, '', location.pathname + location.hash);
-      }
-      if(sessionStorage.getItem('ry_app_window') === '1') return true;
-    }catch(e){}
-    return !!(window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-  })();
-  // Nach einem Selbst-Update, das in einem normalen Browser-Tab am PC lief:
-  // einmal das neue App-Fenster öffnen und sagen, dass der Tab weg kann
-  function openAppAfterUpdate(st){
-    const u = st && st.updated;
-    if(!u || !u.to || ON_PHONE || IN_APP_WINDOW) return;
-    try{
-      if(localStorage.getItem('ry_app_after_update') === u.to) return;
-      localStorage.setItem('ry_app_after_update', u.to);
-    }catch(e){ return; }
-    api('/api/open-app', {}).catch(apiFail).then(j => {
-      if(j && j.ok && j.opened) toast('success', t('app_window_opened_title'), t('app_window_opened_msg'), {id: 'appwin', dur: 15000});
-    });
-  }
 
   let ws = null, reconnectTimer = null, appVersion = null, latestData = null, connState = 'off';
   // Welches Spiel gerade angezeigt wird (siehe League-Abschnitt weiter unten) —
@@ -3516,8 +3490,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Die Kopplung verwaltet nur der PC — auf dem Handy hat der Knopf nichts zu tun
   if(ON_PHONE) document.getElementById('pairBtn').style.display = 'none';
   // ================= ALS APP INSTALLIEREN (PWA, 2.5.0) =================
-  // Nur auf Handy/Tablet - am PC oeffnet RankYoinker ohnehin als eigenes
-  // Fenster (App-Modus von Edge/Chrome, siehe open_overlay_window() im Dienst).
+  // Nur auf Handy/Tablet - am PC laeuft RankYoinker als normale Website im
+  // Browser (ein eigenes App-Fenster gab es in 2.5.0-dev3 bis dev6, wieder entfernt).
   // iPhone -> "Zum Home-Bildschirm" (startet als App); Android -> echte
   // Installation nur ueber https (Demo), im Heimnetz (http) eine Verknuepfung,
   // die im Browser oeffnet. Hinweis-Leiste einmal wegklickbar.
@@ -4110,7 +4084,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     }catch(e){ procStatus = null; }
 
     if(procStatus){
-      openAppAfterUpdate(procStatus);
       const running = !!procStatus.running;
       // vry.exe geht mit VALORANT an und aus — nur der Wechsel wird gemeldet
       if(procKnown && running !== lastProcRunning){
@@ -10022,7 +9995,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev6";
+const CURRENT_VERSION = "2.5.0-dev7";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

@@ -634,8 +634,6 @@
     "report_rd_buy": "Закуп",
     "report_rd_econ": "{a} против {b}",
     "report_rd_you": "Ты",
-    "report_rd_survived": "выжил",
-    "app_window_opened_title": "У RankYoinker теперь своё окно",
-    "app_window_opened_msg": "Оно только что открылось. Эту вкладку браузера можно закрыть — теперь запускай RankYoinker через значок на рабочем столе или меню «Пуск»."
+    "report_rd_survived": "выжил"
   }
 }

@@ -634,8 +634,6 @@
     "report_rd_buy": "Achat",
     "report_rd_econ": "{a} contre {b}",
     "report_rd_you": "Toi",
-    "report_rd_survived": "survécu",
-    "app_window_opened_title": "RankYoinker a maintenant sa propre fenêtre",
-    "app_window_opened_msg": "Elle vient de s'ouvrir. Tu peux fermer cet onglet – désormais, lance RankYoinker depuis l'icône du bureau ou le menu Démarrer."
+    "report_rd_survived": "survécu"
   }
 }

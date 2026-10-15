@@ -119,17 +119,18 @@ jobs:
             Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -like "RankYoinker*" }
           Check ($apps.Count -eq 1) "genau ein Eintrag unter Apps ($($apps.Count))"
 
-          # --- 2b. App-Fenster (ab 2.5.0): Startmenue-Eintrag + "--open-app" ---
+          # --- 2b. "RankYoinker oeffnen" (ab 2.5.0): Startmenue-Eintrag + "--open-app" ---
+          # Seit 2.5.0-dev7 wieder normale Website im Standardbrowser (kein --app-Fenster mehr)
           if (Test-Path "$new\open_app.vbs") {
             Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue: $($_.Name)" }
             Check (Test-Path "$sm\Open RankYoinker.lnk") "Startmenue-Eintrag 'Open RankYoinker'"
             Check (-not (Test-Path "$sm\Open overlay in browser.url")) "alte Browser-Verknuepfung entfernt"
             Start-Process -FilePath "$new\pythonw.exe" -ArgumentList "`"$new\vry_log_server.py`"", "--open-app" -WorkingDirectory $new
             Start-Sleep -Seconds 12
-            $app = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*--app=http*" }
-            $app | Select-Object -First 3 | ForEach-Object { Write-Host "App-Fenster: $($_.Name) $($_.CommandLine)" }
-            Check ($app.Count -ge 1) "--open-app startet Edge/Chrome im App-Modus"
-            Check (($app | Where-Object { $_.CommandLine -match "--app=http://(rankyoinker|localhost:1101)/" }).Count -ge 1) "App-Fenster zeigt auf die RankYoinker-Adresse"
+            $br = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "http://(rankyoinker|localhost:1101)/" -and $_.CommandLine -notmatch "vry_log_server" }
+            $br | Select-Object -First 3 | ForEach-Object { Write-Host "Browser: $($_.Name) $($_.CommandLine)" }
+            Check ($br.Count -ge 1) "--open-app oeffnet die RankYoinker-Adresse im Standardbrowser"
+            Check (($br | Where-Object { $_.CommandLine -match "--app=" }).Count -eq 0) "kein App-Fenster (--app=) mehr"
             Get-Process msedge, chrome -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             try { $r = Invoke-WebRequest "http://127.0.0.1:1101/status" -UseBasicParsing -TimeoutSec 10; $ok = $r.StatusCode -eq 200 } catch { $ok = $false }
             Check $ok "Dienst laeuft nach --open-app weiter"

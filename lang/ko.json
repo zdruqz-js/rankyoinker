@@ -635,8 +635,6 @@
     "report_rd_buy": "구매",
     "report_rd_econ": "{a} 대 {b}",
     "report_rd_you": "나",
-    "report_rd_survived": "생존",
-    "app_window_opened_title": "RankYoinker 전용 창이 생겼어요",
-    "app_window_opened_msg": "방금 열렸어요. 이 브라우저 탭은 닫아도 돼요. 앞으로는 바탕화면 아이콘이나 시작 메뉴에서 RankYoinker를 실행하세요."
+    "report_rd_survived": "생존"
   }
 }

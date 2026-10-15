@@ -634,8 +634,6 @@
     "report_rd_buy": "Compra",
     "report_rd_econ": "{a} contra {b}",
     "report_rd_you": "Você",
-    "report_rd_survived": "sobreviveu",
-    "app_window_opened_title": "O RankYoinker agora tem sua própria janela",
-    "app_window_opened_msg": "Ela acabou de abrir. Pode fechar esta aba do navegador – daqui pra frente, abra o RankYoinker pelo ícone da área de trabalho ou pelo menu Iniciar."
+    "report_rd_survived": "sobreviveu"
   }
 }
