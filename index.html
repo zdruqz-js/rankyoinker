@@ -5462,6 +5462,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(!label) return null;
     return {label, kind: rd.win === 'enemy' ? 'enemy' : 'team'};
   }
+  // Wem gehoert die Zeremonie? Live (dev17) las sich der Clutch eines Mitspielers
+  // neben "deine Kills 0 / gestorben" wie ein eigener -> "Dein Team · CLUTCH"
+  function rpCerPrefix(cer){
+    if(cer.kind === 'enemy') return esc(t('enemies')) + ' · ';
+    if(cer.kind === 'team' && cer.label !== 'TEAM ACE') return esc(t('your_team')) + ' · ';
+    return '';
+  }
   function rpFlow(r){
     const tl = r.timeline || [];
     if(!tl.length) return '';
@@ -5501,7 +5508,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     return `<div class="rp-rdd-head">
         <b>${esc(t('report_round_n', {n: rd.n}))}</b>${res}
         <span class="side">${esc(t(rd.side === 'atk' ? 'report_attack' : 'report_defense'))}</span>
-        ${cer ? `<span class="cer ${cer.kind === 'own' ? '' : cer.kind}">${cer.kind === 'enemy' ? esc(t('enemies')) + ' · ' : ''}${cer.label}</span>` : ''}
+        ${cer ? `<span class="cer ${cer.kind === 'own' ? '' : cer.kind}">${rpCerPrefix(cer)}${cer.label}</span>` : ''}
         <span class="score">${a} : ${e}</span>
       </div>
       <div class="rp-rdd-body">
@@ -10334,7 +10341,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev17";
+const CURRENT_VERSION = "2.5.0-dev18";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
