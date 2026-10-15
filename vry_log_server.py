@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev20"
+APP_VERSION = "2.5.0-dev21"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5225,6 +5225,85 @@ def problem_report_send(text, contact, include_log):
         return {"ok": False, "error": "offline", "detail": type(e).__name__}
 
 
+# ============================ Teilen-Link (2.5.0-dev21) ============================
+# "Teilen" in der Match-Analyse: Das Overlay schickt das gezeichnete Banner (PNG,
+# 1600x900) hierher, der Dienst laedt es EINMAL pro Match auf rankyoinker.de hoch
+# und merkt sich den Link (share-links.json) - ein zweites Teilen desselben
+# Matches zeigt denselben Link ohne neuen Upload. Vorher fragt er, ob der Server
+# erreichbar ist und Uploads gerade angenommen werden. Klappt etwas nicht, meldet
+# er nur einen Fehlercode; das Overlay kopiert dann das Bild in die Zwischenablage.
+# Der Server prueft und schreibt das PNG selbst neu (share-uploads.js) - hier
+# nur eine Vorpruefung, damit nichts Unsinniges ueberhaupt rausgeht.
+SHARE_STATUS_URL = "https://rankyoinker.de/api/share/status"
+SHARE_UPLOAD_URL = "https://rankyoinker.de/api/share/upload"
+SHARE_LINKS_FILE = os.path.join(DATA_DIR, "share-links.json")
+SHARE_MAX_BYTES = 4 * 1024 * 1024
+# Groesster erlaubter POST-Body ueberhaupt (vorher ungebremst: jede Laenge wurde
+# erst komplett eingelesen, auch vor der Pruefung, ob der Absender darf)
+POST_MAX_BYTES = SHARE_MAX_BYTES + 64 * 1024
+SHARE_SIZE = (1600, 900)
+SHARE_LINK_MAX_AGE = 29 * 24 * 3600          # Server loescht nach 30 Tagen
+SHARE_LINKS_KEEP = 60
+SHARE_LINK_RE = re.compile(r"^https://rankyoinker\.de/uploads/[A-Za-z0-9_-]{22}\.png$")
+SHARE_MATCH_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_share_lock = threading.Lock()
+
+
+def _share_png_ok(data):
+    if not isinstance(data, (bytes, bytearray)) or not 64 <= len(data) <= SHARE_MAX_BYTES:
+        return False
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return False
+    w, h = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    return (w, h) == SHARE_SIZE
+
+
+def share_upload(data, game, match_id):
+    game = "lol" if game == "lol" else "val"
+    match_id = str(match_id or "")
+    if not SHARE_MATCH_RE.match(match_id) or not _share_png_ok(data):
+        return {"ok": False, "error": "invalid"}
+    key = "%s:%s" % (game, match_id)
+    with _share_lock:                       # Doppelklick -> nicht zweimal hochladen
+        links = _load_json(SHARE_LINKS_FILE) or {}
+        hit = links.get(key)
+        if isinstance(hit, dict) and SHARE_LINK_RE.match(str(hit.get("url") or "")) \
+                and time.time() - float(hit.get("at") or 0) < SHARE_LINK_MAX_AGE:
+            return {"ok": True, "url": hit["url"], "again": True}
+        ua = {"User-Agent": "RankYoinker-Share/" + APP_VERSION}
+        try:
+            with _urlopen_public(urllib.request.Request(SHARE_STATUS_URL, headers=ua), timeout=4) as resp:
+                st = json.loads(resp.read().decode("utf-8") or "{}")
+        except Exception:
+            return {"ok": False, "error": "offline"}
+        if not st.get("ok") or not st.get("enabled"):
+            return {"ok": False, "error": "disabled"}
+        req = urllib.request.Request(SHARE_UPLOAD_URL, data=bytes(data), method="POST", headers=dict(ua, **{
+            "Content-Type": "image/png", "X-RY-Client": _get_client_id(), "X-RY-Match": key,
+            "X-RY-Version": APP_VERSION}))
+        try:
+            with _urlopen_public(req, timeout=20) as resp:
+                j = json.loads(resp.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as e:
+            try:
+                err = json.loads(e.read().decode("utf-8") or "{}").get("error")
+            except Exception:
+                err = None
+            return {"ok": False, "error": err or ("busy" if e.code == 429 else "http_%d" % e.code)}
+        except Exception:
+            return {"ok": False, "error": "offline"}
+        url = str(j.get("url") or "")
+        if not j.get("ok") or not SHARE_LINK_RE.match(url):
+            return {"ok": False, "error": str(j.get("error") or "invalid")[:20]}
+        links[key] = {"url": url, "at": time.time()}
+        if len(links) > SHARE_LINKS_KEEP:
+            newest = sorted(links.items(), key=lambda kv: -float((kv[1] or {}).get("at") or 0))
+            links = dict(newest[:SHARE_LINKS_KEEP])
+        _save_json(SHARE_LINKS_FILE, links)
+    record_feature("shareLink")
+    return {"ok": True, "url": url}
+
+
 # ============================ Match-Analyse (2.5.0) ============================
 # Nach dem Matchende (INGAME -> MENUS) holt der Dienst einmal die kompletten
 # Match-Details (eine pd-Anfrage) und rechnet daraus die Auswertung, die das
@@ -8354,11 +8433,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        path = urllib.parse.urlparse(self.path).path
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
         try:
             length = int(self.headers.get("Content-Length") or 0)
-            raw = self.rfile.read(length) if length else b""
-            body = json.loads(raw) if raw else {}
+        except ValueError:
+            length = 0
+        if length > POST_MAX_BYTES:             # nichts davon lesen (Speicher), Verbindung zu
+            self.close_connection = True
+            self._json({"ok": False, "error": "too_large"}, 413)
+            return
+        raw = self.rfile.read(length) if length > 0 else b""
+        try:
+            body = json.loads(raw) if raw and path != "/api/share/upload" else {}
         except Exception:
             body = {}
 
@@ -8381,6 +8468,9 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: party_action(action, body))
         elif path == "/api/problem-report":
             self._safe(lambda: problem_report_send(body.get("text"), body.get("contact"), bool(body.get("logs"))))
+        elif path == "/api/share/upload":
+            q = urllib.parse.parse_qs(parsed.query)
+            self._safe(lambda: share_upload(raw, (q.get("game") or [""])[0], (q.get("match") or [""])[0]))
         elif path == "/api/agent/select":
             self._safe(lambda: agent_action("select", body.get("agent")))
         elif path == "/api/agent/lock":

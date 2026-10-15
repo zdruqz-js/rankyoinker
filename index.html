@@ -1948,6 +1948,11 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .share-prev img{display:block; width:100%; height:100%; object-fit:cover;}
 .share-prev .spin{width:30px; height:30px; border-radius:50%; border:3px solid var(--surface-4); border-top-color:var(--accent); animation:spin 1s linear infinite;}
 .share-actions{flex-wrap:wrap;}
+.share-link{display:flex; align-items:center; gap:10px; margin-top:14px; padding:4px 6px 4px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line-2);}
+.share-link .spin{flex:0 0 auto; width:16px; height:16px; border-radius:50%; border:2px solid var(--surface-4); border-top-color:var(--accent); animation:spin 1s linear infinite;}
+.share-link input{flex:1 1 auto; min-width:0; height:36px; border:0; background:transparent; color:var(--text); font:600 13px var(--font-mono); outline:none; text-overflow:ellipsis;}
+.share-link.busy input{color:var(--text-3, var(--text-2));}
+.share-note{margin-top:8px; font-size:12px; line-height:1.45; color:var(--text-3, var(--text-2));}
 .share-actions .pbtn svg{margin-right:2px;}
 @media (max-width:520px){
   .share-actions{flex-direction:column-reverse; align-items:stretch;}
@@ -2724,8 +2729,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     <div class="ask-title" id="shareTitle" data-i18n="report_share_title">Match als Bild</div>
     <div class="ask-sub" data-i18n="report_share_sub">Speichern oder direkt teilen – zum Beispiel in Discord.</div>
     <div class="share-prev" id="sharePrev"></div>
+    <div class="share-link" id="shareLink" hidden>
+      <span class="spin" id="shareLinkSpin"></span>
+      <input type="text" id="shareLinkUrl" readonly spellcheck="false" autocomplete="off" aria-label="Link">
+    </div>
     <div class="ask-hint" id="shareHint"></div>
+    <div class="share-note" data-i18n="report_share_note">Beim Teilen wird das Bild öffentlich auf rankyoinker.de abgelegt (per Link abrufbar, 30 Tage).</div>
     <div class="ask-actions share-actions">
+      <button type="button" class="pbtn go" id="shareLinkCopy" hidden></button>
       <button type="button" class="pbtn" id="shareCopy" hidden></button>
       <button type="button" class="pbtn" id="shareNative" hidden></button>
       <button type="button" class="pbtn go" id="shareSave"></button>
@@ -3087,6 +3098,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     skull: '<path d="M12 3a8 8 0 0 0-8 8c0 2.6 1.2 4.6 3 5.8V20a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3.2c1.8-1.2 3-3.2 3-5.8a8 8 0 0 0-8-8z"/><circle cx="9" cy="11.5" r="1.6"/><circle cx="15" cy="11.5" r="1.6"/><line x1="10" y1="21" x2="10" y2="18"/><line x1="14" y1="21" x2="14" y2="18"/>',
     search: '<circle cx="11" cy="11" r="7"/><line x1="20.5" y1="20.5" x2="16" y2="16"/>',
     crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     swords: '<polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="17" x2="4" y2="20"/><line x1="3" y1="19" x2="5" y2="21"/>'
   };
   function svgIcon(name, size, cls){
@@ -5865,11 +5877,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const wrap = document.getElementById('shareWrap');
     if(!wrap) return;
     const $ = id => document.getElementById(id);
-    let blob = null, url = null, busy = false, cur = null;
+    let blob = null, url = null, busy = false, cur = null, link = null, seq = 0;
     const hint = (txt, good) => { $('shareHint').textContent = txt || ''; $('shareHint').classList.toggle('prob-hint-ok', !!good); };
+    const canCopyImage = () => !!(window.isSecureContext && navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
     $('shareSave').innerHTML = svgIcon('download', 14) + esc(t('report_share_save'));
     $('shareCopy').innerHTML = svgIcon('copy', 14) + esc(t('report_share_copy'));
     $('shareNative').innerHTML = svgIcon('share', 14) + esc(t('report_share_native'));
+    $('shareLinkCopy').innerHTML = svgIcon('link', 14) + esc(t('report_share_copy_link'));
     const fileName = () => {
       let base = [];
       try{ base = cur ? rpBannerModel(cur).fileBase : []; }catch(e){}
@@ -5877,11 +5891,50 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     };
     const fileOf = () => new File([blob], fileName(), {type: 'image/png'});
     function close(){ wrap.classList.remove('open'); }
+    function linkState(state, text){
+      $('shareLink').hidden = state === 'off';
+      $('shareLink').classList.toggle('busy', state === 'busy');
+      $('shareLinkSpin').hidden = state !== 'busy';
+      $('shareLinkUrl').value = text || '';
+      $('shareLinkCopy').hidden = state !== 'ready';
+      $('shareSave').classList.toggle('go', state !== 'ready');
+    }
+    // Teilen = einmal pro Match hochladen (der Dienst merkt sich den Link). Klappt
+    // das nicht (offline, Server aus, zu viele Uploads), wird nur das Bild kopiert.
+    async function upload(my){
+      const r = cur;
+      const game = r.game === 'lol' ? 'lol' : 'val';
+      const id = String(game === 'lol' ? r.gameId : r.matchId || '');
+      let j = null;
+      try{
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 30000);
+        const res = await fetch(LOG_URL + '/api/share/upload?game=' + game + '&match=' + encodeURIComponent(id),
+          {method: 'POST', cache: 'no-store', headers: {'Content-Type': 'image/png'}, body: blob, signal: ctl.signal});
+        clearTimeout(timer);
+        j = await res.json();
+      }catch(e){ j = null; }
+      if(my !== seq) return;
+      if(j && j.ok && /^https:\/\/rankyoinker\.de\/uploads\/[A-Za-z0-9_-]{22}\.png$/.test(j.url || '')){
+        link = j.url;
+        linkState('ready', link);
+        hint(t('report_share_link_ok'), true);
+        return;
+      }
+      linkState('off');
+      if(canCopyImage()){
+        try{ await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]); hint(t('report_share_up_fail_copied'), true); return; }
+        catch(e){}
+      }
+      hint(t('report_share_up_fail'));
+    }
     async function open(report){
       if(!report || busy) return;
-      busy = true; cur = report;
+      busy = true; cur = report; link = null;
+      const my = ++seq;
       wrap.classList.add('open');
       hint('');
+      linkState('off');
       $('sharePrev').innerHTML = '<span class="spin"></span>';
       ['shareSave', 'shareCopy', 'shareNative'].forEach(id => { $(id).disabled = true; });
       try{ blob = await rpBannerBlob(report); }catch(e){ blob = null; }
@@ -5891,12 +5944,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       url = URL.createObjectURL(blob);
       $('sharePrev').innerHTML = `<img src="${url}" alt="">`;
       $('shareSave').disabled = false;
-      $('shareCopy').hidden = !(window.isSecureContext && navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
+      $('shareCopy').hidden = !canCopyImage();
       $('shareCopy').disabled = false;
       let canShare = false;
       try{ canShare = !!(navigator.canShare && navigator.share && navigator.canShare({files: [fileOf()]})); }catch(e){}
       $('shareNative').hidden = !canShare;
       $('shareNative').disabled = false;
+      linkState('busy', t('report_share_link_busy'));
+      upload(my);
     }
     document.getElementById('reportView').addEventListener('click', e => { if(e.target.closest('[data-report-share]')) open(reportData); });
     window.ryOpenShare = open;
@@ -5916,9 +5971,24 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         .then(() => hint(t('report_share_copied'), true))
         .catch(() => hint(t('report_share_fail')));
     });
+    // Link kopieren klappt auch ohne sicheren Kontext (http://rankyoinker/, Handy im LAN)
+    $('shareLinkCopy').addEventListener('click', async () => {
+      if(!link) return;
+      let done = false;
+      if(window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText){
+        try{ await navigator.clipboard.writeText(link); done = true; }catch(e){}
+      }
+      if(!done){
+        const inp = $('shareLinkUrl');
+        inp.focus(); inp.select();
+        try{ done = document.execCommand('copy'); }catch(e){}
+      }
+      hint(t(done ? 'report_share_link_copied' : 'report_share_fail'), done);
+    });
+    $('shareLinkUrl').addEventListener('focus', e => e.target.select());
     $('shareNative').addEventListener('click', () => {
       if(!blob) return;
-      navigator.share({files: [fileOf()], title: 'RankYoinker', text: 'rankyoinker.de'}).catch(() => {});
+      navigator.share({files: [fileOf()], title: 'RankYoinker', text: link || 'rankyoinker.de'}).catch(() => {});
     });
   })();
 
@@ -10358,7 +10428,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev20";
+const CURRENT_VERSION = "2.5.0-dev21";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
