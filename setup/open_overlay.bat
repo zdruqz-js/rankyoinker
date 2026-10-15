@@ -13,11 +13,10 @@ rem ueberhaupt sichtbar) schliesst sich von selbst.
 set "DEBUGLOG=%TEMP%\rankyoinker_install_log.txt"
 call :log "=== open_overlay.bat gestartet ==="
 
-rem Seit 2.5.0 oeffnet RankYoinker als eigenes Fenster (Edge/Chrome im
-rem App-Modus) statt als Browser-Tab - dieselbe Logik wie Tray und
-rem Startmenue-Symbol: vry_log_server.py --open-app waehlt die Adresse
-rem (http://rankyoinker/ oder http://localhost:1101/), startet den Dienst
-rem bei Bedarf und faellt ohne Edge/Chrome auf den Standardbrowser zurueck.
+rem Dieselbe Logik wie Tray und Startmenue-Symbol: vry_log_server.py
+rem --open-app waehlt die Adresse (http://rankyoinker/ oder
+rem http://localhost:1101/), startet den Dienst bei Bedarf und oeffnet die
+rem Seite im Standardbrowser.
 set "APPDIR=%~dp0.."
 if exist "%APPDIR%\pythonw.exe" (
   call :log "  oeffne App-Fenster ueber vry_log_server.py --open-app"

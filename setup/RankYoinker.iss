@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.0-dev6"
+#define MyAppVersion "2.5.0-dev7"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -217,15 +217,15 @@ Source: "..\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs cr
 Source: "install_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion
 Source: "uninstall_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion
 Source: "open_overlay.bat"; DestDir: "{app}\setup"; Flags: ignoreversion
-; Startmenue/Desktop "RankYoinker" (ab 2.5.0): oeffnet die Oberflaeche als
-; eigenes Fenster (Edge/Chrome im App-Modus), siehe open_overlay_window()
+; Startmenue/Desktop "RankYoinker" (ab 2.5.0): oeffnet die Oberflaeche im
+; Standardbrowser, siehe open_overlay_in_browser()
 Source: "..\open_app.vbs"; DestDir: "{app}"; Flags: ignoreversion
 ; Lizenzhinweis fürs Basiswerk (ISC-Pflichthinweis, siehe oben)
 Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags: ignoreversion
 
 [InstallDelete]
 ; Alte Startmenue-Verknuepfung "Overlay im Browser oeffnen" (bis 2.4.9, URL-
-; Verknuepfung) - heisst seit 2.5.0 "RankYoinker oeffnen" und oeffnet ein App-Fenster
+; Verknuepfung) - heisst seit 2.5.0 "RankYoinker oeffnen" (startet bei Bedarf den Dienst)
 Type: files; Name: "{group}\Open overlay in browser.url"
 Type: files; Name: "{group}\Overlay im Browser öffnen.url"
 Type: files; Name: "{group}\Otwórz nakładkę w przeglądarce.url"
@@ -239,7 +239,7 @@ Name: "{group}\{cm:StartMenuStartName}"; Filename: "{app}\{#MyAppExeName}"; Work
 Name: "{group}\{cm:StartMenuStopName}"; Filename: "{app}\stop_vry.bat"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{group}\{cm:StartMenuOverlayName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{group}\{cm:UninstallProgram,RankYoinker}"; Filename: "{uninstallexe}"
-; Desktop-Symbol oeffnet seit 2.5.0 das App-Fenster statt vry.exe (das startet
+; Desktop-Symbol oeffnet seit 2.5.0 die Seite im Browser statt vry.exe (das startet
 ; der Dienst ohnehin selbst, sobald VALORANT laeuft)
 Name: "{autodesktop}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
 

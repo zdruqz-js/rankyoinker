@@ -1,8 +1,7 @@
 ' Startmenue- und Desktop-Symbol "RankYoinker" (ab 2.5.0): oeffnet die
-' Oberflaeche als eigenes Fenster (Edge/Chrome im App-Modus) statt als
-' Browser-Tab. Laeuft der Hilfsdienst nicht, startet ihn vry_log_server.py
-' --open-app vorher selbst. Die eigentliche Logik steckt dort
-' (open_overlay_window), hier nur der unsichtbare Aufruf.
+' Oberflaeche als Website im Standardbrowser. Laeuft der Hilfsdienst nicht,
+' startet ihn vry_log_server.py --open-app vorher selbst. Die eigentliche
+' Logik steckt dort (open_overlay_in_browser), hier nur der unsichtbare Aufruf.
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 appDir = fso.GetParentFolderName(WScript.ScriptFullName)

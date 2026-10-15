@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev6"
+APP_VERSION = "2.5.0-dev7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1027,26 +1027,6 @@ def _ps_quote(value):
 
 
 UPDATE_PENDING_PATH = os.path.join(DATA_DIR, "rankyoinker-update-pending.json")
-# Gerade per Selbst-Update gekommen? (check_pending_update) - /status meldet es
-# 15 Minuten lang; eine auf dem PC im normalen Browser-Tab offene Seite oeffnet
-# daraufhin einmal das App-Fenster (/api/open-app), siehe updated_state().
-_just_updated = {}
-JUST_UPDATED_SECS = 15 * 60
-
-
-def updated_state():
-    if _just_updated and time.time() - _just_updated.get("at", 0) < JUST_UPDATED_SECS:
-        return {"from": _just_updated.get("from"), "to": _just_updated.get("to")}
-    return None
-
-
-def open_app_after_update():
-    """Einmal je Update das App-Fenster oeffnen (mehrere offene Tabs fragen evtl. alle)."""
-    if not updated_state() or _just_updated.get("opened"):
-        return {"ok": True, "opened": False}
-    _just_updated["opened"] = True
-    threading.Thread(target=open_overlay_window, daemon=True).start()
-    return {"ok": True, "opened": True}
 
 
 def _write_update_pending(version):
@@ -1077,7 +1057,6 @@ def check_pending_update():
     if not target or target == APP_VERSION:
         if target:
             _ulog("Update auf %s erfolgreich (laeuft jetzt)." % target)
-            _just_updated.update({"from": str(info.get("from") or ""), "to": APP_VERSION, "at": time.time()})
         return
     if time.time() - float(info.get("at") or 0) > 6 * 3600:
         return                                # uralt, nicht mehr aussagekraeftig
@@ -4910,88 +4889,15 @@ def _snapshot_tick(state, mid, now):
         report_error("match-snapshot", e)
 
 
-# ============================ Eigenes App-Fenster am PC (2.5.0) ============================
-# Statt eines normalen Browser-Tabs oeffnet RankYoinker am PC ein eigenes
-# Fenster ohne Adressleiste (App-Modus, --app=<Adresse>). Gilt fuer Tray,
-# Startmenue/Desktop-Symbol (open_app.vbs -> "vry_log_server.py --open-app")
-# und das Oeffnen nach der Installation (setup/open_overlay.bat).
-# Browser (seit 2.5.0-dev5): der STANDARDBROWSER des Nutzers, wenn er den
-# App-Modus kann (Chrome, Edge, Brave, Vivaldi, Chromium) - vorher war es
-# immer Edge, auch wenn Chrome der Standard war. Opera/Opera GX und Firefox
-# koennen kein App-Fenster (Opera oeffnet mit --app ein normales Fenster samt
-# aller alten Tabs, am PC eines Nutzers geprueft) - dann Chrome, sonst Edge
-# (auf Windows 10/11 immer da). Das Fenster hat trotzdem einen eigenen
-# Taskleisten-Knopf mit dem RankYoinker-Symbol.
-_APP_BROWSER_PATHS = (
-    r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
-    r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
-    r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe",
-    r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
-    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
-    r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
-)
-_APP_CAPABLE_EXES = ("chrome.exe", "msedge.exe", "brave.exe", "vivaldi.exe", "chromium.exe")
-APP_WINDOW_MARK = os.path.join(DATA_DIR, ".app_window")
+# ============================ Oberflaeche im Browser oeffnen ============================
+# Tray, Startmenue/Desktop-Symbol (open_app.vbs -> "vry_log_server.py --open-app")
+# und das Oeffnen nach der Installation (setup/open_overlay.bat) oeffnen die
+# Oberflaeche als ganz normale Website im Standardbrowser des Nutzers.
+# 2.5.0-dev3 bis dev6 oeffneten stattdessen ein eigenes App-Fenster (Edge/Chrome
+# mit --app=) - auf Wunsch des Nutzers wieder entfernt (2.5.0-dev7): zu
+# eingeschraenkt, und Opera/Firefox koennen es gar nicht, dann kam ungefragt Edge.
 HOSTS_FILE = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "drivers", "etc", "hosts")
 DETACHED_PROCESS = 0x00000008
-
-
-def _exe_from_command(cmd):
-    """'"C:\\...\\chrome.exe" --single-argument %1' -> 'C:\\...\\chrome.exe'"""
-    m = re.match(r'\s*"([^"]+?\.exe)"', cmd or "", re.I) or re.match(r"\s*(.+?\.exe)\b", cmd or "", re.I)
-    return os.path.expandvars(m.group(1)) if m else None
-
-
-def _default_browser():
-    """(ProgId, exe) des Standardbrowsers aus der Windows-Zuordnung fuer https/http,
-    (None, None) wenn nicht ermittelbar."""
-    try:
-        import winreg
-    except ImportError:
-        return None, None
-    for proto in ("https", "http"):
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\Shell\Associations"
-                                r"\UrlAssociations\%s\UserChoice" % proto) as k:
-                progid = winreg.QueryValueEx(k, "ProgId")[0]
-        except OSError:
-            continue
-        if not progid:
-            continue
-        try:
-            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + r"\shell\open\command") as k:
-                return progid, _exe_from_command(winreg.QueryValue(k, None))
-        except OSError:
-            return progid, None
-    return None, None
-
-
-def _app_browser():
-    """Browser fuer das App-Fenster, None = keiner da (dann Standardbrowser normal)."""
-    try:
-        _, exe = _default_browser()
-    except Exception:
-        exe = None
-    if exe and os.path.basename(exe).lower() in _APP_CAPABLE_EXES and os.path.isfile(exe):
-        return exe
-    for raw in _APP_BROWSER_PATHS:
-        path = os.path.expandvars(raw)
-        if "%" not in path and os.path.isfile(path):
-            return path
-    try:
-        import winreg
-        for name in ("chrome.exe", "msedge.exe"):
-            for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
-                try:
-                    with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\%s" % name) as k:
-                        path = winreg.QueryValue(k, None)
-                    if path and os.path.isfile(path.strip('"')):
-                        return path.strip('"')
-                except OSError:
-                    pass
-    except Exception:
-        pass
-    return None
 
 
 def _local_status_ok(port, host="127.0.0.1", timeout=1.5):
@@ -5015,58 +4921,35 @@ def overlay_url():
     return "http://localhost:%d/" % PORT
 
 
-def open_overlay_window(url=None):
+def open_overlay_in_browser(url=None):
     url = url or overlay_url()
-    exe = _app_browser()
-    if exe:
-        # --no-first-run: ein nie benutzter Browser zeigt sonst seinen Einrichtungs-
-        # Assistenten statt des Fensters (wirkt nur, wenn er noch nicht laeuft)
-        # ?app=1: die Seite merkt daran, dass sie im eigenen Fenster laeuft (der
-        # Browser leitet die App-Identitaet nur aus Host + Pfad ab, nicht aus der Query)
-        app_url = url + ("&" if "?" in url else "?") + "app=1"
-        args = [exe, "--app=" + app_url, "--no-first-run", "--no-default-browser-check"]
-        if not os.path.exists(APP_WINDOW_MARK):
-            # Nur beim ersten Mal eine sinnvolle Groesse vorgeben - danach merkt
-            # sich der Browser Groesse und Position des App-Fensters selbst.
-            args.append("--window-size=1440,920")
-            try:
-                with open(APP_WINDOW_MARK, "w", encoding="utf-8") as fh:
-                    fh.write(str(int(time.time())))
-            except OSError:
-                pass
-        try:
-            subprocess.Popen(args, close_fds=True, creationflags=DETACHED_PROCESS)
-            return True
-        except Exception as e:
-            _ulog("App-Fenster: Start fehlgeschlagen: %s: %s" % (type(e).__name__, e))
     try:
         webbrowser.open(url)
         return True
     except Exception as e:
-        _ulog("App-Fenster: Browser oeffnen fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+        _ulog("Browser oeffnen fehlgeschlagen: %s: %s" % (type(e).__name__, e))
         return False
 
 
 def _open_app_cli():
     """"vry_log_server.py --open-app" (Startmenue, Desktop, nach der Installation):
-    Dienst starten, falls er nicht laeuft, dann das App-Fenster oeffnen."""
+    Dienst starten, falls er nicht laeuft, dann die Seite im Standardbrowser oeffnen."""
     if not _local_status_ok(PORT, timeout=1.0):
         try:
             subprocess.Popen([sys.executable, os.path.abspath(__file__)], cwd=BASE, close_fds=True,
                              creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW)
         except Exception as e:
-            _ulog("App-Fenster: Dienst starten fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+            _ulog("Dienst starten fehlgeschlagen: %s: %s" % (type(e).__name__, e))
         for _ in range(24):
             time.sleep(0.5)
             if _local_status_ok(PORT, timeout=0.8):
                 break
-    return open_overlay_window()
+    return open_overlay_in_browser()
 
 
 # ============================ Als App installieren (PWA, 2.5.0) ============================
-# Das Overlay laesst sich als App installieren: am PC (localhost ist ein
-# "sicherer Kontext") ueber Chrome/Edge, auf dem Handy ueber "Zum Home-
-# Bildschirm". Icons stecken hier eingebettet (rotes Quadrat mit "Y", wie das
+# Das Overlay laesst sich auf dem Handy ueber "Zum Home-Bildschirm" als App
+# installieren (am PC bietet die Seite das nicht an, dort laeuft sie im Browser). Icons stecken hier eingebettet (rotes Quadrat mit "Y", wie das
 # Favicon), damit der Installer keine neuen Dateien braucht.
 # iPhones geben einer installierten Web-App eigene, leere Cookies - das
 # Kopplungs-Cookie aus Safari fehlt dort. Darum traegt start_url im Manifest
@@ -7872,7 +7755,7 @@ def _lol_record_encounter_now():
 # Antworten werden nur für die eigene Seite freigegeben, nicht mehr für jede
 # beliebige Website. Vom Handy läuft alles ohnehin same-origin.
 # "rankyoinker" gehoert dazu: install_all.py traegt http://rankyoinker/ in die hosts-Datei
-# ein, und das App-Fenster (overlay_url) oeffnet genau diese Adresse. Fehlte bis
+# ein, und Tray/Desktop-Symbol (overlay_url) oeffnen genau diese Adresse. Fehlte bis
 # 2.5.0-dev5 - von dort wurde jeder POST (Instalock, Agent waehlen, Update ...) abgelehnt.
 _ORIGIN_OK = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\]|vry|rankyoinker)(:\d+)?$", re.I)
 
@@ -8046,9 +7929,6 @@ class Handler(BaseHTTPRequestHandler):
         elif path.startswith("/api/party/"):
             action = path.rsplit("/", 1)[-1]
             self._safe(lambda: party_action(action, body))
-        elif path == "/api/open-app":
-            if self._local_only():
-                self._safe(open_app_after_update)
         elif path == "/api/problem-report":
             self._safe(lambda: problem_report_send(body.get("text"), body.get("contact"), bool(body.get("logs"))))
         elif path == "/api/agent/select":
@@ -8305,7 +8185,7 @@ class Handler(BaseHTTPRequestHandler):
             # nicht — sie fragt /api/instalock nur, solange sie es selbst kennt.
             with _il_lock:
                 il = {"on": bool(_il["on"]), "gen": _il["gen"]}
-            out = {"appVersion": APP_VERSION, "updated": updated_state(),
+            out = {"appVersion": APP_VERSION,
                    "progress": parse_progress(lines), "game": game_state(),
                    "instalock": il, "activeGame": detect_active_game(),
                    "lol": lol_gamestate()}
@@ -8666,8 +8546,7 @@ def _tray_strings():
 
 
 def _tray_open_overlay():
-    # Eigenes App-Fenster (Edge/Chrome --app), sonst Standardbrowser
-    threading.Thread(target=open_overlay_window, daemon=True).start()
+    threading.Thread(target=open_overlay_in_browser, daemon=True).start()
 
 
 def _tray_wndproc_factory(user32, shell32, nid):
@@ -8830,7 +8709,7 @@ def _run_tray_icon():
 
 if __name__ == "__main__":
     if "--open-app" in sys.argv[1:]:
-        # Nur das App-Fenster oeffnen (open_app.vbs) - den laufenden Dienst NICHT
+        # Nur die Seite im Browser oeffnen (open_app.vbs) - den laufenden Dienst NICHT
         # beenden, darum vor _kill_other_log_servers()
         raise SystemExit(0 if _open_app_cli() else 1)
     _kill_other_log_servers()  # Selbstheilung: egal wie gestartet, nie zwei Instanzen

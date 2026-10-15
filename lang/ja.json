@@ -634,8 +634,6 @@
     "report_rd_buy": "購入",
     "report_rd_econ": "{a} 対 {b}",
     "report_rd_you": "あなた",
-    "report_rd_survived": "生存",
-    "app_window_opened_title": "RankYoinkerに専用ウィンドウができました",
-    "app_window_opened_msg": "いま開きました。このブラウザのタブは閉じて大丈夫です。今後はデスクトップのアイコンかスタートメニューからRankYoinkerを起動してください。"
+    "report_rd_survived": "生存"
   }
 }
