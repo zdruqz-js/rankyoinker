@@ -46,8 +46,11 @@ PD_STRIKE_RESET = 600.0
 PD_PROBE_TIMEOUT = 15.0
 PD_GATE_FILE = os.path.join(data_dir(), "pd-gate.json")
 PD_GATE_LOCKFILE = os.path.join(data_dir(), "pd-gate.lock")
+# hi_until (seit 2.5.0-dev17): vry.exe laedt gerade Namen/Raenge -> der Dienst
+# stellt seine "Letzte 5"-Abfragen so lange zurueck (_pd_bulk_wait im Dienst)
+PD_HI_HOLD = 3.0
 _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "reason": "",
-            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0}
+            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0}
 _pd_lock = threading.Lock()
 
 
@@ -122,6 +125,7 @@ def pd_wait():
     while True:
         with _PdState() as g:
             now = time.time()
+            g["hi_until"] = max(g.get("hi_until") or 0.0, now + PD_HI_HOLD)
             if now < g["blocked_until"]:
                 slot = None                     # reservierter Platz verfaellt mit der Sperre
                 sleep_for = min(g["blocked_until"] - now, 1.0)
