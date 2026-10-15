@@ -4553,7 +4553,7 @@ def game_state():
     out = {"state": _game["state"], "matchId": _game["matchId"],
            "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
            "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
-           "pdRequests": dict(_pd_counts)}
+           "pdRequests": dict(_pd_counts), "report": match_report_state()}
     if _game["state"] == "INGAME" and _game_roster["match"] and _game_roster["match"] == _game["matchId"]:
         out["roster"] = {"map": _game_roster["map"], "queue": _game_roster["queue"],
                          "players": _game_roster["players"]}
@@ -4885,6 +4885,342 @@ def _snapshot_tick(state, mid, now):
         report_error("match-snapshot", e)
 
 
+# ============================ Match-Analyse (2.5.0) ============================
+# Nach dem Matchende (INGAME -> MENUS) holt der Dienst einmal die kompletten
+# Match-Details (eine pd-Anfrage) und rechnet daraus die Auswertung, die das
+# Overlay statt der Lobby zeigt, bis man sie wegklickt oder das naechste Match
+# beginnt: ACS, ADR, KAST, HS%, First Kills/Deaths, Multikills, Clutches,
+# Economy, Rundenverlauf (wie gewonnen, Kaufrunde), Seiten, Highlights und ein
+# Rating relativ zur Lobby (1,00 = Durchschnitt), dazu der Vergleich mit dem
+# eigenen Schnitt der letzten Matches. Liegt in DATA_DIR/match-report.json und
+# uebersteht so auch einen Neustart. Riot stellt die Details oft erst nach
+# einigen Sekunden bereit - darum mehrere Versuche.
+MATCH_REPORT_FILE = os.path.join(DATA_DIR, "match-report.json")
+REPORT_RETRY = 15.0
+REPORT_TRIES = 12
+_report = {"pending": None, "tries": 0, "next": 0.0, "data": None, "loaded": False, "busy": False}
+_report_lock = threading.Lock()
+_HALF_BY_QUEUE = {"swiftplay": 4, "spikerush": 3}
+
+
+def _report_get():
+    with _report_lock:
+        if not _report["loaded"]:
+            _report["loaded"] = True
+            data = _load_json(MATCH_REPORT_FILE)
+            if data.get("matchId"):
+                _report["data"] = data
+        return _report["data"]
+
+
+def match_report_state():
+    data = _report_get()
+    return {"matchId": data.get("matchId") if data else None, "pending": bool(_report["pending"])}
+
+
+def _report_schedule(match_id):
+    with _report_lock:
+        _report.update(pending=match_id, tries=0, next=time.time() + 5.0)
+
+
+def _report_tick(now):
+    with _report_lock:
+        mid = _report["pending"]
+        if not mid or _report["busy"] or now < _report["next"]:
+            return
+        _report["busy"] = True
+
+    def run():
+        ok = False
+        try:
+            data = _match_report_build(mid)
+            if data:
+                _save_json(MATCH_REPORT_FILE, data)
+                with _report_lock:
+                    _report.update(data=data, loaded=True)
+                ok = True
+        except Exception as e:
+            report_error("match-report", e)
+        finally:
+            with _report_lock:
+                _report["busy"] = False
+                if ok or _report["tries"] + 1 >= REPORT_TRIES:
+                    if _report["pending"] == mid:
+                        _report["pending"] = None
+                else:
+                    _report["tries"] += 1
+                    _report["next"] = time.time() + REPORT_RETRY
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def _kill_time(k):
+    t = k.get("roundTime")
+    if t is None:
+        t = k.get("timeSinceRoundStartMillis")
+    return t if isinstance(t, (int, float)) else 0
+
+
+_HOW = {"Elimination": "elim", "Eliminated": "elim", "Detonate": "bomb", "Bomb detonated": "bomb",
+        "Defuse": "defuse", "Bomb defused": "defuse", "Surrendered": "surrender"}
+_CEREMONY = {"CeremonyAce": "ace", "CeremonyTeamAce": "teamace", "CeremonyClutch": "clutch",
+             "CeremonyFlawless": "flawless", "CeremonyThrifty": "thrifty", "CeremonyCloser": "closer"}
+
+
+def _buy_type(avg_loadout, pistol):
+    if pistol:
+        return "pistol"
+    if avg_loadout < 1600:
+        return "eco"
+    if avg_loadout < 3400:
+        return "half"
+    return "full"
+
+
+def _match_report_build(match_id):
+    status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
+    if status != 200 or not isinstance(j, dict) or not j.get("players"):
+        return None
+    with _cache_lock:
+        _cache_put(_match_cache, match_id, _digest_match(j), MATCH_CACHE_MAX)
+        _digest_disk["dirty"] = True
+    me = get_auth()["puuid"]
+    info = j.get("matchInfo") or {}
+    queue = str(info.get("queueID") or info.get("queueId") or "").lower()
+    players = [p for p in (j.get("players") or []) if p.get("subject") and p.get("teamId") not in (None, "Neutral")]
+    team_of = {p["subject"]: p.get("teamId") for p in players}
+    my_team = team_of.get(me)
+    if not my_team:
+        return None
+    rounds = j.get("roundResults") or []
+    team_ids = sorted({t for t in team_of.values() if t})
+    enemy_team = next((t for t in team_ids if t != my_team), None)
+    ffa = not rounds or len(team_ids) > 2
+
+    st = {p["subject"]: {"k": 0, "d": 0, "a": 0, "dmg": 0, "hs": 0, "body": 0, "leg": 0, "kast": 0, "rounds": 0,
+                         "fk": 0, "fd": 0, "mk3": 0, "mk4": 0, "ace": 0, "clutches": [], "spent": 0, "loadout": 0,
+                         "plants": 0, "defuses": 0} for p in players}
+    half = _HALF_BY_QUEUE.get(queue, 12)
+    first_atk = None
+    for rnd in rounds[:half]:
+        planter = rnd.get("bombPlanter")
+        if planter in team_of:
+            first_atk = team_of[planter]
+            break
+    if first_atk is None:
+        first_atk = "Red" if "Red" in team_ids else (team_ids[0] if team_ids else None)
+    other_atk = next((t for t in team_ids if t != first_atk), None)
+
+    timeline, highlights = [], []
+    side_won = {"atk": [0, 0], "def": [0, 0]}
+    pistol = [0, 0]
+    for i, rnd in enumerate(rounds):
+        pstats = {ps.get("subject"): ps for ps in (rnd.get("playerStats") or []) if ps.get("subject") in st}
+        kills = []
+        for ps in pstats.values():
+            for k in ps.get("kills") or []:
+                kills.append(dict(k, killer=k.get("killer") or ps.get("subject")))
+        kills.sort(key=_kill_time)
+        alive = {t: {pu for pu in pstats if team_of.get(pu) == t} for t in team_ids}
+        died, killed, assisted, traded = {}, collections.Counter(), set(), set()
+        clutch = {}
+        for k in kills:
+            killer, victim, tk = k.get("killer"), k.get("victim"), _kill_time(k)
+            if killer in st and team_of.get(killer) != team_of.get(victim):
+                killed[killer] += 1
+            for a in k.get("assistants") or []:
+                assisted.add(a)
+            if victim in st:
+                died[victim] = (tk, killer)
+                for t in alive.values():
+                    t.discard(victim)
+                for pu, (dt, dk) in list(died.items()):
+                    if dk == victim and pu != victim and team_of.get(pu) == team_of.get(killer) and 0 <= tk - dt <= 5000:
+                        traded.add(pu)
+            for t in team_ids:
+                mine = alive.get(t) or set()
+                foes = sum(len(v) for tt, v in alive.items() if tt != t)
+                if len(mine) == 1 and foes >= 1 and t not in clutch:
+                    clutch[t] = (next(iter(mine)), foes)
+        if kills:
+            fk = kills[0]
+            if fk.get("killer") in st:
+                st[fk["killer"]]["fk"] += 1
+            if fk.get("victim") in st:
+                st[fk["victim"]]["fd"] += 1
+        winner = rnd.get("winningTeam")
+        for pu, ps in pstats.items():
+            s = st[pu]
+            s["rounds"] += 1
+            for d in ps.get("damage") or []:
+                if team_of.get(d.get("receiver")) == team_of.get(pu):
+                    continue
+                s["dmg"] += d.get("damage") or 0
+                s["hs"] += d.get("headshots") or 0
+                s["body"] += d.get("bodyshots") or 0
+                s["leg"] += d.get("legshots") or 0
+            eco = ps.get("economy") or {}
+            s["spent"] += eco.get("spent") or 0
+            s["loadout"] += eco.get("loadoutValue") or 0
+            n = killed.get(pu, 0)
+            if n >= 5:
+                s["ace"] += 1
+            elif n == 4:
+                s["mk4"] += 1
+            elif n == 3:
+                s["mk3"] += 1
+            if n or pu in assisted or pu not in died or pu in traded:
+                s["kast"] += 1
+        if rnd.get("bombPlanter") in st:
+            st[rnd["bombPlanter"]]["plants"] += 1
+        if rnd.get("bombDefuser") in st:
+            st[rnd["bombDefuser"]]["defuses"] += 1
+        if winner in clutch:
+            pu, foes = clutch[winner]
+            st[pu]["clutches"].append({"round": i + 1, "vs": foes})
+
+        if ffa:
+            continue
+        if i < half:
+            atk = first_atk
+        elif i < 2 * half:
+            atk = other_atk
+        else:
+            atk = first_atk if (i - 2 * half) % 2 == 0 else other_atk
+        planter = rnd.get("bombPlanter")
+        if planter in team_of:
+            atk = team_of[planter]
+        my_side = "atk" if atk == my_team else "def"
+
+        def team_buy(t):
+            vals = [((pstats[pu].get("economy") or {}).get("loadoutValue") or 0) for pu in pstats if team_of.get(pu) == t]
+            return _buy_type(sum(vals) / len(vals) if vals else 0, i in (0, half))
+
+        won = winner == my_team
+        side_won[my_side][1] += 1
+        if won:
+            side_won[my_side][0] += 1
+        if i in (0, half):
+            pistol[1] += 1
+            if won:
+                pistol[0] += 1
+        timeline.append({
+            "n": i + 1,
+            "win": "ally" if won else ("enemy" if winner else "none"),
+            "how": _HOW.get(rnd.get("roundResultCode") or rnd.get("roundResult") or "", "time"),
+            "ceremony": _CEREMONY.get(rnd.get("roundCeremony") or ""),
+            "side": my_side,
+            "myKills": killed.get(me, 0),
+            "myDied": me in died,
+            "buy": team_buy(my_team),
+            "enemyBuy": team_buy(enemy_team),
+            "plant": bool(rnd.get("bombPlanter")),
+        })
+        if won and killed.get(me, 0) >= 4:
+            highlights.append({"type": "ace" if killed[me] >= 5 else "4k", "round": i + 1})
+        if winner == my_team and clutch.get(my_team, (None,))[0] == me:
+            highlights.append({"type": "clutch", "round": i + 1, "vs": clutch[my_team][1]})
+        if won and (rnd.get("roundCeremony") == "CeremonyFlawless"):
+            highlights.append({"type": "flawless", "round": i + 1})
+
+    total_rounds = len(rounds)
+    out_players = []
+    for p in players:
+        pu = p["subject"]
+        s = st[pu]
+        ps_ = p.get("stats") or {}
+        rds = s["rounds"] or ps_.get("roundsPlayed") or 0
+        k, d, a = ps_.get("kills") or 0, ps_.get("deaths") or 0, ps_.get("assists") or 0
+        shots = s["hs"] + s["body"] + s["leg"]
+        out_players.append({
+            "puuid": pu, "name": ("%s#%s" % (p.get("gameName"), p.get("tagLine"))) if p.get("gameName") else None,
+            "team": team_of[pu], "ally": team_of[pu] == my_team, "me": pu == me, "party": p.get("partyId"),
+            "agent": p.get("characterId"), "tier": p.get("competitiveTier"), "level": p.get("accountLevel"),
+            "kills": k, "deaths": d, "assists": a, "score": ps_.get("score") or 0, "rounds": rds,
+            "acs": round((ps_.get("score") or 0) / rds, 1) if rds else None,
+            "adr": round(s["dmg"] / rds, 1) if rds and not ffa else None,
+            "kast": round(s["kast"] / rds * 100) if rds and not ffa else None,
+            "hs": round(s["hs"] / shots * 100, 1) if shots else None,
+            "kd": round(k / (d or 1), 2),
+            "fk": s["fk"], "fd": s["fd"], "mk3": s["mk3"], "mk4": s["mk4"], "ace": s["ace"],
+            "clutches": s["clutches"], "plants": s["plants"], "defuses": s["defuses"],
+            "econ": round(s["dmg"] / (s["spent"] / 1000.0)) if s["spent"] else None,
+            "avgLoadout": round(s["loadout"] / rds) if rds and not ffa else None,
+        })
+
+    def avg(key):
+        vals = [x[key] for x in out_players if x.get(key) is not None]
+        return sum(vals) / len(vals) if vals else 0
+
+    a_acs, a_adr, a_kast = avg("acs"), avg("adr"), avg("kast")
+    kdr = {x["puuid"]: ((x["kills"] / x["rounds"] + 0.1) / (x["deaths"] / x["rounds"] + 0.1)) if x["rounds"] else 0
+           for x in out_players}
+    a_kdr = sum(kdr.values()) / len(kdr) if kdr else 0
+    for x in out_players:
+        parts = [(0.35, x["acs"], a_acs), (0.25, kdr[x["puuid"]], a_kdr)]
+        if not ffa:
+            parts += [(0.2, x["adr"], a_adr), (0.2, x["kast"], a_kast)]
+        wsum = sum(w for w, v, m in parts if v is not None and m)
+        x["rating"] = round(sum(w * v / m for w, v, m in parts if v is not None and m) / wsum, 2) if wsum else None
+    ranked = sorted([x for x in out_players if x["rating"] is not None], key=lambda x: -x["rating"])
+    if ranked:
+        ranked[0]["mvp"] = "match"
+        for t in team_ids:
+            best = next((x for x in ranked if x["team"] == t and not x.get("mvp")), None)
+            if best and best is not ranked[0] and not ffa:
+                best["mvp"] = "team"
+    out_players.sort(key=lambda x: (not x["ally"], -(x["acs"] or 0)))
+
+    teams = {t.get("teamId"): t for t in (j.get("teams") or [])}
+    mine_t, enemy_t = teams.get(my_team) or {}, teams.get(enemy_team) or {}
+    if ffa:
+        my_row = next((x for x in out_players if x["me"]), {})
+        place = 1 + sum(1 for x in out_players if (x["kills"] or 0) > (my_row.get("kills") or 0))
+        result = "win" if place == 1 else "loss"
+        score = {"ally": my_row.get("kills") or 0, "enemy": None, "place": place, "of": len(out_players)}
+    else:
+        result = "win" if mine_t.get("won") else ("loss" if enemy_t.get("won") else "draw")
+        score = {"ally": mine_t.get("roundsWon") or 0, "enemy": enemy_t.get("roundsWon") or 0}
+
+    me_row = next((x for x in out_players if x["me"]), None)
+    if me_row:
+        for c in me_row["clutches"]:
+            if not any(h["type"] == "clutch" and h["round"] == c["round"] for h in highlights):
+                highlights.append({"type": "clutch", "round": c["round"], "vs": c["vs"]})
+        if me_row["fk"] >= 4:
+            highlights.append({"type": "firstbloods", "n": me_row["fk"]})
+        if me_row.get("mvp"):
+            highlights.insert(0, {"type": "mvp", "kind": me_row["mvp"]})
+    highlights.sort(key=lambda h: (h["type"] != "mvp", h.get("round") or 0))
+
+    report = {
+        "v": 1, "matchId": match_id, "createdAt": int(time.time()),
+        "map": info.get("mapId"), "queue": queue, "ffa": ffa,
+        "startedAt": info.get("gameStartMillis"), "durationMs": info.get("gameLengthMillis"),
+        "rounds": total_rounds, "result": result, "score": score,
+        "players": out_players, "timeline": timeline, "highlights": highlights[:8],
+        "sides": None if ffa else {"atk": side_won["atk"], "def": side_won["def"], "pistol": pistol},
+        "myAvg": None,
+    }
+    try:
+        hist = player_stats(me, 10, season=False)
+        rows = [r for r in (hist.get("matches") or []) if r.get("matchId") != match_id and r.get("rounds")]
+        if len(rows) >= 3:
+            n = len(rows)
+            shots = sum((r.get("headshots") or 0) + (r.get("bodyshots") or 0) + (r.get("legshots") or 0) for r in rows)
+            report["myAvg"] = {
+                "games": n,
+                "acs": round(sum(r.get("score") or 0 for r in rows) / sum(r["rounds"] for r in rows), 1),
+                "adr": round(sum(r.get("damage") or 0 for r in rows) / sum(r["rounds"] for r in rows), 1),
+                "kd": round(sum(r.get("kills") or 0 for r in rows) / (sum(r.get("deaths") or 0 for r in rows) or 1), 2),
+                "hs": round(sum(r.get("headshots") or 0 for r in rows) / shots * 100, 1) if shots else None,
+                "winrate": round(sum(1 for r in rows if r.get("won") is True) / n * 100),
+            }
+    except Exception:
+        pass
+    return report
+
+
 def _game_watcher():
     while True:
         time.sleep(GAME_INTERVAL)
@@ -4907,9 +5243,12 @@ def _game_watcher():
             except Exception:
                 continue        # Token/Region noch nicht da -> spaeter erneut
             if state != _game["state"] or mid != _game["matchId"]:
+                if _game["state"] == "INGAME" and _game["matchId"] and state != "INGAME":
+                    _report_schedule(_game["matchId"])     # Match vorbei -> Analyse holen
                 _game.update({"state": state, "matchId": mid, "since": now})
             _game["ts"] = now
             _snapshot_tick(state, mid, now)
+            _report_tick(now)
             # Begegnungen zählen, sobald der volle Kader steht (INGAME) —
             # unabhängig davon, ob die Seite gerade offen ist
             if state == "INGAME":
@@ -7536,6 +7875,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": str(e)})
             except Exception as e:
                 self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
+
+        elif path == "/api/match-report":
+            data = _report_get()
+            self._json({"ok": bool(data), "report": data, "pending": bool(_report["pending"])})
 
         elif path == "/api/kda":
             puuids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]
