@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev22"
+APP_VERSION = "2.5.0-dev23"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -7842,13 +7842,16 @@ def _lol_report_build(game_id, attempt=0):
 _LOL_POSITIONS = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
 # Gegenstand der Rollen-Quest (stats.roleBoundItem) - live in beiden Teams einheitlich;
 # die Botlane bekommt statt eines Platzhalters gleich ihre Stiefel (IDs ab 3000)
-_LOL_ROLE_ITEM = {1220: "TOP", 1209: "JUNGLE", 1206: "MIDDLE", 1208: "UTILITY"}
+# Supporter haben nach erfuellter Quest 2055 (live, Spiel 8014740439, 34 min)
+_LOL_ROLE_ITEM = {1220: "TOP", 1209: "JUNGLE", 1206: "MIDDLE", 1208: "UTILITY", 2055: "UTILITY"}
 _LOL_SMITE = 11
 _LOL_LANE_ROLE = {"TOP": "TOP", "JUNGLE": "JUNGLE", "MIDDLE": "MIDDLE", "MID": "MIDDLE"}
 # Gewichte der Note je Rolle: Supporter farmen nicht und machen wenig Schaden,
 # dafuer zaehlen Sicht und Kill-Beteiligung mehr
 _LOL_RATING_W = {"default": {"kda": .25, "kp": .15, "dpm": .25, "gpm": .15, "cspm": .10, "vpm": .10},
                  "UTILITY": {"kda": .25, "kp": .25, "dpm": .10, "gpm": .05, "cspm": 0.0, "vpm": .35}}
+# Kein Einzelwert zaehlt mehr als das 3-Fache des Schnitts (sonst traegt ein Ausreisser die ganze Note)
+_LOL_RATIO_CAP = 3.0
 
 
 def _lol_role(p, pl=None, positions=None):
@@ -7934,9 +7937,19 @@ def _lol_report_from_game(game, tl, me_puuid, positions=None):
               "dpm": lambda x: x["dmgMin"], "gpm": lambda x: x["goldMin"], "cspm": lambda x: x["csMin"],
               "vpm": lambda x: x["visionMin"]}
     avg = {m: sum(f(x) for x in players) / len(players) for m, f in metric.items()}
+    # Sicht gegen dieselbe Rolle: Supporter warden von Berufs wegen mehr - gegen den
+    # Lobby-Schnitt wurde live ein Supporter mit 0/9/9 Team-MVP (Sicht 2,1x = 0,74 Punkte)
+    vis_by_role = collections.defaultdict(list)
+    for x in players:
+        if x["role"]:
+            vis_by_role[x["role"]].append(x["visionMin"])
     for x in players:
         w = _LOL_RATING_W.get(x["role"]) or _LOL_RATING_W["default"]
-        parts_ = [(w[m], metric[m](x) / avg[m]) for m in metric if w[m] and avg[m]]
+        base = dict(avg)
+        peers = vis_by_role.get(x["role"]) or []
+        if len(peers) >= 2 and sum(peers) > 0:
+            base["vpm"] = sum(peers) / len(peers)
+        parts_ = [(w[m], min(_LOL_RATIO_CAP, metric[m](x) / base[m])) for m in metric if w[m] and base[m]]
         ws = sum(wt for wt, _ in parts_)
         x["rating"] = round(sum(wt * v for wt, v in parts_) / ws, 2) if ws else None
     ranked = sorted([x for x in players if x["rating"] is not None], key=lambda x: -x["rating"])
@@ -8036,10 +8049,21 @@ def _lol_report_timeline(tl, idents, parts, my_team, me_pid):
                 lost_team = e.get("teamId")
                 if kind and lost_team:
                     ev.append({"t": kind, "side": "enemy" if lost_team == my_team else "ally"})
-        out.append({"m": int(round((f.get("timestamp") or 0) / 60000.0)), "lead": ally - enemy,
-                    "gold": mine.get("totalGold") or 0,
-                    "cs": (mine.get("minionsKilled") or 0) + (mine.get("jungleMinionsKilled") or 0),
-                    "lvl": mine.get("level") or 0, "k": mk, "d": md, "a": ma, "ev": ev})
+        row = {"m": int(round((f.get("timestamp") or 0) / 60000.0)), "lead": ally - enemy,
+               "gold": mine.get("totalGold") or 0,
+               "cs": (mine.get("minionsKilled") or 0) + (mine.get("jungleMinionsKilled") or 0),
+               "lvl": mine.get("level") or 0, "k": mk, "d": md, "a": ma, "ev": ev}
+        # Der letzte Frame ist das Spielende (live 34:00 und 34:25 -> zweimal "34"):
+        # in dieselbe Minute zusammenfassen, Stand = der spaetere
+        if out and row["m"] <= out[-1]["m"]:
+            prev = out[-1]
+            for key in ("k", "d", "a"):
+                row[key] += prev[key]
+            row["ev"] = prev["ev"] + row["ev"]
+            row["m"] = prev["m"]
+            out[-1] = row
+        else:
+            out.append(row)
     return out
 
 

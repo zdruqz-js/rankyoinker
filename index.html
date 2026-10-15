@@ -2342,6 +2342,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-stats{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:18px;}
 .rp-stat{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
 .rp-stat .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.rp-stat .lbl .ls{display:none;}
+@media (max-width:520px){ .rp-stat .lbl .lf{display:none;} .rp-stat .lbl .ls{display:inline;} }
 .rp-stat .val{font:750 21px/1.2 var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.02em; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;}
 .rp-stat .sub{font:500 11px var(--font-mono); margin-top:3px; color:var(--text-3); display:flex; gap:6px; align-items:baseline; flex-wrap:wrap;}
 .rp-stat .delta, .rp-stat .sub .delta{font:650 11px var(--font-mono); color:var(--text-3); padding:1px 6px; border-radius:6px; background:var(--surface-3);}
@@ -5785,8 +5787,18 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     x.textBaseline = 'alphabetic'; x.textAlign = 'left';
     // Kopfzeile: Punkt + MATCH-ANALYSE · KARTE · MODUS
     x.fillStyle = RES; x.beginPath(); x.arc(X0 + 8, 92, 8, 0, Math.PI * 2); x.fill();
-    const eyebrow = m.eyebrow.filter(Boolean).join('  ·  ').toUpperCase();
-    spacing('5px'); x.font = `600 24px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.78)';
+    // Hoechstens bis in die dunkle Haelfte - "RANKED SOLO/DUO" lief live ueber Yones Helm:
+    // erst enger und kleiner, zur Not ohne den mittleren Teil (Karte)
+    const fitEyebrow = parts => {
+      for(const ls of [5, 3, 1]) for(const fs of [24, 21, 19]){
+        spacing(ls + 'px'); x.font = `600 ${fs}px ${MONO}`;
+        const txt = parts.join('  ·  ').toUpperCase();
+        if(x.measureText(txt).width <= 700) return txt;
+      }
+      return parts.length > 2 ? fitEyebrow([parts[0], parts[parts.length - 1]]) : parts.join('  ·  ').toUpperCase();
+    };
+    const eyebrow = fitEyebrow(m.eyebrow.filter(Boolean));
+    x.fillStyle = 'rgba(245,245,242,.78)';
     x.fillText(eyebrow, X0 + 30, 101);
     spacing('0px');
     // Ergebnis + Punktestand
@@ -8498,10 +8510,28 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   // Goldverlauf: je Minute (am Handy zusammengefasst) eine Saeule - nach oben =
   // dein Team vorne, nach unten = Gegner vorne; darunter Ereignisse und deine Kills
-  function lolFlowBuckets(r){
-    const tl = r.timeline || [];
+  // Saeulen je Gruppe: beim Zeichnen festgelegt (lolFlowStep) - das Minuten-Detail
+  // rechnete vorher mit der AKTUELLEN Breite neu und zeigte nach Drehen/Groessenaenderung
+  // eine andere Minute als die angetippte Saeule (live, RC)
+  let lolFlowStep = 1;
+  const LOL_FLOW_NARROW = '(max-width: 639px)';
+  function lolFlowTimeline(r){
+    // Berichte bis dev22: der letzte Frame (Spielende) stand als zweite Saeule mit derselben Minute da
+    const out = [];
+    (r.timeline || []).forEach(f => {
+      const prev = out[out.length - 1];
+      if(prev && f.m <= prev.m) out[out.length - 1] = Object.assign({}, f, {m: prev.m, k: (prev.k || 0) + (f.k || 0), d: (prev.d || 0) + (f.d || 0), a: (prev.a || 0) + (f.a || 0), ev: (prev.ev || []).concat(f.ev || [])});
+      else out.push(f);
+    });
+    return out;
+  }
+  function lolFlowStepFor(r){
+    return Math.max(1, Math.ceil(lolFlowTimeline(r).length / (matchMedia(LOL_FLOW_NARROW).matches ? 18 : 40)));
+  }
+  function lolFlowBuckets(r, step){
+    const tl = lolFlowTimeline(r);
     if(tl.length < 3) return [];
-    const step = Math.max(1, Math.ceil(tl.length / (window.innerWidth < 640 ? 18 : 40)));
+    step = step || lolFlowStep;
     const out = [];
     for(let i = 0; i < tl.length; i += step){
       const part = tl.slice(i, i + step), last = part[part.length - 1];
@@ -8520,7 +8550,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     inhib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>'
   };
   function lolFlowHtml(r){
-    const bs = lolFlowBuckets(r);
+    lolFlowStep = lolFlowStepFor(r);
+    const bs = lolFlowBuckets(r, lolFlowStep);
     if(!bs.length) return '';
     const maxAbs = Math.max(1000, ...bs.map(b => Math.abs(b.lead)));
     const cols = bs.map((b, i) => {
@@ -8532,7 +8563,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <span class="kd">${'<b></b>'.repeat(Math.min(3, b.k))}${'<u></u>'.repeat(Math.min(2, b.d))}</span>
         <span class="n">${b.m}</span></button>`;
     }).join('');
-    return `<div class="lrp-flow" style="--n:${bs.length}">${cols}</div>
+    return `<div class="lrp-flow" style="--n:${bs.length}" data-step="${lolFlowStep}">${cols}</div>
       <div class="rp-rlegend lrp-legend"><span class="w"><i></i>${esc(t('your_team'))}</span><span class="l"><i></i>${esc(t('enemies'))}</span><span class="k"><i></i>${esc(t('report_my_kills'))}</span></div>
       <div class="rp-rd-detail" id="lolMinDetail"></div>`;
   }
@@ -8540,7 +8571,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     return t('lol_obj_' + {dragon: 'dragons', baron: 'barons', herald: 'heralds', grub: 'grubs', tower: 'towers', inhib: 'inhibs'}[e.t]);
   }
   function lolMinuteDetail(r, i){
-    const b = lolFlowBuckets(r)[i];
+    const b = lolFlowBuckets(r, lolFlowStep)[i];
     if(!b) return '';
     const lead = (b.lead > 0 ? '+' : b.lead < 0 ? '−' : '±') + Math.abs(b.lead).toLocaleString(LOCALE);
     const evs = b.ev.length ? b.ev.map(e => `<span class="lrp-evt ${e.side}">${LOL_EV_ICON[e.t] || ''}${esc(lolEventName(e))}</span>`).join('')
@@ -8554,11 +8585,17 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       </div>`;
   }
   function lolDefaultMinute(r){
-    const bs = lolFlowBuckets(r);
+    const bs = lolFlowBuckets(r, lolFlowStep);
     let best = bs.length - 1, sc = -1;
     bs.forEach((b, i) => { const s = b.k * 3 + b.ev.filter(e => e.side === 'ally' && (e.t === 'baron' || e.t === 'dragon')).length * 2; if(s > sc){ sc = s; best = i; } });
     return best;
   }
+  // Wechsel Handy-/PC-Breite (Drehen, Fenster ziehen): Goldverlauf mit passender Saeulenzahl neu zeichnen
+  try{
+    matchMedia(LOL_FLOW_NARROW).addEventListener('change', () => {
+      if(lolReportData && lolReportRendered && lolFlowStepFor(lolReportData) !== lolFlowStep){ lolReportRendered = ''; updateLolReportView(lolLastState); }
+    });
+  }catch(e){}
   function lolSelectMinute(i){
     const view = document.getElementById('lolReportView');
     if(!view || !lolReportData) return;
@@ -8600,10 +8637,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const place = byRating.findIndex(p => p.me) + 1;
     const grade = rpGrade(me.rating);
     const ringP = me.rating == null ? 0 : Math.max(0.04, Math.min(1, (me.rating - 0.5) / 1.1));
-    const stat = (lbl, val, sub) => `<div class="rp-stat"><div class="lbl">${esc(lbl)}</div><div class="val">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    const stat = (lbl, val, sub, short) => `<div class="rp-stat"><div class="lbl"${short ? ` data-tip="${esc(lbl)}"` : ''}>${short ? `<span class="lf">${esc(lbl)}</span><span class="ls">${esc(short)}</span>` : esc(lbl)}</div><div class="val">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
     const stats = [
       stat('K / D / A', `${me.kills}/${me.deaths}/${me.assists}`, `KDA ${rpNum(me.kda, 2)}`),
-      stat(t('lol_stat_kp'), (me.kp || 0) + '%'),
+      stat(t('lol_stat_kp'), (me.kp || 0) + '%', '', 'KP'),
       stat(t('lol_stat_dmg_short'), rpNum(me.dmg), esc(t('lol_stat_dmg_share', {n: me.dmgShare || 0})) + ' · ' + rpNum(me.dmgMin) + '/min'),
       stat('Gold', rpNum(me.gold), rpNum(me.goldMin) + '/min'),
       stat('CS', rpNum(me.cs), rpNum(me.csMin, 1) + '/min'),
@@ -10428,7 +10465,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev22";
+const CURRENT_VERSION = "2.5.0-dev23";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
