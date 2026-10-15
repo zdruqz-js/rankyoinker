@@ -2321,20 +2321,24 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-perf-text .explain{font-size:12.5px; color:var(--text-3); margin-top:8px; line-height:1.5;}
 /* Lobby-Leiste */
 .rp-lstrip{margin:30px 0 4px;}
-.rp-ls-track{position:relative; height:48px; transition:height .25s var(--ease); border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--loss) 16%, transparent), rgba(255,255,255,.03) 50%, color-mix(in srgb, var(--win) 16%, transparent));
-  border:1px solid var(--line);}
+/* Achse in der Mitte (links schlechter, rechts besser als der Lobby-Schnitt), dein Team
+   darueber, Gegner darunter - so passen groessere Bilder als frueher auf einer Linie */
+.rp-ls-track{--axis:44px; position:relative; height:88px; transition:height .25s var(--ease);}
+.rp-ls-track::before{content:""; position:absolute; left:0; right:0; top:var(--axis); height:4px; margin-top:-2px; border-radius:999px;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--loss) 60%, transparent), rgba(255,255,255,.14) 50%, color-mix(in srgb, var(--win) 60%, transparent));}
 .rp-ls-avg{position:absolute; top:-6px; bottom:-6px; width:0;}
 .rp-ls-avg i{position:absolute; top:0; bottom:0; left:-1px; width:2px; background:var(--text-3); border-radius:2px;}
 .rp-ls-avg em{position:absolute; top:-18px; left:50%; transform:translateX(-50%); font:500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
-.rp-ls-dot{--rc:var(--text-3); position:absolute; top:calc(50% + var(--dy, 0px)); width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%;
+.rp-ls-dot{--rc:var(--text-3); --s:40px; position:absolute; top:calc(var(--axis) + var(--dy, 0px)); width:var(--s); height:var(--s); margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius:50%; box-sizing:border-box;
   border:2px solid var(--rc); background:color-mix(in srgb, var(--rc) 35%, #0b0b0d); box-shadow:0 0 0 2px rgba(7,7,8,.85); overflow:hidden; z-index:1;
   transition:transform .2s var(--spring); cursor:default;}
 .rp-ls-dot::before{content:""; position:absolute; inset:-7px; border-radius:50%;}
-.rp-ls-dot:hover{transform:scale(1.3); z-index:3;}
+.rp-ls-dot:hover{transform:scale(1.18); z-index:3;}
 .rp-ls-dot img{display:block; width:100%; height:100%; object-fit:cover; border-radius:50%;}
 .rp-ls-dot.ally{--rc:var(--ally);} .rp-ls-dot.enemy{--rc:var(--enemy);}
-.rp-ls-dot.me{--dy:0px; width:32px; height:32px; margin:-16px 0 0 -16px; background:var(--grad-accent); border:2px solid #f3d79c; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2;}
-.rp-ls-dot.me:hover{transform:scale(1.12);}
+.rp-ls-dot.me{--s:52px; background:var(--grad-accent); border:3px solid #f3d79c; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2;}
+.rp-ls-dot.me:hover{transform:scale(1.08);}
+@media (max-width:560px){ .rp-ls-dot{--s:30px;} .rp-ls-dot.me{--s:40px;} }
 .rp-ls-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3);}
 .rp-ls-legend span{display:inline-flex; align-items:center; gap:6px;}
 .rp-ls-legend i{width:10px; height:10px; border-radius:50%; border:2px solid var(--rc); box-sizing:border-box;}
@@ -2481,7 +2485,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   .rp-card{padding:16px;}
   .rp-rdd-body{grid-template-columns:repeat(2, minmax(0,1fr));}
   .report-reopen{right:14px;}
-  .rp-ls-dot{width:18px; height:18px; margin:-9px 0 0 -9px;} .rp-ls-dot.me{width:28px; height:28px; margin:-14px 0 0 -14px;}
   /* Scoreboard am Handy: Spalte mit den Namen bleibt stehen, die Werte wischt man
      zur Seite (rechts blendet es aus, solange noch etwas kommt) */
   .rp-table{min-width:640px; font-size:13px;}
@@ -5436,31 +5439,45 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <div class="rp-ls-legend"><span class="ally"><i></i>${esc(t('your_team'))}</span><span class="enemy"><i></i>${esc(t('enemies'))}</span><span class="me"><i></i>${esc(t('report_you'))}</span></div>
     </div>`;
   }
-  // Kreise der Lobby-Leiste ohne Ueberlappung auslegen (Beeswarm): du in der Mitte,
-  // die anderen von links nach rechts so nah an der Mittellinie wie moeglich. Wird
-  // es eng, wird die Leiste hoeher. Braucht die echte Breite -> nach dem Einfuegen.
+  // Bilder der Lobby-Leiste ohne Ueberlappung auslegen: dein Team ueber der Achse,
+  // Gegner darunter, jeweils so nah an der Achse wie moeglich (du zuerst). Wird es eng,
+  // weicht ein Bild nach aussen aus und die Leiste wird hoeher. Am Rand wird nichts
+  // abgeschnitten. Braucht die echte Breite -> nach dem Einfuegen.
   function rpLayoutStrip(root){
     const track = (root && root.querySelector ? root : document.getElementById('reportView')).querySelector('.rp-ls-track');
     const W = track ? track.clientWidth : 0;
     if(!W) return;
-    const items = [...track.querySelectorAll('.rp-ls-dot')].map(d => ({d, x: parseFloat(d.style.left) / 100 * W, r: d.offsetWidth / 2, me: d.classList.contains('me')}));
+    const GAP = 5;           // Abstand Bildrand <-> Achse
+    const items = [...track.querySelectorAll('.rp-ls-dot')].map(d => {
+      if(d.dataset.x == null) d.dataset.x = parseFloat(d.style.left);
+      const r = d.offsetWidth / 2;
+      return {d, r, x: Math.min(W - r, Math.max(r, Number(d.dataset.x) / 100 * W)), me: d.classList.contains('me'), side: d.classList.contains('enemy') ? 1 : -1};
+    });
     const order = items.filter(i => i.me).concat(items.filter(i => !i.me).sort((a, b) => a.x - b.x));
     const placed = [];
-    let maxY = 0;
+    let up = 0, down = 0;
+    // Fast gleiche Noten: ein wenig seitlich ausweichen (hoechstens ~1 Bildradius) statt
+    // einen hohen Turm zu bauen - die Bilder schachteln sich dann ineinander
+    const free = (it, x, y) => placed.every(p => p.side !== it.side || Math.hypot(p.x - x, p.y - y) >= p.r + it.r + 3);
     order.forEach(it => {
-      let y = 0;
-      if(!it.me){
-        for(let k = 0; k < 60; k++){
-          const cand = k === 0 ? 0 : (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 5;
-          y = cand;
-          if(placed.every(p => Math.hypot(p.x - it.x, p.y - cand) >= p.r + it.r + 2)) break;
+      let y = 0, x = it.x, found = false;
+      for(let k = 0; k < 80 && !found; k++){
+        y = it.side * (GAP + it.r + k * 4);
+        for(let j = 0; j <= 8 && !found; j++){
+          const dx = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * it.r * 0.28;
+          const cx = Math.min(W - it.r, Math.max(it.r, it.x + dx));
+          if(free(it, cx, y)){ x = cx; found = true; }
         }
       }
-      placed.push({x: it.x, y, r: it.r});
+      it.x = x;
+      placed.push({x: it.x, y, r: it.r, side: it.side});
+      it.d.style.left = it.x + 'px';
       it.d.style.setProperty('--dy', y + 'px');
-      maxY = Math.max(maxY, Math.abs(y) + it.r);
+      if(it.side < 0) up = Math.max(up, -y + it.r); else down = Math.max(down, y + it.r);
     });
-    track.style.height = Math.max(48, Math.ceil(maxY * 2 + 12)) + 'px';
+    const axis = Math.ceil(Math.max(up, 24)) + 4;
+    track.style.setProperty('--axis', axis + 'px');
+    track.style.height = (axis + Math.ceil(Math.max(down, 24)) + 4) + 'px';
   }
   let rpStripTimer = 0;
   window.addEventListener('resize', () => { clearTimeout(rpStripTimer); rpStripTimer = setTimeout(() => { rpLayoutStrip(); rpLayoutStrip(document.getElementById('lolReportView')); }, 120); });
@@ -10467,7 +10484,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev23";
+const CURRENT_VERSION = "2.5.0-dev24";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
