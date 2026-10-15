@@ -1925,6 +1925,14 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 #probWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
   background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
 #probWrap.open{display:flex; animation:wrapFade .3s ease;}
+#shareWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
+#shareWrap.open{display:flex; animation:wrapFade .3s ease;}
+.share-box{max-width:820px; margin:auto;}
+.share-prev{position:relative; margin-top:18px; aspect-ratio:16/9; border-radius:16px; overflow:hidden; background:var(--surface-2); border:1px solid var(--line-2); display:grid; place-items:center;}
+.share-prev img{display:block; width:100%; height:100%; object-fit:cover;}
+.share-prev .spin{width:30px; height:30px; border-radius:50%; border:3px solid var(--surface-4); border-top-color:var(--accent); animation:spin 1s linear infinite;}
+.share-actions .pbtn svg{margin-right:2px;}
 #installWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
   background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
 #installWrap.open{display:flex; animation:wrapFade .3s ease;}
@@ -2240,7 +2248,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   filter:drop-shadow(0 20px 40px rgba(0,0,0,.6)); -webkit-mask-image:linear-gradient(180deg, #000 55%, transparent 92%); mask-image:linear-gradient(180deg, #000 55%, transparent 92%);
   animation:rpAgentIn .9s cubic-bezier(.22,1,.36,1) .1s both;}
 @keyframes rpAgentIn{from{opacity:0; transform:translateX(30px) scale(.97);}}
-.rp-back{position:absolute; top:18px; right:18px; z-index:2; height:40px; padding:0 16px; border-radius:999px; border:1px solid var(--line-3); background:rgba(10,10,12,.55);
+.rp-top{position:absolute; top:18px; right:18px; z-index:2; display:flex; gap:8px;}
+.rp-share{height:40px; padding:0 16px; border-radius:999px; border:0; background:var(--grad-accent); color:var(--accent-ink); font:700 13.5px var(--font-display);
+  cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 8px 22px -10px rgba(216,184,124,.9); transition:transform .25s, filter .2s;}
+.rp-share:hover{transform:translateY(-1px); filter:brightness(1.06);}
+.rp-back{position:relative; height:40px; padding:0 16px; border-radius:999px; border:1px solid var(--line-3); background:rgba(10,10,12,.55);
   -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); color:var(--text); font:650 13.5px var(--font-display); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .2s, transform .25s;}
 .rp-back:hover{background:rgba(255,255,255,.12); transform:translateY(-1px);}
 .rp-hero-inner{position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:30px 32px 28px; flex-wrap:wrap; min-height:260px;}
@@ -2344,42 +2356,47 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-econ-row .bar i{display:block; height:100%; border-radius:7px; background:linear-gradient(90deg, color-mix(in srgb, var(--win) 60%, transparent), var(--win));}
 .rp-econ-row b{font:650 13px var(--font-mono); text-align:right; font-variant-numeric:tabular-nums;}
 .rp-econ-row .lbl{color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-/* Spielverlauf */
-.rp-flow-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -6px; padding:22px 6px 4px; scrollbar-width:thin;}
-.rp-flow{min-width:calc(var(--n) * 28px); position:relative;}
-.rp-chart{position:relative; height:150px; border-radius:14px; background:linear-gradient(180deg, color-mix(in srgb, var(--win) 7%, transparent), transparent 45%, transparent 55%, color-mix(in srgb, var(--loss) 7%, transparent));
-  border:1px solid var(--line);}
-.rp-chart svg{position:absolute; inset:15px 0; width:100%; height:calc(100% - 30px); overflow:visible;}
-.rp-chart .zero{stroke:var(--line-3); stroke-width:1; stroke-dasharray:4 5; vector-effect:non-scaling-stroke;}
-.rp-chart .area{opacity:.22;}
-.rp-chart .line{fill:none; stroke-width:3; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke;}
-.rp-chart svg{animation:rpReveal 1.4s cubic-bezier(.4,0,.2,1) .25s both;}
-@keyframes rpReveal{from{clip-path:inset(0 100% 0 0);} to{clip-path:inset(0 0 0 0);}}
-.rp-axis{position:absolute; left:10px; font:600 9.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; pointer-events:none;}
-.rp-axis.top{top:6px; color:color-mix(in srgb, var(--win) 80%, var(--text-3));} .rp-axis.bot{bottom:6px; color:color-mix(in srgb, var(--loss) 80%, var(--text-3));}
-.rp-half{position:absolute; top:0; bottom:0; width:0; border-left:1px dashed var(--line-3);}
-.rp-half em{position:absolute; top:-18px; left:0; transform:translateX(-50%); font:500 9.5px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
-.rp-tag{position:absolute; top:-10px; transform:translateX(-50%); z-index:2; padding:2px 7px; border-radius:7px; font:800 9.5px var(--font-mono); letter-spacing:.08em;
-  background:var(--surface-4); color:var(--text); border:1px solid var(--line-3); white-space:nowrap;}
-.rp-tag.gold{background:var(--grad-accent); color:var(--accent-ink); border-color:transparent; box-shadow:0 6px 18px -6px rgba(216,184,124,.9);}
-.rp-sel-line{position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:linear-gradient(180deg, transparent, var(--accent), transparent); opacity:0; transition:left .25s cubic-bezier(.22,1,.36,1), opacity .2s; pointer-events:none;}
-.rp-sel-line.on{opacity:.9;}
-.rp-kl{font:500 9.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:12px 0 6px;}
-.rp-cols{display:grid; grid-template-columns:repeat(var(--n), minmax(0,1fr)); gap:3px;}
-.rp-col{position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0 6px; border-radius:10px; border:1px solid var(--line); cursor:pointer;
-  background:var(--surface-2); color:var(--text-2); font:inherit; transition:transform .2s, background .2s, border-color .2s; min-width:0;}
-.rp-col.ally{background:color-mix(in srgb, var(--win) 12%, transparent); border-color:color-mix(in srgb, var(--win) 34%, transparent);}
-.rp-col.enemy{background:color-mix(in srgb, var(--loss) 10%, transparent); border-color:color-mix(in srgb, var(--loss) 28%, transparent);}
-.rp-col:hover{transform:translateY(-2px);}
-.rp-col.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset, 0 10px 24px -12px rgba(216,184,124,.9); background:color-mix(in srgb, var(--accent) 14%, transparent);}
-.rp-col .kb{position:relative; width:60%; max-width:16px; height:54px; display:flex; align-items:flex-end;}
-.rp-col .kb i{position:relative; display:block; width:100%; border-radius:4px 4px 2px 2px; background:linear-gradient(180deg, #ffe2a0, var(--accent)); box-shadow:0 0 12px rgba(216,184,124,.45);}
-.rp-col .kb i b{position:absolute; top:-15px; left:50%; transform:translateX(-50%); font:800 10.5px var(--font-mono); color:var(--accent);}
-.rp-col .dd{height:12px; color:var(--loss);} .rp-col .dd svg{width:11px; height:11px; display:block;}
-.rp-col .ic svg{width:12px; height:12px; display:block; opacity:.85;}
-.rp-col .n{font:600 9.5px var(--font-mono); color:var(--text-3);}
-.rp-col.cer .n{color:var(--accent);}
-.rp-rd-detail{margin-top:14px; padding:14px 16px; border-radius:16px; background:var(--surface-2); border:1px solid var(--line-2); min-height:84px;}
+/* Spielverlauf: Runden-Kacheln je Halbzeit, Details rechts daneben */
+.rp-flow2{display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:22px; align-items:start;}
+.rp-rows{display:grid; gap:14px; min-width:0;}
+.rp-rrow{display:grid; grid-template-columns:150px minmax(0,1fr); gap:16px; align-items:center;}
+.rp-rrow-h{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.rp-rrow-h .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
+.rp-rrow-h .sd{font:650 14px var(--font-display); color:var(--text);}
+.rp-rrow-h .sc{font:700 13px var(--font-mono); color:var(--text-3); font-variant-numeric:tabular-nums;}
+.rp-rrow-h .sc b{color:var(--text-2);} .rp-rrow-h .sc b.w{color:var(--win);} .rp-rrow-h .sc b.l{color:var(--loss);}
+.rp-rtiles{display:grid; grid-template-columns:repeat(var(--cols), minmax(0, 1fr)); gap:6px; max-width:calc(var(--cols) * 70px);}
+.rp-rt{position:relative; display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:3px; height:58px; padding:6px 0 7px;
+  border-radius:11px; border:1px solid var(--line-2); background:var(--surface-2); color:var(--text-2); font:inherit; cursor:pointer; min-width:0;
+  transition:transform .18s var(--ease), border-color .18s, background .18s, box-shadow .18s;}
+.rp-rt.ally{background:color-mix(in srgb, var(--win) 13%, transparent); border-color:color-mix(in srgb, var(--win) 32%, transparent); color:color-mix(in srgb, var(--win) 75%, #fff);}
+.rp-rt.enemy{background:color-mix(in srgb, var(--loss) 10%, transparent); border-color:color-mix(in srgb, var(--loss) 26%, transparent); color:color-mix(in srgb, var(--loss) 70%, #fff);}
+.rp-rt.cer{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent-soft), 0 0 16px -4px rgba(216,184,124,.7);}
+.rp-rt:hover{transform:translateY(-2px);}
+.rp-rt.sel{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, transparent); box-shadow:0 0 0 1px var(--accent) inset, 0 10px 22px -12px rgba(216,184,124,.9); transform:translateY(-2px);}
+.rp-rt .n{font:600 10px var(--font-mono); color:var(--text-3);}
+.rp-rt.sel .n, .rp-rt.cer .n{color:var(--accent);}
+.rp-rt .ic svg{display:block; width:15px; height:15px;}
+.rp-rt .pk{display:flex; gap:2px; height:5px;}
+.rp-rt .pk i{width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 5px rgba(216,184,124,.8);}
+.rp-rlegend{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:2px; font-size:12px; color:var(--text-3);}
+.rp-rlegend span{display:inline-flex; align-items:center; gap:6px;}
+.rp-rlegend i{width:10px; height:10px; border-radius:3px;}
+.rp-rlegend .w i{background:color-mix(in srgb, var(--win) 40%, transparent); border:1px solid var(--win);}
+.rp-rlegend .l i{background:color-mix(in srgb, var(--loss) 35%, transparent); border:1px solid var(--loss);}
+.rp-rlegend .k i{width:6px; height:6px; border-radius:50%; background:var(--accent);}
+.rp-rlegend .c i{border:1.5px solid var(--accent);}
+@media (max-width:1180px){ .rp-flow2{grid-template-columns:1fr;} }
+@media (max-width:640px){
+  .rp-rrow{grid-template-columns:1fr; gap:8px;}
+  .rp-rrow-h{flex-direction:row; align-items:baseline; gap:8px;}
+  .rp-rrow-h .sc{margin-left:auto;}
+  .rp-rtiles{gap:3px; max-width:none;}
+  .rp-rt{height:46px; padding:5px 0 6px; border-radius:8px;}
+  .rp-rt .n{font-size:9px;} .rp-rt .ic svg{width:12px; height:12px;}
+  .rp-rt .pk{gap:1px; height:4px;} .rp-rt .pk i{width:4px; height:4px;}
+}
+.rp-rd-detail{padding:16px 18px; border-radius:16px; background:var(--surface-2); border:1px solid var(--line-2); min-height:84px;}
 .rp-rd-detail:empty{display:none;}
 .rp-rdd-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .rp-rdd-head b{font:750 16px var(--font-display);}
@@ -2389,7 +2406,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-rdd-head .side{font-size:12.5px; color:var(--text-2);}
 .rp-rdd-head .cer{padding:3px 9px; border-radius:999px; font:800 10.5px var(--font-mono); letter-spacing:.08em; background:var(--grad-accent); color:var(--accent-ink);}
 .rp-rdd-head .score{margin-left:auto; font:750 15px var(--font-mono); color:var(--text-2); font-variant-numeric:tabular-nums;}
-.rp-rdd-body{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:12px;}
+.rp-rdd-body{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 14px; margin-top:14px;}
 .rp-rdd-body > div{min-width:0;}
 .rp-rdd-body .lbl{display:block; font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
 .rp-rdd-body .v{display:flex; align-items:center; gap:6px; margin-top:4px; font:650 14px var(--font-display); min-width:0;}
@@ -2445,7 +2462,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   .rp-hero-me{text-align:left;}
   .rp-me-name, .rp-me-kda{justify-content:flex-start;}
   .rp-hero-agent{right:-14%; bottom:-10%; height:115%; opacity:.4;}
-  .rp-back{top:14px; right:14px;}
+  .rp-top{top:14px; right:14px;}
   .rp-perf-head{gap:16px;}
   .rp-ring{width:96px; height:96px;} .rp-ring .in b{font-size:42px;}
   .rp-perf-text .big{font-size:17px;}
@@ -2464,10 +2481,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   .rp-pl{gap:7px;} .rp-pl img.ag{width:28px; height:28px;} .rp-pl img.rk, .rp-table .rp-mvp, .rp-table .rp-you{display:none;}
   .rp-pl .nm{max-width:98px;}
 }
-.rp-table-wrap.can-r, .rp-flow-scroll.can-r{-webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent);}
+.rp-table-wrap.can-r{-webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent);}
 @media (prefers-reduced-motion: reduce){
   #reportView > *, .rp-hero-agent, .rp-ring .fg{animation:none;}
-  .rp-chart svg{animation:none;}
 }
 /* ueber der unteren Tab-Leiste (Tablet/Handy) */
 @media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
@@ -2645,6 +2661,20 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     <div class="ask-actions">
       <button class="pbtn" id="probCancel" data-i18n="cancel">Abbrechen</button>
       <button class="pbtn go" id="probSend" data-i18n="problem_send">Senden</button>
+    </div>
+  </div>
+</div>
+<div id="shareWrap" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+  <div class="ask-box share-box">
+    <button type="button" class="modal-close" id="shareClose" data-i18n-aria-label="close" aria-label="Schließen">✕</button>
+    <div class="ask-title" id="shareTitle" data-i18n="report_share_title">Match als Bild</div>
+    <div class="ask-sub" data-i18n="report_share_sub">Speichern oder direkt teilen – zum Beispiel in Discord.</div>
+    <div class="share-prev" id="sharePrev"></div>
+    <div class="ask-hint" id="shareHint"></div>
+    <div class="ask-actions share-actions">
+      <button type="button" class="pbtn" id="shareCopy" hidden></button>
+      <button type="button" class="pbtn" id="shareNative" hidden></button>
+      <button type="button" class="pbtn go" id="shareSave"></button>
     </div>
   </div>
 </div>
@@ -2987,6 +3017,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
     'arrow-left': '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
     bug: '<path d="M8 2l1.9 1.9M16 2l-1.9 1.9M9 7.1a3 3 0 1 1 6 0"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6Z"/><path d="M12 20v-9M6.5 13H3M21 13h-3.5M6 9 3.5 7.5M18 9l2.5-1.5M6 17l-2.5 1.5M18 17l2.5 1.5"/>',
+    share: '<path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
     chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     phone: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/>',
     trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
@@ -5256,9 +5287,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       if(key !== reportRendered){
         view.innerHTML = reportHtml(reportData); reportRendered = key;
         rpSelectRound(rpDefaultRound(reportData));
-        // Liegt die vorgewählte Runde am Handy außerhalb, dorthin scrollen
-        const sc = view.querySelector('.rp-flow-scroll'), col = view.querySelector('.rp-col.sel');
-        if(sc && col && col.offsetLeft + col.offsetWidth > sc.clientWidth - 20) sc.scrollLeft = col.offsetLeft - sc.clientWidth / 2;
         requestAnimationFrame(rpScrollHints);
       }
     }
@@ -5271,11 +5299,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   // Runde im Spielverlauf: Antippen (Handy) oder Zeigen (Maus) zeigt die Details
   document.getElementById('reportView').addEventListener('mouseover', e => {
-    const col = e.target.closest('.rp-col');
+    const col = e.target.closest('.rp-rt');
     if(col && matchMedia('(hover: hover)').matches) rpSelectRound(Number(col.dataset.rd));
   });
   document.getElementById('reportView').addEventListener('click', e => {
-    const col = e.target.closest('.rp-col');
+    const col = e.target.closest('.rp-rt');
     if(col){ rpSelectRound(Number(col.dataset.rd)); return; }
     if(e.target.closest('[data-report-close]') && reportData){
       try{ localStorage.setItem(REPORT_DISMISS_KEY, reportData.matchId); }catch(err){}
@@ -5408,49 +5436,42 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <div class="rp-ls-legend"><span class="ally"><i></i>${esc(t('your_team'))}</span><span class="enemy"><i></i>${esc(t('enemies'))}</span><span class="me"><i></i>${esc(t('report_you'))}</span></div>
     </div>`;
   }
-  // Spielverlauf: Vorsprung nach jeder Runde (Linie) + deine Kills pro Runde darunter
+  // Spielverlauf: je Halbzeit eine Reihe Runden-Kacheln (gruen = gewonnen, rot =
+  // verloren), darin wie die Runde endete und deine Kills als Punkte. Ace/Clutch mit
+  // Goldrand. Runde antippen oder zeigen -> Details daneben (am Handy darunter).
+  function rpFlowRows(tl){
+    let h = tl.findIndex((rd, i) => i && rd.side !== tl[i - 1].side);
+    if(h < 1) h = tl.length;
+    const rows = [{key: 'report_half_1', from: 0, to: Math.min(h, tl.length)}];
+    if(h < tl.length) rows.push({key: 'report_half_2', from: h, to: Math.min(2 * h, tl.length)});
+    if(2 * h < tl.length) rows.push({key: 'report_overtime', from: 2 * h, to: tl.length, ot: true});
+    return {rows, cols: h};
+  }
   function rpFlow(r){
     const tl = r.timeline || [];
     if(!tl.length) return '';
-    const n = tl.length, COL = 40, H = 120;
-    let diff = 0;
-    const pts = [[0, 0]];
-    tl.forEach((rd, i) => { diff += rd.win === 'ally' ? 1 : rd.win === 'enemy' ? -1 : 0; pts.push([(i + 0.5) * COL, diff]); });
-    pts.push([n * COL, diff]);
-    const maxAbs = Math.max(3, ...pts.map(p => Math.abs(p[1])));
-    const y = v => (H / 2 - v / maxAbs * (H / 2 - 10)).toFixed(1);
-    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + y(p[1])).join(' ');
-    const area = line + ` L${n * COL} ${H / 2} L0 ${H / 2} Z`;
-    const zeroPct = (H / 2) / H * 100;
-    let half = '';
-    tl.forEach((rd, i) => { if(i && rd.side !== tl[i - 1].side && !half) half = `<span class="rp-half" style="left:${(i / n * 100).toFixed(3)}%"><em>${esc(t('report_half'))}</em></span>`; });
-    const tags = tl.map((rd, i) => rd.ceremony === 'ace' || (rd.myKills || 0) >= 4 || rd.ceremony === 'clutch'
-      ? `<span class="rp-tag ${rd.ceremony === 'ace' || rd.myKills >= 5 ? 'gold' : ''}" style="left:${((i + 0.5) / n * 100).toFixed(3)}%">${rd.ceremony === 'ace' || rd.myKills >= 5 ? 'ACE' : rd.ceremony === 'clutch' ? 'CLUTCH' : rd.myKills + 'K'}</span>` : '').join('');
-    const maxK = Math.max(2, ...tl.map(rd => rd.myKills || 0));
-    const cols = tl.map((rd, i) => `<button type="button" class="rp-col ${rd.win} ${rd.ceremony ? 'cer' : ''}" data-rd="${i}" aria-label="${esc(t('report_round_n', {n: rd.n}))}">
-        <span class="kb">${rd.myKills ? `<i style="height:${Math.round(rd.myKills / maxK * 100)}%"><b>${rd.myKills}</b></i>` : ''}</span>
-        <span class="dd">${rd.myDied ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>' : ''}</span>
-        <span class="ic">${RP_HOW_ICON[rd.how] || ''}</span>
-        <span class="n">${rd.n}</span>
-      </button>`).join('');
-    return `<div class="rp-flow-scroll"><div class="rp-flow" style="--n:${n}">
-        <div class="rp-chart">
-          <svg viewBox="0 0 ${n * COL} ${H}" preserveAspectRatio="none" aria-hidden="true">
-            <defs><linearGradient id="rpFlowGrad" x1="0" y1="0" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">
-              <stop offset="0" style="stop-color:var(--win)"/><stop offset="${(zeroPct / 100).toFixed(3)}" style="stop-color:var(--win)"/>
-              <stop offset="${(zeroPct / 100).toFixed(3)}" style="stop-color:var(--loss)"/><stop offset="1" style="stop-color:var(--loss)"/></linearGradient></defs>
-            <line class="zero" x1="0" x2="${n * COL}" y1="${H / 2}" y2="${H / 2}"/>
-            <path class="area" d="${area}" fill="url(#rpFlowGrad)"/>
-            <path class="line" d="${line}" stroke="url(#rpFlowGrad)"/>
-          </svg>
-          ${half}${tags}
-          <span class="rp-sel-line" id="rpSelLine"></span>
-          <span class="rp-axis top">${esc(t('your_team'))}</span><span class="rp-axis bot">${esc(t('enemies'))}</span>
+    const {rows, cols} = rpFlowRows(tl);
+    const tile = (rd, i) => {
+      const k = Math.min(5, rd.myKills || 0);
+      const cer = rd.ceremony === 'ace' || rd.ceremony === 'clutch' || (rd.myKills || 0) >= 4;
+      return `<button type="button" class="rp-rt ${rd.win} ${cer ? 'cer' : ''}" data-rd="${i}" aria-label="${esc(t('report_round_n', {n: rd.n}))}">
+        <span class="n">${rd.n}</span><span class="ic">${RP_HOW_ICON[rd.how] || ''}</span><span class="pk">${'<i></i>'.repeat(k)}</span></button>`;
+    };
+    const rowsHtml = rows.map(row => {
+      const seg = tl.slice(row.from, row.to);
+      const won = seg.filter(x => x.win === 'ally').length, lost = seg.filter(x => x.win === 'enemy').length;
+      const side = row.ot ? '' : t(seg[0].side === 'atk' ? 'report_attack' : 'report_defense');
+      return `<div class="rp-rrow">
+          <div class="rp-rrow-h"><span class="lbl">${esc(t(row.key))}</span><span class="sd">${esc(side)}</span><span class="sc"><b class="${won > lost ? 'w' : won < lost ? 'l' : ''}">${won}</b> : ${lost}</span></div>
+          <div class="rp-rtiles" style="--cols:${cols}">${seg.map((rd, j) => tile(rd, row.from + j)).join('')}</div>
+        </div>`;
+    }).join('');
+    return `<div class="rp-flow2">
+        <div class="rp-rows">${rowsHtml}
+          <div class="rp-rlegend"><span class="w"><i></i>${esc(t('report_rd_won'))}</span><span class="l"><i></i>${esc(t('report_rd_lost'))}</span><span class="k"><i></i>${esc(t('report_my_kills'))}</span><span class="c"><i></i>Ace · Clutch · 4K</span></div>
         </div>
-        <div class="rp-kl"><span>${esc(t('report_my_kills'))}</span></div>
-        <div class="rp-cols">${cols}</div>
-      </div></div>
-      <div class="rp-rd-detail" id="rpRdDetail"></div>`;
+        <div class="rp-rd-detail" id="rpRdDetail"></div>
+      </div>`;
   }
   function rpRoundDetail(r, i){
     const tl = r.timeline || [];
@@ -5490,14 +5511,12 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(!view || !reportData) return;
     const tl = reportData.timeline || [];
     if(!tl[i]) return;
-    view.querySelectorAll('.rp-col').forEach(c => c.classList.toggle('sel', Number(c.dataset.rd) === i));
-    const line = document.getElementById('rpSelLine');
-    if(line){ line.style.left = ((i + 0.5) / tl.length * 100).toFixed(3) + '%'; line.classList.add('on'); }
+    view.querySelectorAll('.rp-rt').forEach(c => c.classList.toggle('sel', Number(c.dataset.rd) === i));
     const det = document.getElementById('rpRdDetail');
     if(det) det.innerHTML = rpRoundDetail(reportData, i);
   }
   function rpScrollHints(){
-    document.querySelectorAll('#reportView .rp-table-wrap, #reportView .rp-flow-scroll').forEach(el => {
+    document.querySelectorAll('#reportView .rp-table-wrap').forEach(el => {
       el.classList.toggle('can-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
     });
   }
@@ -5550,7 +5569,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="rp-shade"></div>
         ${ag.info && ag.info.art ? `<div class="rp-hero-art" style="background-image:url('${esc(ag.info.art)}')"></div>` : ''}
         ${ag.info && ag.info.portrait ? `<img class="rp-hero-agent" src="${esc(ag.info.portrait)}" alt="">` : ''}
-        <button type="button" class="rp-back" data-report-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
+        <div class="rp-top">
+          <button type="button" class="rp-share" data-report-share>${svgIcon('share', 14)}<span>${esc(t('report_share_btn'))}</span></button>
+          <button type="button" class="rp-back" data-report-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
+        </div>
         <div class="rp-hero-inner">
           <div class="rp-hero-main">
             <div class="rp-eyebrow"><span class="dot"></span>${esc(t('report_title'))}${mi ? ' · ' + esc(mi.name) : ''}</div>
@@ -5600,6 +5622,238 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="rp-team"><div class="rp-team-title enemy"><i></i>${esc(t('enemies'))}<span class="sc">${r.score.enemy}</span></div>${rpTable(enemies)}</div>`}
       </div>`;
   }
+
+  // ================= MATCH ALS BILD (Banner zum Teilen) =================
+  // Zeichnet die Match-Analyse als 1600x900-Banner auf ein Canvas: Karte im
+  // Hintergrund, Agent rechts, Ergebnis, Punktestand, Name, K/D/A, Note und die
+  // wichtigsten Werte - unten RankYoinker-Logo + rankyoinker.de (Werbung, wenn es
+  // jemand teilt). Bilder kommen von valorant-api.com (CORS *), sonst ohne Bild.
+  const RP_BANNER_W = 1600, RP_BANNER_H = 900;
+  function rpLoadImg(src){
+    return new Promise(res => {
+      if(!src) return res(null);
+      const im = new Image();
+      let done = false;
+      const fin = ok => { if(!done){ done = true; res(ok ? im : null); } };
+      im.crossOrigin = 'anonymous';
+      im.onload = () => fin(im.naturalWidth > 0);
+      im.onerror = () => fin(false);
+      setTimeout(() => fin(false), 9000);
+      im.src = src;
+    });
+  }
+  function rpFitFont(x, text, weight, size, family, maxW){
+    let s = size;
+    x.font = `${weight} ${s}px ${family}`;
+    while(s > 12 && x.measureText(text).width > maxW){ s -= 2; x.font = `${weight} ${s}px ${family}`; }
+    return s;
+  }
+  function rpRoundRect(x, X, Y, w, hh, rad){
+    x.beginPath();
+    if(x.roundRect) x.roundRect(X, Y, w, hh, rad); else x.rect(X, Y, w, hh);
+  }
+  function rpDrawBanner(c, r, bg, portrait){
+    const W = RP_BANNER_W, H = RP_BANNER_H, x = c.getContext('2d');
+    const css = getComputedStyle(document.getElementById('reportView') || document.documentElement);
+    const col = (n, f) => (css.getPropertyValue(n) || '').trim() || f;
+    // Farbe mit Deckkraft (nur #rrggbb, alles andere bleibt wie es ist)
+    const withA = (c, a) => /^#[0-9a-f]{6}$/i.test(c) ? c + Math.round(a * 255).toString(16).padStart(2, '0') : c;
+    const WIN = col('--win', '#3ddc84'), LOSS = col('--loss', '#ff6b7a'), DRAW = col('--draw', '#9a9a95'), ACC = col('--accent', '#d8b87c');
+    const DISP = '"Inter Tight", Inter, system-ui, sans-serif', BODY = 'Inter, system-ui, sans-serif', MONO = '"Geist Mono", ui-monospace, Consolas, monospace';
+    const me = r.players.find(p => p.me) || {};
+    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
+    const ag = rpAgent(me.agent);
+    const res = r.ffa ? (r.score.place === 1 ? 'win' : 'loss') : r.result;
+    const RES = res === 'win' ? WIN : res === 'loss' ? LOSS : DRAW;
+    const tint = (ag.info && ag.info.tint) || ACC;
+    const spacing = v => { try{ x.letterSpacing = v; }catch(e){} };
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = '#0a0a0c'; x.fillRect(0, 0, W, H);
+    if(bg){
+      const s = Math.max(W / bg.naturalWidth, H / bg.naturalHeight);
+      x.globalAlpha = .55;
+      x.drawImage(bg, (W - bg.naturalWidth * s) / 2, (H - bg.naturalHeight * s) / 2, bg.naturalWidth * s, bg.naturalHeight * s);
+      x.globalAlpha = 1;
+    }
+    let g = x.createRadialGradient(W * .78, H * .55, 40, W * .78, H * .55, 620);
+    g.addColorStop(0, withA(tint, .4)); g.addColorStop(1, withA(tint, 0));
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    if(portrait){
+      const ph = H * 1.18, pw = portrait.naturalWidth / portrait.naturalHeight * ph;
+      x.drawImage(portrait, W * .79 - pw / 2, H * .02, pw, ph);
+    }
+    g = x.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, 'rgba(8,8,10,.97)'); g.addColorStop(.42, 'rgba(8,8,10,.86)'); g.addColorStop(.62, 'rgba(8,8,10,.25)'); g.addColorStop(1, 'rgba(8,8,10,.05)');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    g = x.createLinearGradient(0, H * .62, 0, H);
+    g.addColorStop(0, 'rgba(8,8,10,0)'); g.addColorStop(1, 'rgba(8,8,10,.92)');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    g = x.createLinearGradient(0, 0, W * .7, 0);
+    g.addColorStop(0, RES); g.addColorStop(1, withA(RES, 0));
+    x.fillStyle = g; x.fillRect(0, H - 8, W, 8);
+
+    const X0 = 92;
+    x.textBaseline = 'alphabetic'; x.textAlign = 'left';
+    // Kopfzeile: Punkt + MATCH-ANALYSE · KARTE · MODUS
+    x.fillStyle = RES; x.beginPath(); x.arc(X0 + 8, 92, 8, 0, Math.PI * 2); x.fill();
+    const eyebrow = [t('report_title'), mi ? mi.name : '', QUEUE_NAMES[r.queue] || r.queue || ''].filter(Boolean).join('  ·  ').toUpperCase();
+    spacing('5px'); x.font = `600 24px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.78)';
+    x.fillText(eyebrow, X0 + 30, 101);
+    spacing('0px');
+    // Ergebnis + Punktestand
+    const resLabel = (r.ffa ? t('report_place', {n: r.score.place, of: r.score.of})
+      : t(r.result === 'win' ? 'report_victory' : r.result === 'loss' ? 'report_defeat' : 'report_draw')).toUpperCase();
+    rpFitFont(x, resLabel, 900, 150, DISP, 780);
+    x.save(); x.shadowColor = withA(RES, .55); x.shadowBlur = 60; x.fillStyle = RES; x.fillText(resLabel, X0 - 4, 262); x.restore();
+    let sx = X0;
+    const part = (txt, font, color) => { x.font = font; x.fillStyle = color; x.fillText(txt, sx, 380); sx += x.measureText(txt).width; };
+    if(r.ffa){
+      part(String(r.score.ally), `850 104px ${DISP}`, '#f5f5f2');
+      part('  ' + t('report_kills_word'), `600 34px ${BODY}`, 'rgba(245,245,242,.6)');
+    } else {
+      part(String(r.score.ally), `850 104px ${DISP}`, res === 'win' ? WIN : '#f5f5f2');
+      part('  :  ', `700 70px ${DISP}`, 'rgba(245,245,242,.4)');
+      part(String(r.score.enemy), `850 104px ${DISP}`, res === 'loss' ? LOSS : 'rgba(245,245,242,.7)');
+    }
+    // Trennlinie
+    g = x.createLinearGradient(X0, 0, X0 + 760, 0);
+    g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(X0, 428, 760, 2);
+    // Name (+ MVP), Agent · Rolle
+    const name = me.name || '';
+    const nsz = rpFitFont(x, name, 800, 56, DISP, 560);
+    x.fillStyle = '#f5f5f2'; x.fillText(name, X0, 506);
+    if(me.mvp){
+      const lab = me.mvp === 'team' ? 'TEAM MVP' : 'MVP';
+      const nw = x.measureText(name).width;
+      spacing('3px'); x.font = `800 20px ${MONO}`;
+      const bw = x.measureText(lab).width + 34, bx = X0 + nw + 22, by = 506 - nsz * .72;
+      rpRoundRect(x, bx, by, bw, 38, 19);
+      if(me.mvp === 'team'){ x.fillStyle = 'rgba(255,255,255,.14)'; x.fill(); x.fillStyle = '#f5f5f2'; }
+      else { g = x.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#f3d79c'); g.addColorStop(1, ACC); x.fillStyle = g; x.fill(); x.fillStyle = '#1b1408'; }
+      x.fillText(lab, bx + 17, by + 26);
+      spacing('0px');
+    }
+    x.font = `500 28px ${BODY}`; x.fillStyle = 'rgba(245,245,242,.62)';
+    x.fillText([ag.name, ag.info && ag.info.role].filter(Boolean).join('  ·  '), X0, 552);
+    // K / D / A
+    sx = X0;
+    const kda = (txt, color) => { x.font = `850 84px ${DISP}`; x.fillStyle = color; x.fillText(txt, sx, 664); sx += x.measureText(txt).width; };
+    kda(String(me.kills), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.deaths), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.assists), '#f5f5f2');
+    spacing('4px'); x.font = `600 20px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText('K / D / A', X0, 698); spacing('0px');
+    // Note im Ring
+    const grade = rpGrade(me.rating);
+    const gc = grade === 'S' ? '#f3d79c' : col('--g-' + grade.toLowerCase(), ACC);
+    const cx = X0 + 690, cy = 610, rr = 76;
+    x.lineWidth = 12; x.strokeStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(cx, cy, rr, 0, Math.PI * 2); x.stroke();
+    const ringP = me.rating == null ? 0 : Math.max(0.04, Math.min(1, (me.rating - 0.5) / 1.1));
+    x.save(); x.shadowColor = gc; x.shadowBlur = 24; x.strokeStyle = gc; x.lineCap = 'round';
+    x.beginPath(); x.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + ringP * Math.PI * 2); x.stroke(); x.restore();
+    x.textAlign = 'center'; x.font = `900 78px ${DISP}`; x.fillStyle = gc; x.fillText(grade, cx, cy + 22);
+    x.font = `600 21px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.7)'; x.fillText(rpPct(me.rating), cx, cy + 56);
+    spacing('4px'); x.font = `600 18px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText(t('report_col_perf').toUpperCase(), cx, cy + rr + 40); spacing('0px');
+    x.textAlign = 'left';
+    // Werte
+    const stats = [['ACS', rpNum(me.acs)], ['ADR', rpNum(me.adr)], ['HS%', me.hs == null ? '—' : rpNum(me.hs) + '%'], ['KAST', me.kast == null ? '—' : me.kast + '%']];
+    stats.forEach(([lbl, val], i) => {
+      const bx = X0 + i * 190;
+      spacing('4px'); x.font = `600 19px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText(lbl, bx, 752); spacing('0px');
+      x.font = `800 44px ${DISP}`; x.fillStyle = '#f5f5f2'; x.fillText(val, bx, 800);
+    });
+    // Marke unten rechts: Logo + RankYoinker + rankyoinker.de
+    const by = H - 70;
+    x.textAlign = 'right';
+    x.font = `600 24px ${MONO}`; x.fillStyle = ACC;
+    const site = 'rankyoinker.de';
+    const siteW = x.measureText(site).width;
+    x.fillText(site, W - 70, by + 30);
+    x.font = `800 38px ${DISP}`; x.fillStyle = '#f5f5f2';
+    x.fillText('RankYoinker', W - 70, by - 6);
+    const bw = Math.max(siteW, x.measureText('RankYoinker').width);
+    const lx = W - 70 - bw - 86, ly = by - 52;
+    g = x.createLinearGradient(lx, ly, lx, ly + 74); g.addColorStop(0, '#ff5a67'); g.addColorStop(1, '#e83a4a');
+    x.save(); x.shadowColor = 'rgba(255,70,85,.55)'; x.shadowBlur = 26; rpRoundRect(x, lx, ly, 74, 74, 22); x.fillStyle = g; x.fill(); x.restore();
+    x.textAlign = 'center'; x.font = `900 50px ${DISP}`; x.fillStyle = '#140a0b'; x.fillText('Y', lx + 37, ly + 55);
+    x.textAlign = 'right'; x.font = `500 19px ${BODY}`; x.fillStyle = 'rgba(245,245,242,.55)';
+    x.fillText(t('report_banner_tagline'), W - 70, by - 64);
+    x.textAlign = 'left';
+  }
+  async function rpBannerBlob(r){
+    try{
+      await Promise.all(['900 150px "Inter Tight"', '850 104px "Inter Tight"', '800 56px "Inter Tight"', '600 24px "Geist Mono"', '500 28px Inter']
+        .map(f => document.fonts && document.fonts.load ? document.fonts.load(f) : null));
+    }catch(e){}
+    const me = r.players.find(p => p.me) || {};
+    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
+    const ag = rpAgent(me.agent);
+    const [bg, portrait] = await Promise.all([rpLoadImg(mi && mi.splash), rpLoadImg(ag.info && ag.info.portrait)]);
+    const c = document.createElement('canvas');
+    c.width = RP_BANNER_W; c.height = RP_BANNER_H;
+    const toBlob = () => new Promise((res, rej) => { try{ c.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/png'); }catch(e){ rej(e); } });
+    rpDrawBanner(c, r, bg, portrait);
+    try{ return await toBlob(); }
+    catch(e){ rpDrawBanner(c, r, null, null); return await toBlob(); }   // Bild ohne CORS-Freigabe -> ohne Bilder
+  }
+  (function initShare(){
+    const wrap = document.getElementById('shareWrap');
+    if(!wrap) return;
+    const $ = id => document.getElementById(id);
+    let blob = null, url = null, busy = false;
+    const hint = (txt, good) => { $('shareHint').textContent = txt || ''; $('shareHint').classList.toggle('prob-hint-ok', !!good); };
+    $('shareSave').innerHTML = svgIcon('download', 14) + esc(t('report_share_save'));
+    $('shareCopy').innerHTML = svgIcon('copy', 14) + esc(t('report_share_copy'));
+    $('shareNative').innerHTML = svgIcon('share', 14) + esc(t('report_share_native'));
+    const fileName = () => {
+      const r = reportData || {};
+      const mi = mapInfo[String(r.map || '').toLowerCase()];
+      const sc = r.score ? (r.ffa ? '#' + r.score.place : r.score.ally + '-' + r.score.enemy) : '';
+      return ('RankYoinker-' + [mi && mi.name, sc].filter(Boolean).join('-')).replace(/[^\w.#-]+/g, '_') + '.png';
+    };
+    const fileOf = () => new File([blob], fileName(), {type: 'image/png'});
+    function close(){ wrap.classList.remove('open'); }
+    async function open(){
+      if(!reportData || busy) return;
+      busy = true;
+      wrap.classList.add('open');
+      hint('');
+      $('sharePrev').innerHTML = '<span class="spin"></span>';
+      ['shareSave', 'shareCopy', 'shareNative'].forEach(id => { $(id).disabled = true; });
+      try{ blob = await rpBannerBlob(reportData); }catch(e){ blob = null; }
+      busy = false;
+      if(!blob){ $('sharePrev').textContent = ''; hint(t('report_share_fail')); return; }
+      if(url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(blob);
+      $('sharePrev').innerHTML = `<img src="${url}" alt="">`;
+      $('shareSave').disabled = false;
+      $('shareCopy').hidden = !(window.isSecureContext && navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
+      $('shareCopy').disabled = false;
+      let canShare = false;
+      try{ canShare = !!(navigator.canShare && navigator.share && navigator.canShare({files: [fileOf()]})); }catch(e){}
+      $('shareNative').hidden = !canShare;
+      $('shareNative').disabled = false;
+    }
+    document.getElementById('reportView').addEventListener('click', e => { if(e.target.closest('[data-report-share]')) open(); });
+    $('shareClose').addEventListener('click', close);
+    wrap.addEventListener('click', e => { if(e.target === wrap) close(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && wrap.classList.contains('open')) close(); });
+    $('shareSave').addEventListener('click', () => {
+      if(!url) return;
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName();
+      document.body.appendChild(a); a.click(); a.remove();
+      hint(t('report_share_saved'), true);
+    });
+    $('shareCopy').addEventListener('click', () => {
+      if(!blob) return;
+      navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+        .then(() => hint(t('report_share_copied'), true))
+        .catch(() => hint(t('report_share_fail')));
+    });
+    $('shareNative').addEventListener('click', () => {
+      if(!blob) return;
+      navigator.share({files: [fileOf()], title: 'RankYoinker', text: 'rankyoinker.de'}).catch(() => {});
+    });
+  })();
 
   function api(path, body){
     const opt = body === undefined ? {cache:'no-store'}
@@ -9764,7 +10018,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev10";
+const CURRENT_VERSION = "2.5.0-dev11";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
