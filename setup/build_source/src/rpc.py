@@ -127,6 +127,45 @@ RPC_STRINGS: Dict[str, Dict[str, str]] = {
         "on_the_range": "사격장에서",
         "custom_game": "커스텀 게임",
     },
+    "pt": {
+        "whats_this": "O que é isso? 👀",
+        "in_party": "Em um grupo ({size} de {max})",
+        "open_party": "Grupo aberto",
+        "closed_party": "Grupo fechado",
+        "count_suffix": "({size} de {max})",
+        "lobby_prefix": " Lobby - {gamemode}",
+        "agent_select_prefix": "Seleção de agentes - {gamemode}",
+        "valorant_away": "VALORANT - Ausente",
+        "valorant_online": "VALORANT - Online",
+        "on_the_range": "No Estande de Tiro",
+        "custom_game": "Partida personalizada",
+    },
+    "ru": {
+        "whats_this": "Что это? 👀",
+        "in_party": "В группе ({size} из {max})",
+        "open_party": "Открытая группа",
+        "closed_party": "Закрытая группа",
+        "count_suffix": "({size} из {max})",
+        "lobby_prefix": " Лобби - {gamemode}",
+        "agent_select_prefix": "Выбор агента - {gamemode}",
+        "valorant_away": "VALORANT - Отошёл",
+        "valorant_online": "VALORANT - В сети",
+        "on_the_range": "На стрельбище",
+        "custom_game": "Пользовательская игра",
+    },
+    "ja": {
+        "whats_this": "これは何？👀",
+        "in_party": "パーティー中（{size}/{max}）",
+        "open_party": "オープンパーティー",
+        "closed_party": "クローズドパーティー",
+        "count_suffix": "（{size}/{max}）",
+        "lobby_prefix": " ロビー - {gamemode}",
+        "agent_select_prefix": "エージェント選択 - {gamemode}",
+        "valorant_away": "VALORANT - 離席中",
+        "valorant_online": "VALORANT - オンライン",
+        "on_the_range": "射撃場",
+        "custom_game": "カスタムゲーム",
+    },
 }
 
 
@@ -146,7 +185,8 @@ def _config_path() -> str:
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
 # Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
-_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko"}
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko",
+                     0x16: "pt", 0x19: "ru", 0x11: "ja"}
 
 
 def _detect_system_lang() -> str:

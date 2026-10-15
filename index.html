@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>RankYoinker Overlay</title>
 <meta name="theme-color" content="#070708">
+<!-- Als App installierbar (2.5.0): Manifest/Icons/Service Worker liefert der Dienst (bzw. die Demo) -->
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RankYoinker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='26' fill='%23FF4655'/%3E%3Ctext x='50' y='70' font-size='60' font-family='Arial Black' fill='%23140a0b' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1879,6 +1886,46 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 #askWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px;
   background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
 #askWrap.open{display:flex; animation:wrapFade .3s ease;}
+#probWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
+#probWrap.open{display:flex; animation:wrapFade .3s ease;}
+#installWrap{position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  background:rgba(4,4,6,.62); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);}
+#installWrap.open{display:flex; animation:wrapFade .3s ease;}
+.inst-box{max-width:460px; margin:auto;}
+.inst-head{display:flex; gap:14px; align-items:center;}
+.inst-ic{display:grid; place-items:center; width:52px; height:52px; flex-shrink:0; border-radius:14px; background:#ff4655; color:#140a0b; font:900 28px var(--font-display); box-shadow:0 10px 28px -10px rgba(255,70,85,.7);}
+.inst-head .ask-sub{margin-top:4px;}
+.inst-steps{margin:20px 0 0; padding:0; list-style:none; counter-reset:st; display:grid; gap:10px;}
+.inst-steps li{counter-increment:st; display:flex; gap:12px; align-items:flex-start; font-size:14px; line-height:1.5; color:var(--text);}
+.inst-steps li::before{content:counter(st); display:grid; place-items:center; width:24px; height:24px; flex-shrink:0; border-radius:50%; background:var(--accent-soft); border:1px solid var(--accent-line); color:var(--accent); font:700 12px var(--font-mono);}
+.inst-steps .k{display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:7px; background:var(--surface-3); border:1px solid var(--line-2); font-weight:600; white-space:nowrap;}
+.inst-steps .k svg{width:14px; height:14px;}
+.inst-note{margin-top:14px; font-size:12.5px; line-height:1.5; color:var(--text-3); padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line);}
+.install-hint{display:flex; align-items:center; gap:12px; margin:0 0 18px; padding:10px 10px 10px 12px; border-radius:16px; border:1px solid var(--accent-line);
+  background:linear-gradient(90deg, rgba(216,184,124,.12), rgba(216,184,124,.04)); animation:panelIn .5s var(--ease) both;}
+.install-hint[hidden]{display:none;}
+.install-hint .inst-ic{width:38px; height:38px; border-radius:11px; font-size:20px;}
+.install-hint .tx{flex:1; min-width:0;}
+.install-hint .tx b{display:block; font:700 14px var(--font-display);}
+.install-hint .tx span{display:block; font-size:12px; color:var(--text-2); line-height:1.4;}
+.install-hint .go{height:34px; padding:0 14px; border-radius:999px; border:0; background:var(--grad-accent); color:var(--accent-ink); font:700 13px var(--font-display); cursor:pointer; white-space:nowrap;}
+.install-hint .x{display:grid; place-items:center; width:30px; height:30px; border-radius:9px; border:0; background:transparent; color:var(--text-3); cursor:pointer;}
+/* Als App gestartet (iOS: Statusleiste liegt ueber der Seite) */
+@media (display-mode: standalone){
+  .topbar{height:calc(var(--topbar-h) + env(safe-area-inset-top)); padding-top:env(safe-area-inset-top);}
+}
+.prob-box{max-width:520px; margin:auto;}
+.prob-text{height:120px; padding:12px 16px; resize:vertical; line-height:1.5; min-height:80px; max-height:40vh;}
+#probContact{margin-top:10px;}
+.prob-consent{margin-top:12px;}
+.prob-consent .consent-txt small{display:block; margin-top:3px; font-family:var(--font-body); font-weight:400; font-size:12px; color:var(--text-3);}
+.prob-peek{margin-top:10px; padding:0; border:0; background:none; color:var(--accent); font:500 12px var(--font-mono); letter-spacing:.03em; cursor:pointer;}
+.prob-peek:hover{text-decoration:underline; text-underline-offset:3px;}
+.prob-preview{margin:8px 0 0; max-height:180px; overflow:auto; padding:10px 12px; border-radius:12px; background:rgba(0,0,0,.35); border:1px solid var(--line);
+  font:11px/1.5 var(--font-mono); color:var(--text-2); white-space:pre-wrap; overflow-wrap:anywhere;}
+.prob-hint-ok{color:var(--win) !important;}
+.sf-btns{display:flex; gap:6px;}
 .ask-box{position:relative; width:100%; max-width:440px; padding:28px; border-radius:26px; overflow:hidden;
   background:linear-gradient(180deg, #19191d, #0f0f12); border:1px solid var(--line-2); box-shadow:var(--shadow-pop); animation:modalIn .5s var(--spring-soft);}
 .ask-box::before{content:""; position:absolute; inset:0 0 auto; height:1px; pointer-events:none; background:linear-gradient(90deg, transparent, rgba(216,184,124,.6), transparent);}
@@ -2119,6 +2166,162 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 /* Nachgeladene Kennzahlen bzw. Skins nach einer Aktion: kein erneuter Einflug */
 .ms-summary.static .stat-box, .ms-summary.static .season-record-card{animation:none;}
 #panelSkins.quiet .gun-card, #panelSkins.quiet .preset-chip{animation:none;}
+
+/* ================= Match-Analyse (2.5.0) ================= */
+#reportView{display:none;}
+#app.report-on #content{display:none;}
+#app.report-on #reportView{display:block; animation:panelIn .55s cubic-bezier(.22,1,.36,1) both;}
+body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
+.report-reopen{position:fixed; right:22px; bottom:22px; z-index:40; display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 16px;
+  border-radius:999px; border:1px solid var(--accent-line); background:rgba(20,18,14,.88); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  color:var(--accent); font:600 13px var(--font-display); cursor:pointer; box-shadow:0 14px 34px -16px rgba(0,0,0,.9); transition:transform .25s, filter .25s;}
+.report-reopen:hover{transform:translateY(-2px); filter:brightness(1.1);}
+.report-reopen[hidden]{display:none;}
+.rp-hero{position:relative; overflow:hidden; border-radius:24px; border:1px solid var(--line-2); margin-bottom:18px; --res:var(--draw);}
+.rp-hero.win{--res:var(--win);} .rp-hero.loss{--res:var(--loss);}
+.rp-bg{position:absolute; inset:0; background-size:cover; background-position:center; opacity:.5; animation:kenBurns 30s ease-in-out infinite alternate;}
+.rp-shade{position:absolute; inset:0; background:linear-gradient(90deg, rgba(7,7,8,.96) 0%, rgba(7,7,8,.78) 45%, rgba(7,7,8,.35) 100%),
+  radial-gradient(120% 90% at 0% 100%, color-mix(in srgb, var(--res) 22%, transparent), transparent 60%);}
+.rp-hero-inner{position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding:28px 30px; flex-wrap:wrap; min-height:200px;}
+.rp-eyebrow{font:600 11px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); display:flex; gap:10px; align-items:center;}
+.rp-eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--res); box-shadow:0 0 12px var(--res);}
+.rp-result{font:850 clamp(36px,5.4vw,58px)/1 var(--font-display); letter-spacing:-.04em; color:var(--res); text-transform:uppercase; margin-top:10px;}
+.rp-score{font:800 clamp(26px,3.6vw,38px)/1 var(--font-display); letter-spacing:-.03em; margin-top:6px; font-variant-numeric:tabular-nums;}
+.rp-score .sep{color:var(--text-3); margin:0 8px; font-weight:600;}
+.rp-meta{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;}
+.rp-meta span{padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid var(--line-2); font-size:12.5px; color:var(--text-2);}
+.rp-back{height:42px; padding:0 18px; border-radius:999px; border:1px solid var(--line-3); background:rgba(255,255,255,.07); color:var(--text);
+  font:650 14px var(--font-display); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .2s, transform .25s;}
+.rp-back:hover{background:rgba(255,255,255,.12); transform:translateY(-1px);}
+.rp-grid{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; margin-bottom:18px;}
+@media (max-width:1000px){ .rp-grid{grid-template-columns:1fr;} }
+.rp-card{border-radius:22px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)); padding:20px 22px; min-width:0;}
+.rp-card + .rp-card{margin-top:18px;}
+.rp-grid .rp-card + .rp-card{margin-top:0;}
+.rp-card h3{font:600 11px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); margin:0 0 14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.rp-card h3 small{font:inherit; letter-spacing:.04em; text-transform:none; color:var(--text-3);}
+.rp-me{display:grid; grid-template-columns:118px minmax(0,1fr); gap:20px; align-items:center;}
+.rp-portrait{width:118px; height:150px; border-radius:18px; overflow:hidden; background:radial-gradient(circle at 50% 30%, var(--surface-4), var(--bg-3)); position:relative; border:1px solid var(--line-2);}
+.rp-portrait img{width:100%; height:100%; object-fit:cover; object-position:50% 12%;}
+.rp-name{font:750 19px var(--font-display); letter-spacing:-.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.rp-agent{color:var(--text-2); font-size:13px; margin-top:2px;}
+.rp-rating{display:flex; align-items:baseline; gap:10px; margin-top:12px; flex-wrap:wrap;}
+.rp-rating b{font:850 54px/1 var(--font-display); letter-spacing:-.045em; background:var(--grad-accent); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.rp-rating .lbl{font:500 10.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
+.rp-badge{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font:700 11px var(--font-mono); letter-spacing:.08em; text-transform:uppercase;
+  background:var(--grad-accent); color:var(--accent-ink);}
+.rp-badge.team{background:var(--surface-4); color:var(--text);}
+.rp-stats{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:18px;}
+.rp-stat{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
+.rp-stat .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.rp-stat .val{font:750 20px/1.2 var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
+.rp-stat .delta{font:600 11px var(--font-mono); margin-top:3px; color:var(--text-3);}
+.rp-stat .delta.up{color:var(--win);} .rp-stat .delta.down{color:var(--loss);}
+.rp-note{font-size:12.5px; color:var(--text-3); margin-top:12px;}
+.rp-hl{display:flex; flex-wrap:wrap; gap:8px;}
+.rp-hl span{display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:999px; background:var(--accent-soft); border:1px solid var(--accent-line); font-size:13px;}
+.rp-hl span.mvp{background:var(--grad-accent); color:var(--accent-ink); border-color:transparent; font-weight:700;}
+.rp-hl .none{color:var(--text-3); font-size:13px; background:none; border:0; padding:0;}
+.rp-sides{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-top:16px;}
+.rp-side{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
+.rp-side .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.rp-side .val{font:750 19px var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums;}
+.rp-side .bar{height:4px; border-radius:4px; background:var(--surface-4); margin-top:8px; overflow:hidden;}
+.rp-side .bar i{display:block; height:100%; background:var(--grad-accent); border-radius:4px;}
+.rp-econ{margin-top:18px;}
+.rp-econ .sub{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px;}
+.rp-econ-row{display:grid; grid-template-columns:86px minmax(0,1fr) 54px; align-items:center; gap:12px; padding:6px 0; font-size:13px;}
+.rp-econ-row .bar{height:6px; border-radius:6px; background:var(--surface-4); overflow:hidden;}
+.rp-econ-row .bar i{display:block; height:100%; border-radius:6px; background:var(--win);}
+.rp-econ-row b{font:650 13px var(--font-mono); text-align:right; font-variant-numeric:tabular-nums;}
+.rp-econ-row .lbl{color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.rp-tl{display:flex; gap:4px; flex-wrap:wrap; align-items:stretch;}
+.rp-rd{width:30px; height:46px; border-radius:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  background:var(--surface-2); border:1px solid var(--line); position:relative; cursor:default; transition:transform .2s;}
+.rp-rd:hover{transform:translateY(-2px);}
+.rp-rd.ally{background:color-mix(in srgb, var(--win) 17%, transparent); border-color:color-mix(in srgb, var(--win) 42%, transparent);}
+.rp-rd.enemy{background:color-mix(in srgb, var(--loss) 13%, transparent); border-color:color-mix(in srgb, var(--loss) 34%, transparent);}
+.rp-rd svg{width:13px; height:13px; opacity:.9;}
+.rp-rd .k{display:flex; gap:2px; height:4px;} .rp-rd .k i{width:4px; height:4px; border-radius:50%; background:var(--accent);}
+.rp-rd.died::after{content:''; position:absolute; top:4px; right:4px; width:5px; height:5px; border-radius:50%; background:var(--text-3);}
+.rp-rd .n{font:500 9px var(--font-mono); color:var(--text-3); line-height:1;}
+.rp-rd.cer{box-shadow:0 0 0 1px var(--accent-line) inset;}
+.rp-half{width:1px; align-self:stretch; background:var(--line-3); margin:0 5px;}
+.rp-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--text-3);}
+.rp-legend span{display:inline-flex; align-items:center; gap:6px;} .rp-legend svg{width:12px; height:12px;}
+.rp-legend .kd{width:5px; height:5px; border-radius:50%; background:var(--accent);}
+.rp-team + .rp-team{margin-top:18px;}
+.rp-team-title{display:flex; align-items:center; gap:10px; margin:0 0 6px; font:750 15px var(--font-display);}
+.rp-team-title i{width:8px; height:8px; border-radius:50%; background:var(--ally);}
+.rp-team-title.enemy i{background:var(--enemy);}
+.rp-team-title .sc{margin-left:auto; font:600 12px var(--font-mono); color:var(--text-3);}
+.rp-table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+.rp-table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px;}
+.rp-table th{font:500 10px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+.rp-table th:first-child, .rp-table td:first-child{text-align:left;}
+.rp-table td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.rp-table tr:last-child td{border-bottom:0;}
+.rp-table tr.me td{background:var(--accent-soft);}
+.rp-table td.rt{font-weight:750; font-family:var(--font-display);}
+.rp-table td.good{color:var(--win);} .rp-table td.bad{color:var(--loss);}
+.rp-pl{display:flex; align-items:center; gap:10px; min-width:0;}
+.rp-pl img.ag{width:32px; height:32px; border-radius:9px; background:var(--bg-3); flex-shrink:0;}
+.rp-pl img.rk{width:22px; height:22px; flex-shrink:0;}
+.rp-pl .nm{overflow:hidden; text-overflow:ellipsis; max-width:190px;}
+.rp-mvp{font:700 9.5px var(--font-mono); letter-spacing:.08em; padding:2px 6px; border-radius:6px; background:var(--grad-accent); color:var(--accent-ink); margin-left:2px;}
+.rp-mvp.team{background:var(--surface-4); color:var(--text);}
+@media (max-width:640px){
+  .rp-hero-inner{padding:22px 20px; min-height:170px;}
+  .rp-me{grid-template-columns:84px minmax(0,1fr); gap:14px;}
+  .rp-portrait{width:84px; height:112px; border-radius:14px;}
+  .rp-rating b{font-size:44px;}
+  .rp-stats{grid-template-columns:repeat(2, minmax(0,1fr));}
+  .rp-card{padding:16px;}
+  .rp-rd{width:26px; height:42px;}
+  .report-reopen{right:14px;}
+}
+/* ueber der unteren Tab-Leiste (Tablet/Handy) */
+@media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
+/* Team-Check (2.5.0) - schmal unter der Agentenauswahl */
+.tc{margin:-18px 0 30px; border-radius:18px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)); padding:12px 14px 14px 16px;}
+.tc + .load-strip{margin-top:0;}
+.set-toggle{width:100%;}
+.tc-head{display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap;}
+.tc-ic{display:grid; place-items:center; width:28px; height:28px; border-radius:9px; background:var(--accent-soft); color:var(--accent); flex-shrink:0;}
+.tc-title{font:700 14.5px var(--font-display); letter-spacing:-.01em;}
+.tc-mapname{font:500 10.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
+.tc-sum{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; color:var(--text-2); background:var(--surface-2); border:1px solid var(--line);}
+.tc-sum.ok{color:var(--win); border-color:color-mix(in srgb, var(--win) 35%, transparent); background:color-mix(in srgb, var(--win) 10%, transparent);}
+.tc-sum.warn{color:#f0c36a; border-color:rgba(240,195,106,.35); background:rgba(240,195,106,.08);}
+.tc-sum.bad{color:var(--loss); border-color:color-mix(in srgb, var(--loss) 38%, transparent); background:color-mix(in srgb, var(--loss) 10%, transparent);}
+.tc-sp{flex:1;}
+.tc-btn{display:grid; place-items:center; width:30px; height:30px; border-radius:9px; border:1px solid transparent; background:transparent; color:var(--text-3); cursor:pointer; transition:background .2s, color .2s;}
+.tc-btn:hover{background:var(--surface-3); color:var(--text);}
+.tc-btn svg{transition:transform .3s var(--ease);}
+.tc.folded .tc-btn[data-tc="fold"] svg{transform:rotate(-90deg);}
+.tc.folded .tc-body{display:none;}
+.tc-body{margin-top:12px; display:grid; gap:12px;}
+.tc-roles{display:flex; gap:6px; flex-wrap:wrap;}
+.tc-role{display:inline-flex; align-items:center; gap:7px; padding:5px 11px 5px 6px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); font-size:12.5px; color:var(--text-2);}
+.tc-role b{display:grid; place-items:center; min-width:20px; height:20px; border-radius:999px; background:var(--surface-4); font:700 11.5px var(--font-mono); color:var(--text);}
+.tc-role.ok b{background:color-mix(in srgb, var(--win) 22%, transparent); color:var(--win);}
+.tc-role.miss{border-color:color-mix(in srgb, var(--loss) 40%, transparent);} .tc-role.miss b{background:color-mix(in srgb, var(--loss) 22%, transparent); color:var(--loss);}
+.tc-role.many b{background:rgba(240,195,106,.18); color:#f0c36a;}
+.tc-tips{list-style:none; margin:0; padding:0; display:grid; gap:6px;}
+.tc-tips li{position:relative; padding-left:16px; font-size:13.5px; line-height:1.5; color:var(--text);}
+.tc-tips li::before{content:''; position:absolute; left:2px; top:.6em; width:7px; height:7px; border-radius:50%; background:var(--text-3);}
+.tc-tips li.s3::before{background:var(--loss);} .tc-tips li.s2::before{background:#f0c36a;}
+.tc-sug{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.tc-sug .lbl{font:500 10.5px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);}
+.tc-chips{display:flex; gap:8px; flex-wrap:wrap;}
+.tc-chip{display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px 0 4px; border-radius:12px; border:1px solid var(--accent-line); background:var(--accent-soft); color:var(--text); cursor:pointer; font:inherit; transition:transform .2s var(--spring), background .2s;}
+.tc-chip:hover{transform:translateY(-1px); background:rgba(216,184,124,.2);}
+.tc-chip img{width:30px; height:30px; border-radius:8px; background:var(--bg-3);}
+.tc-chip .nm{font:650 13px var(--font-display);}
+.tc-chip .why{font-size:11.5px; color:var(--text-2);}
+.tc-map{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--text-2); padding-top:10px; border-top:1px solid var(--line);}
+.tc-map svg{flex-shrink:0; margin-top:3px; color:var(--text-3);}
+@media (max-width:640px){ .tc{margin:-22px 0 26px; padding:12px;} .tc-chip .why{display:none;} }
 </style>
 </head>
 <body>
@@ -2201,17 +2404,25 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       <label data-i18n="language">Sprache</label>
       <div class="cdrop" id="langDrop"></div>
     </div>
+    <div class="field">
+      <label data-i18n="tc_setting_label">Agentenauswahl</label>
+      <button type="button" class="lol-toggle set-toggle" id="tcToggle"><span class="sw"></span><span class="lbl" data-i18n="tc_setting">Team-Check anzeigen</span></button>
+    </div>
   </div>
 
   <div class="sidebar-section">
     <label data-i18n="settings_connect_label">Verbinden</label>
     <button class="sidebar-btn" id="pairBtn" data-i18n-title="pair_phone" title="Handy verbinden">▢</button>
+    <button class="sidebar-btn" id="installBtn" type="button" hidden></button>
     <a class="sidebar-btn discord" id="discordBtn" href="https://rankyoinker.de/discord" target="_blank" rel="noopener noreferrer" data-i18n-title="join_discord" title="Discord beitreten"></a>
   </div>
 
   <div class="sidebar-foot">
     <div class="app-version" id="settingsVersion"></div>
-    <button class="icon-btn sm" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" title="Nach Updates suchen"></button>
+    <div class="sf-btns">
+      <button class="icon-btn sm" id="problemBtn" type="button" data-i18n-title="problem_report" title="Problem melden"></button>
+      <button class="icon-btn sm" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" title="Nach Updates suchen"></button>
+    </div>
   </div>
 </aside>
 
@@ -2233,7 +2444,10 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 </div>
 
 <main id="app">
+  <div id="installHint" class="install-hint" hidden></div>
   <div id="content" class="tabpanel active"></div>
+  <div id="reportView"></div>
+  <button type="button" class="report-reopen" id="reportReopen" hidden></button>
   <div id="panelSkins" class="tabpanel"></div>
   <div id="panelShop" class="tabpanel"></div>
 </main>
@@ -2253,6 +2467,42 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 </main>
 
 <div id="modalWrap"><div class="modal" id="modalBox"></div></div>
+
+<!-- Als App installieren (2.5.0) -->
+<div id="installWrap" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+  <div class="ask-box inst-box">
+    <div class="inst-head"><span class="inst-ic" aria-hidden="true">Y</span><div>
+      <div class="ask-title" id="installTitle" data-i18n="install_title">RankYoinker als App</div>
+      <div class="ask-sub" data-i18n="install_sub">Liegt auf dem Startbildschirm und startet ohne Browserleiste.</div></div></div>
+    <ol class="inst-steps" id="installSteps"></ol>
+    <div class="inst-note" id="installNote" hidden></div>
+    <div class="ask-actions">
+      <button class="pbtn go" id="installClose" data-i18n="close">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Problem melden (2.5.0) -->
+<div id="probWrap" role="dialog" aria-modal="true" aria-labelledby="probTitle">
+  <div class="ask-box prob-box" id="probBox">
+    <div class="ask-title" id="probTitle" data-i18n="problem_report">Problem melden</div>
+    <div class="ask-sub" data-i18n="problem_sub">Beschreib kurz, was nicht klappt und wann es passiert. Die Meldung geht direkt an das RankYoinker-Team.</div>
+    <textarea class="ask-input prob-text" id="probText" maxlength="2000" data-i18n-placeholder="problem_placeholder"></textarea>
+    <input class="ask-input" id="probContact" maxlength="100" autocomplete="off" spellcheck="false" data-i18n-placeholder="problem_contact_ph">
+    <label class="consent prob-consent">
+      <input type="checkbox" class="consent-input" id="probLogs" checked>
+      <span class="consent-box"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+      <span class="consent-txt"><span data-i18n="problem_attach_logs">Logs anhängen</span><small data-i18n="problem_attach_logs_hint">Letzte Zeilen des RankYoinker-Logs, ohne Passwörter und Windows-Benutzernamen. Hilft sehr bei der Fehlersuche.</small></span>
+    </label>
+    <button type="button" class="prob-peek" id="probPeek" data-i18n="problem_preview">Was wird gesendet?</button>
+    <pre class="prob-preview" id="probPreview" hidden></pre>
+    <div class="ask-hint" id="probHint"></div>
+    <div class="ask-actions">
+      <button class="pbtn" id="probCancel" data-i18n="cancel">Abbrechen</button>
+      <button class="pbtn go" id="probSend" data-i18n="problem_send">Senden</button>
+    </div>
+  </div>
+</div>
 
 <div id="askWrap">
   <div class="ask-box" id="askBox">
@@ -2473,6 +2723,8 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     plug: '<path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v5"/>',
     exit: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
     external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+    'arrow-left': '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+    bug: '<path d="M8 2l1.9 1.9M16 2l-1.9 1.9M9 7.1a3 3 0 1 1 6 0"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6Z"/><path d="M12 20v-9M6.5 13H3M21 13h-3.5M6 9 3.5 7.5M18 9l2.5-1.5M6 17l-2.5 1.5M18 17l2.5 1.5"/>',
     chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     phone: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/>',
     trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
@@ -2723,6 +2975,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     const wrap = document.getElementById('langDrop');
     if(!wrap) return;
     function optionLabel(l){
+      // Sprachliste leer (Dienst lieferte keine /lang-Dateien): nicht abstuerzen,
+      // sonst bricht das ganze Skript hier ab
+      if(!l) return '';
       const badge = l.reviewedBy
         ? `<span class="lang-reviewed" title="${esc(t('lang_reviewed_by', {name: l.reviewedBy}))}">${svgIcon('check', 9)}</span>`
         : '';
@@ -2756,6 +3011,63 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   // per Toast zurueck statt nur bei einem echten Update - praktisch, um von
   // aussen schnell zu pruefen, ob der eigene Client wirklich den erwarteten
   // Branch/Stand faehrt, ohne dafuer extra ein Update abwarten zu muessen.
+
+  // ================= PROBLEM MELDEN (2.5.0) =================
+  // Unauffaellig unten in den Einstellungen. Der lokale Dienst sammelt die
+  // Diagnose (geschwaerzt) und schickt sie an rankyoinker.de; "Was wird
+  // gesendet?" zeigt vorher genau diese Daten.
+  (function initProblemReport(){
+    const btn = document.getElementById('problemBtn'), wrap = document.getElementById('probWrap');
+    if(!btn || !wrap) return;
+    btn.innerHTML = svgIcon('bug', 13);
+    const $ = id => document.getElementById(id);
+    const hint = (txt, good) => { $('probHint').textContent = txt || ''; $('probHint').classList.toggle('prob-hint-ok', !!good); };
+    function open(){
+      hint(''); $('probPreview').hidden = true; $('probSend').disabled = false;
+      wrap.classList.add('open');
+      setTimeout(() => $('probText').focus(), 60);
+    }
+    function close(){ wrap.classList.remove('open'); }
+    btn.addEventListener('click', () => { if(typeof closeSidebar === 'function') closeSidebar(); open(); });
+    $('probCancel').addEventListener('click', close);
+    $('probText').addEventListener('input', () => { if($('probHint').textContent && !$('probSend').disabled) hint(''); });
+    wrap.addEventListener('click', e => { if(e.target === wrap) close(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && wrap.classList.contains('open')) close(); });
+    $('probPeek').addEventListener('click', () => {
+      const pre = $('probPreview');
+      if(!pre.hidden){ pre.hidden = true; return; }
+      pre.hidden = false; pre.textContent = '…';
+      fetch(LOG_URL + '/api/problem-report/preview?logs=' + ($('probLogs').checked ? '1' : '0'), {cache:'no-store'})
+        .then(r => r.json())
+        .then(j => {
+          if(!j || !j.ok){ pre.textContent = t('err_local_service_port'); return; }
+          pre.textContent = JSON.stringify(j.diag, null, 2) + (j.log ? '\n\n— Log —\n' + j.log : '');
+        })
+        .catch(() => { pre.textContent = t('err_local_service_port'); });
+    });
+    $('probSend').addEventListener('click', () => {
+      const text = $('probText').value.trim();
+      if(!text){ hint(t('problem_need_text')); $('probBox').classList.remove('shake'); void $('probBox').offsetWidth; $('probBox').classList.add('shake'); return; }
+      $('probSend').disabled = true; hint(t('problem_sending'));
+      api('/api/problem-report', {text, contact: $('probContact').value.trim(), logs: $('probLogs').checked})
+        .catch(apiFail)
+        .then(j => {
+          if(j && j.ok){
+            close();
+            $('probText').value = '';
+            toast('success', t('problem_sent_title'), j.demo ? t('problem_sent_demo') : t('problem_sent_msg', {id: j.id || ''}), {dur: 9000});
+            return;
+          }
+          $('probSend').disabled = false;
+          const code = j && j.error;
+          hint(code === 'too_fast' || code === 'busy' ? t('problem_err_busy')
+            : code === 'offline' ? t('problem_err_offline')
+            : code === 'empty' ? t('problem_need_text')
+            : t('problem_err_generic', {code: String(code || '?').slice(0, 80)}));
+        });
+    });
+  })();
+
   (function initCheckUpdateBtn(){
     const btn = document.getElementById('checkUpdateBtn');
     if(!btn) return;
@@ -2873,6 +3185,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   document.getElementById('sidebarToggle').innerHTML = svgIcon('gear', 17);
   document.getElementById('sidebarClose').innerHTML = svgIcon('x', 15);
   document.getElementById('pairBtn').innerHTML = svgIcon('phone', 15) + t('pair_phone');
+  // (Installieren-Eintrag: siehe paintInstall() unten)
   document.getElementById('discordBtn').innerHTML = discordBrandIcon(15) + t('join_discord');
   // Gleiches Icon+Kreis wie Valorants "Programm läuft nicht" (setStatusIcon('zap'))
   // statt des frueheren ⚡-Emojis, das den Kreis nicht in --red einfaerbte und
@@ -2883,6 +3196,100 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   document.getElementById('gswLeague').innerHTML = lolBrandIcon(13) + '<span>LOL</span>';
   // Die Kopplung verwaltet nur der PC — auf dem Handy hat der Knopf nichts zu tun
   if(ON_PHONE) document.getElementById('pairBtn').style.display = 'none';
+  // ================= ALS APP INSTALLIEREN (PWA, 2.5.0) =================
+  // Am PC (localhost) und in der Demo (https) bietet Chrome/Edge die echte
+  // Installation an (beforeinstallprompt). Auf dem Handy laeuft die Seite
+  // ueber http im Heimnetz: iPhone -> "Zum Home-Bildschirm" (startet als App),
+  // Android -> Verknuepfung, die im Browser oeffnet (ohne https keine echte
+  // App). Hinweis-Leiste nur auf dem Handy, einmal wegklickbar.
+  const IS_STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const IS_ANDROID = /Android/.test(navigator.userAgent);
+  const INSTALL_HINT_KEY = 'ry_install_hint_off';
+  let installPrompt = null;
+  if('serviceWorker' in navigator && window.isSecureContext && /^https?:$/.test(location.protocol)){
+    const regSw = () => { navigator.serviceWorker.register('sw.js').catch(() => {}); };
+    if(document.readyState === 'complete') regSw(); else window.addEventListener('load', regSw);
+  }
+  function installAvailable(){
+    if(IS_STANDALONE) return false;
+    return !!installPrompt || IS_IOS || IS_ANDROID;
+  }
+  function paintInstall(){
+    const btn = document.getElementById('installBtn'), hint = document.getElementById('installHint');
+    const avail = installAvailable();
+    if(btn){
+      btn.hidden = !avail;
+      btn.innerHTML = svgIcon('download', 15) + esc(t('install_app'));
+    }
+    if(hint){
+      let off = false;
+      try{ off = localStorage.getItem(INSTALL_HINT_KEY) === '1'; }catch(e){}
+      const show = avail && ON_PHONE && !off;
+      hint.hidden = !show;
+      if(show) hint.innerHTML = `<span class="inst-ic" aria-hidden="true">Y</span>
+        <div class="tx"><b>${esc(t('install_title'))}</b><span>${esc(t('install_banner_sub'))}</span></div>
+        <button type="button" class="go" data-inst="open">${esc(t(installPrompt ? 'install_now' : 'install_how'))}</button>
+        <button type="button" class="x" data-inst="off" title="${esc(t('close'))}">${svgIcon('x', 14)}</button>`;
+    }
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; paintInstall(); });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    try{ localStorage.setItem(INSTALL_HINT_KEY, '1'); }catch(e){}
+    paintInstall();
+    toast('success', t('install_done_title'), t('install_done_msg'), {dur: 7000});
+  });
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  const DOTS_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  // Uebersetzung escapen, danach die selbst gebauten Schnipsel einsetzen
+  function tHtml(key, vars){
+    let str = esc(t(key));
+    for(const k in (vars || {})) str = str.split('{' + k + '}').join(vars[k]);
+    return str;
+  }
+  function openInstall(){
+    if(installPrompt){
+      const ev = installPrompt;
+      ev.prompt();
+      ev.userChoice.then(() => { installPrompt = null; paintInstall(); }).catch(() => {});
+      return;
+    }
+    const steps = IS_IOS
+      ? [tHtml('install_ios_1', {share: `<span class="k">${SHARE_SVG}${esc(t('install_ios_share'))}</span>`}),
+         tHtml('install_ios_2', {add: `<span class="k">${esc(t('install_ios_add'))}</span>`}),
+         tHtml('install_ios_3', {ok: `<span class="k">${esc(t('install_ios_ok'))}</span>`})]
+      : IS_ANDROID
+      ? [tHtml('install_android_1', {menu: `<span class="k">${DOTS_SVG}</span>`}),
+         tHtml('install_android_2', {add: `<span class="k">${esc(t('install_android_add'))}</span>`})]
+      : [tHtml('install_desktop_1')];
+    document.getElementById('installSteps').innerHTML = steps.map(x => `<li><span>${x}</span></li>`).join('');
+    const note = document.getElementById('installNote');
+    const noteTxt = IS_ANDROID && !window.isSecureContext ? t('install_android_http')
+      : IS_IOS && /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent) ? t('install_ios_other_browser') : '';
+    note.hidden = !noteTxt; note.textContent = noteTxt;
+    document.getElementById('installWrap').classList.add('open');
+    // iPhone: eigene Cookies fuer Home-Bildschirm-Apps. Die Adresse traegt
+    // darum das Geraete-Token (start_url aus dem Manifest des Dienstes), falls
+    // iOS beim Hinzufuegen die aktuelle Adresse statt start_url nimmt.
+    if(IS_IOS && ON_PHONE){
+      fetch('manifest.webmanifest', {cache: 'no-store', credentials: 'include'}).then(r => r.json()).then(m => {
+        if(m && typeof m.start_url === 'string' && /[?&]d=/.test(m.start_url)) history.replaceState(null, '', m.start_url);
+      }).catch(() => {});
+    }
+  }
+  function closeInstall(){ document.getElementById('installWrap').classList.remove('open'); }
+  document.getElementById('installBtn').addEventListener('click', () => { if(typeof closeSidebar === 'function') closeSidebar(); openInstall(); });
+  document.getElementById('installClose').addEventListener('click', closeInstall);
+  document.getElementById('installWrap').addEventListener('click', e => { if(e.target.id === 'installWrap') closeInstall(); });
+  document.getElementById('installHint').addEventListener('click', e => {
+    const b = e.target.closest('[data-inst]');
+    if(!b) return;
+    if(b.dataset.inst === 'off'){ try{ localStorage.setItem(INSTALL_HINT_KEY, '1'); }catch(err){} paintInstall(); }
+    else openInstall();
+  });
+  paintInstall();
+
   document.getElementById('logClose').innerHTML = svgIcon('x', 14);
   document.getElementById('logBtnCard').innerHTML = svgIcon('terminal', 13) + 'Logs';
 
@@ -3170,6 +3577,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
       const live = pregameLive && pregameLive.length;
       html = matchHeroHtml('PREGAME', mapHint, preData && preData.mode, '', dodgeBtnHtml(false))
         + agentPickHtml()
+        + teamCheckHtml()
         + loadStripHtml(pr, loaded, total, pause)
         + `<div class="team-section ally"><div class="card-grid" id="pregameRoster">${live
             ? pregameRosterHtml()
@@ -3427,6 +3835,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         lastAccountPuuid = procStatus.puuid;
       }
       matchViewSync();
+      syncReport();
 
       // Welches Spiel gerade läuft, entscheidet der Server (Match/Queue schlägt
       // blossen offenen Client) — die Seite schaltet nur noch die Ansicht um.
@@ -3902,6 +4311,9 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
           [p.puuid, p.agent || '', p.locked ? 'L' : p.hovering ? 'H' : '', p.name || ''].join('|')).join(';');
         if(roster !== pregameSig){ pregameSig = roster; pregameLive = players; changed = true; }
 
+        if((j.map || null) !== pregameMap || (j.matchId || null) !== pregameMatchId){
+          pregameMap = j.map || null; pregameMatchId = j.matchId || null; changed = true;
+        }
         const side = j.side || null;
         if(side !== pregameSide){
           pregameSide = side;
@@ -4540,10 +4952,227 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     if(name !== 'shop') stopShopTick();
     if(name === 'skins') renderSkins();
     else if(name === 'shop') renderShop(false);
+    if(typeof updateReportView === 'function') updateReportView();
   }
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
   window.addEventListener('resize', movePill);
   setTimeout(movePill, 60);
+
+  // ================= MATCH-ANALYSE (2.5.0) =================
+  // Nach jedem VALORANT-Match zeigt das Overlay statt der Lobby die Auswertung
+  // (der Dienst rechnet sie nach Matchende, /api/match-report). Sie bleibt,
+  // bis man "Zur Lobby" klickt oder das naechste Match beginnt; das
+  // Wegklicken merkt sich die Seite je Match (der Knopf unten rechts holt sie
+  // zurueck).
+  let reportData = null, reportLoading = false, reportRendered = '';
+  const REPORT_DISMISS_KEY = 'ry_report_dismissed';
+  function reportDismissedId(){ try{ return localStorage.getItem(REPORT_DISMISS_KEY); }catch(e){ return null; } }
+  function syncReport(){
+    const g = procStatus && procStatus.game;
+    const rs = g && g.report;
+    if(rs && rs.matchId && (!reportData || reportData.matchId !== rs.matchId) && !reportLoading){
+      reportLoading = true;
+      api('/api/match-report').catch(apiFail).then(j => {
+        reportLoading = false;
+        if(j && j.ok && j.report){ reportData = j.report; reportRendered = ''; updateReportView(); }
+      });
+    }
+    updateReportView();
+  }
+  function currentValState(){
+    if(latestData && latestData.state) return latestData.state;
+    const g = procStatus && procStatus.game;
+    return g ? g.state : null;
+  }
+  function updateReportView(){
+    const app = document.getElementById('app');
+    const view = document.getElementById('reportView');
+    const reopen = document.getElementById('reportReopen');
+    if(!app || !view || !reopen) return;
+    const avail = !!reportData && currentValState() === 'MENUS';
+    const dismissed = avail && reportDismissedId() === reportData.matchId;
+    const show = avail && !dismissed && activeTab === 'match';
+    if(show){
+      const key = reportData.matchId + '|' + Object.keys(agentMap).length + '|' + Object.keys(mapInfo).length + '|' + Object.keys(tierMap).length;
+      if(key !== reportRendered){ view.innerHTML = reportHtml(reportData); reportRendered = key; }
+    }
+    if(app.classList.contains('report-on') !== show){
+      app.classList.toggle('report-on', show);
+      if(!show){ lastFullSig = ''; render(); }
+    }
+    reopen.hidden = !(avail && dismissed && activeTab === 'match');
+    if(!reopen.hidden) reopen.innerHTML = `${svgIcon('chart', 14)}<span>${esc(t('report_reopen'))}</span>`;
+  }
+  document.getElementById('reportView').addEventListener('click', e => {
+    if(e.target.closest('[data-report-close]') && reportData){
+      try{ localStorage.setItem(REPORT_DISMISS_KEY, reportData.matchId); }catch(err){}
+      updateReportView();
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+  });
+  document.getElementById('reportReopen').addEventListener('click', () => {
+    try{ localStorage.removeItem(REPORT_DISMISS_KEY); }catch(err){}
+    reportRendered = '';
+    updateReportView();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+
+  const RP_HOW_ICON = {
+    elim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    bomb: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="13" r="6"/><path d="M12 2v4M4.9 4.9l2.2 2.2M19.1 4.9l-2.2 2.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    defuse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg>',
+    time: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>',
+    surrender: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>'
+  };
+  const RP_BUY = {pistol: 'Pistol', eco: 'Eco', half: 'Half Buy', full: 'Full Buy'};
+  function rpNum(v, d){
+    if(v == null || isNaN(v)) return '—';
+    return Number(v).toLocaleString(LOCALE, {minimumFractionDigits: d || 0, maximumFractionDigits: d || 0});
+  }
+  function rpDelta(val, avg, d, invert){
+    if(val == null || avg == null || !avg) return '';
+    const diff = val - avg;
+    const rel = Math.abs(diff) / Math.abs(avg);
+    const cls = rel < 0.03 ? '' : ((diff > 0) !== !!invert ? 'up' : 'down');
+    const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+    return `<div class="delta ${cls}">${sign}${rpNum(Math.abs(diff), d)}</div>`;
+  }
+  function rpAgent(id){
+    const name = id ? agentById[String(id).toLowerCase()] : null;
+    return {name: name || '', info: name ? agentMap[name.toLowerCase()] : null};
+  }
+  function rpHighlight(h){
+    if(h.type === 'mvp') return `<span class="mvp">★ ${esc(t(h.kind === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>`;
+    const key = {ace: 'report_hl_ace', '4k': 'report_hl_4k', clutch: 'report_hl_clutch', flawless: 'report_hl_flawless', firstbloods: 'report_hl_firstbloods'}[h.type];
+    return key ? `<span>${esc(t(key, {r: h.round, vs: h.vs, n: h.n}))}</span>` : '';
+  }
+  function rpRow(p){
+    const a = rpAgent(p.agent);
+    const ri = p.tier ? rankIcon(p.tier) : null;
+    const pm = (p.kills || 0) - (p.deaths || 0);
+    return `<tr class="${p.me ? 'me' : ''}">
+      <td><div class="rp-pl">${a.info && a.info.icon ? `<img class="ag" src="${esc(a.info.icon)}" alt="" loading="lazy">` : '<span class="ag"></span>'}
+        ${ri ? `<img class="rk" src="${esc(ri)}" alt="" loading="lazy">` : ''}
+        <span class="nm" title="${esc(p.name || '')}">${esc(p.name || t('unknown_short'))}</span>
+        ${p.mvp ? `<span class="rp-mvp ${p.mvp === 'team' ? 'team' : ''}">${p.mvp === 'team' ? 'TEAM MVP' : 'MVP'}</span>` : ''}</div></td>
+      <td class="rt">${rpNum(p.rating, 2)}</td>
+      <td>${rpNum(p.acs)}</td>
+      <td>${p.kills} / ${p.deaths} / ${p.assists}</td>
+      <td class="${pm > 0 ? 'good' : pm < 0 ? 'bad' : ''}">${pm > 0 ? '+' : ''}${pm}</td>
+      <td>${rpNum(p.adr)}</td>
+      <td>${p.hs == null ? '—' : rpNum(p.hs) + '%'}</td>
+      <td>${p.kast == null ? '—' : p.kast + '%'}</td>
+      <td>${p.fk}</td>
+      <td>${p.fd}</td>
+    </tr>`;
+  }
+  function rpTable(list){
+    return `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>
+      <th>${esc(t('report_col_player'))}</th><th>Rating</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
+      </tr></thead><tbody>${list.map(rpRow).join('')}</tbody></table></div>`;
+  }
+  function reportHtml(r){
+    const me = r.players.find(p => p.me) || {};
+    const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
+    const res = r.ffa ? (r.score.place === 1 ? 'win' : 'loss') : r.result;
+    const resLabel = r.ffa ? t('report_place', {n: r.score.place, of: r.score.of})
+      : t(r.result === 'win' ? 'report_victory' : r.result === 'loss' ? 'report_defeat' : 'report_draw');
+    const score = r.ffa ? `${r.score.ally}<span class="sep">·</span>${esc(t('report_kills_word'))}`
+      : `${r.score.ally}<span class="sep">:</span>${r.score.enemy}`;
+    const when = r.startedAt ? new Date(r.startedAt).toLocaleString(LOCALE, {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : '';
+    const meta = [QUEUE_NAMES[r.queue] || r.queue, r.durationMs ? t('report_minutes', {n: Math.round(r.durationMs / 60000)}) : '',
+      r.rounds && !r.ffa ? t('report_rounds_n', {n: r.rounds}) : '', when].filter(Boolean);
+    const ag = rpAgent(me.agent);
+    const avg = r.myAvg || null;
+    const byAcs = r.players.slice().sort((a, b) => (b.acs || 0) - (a.acs || 0));
+    const place = byAcs.findIndex(p => p.me) + 1;
+    const stat = (lbl, val, delta) => `<div class="rp-stat"><div class="lbl">${lbl}</div><div class="val">${val}</div>${delta || ''}</div>`;
+    const stats = [
+      stat('K / D / A', `${me.kills}/${me.deaths}/${me.assists}`,
+        `<div class="delta">K/D ${rpNum(me.kd, 2)}</div>${avg ? rpDelta(me.kd, avg.kd, 2) : ''}`),
+      stat('ACS', rpNum(me.acs), avg ? rpDelta(me.acs, avg.acs, 0) : ''),
+      stat('ADR', rpNum(me.adr), avg ? rpDelta(me.adr, avg.adr, 0) : ''),
+      stat('HS%', me.hs == null ? '—' : rpNum(me.hs, 1) + '%', avg ? rpDelta(me.hs, avg.hs, 1) : ''),
+      stat('KAST', me.kast == null ? '—' : me.kast + '%'),
+      stat('First Kills', `${me.fk || 0}`, `<div class="delta">${esc(t('report_fd_n', {n: me.fd || 0}))}</div>`),
+      stat('Multikills', `${(me.mk3 || 0) + (me.mk4 || 0) + (me.ace || 0)}`, `<div class="delta">3K ${me.mk3 || 0} · 4K ${me.mk4 || 0} · ACE ${me.ace || 0}</div>`),
+      stat('Econ', rpNum(me.econ), `<div class="delta">${esc(t('report_econ_hint'))}</div>`)
+    ].join('');
+    const hl = (r.highlights || []).map(rpHighlight).join('') || `<span class="none">${esc(t('report_no_highlights'))}</span>`;
+    let tl = '', lastSide = null;
+    (r.timeline || []).forEach(rd => {
+      if(lastSide && rd.side !== lastSide) tl += '<span class="rp-half"></span>';
+      lastSide = rd.side;
+      const how = t('report_how_' + rd.how);
+      const tip = `${t('report_round_n', {n: rd.n})} · ${how} · ${t(rd.side === 'atk' ? 'report_attack' : 'report_defense')} · ${RP_BUY[rd.buy] || ''}`
+        + (rd.myKills ? ` · ${t('report_your_kills', {n: rd.myKills})}` : '') + (rd.myDied ? ` · ${t('report_you_died')}` : '');
+      tl += `<div class="rp-rd ${rd.win} ${rd.myDied ? 'died' : ''} ${rd.ceremony ? 'cer' : ''}" title="${esc(tip)}">
+        ${RP_HOW_ICON[rd.how] || ''}<div class="k">${'<i></i>'.repeat(Math.min(5, rd.myKills || 0))}</div><span class="n">${rd.n}</span></div>`;
+    });
+    const sideBox = (lbl, pair) => {
+      const pct = pair && pair[1] ? Math.round(pair[0] / pair[1] * 100) : 0;
+      return `<div class="rp-side"><div class="lbl">${lbl}</div><div class="val">${pair ? pair[0] + ' / ' + pair[1] : '—'}</div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+    };
+    // Runden nach Kaufart deines Teams (aus dem Rundenverlauf)
+    const econ = ['pistol', 'eco', 'half', 'full'].map(k => {
+      const rs = (r.timeline || []).filter(x => x.buy === k);
+      return rs.length ? {k, won: rs.filter(x => x.win === 'ally').length, n: rs.length} : null;
+    }).filter(Boolean);
+    const econHtml = !r.ffa && econ.length ? `<div class="rp-econ"><div class="sub">${esc(t('report_buy_title'))}</div>${econ.map(e =>
+      `<div class="rp-econ-row"><span class="lbl">${RP_BUY[e.k]}</span><div class="bar"><i style="width:${Math.round(e.won / e.n * 100)}%"></i></div><b>${e.won}/${e.n}</b></div>`).join('')}</div>` : '';
+    const allies = r.players.filter(p => p.ally), enemies = r.players.filter(p => !p.ally);
+    return `
+      <section class="rp-hero ${res}">
+        ${mi && mi.splash ? `<div class="rp-bg" style="background-image:url('${esc(mi.splash)}')"></div>` : ''}
+        <div class="rp-shade"></div>
+        <div class="rp-hero-inner">
+          <div>
+            <div class="rp-eyebrow"><span class="dot"></span>${esc(t('report_title'))}${mi ? ' · ' + esc(mi.name) : ''}</div>
+            <div class="rp-result">${esc(resLabel)}</div>
+            <div class="rp-score">${score}</div>
+            <div class="rp-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
+          </div>
+          <button type="button" class="rp-back" data-report-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
+        </div>
+      </section>
+      <div class="rp-grid">
+        <div class="rp-card">
+          <h3>${esc(t('report_your_game'))}${place ? `<small>${esc(t('report_place_acs', {n: place, of: r.players.length}))}</small>` : ''}</h3>
+          <div class="rp-me">
+            <div class="rp-portrait">${ag.info && ag.info.portrait ? `<img src="${esc(ag.info.portrait)}" alt="">` : ''}</div>
+            <div style="min-width:0">
+              <div class="rp-name">${esc(me.name || '')}</div>
+              <div class="rp-agent">${esc(ag.name)}${ag.info && ag.info.role ? ' · ' + esc(ag.info.role) : ''}</div>
+              <div class="rp-rating"><b>${rpNum(me.rating, 2)}</b><span class="lbl" title="${esc(t('report_rating_tip'))}">Rating</span>
+                ${me.mvp ? `<span class="rp-badge ${me.mvp === 'team' ? 'team' : ''}">★ ${esc(t(me.mvp === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>` : ''}</div>
+            </div>
+          </div>
+          <div class="rp-stats">${stats}</div>
+          <div class="rp-note">${esc(t('report_rating_tip'))}${avg ? ' · ' + esc(t('report_vs_avg', {n: avg.games})) : ''}</div>
+        </div>
+        <div class="rp-card">
+          <h3>${esc(t('report_highlights'))}</h3>
+          <div class="rp-hl">${hl}</div>
+          ${r.ffa ? '' : `<div class="rp-sides">${sideBox(esc(t('report_attack')), r.sides && r.sides.atk)}${sideBox(esc(t('report_defense')), r.sides && r.sides.def)}${sideBox('Pistol', r.sides && r.sides.pistol)}</div>`}
+          ${econHtml}
+        </div>
+      </div>
+      ${r.timeline && r.timeline.length ? `<div class="rp-card">
+        <h3>${esc(t('report_timeline'))}<small>${esc(t('report_timeline_hint'))}</small></h3>
+        <div class="rp-tl">${tl}</div>
+        <div class="rp-legend">
+          <span>${RP_HOW_ICON.elim}${esc(t('report_how_elim'))}</span><span>${RP_HOW_ICON.bomb}${esc(t('report_how_bomb'))}</span>
+          <span>${RP_HOW_ICON.defuse}${esc(t('report_how_defuse'))}</span><span>${RP_HOW_ICON.time}${esc(t('report_how_time'))}</span>
+          <span><i class="kd"></i>${esc(t('report_legend_kill'))}</span>
+        </div>
+      </div>` : ''}
+      <div class="rp-card">
+        <h3>Scoreboard</h3>
+        ${r.ffa ? rpTable(r.players.slice().sort((a, b) => b.kills - a.kills)) : `
+        <div class="rp-team"><div class="rp-team-title"><i></i>${esc(t('your_team'))}<span class="sc">${r.score.ally}</span></div>${rpTable(allies)}</div>
+        <div class="rp-team"><div class="rp-team-title enemy"><i></i>${esc(t('enemies'))}<span class="sc">${r.score.enemy}</span></div>${rpTable(enemies)}</div>`}
+      </div>`;
+  }
 
   function api(path, body){
     const opt = body === undefined ? {cache:'no-store'}
@@ -4639,6 +5268,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
     if(hint) hint.textContent = pickLocked ? t('agent_locked_hint') : '';
     const roster = document.getElementById('pregameRoster');
     if(roster && pregameLive && pregameLive.length) morphChildren(roster, pregameRosterHtml());
+    updateTeamCheck();
   }
 
   // Je nachdem, ob die Ladeansicht oder die fertigen Karten zu sehen sind
@@ -4725,6 +5355,202 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
         </div>
       </div>`;
   }
+
+  // ================= TEAM-CHECK (2.5.0) =================
+  // Kleine Karte unter der Agentenauswahl: Rollen deines Teams, höchstens drei
+  // Hinweise, ein Karten-Tipp und - solange du noch nicht gesperrt hast - bis zu
+  // drei passende Agenten für die fehlende Rolle (frei, freigeschaltet, nach
+  // deiner Bilanz auf dieser Karte). Einklappbar, pro Match wegklickbar und in
+  // den Einstellungen ganz abschaltbar. Die Bilanz kommt nur aus den lokal
+  // gespeicherten Matches (/api/agent-history) - keine Riot-Anfrage.
+  // Karten nach englischem Anzeigenamen (valorant-api.com); "strong" = Agenten,
+  // die dort meist gut funktionieren (nur leichter Bonus bei Vorschlägen), "viper"
+  // = lange Viper-Wand fast Pflicht, "sent" = Flankenschutz besonders wichtig.
+  // Unbekannte/neue Karte: nur der Rollen-Check.
+  const TC_MAPS = {
+    Ascent:   {tip: 'tc_map_ascent',   strong: ['Omen', 'Sova', 'KAY/O', 'Killjoy', 'Jett', 'Cypher', 'Vyse', 'Fade', 'Astra']},
+    Bind:     {tip: 'tc_map_bind',     strong: ['Brimstone', 'Viper', 'Skye', 'Fade', 'Raze', 'Cypher', 'Gekko', 'Clove']},
+    Breeze:   {tip: 'tc_map_breeze',   strong: ['Viper', 'Sova', 'Cypher', 'Jett', 'KAY/O', 'Harbor', 'Chamber'], viper: true},
+    Icebox:   {tip: 'tc_map_icebox',   strong: ['Viper', 'Sova', 'Killjoy', 'Jett', 'Gekko', 'Harbor', 'Reyna'], viper: true},
+    Haven:    {tip: 'tc_map_haven',    strong: ['Omen', 'Breach', 'Sova', 'Killjoy', 'Cypher', 'Jett', 'Neon', 'Astra'], sent: true},
+    Lotus:    {tip: 'tc_map_lotus',    strong: ['Omen', 'Viper', 'Fade', 'Raze', 'Killjoy', 'Vyse', 'Gekko', 'Neon'], sent: true},
+    Split:    {tip: 'tc_map_split',    strong: ['Raze', 'Jett', 'Omen', 'Viper', 'Astra', 'Cypher', 'Sage', 'Skye', 'Breach']},
+    Pearl:    {tip: 'tc_map_pearl',    strong: ['Astra', 'Viper', 'Fade', 'Killjoy', 'Cypher', 'Neon', 'Jett']},
+    Sunset:   {tip: 'tc_map_sunset',   strong: ['Omen', 'Cypher', 'Breach', 'Neon', 'Raze', 'Gekko', 'Fade']},
+    Fracture: {tip: 'tc_map_fracture', strong: ['Breach', 'Brimstone', 'Neon', 'Raze', 'Cypher', 'Fade', 'Tejo'], sent: true},
+    Abyss:    {tip: 'tc_map_abyss',    strong: ['Omen', 'Astra', 'Sova', 'Cypher', 'Chamber', 'Jett', 'Yoru'], sent: true},
+    Corrode:  {tip: 'tc_map_corrode',  strong: []}
+  };
+  const TC_ROLES = ['Controller', 'Initiator', 'Sentinel', 'Duelist'];
+  const TC_OFF_KEY = 'ry_teamcheck_off', TC_FOLD_KEY = 'ry_teamcheck_folded', TC_HIDE_KEY = 'ry_teamcheck_hidden';
+  let pregameMap = null, pregameMatchId = null;
+  let tcHistory = null, tcHistoryFor = null, tcHistoryBusy = false;
+  const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+  const lsSet = (k, v) => { try{ v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); }catch(e){} };
+  function teamCheckEnabled(){ return lsGet(TC_OFF_KEY) !== '1'; }
+  function tcMapName(){
+    if(pregameMap){
+      const mi = mapInfo[String(pregameMap).toLowerCase()];
+      if(mi && mi.name) return mi.name;
+    }
+    const pre = latestData && latestData.state === 'PREGAME' ? latestData : null;
+    const m = pre && Array.isArray(pre.map) ? pre.map[0] : null;
+    if(m) return (mapInfo[String(m).toLowerCase()] || {}).name || m;
+    return null;
+  }
+  function tcLoadHistory(){
+    const key = (pregameMatchId || '') + '|' + (pregameMap || '');
+    if(!pregameMatchId || tcHistoryBusy || tcHistoryFor === key) return;
+    tcHistoryBusy = true;
+    api('/api/agent-history?map=' + encodeURIComponent(pregameMap || '')).catch(() => null).then(j => {
+      tcHistoryBusy = false; tcHistoryFor = key;
+      tcHistory = j && j.ok ? j : null;
+      updateTeamCheck();
+    });
+  }
+  function tcRoleOf(agentId){
+    const name = agentId ? agentById[String(agentId).toLowerCase()] : null;
+    const info = name ? agentMap[name.toLowerCase()] : null;
+    return {name: name || null, role: info && TC_ROLES.indexOf(info.role) !== -1 ? info.role : null, info};
+  }
+  // Was fehlt? sev: 3 = wichtig, 2 = sinnvoll, 1 = Hinweis
+  function tcAnalyse(players, mapName){
+    const cfg = TC_MAPS[mapName] || null;
+    const count = {Controller: 0, Initiator: 0, Sentinel: 0, Duelist: 0};
+    const picked = [];
+    players.forEach(pp => { const r = tcRoleOf(pp.agent); if(r.role){ count[r.role]++; picked.push(r.name); } });
+    const n = picked.length, size = Math.max(players.length, 1);
+    const tips = [];
+    if(n >= 2 || n >= size - 1){
+      if(!count.Controller) tips.push({sev: 3, key: 'tc_no_controller'});
+      if(count.Duelist >= 3) tips.push({sev: 3, key: 'tc_many_duelists', n: count.Duelist});
+      if(!count.Initiator) tips.push({sev: 2, key: 'tc_no_initiator'});
+      if(!count.Sentinel) tips.push({sev: cfg && cfg.sent ? 2 : 1, key: cfg && cfg.sent ? 'tc_no_sentinel_map' : 'tc_no_sentinel'});
+      if(count.Controller >= 3) tips.push({sev: 2, key: 'tc_many_controllers', n: count.Controller});
+      if(count.Sentinel >= 3) tips.push({sev: 2, key: 'tc_many_sentinels', n: count.Sentinel});
+      if(cfg && cfg.viper && picked.indexOf('Viper') === -1 && n >= 2) tips.push({sev: 2, key: 'tc_need_viper'});
+      if(!count.Duelist && n >= size - 1 && size >= 4) tips.push({sev: 1, key: 'tc_no_duelist'});
+    }
+    tips.sort((a, b) => b.sev - a.sev);
+    return {count, n, size, tips, cfg};
+  }
+  // Welche Rolle fehlt dem Team OHNE deinen (noch nicht gesperrten) Pick?
+  function tcNeededRole(players, me, mapName){
+    const others = players.filter(pp => pp !== me);
+    const a = tcAnalyse(others, mapName);
+    const cfg = TC_MAPS[mapName] || null;
+    if(!a.count.Controller) return 'Controller';
+    if(cfg && cfg.viper && !others.some(pp => tcRoleOf(pp.agent).name === 'Viper') && a.count.Controller < 2) return 'Viper';
+    if(!a.count.Initiator) return 'Initiator';
+    if(!a.count.Sentinel) return 'Sentinel';
+    if(!a.count.Duelist && a.n >= a.size - 2) return 'Duelist';
+    return null;
+  }
+  function tcSuggestions(role, players, me, mapName){
+    const cfg = TC_MAPS[mapName] || {strong: []};
+    const blocked = {};
+    players.forEach(pp => { if(pp !== me && pp.agent) blocked[String(pp.agent).toLowerCase()] = true; });
+    Object.keys(pickTaken || {}).forEach(k => { blocked[k] = true; });
+    const hist = (tcHistory && tcHistory.agents) || {};
+    const list = [];
+    Object.entries(agentById).forEach(([uid, name]) => {
+      const info = agentMap[String(name).toLowerCase()];
+      if(!info || blocked[uid]) return;
+      if(role === 'Viper' ? name !== 'Viper' : info.role !== role) return;
+      const owned = agentBase[uid] || !ownedAgents || !ownedAgents.length || ownedAgents.some(x => String(x).toLowerCase() === uid);
+      if(!owned) return;
+      const h = hist[uid] || {};
+      const strong = cfg.strong.indexOf(name) !== -1;
+      // Vertrautheit zählt am meisten, die Karten-Bilanz erst ab 3 Spielen
+      // (1 Spiel mit 0 % sagt nichts), "stark auf der Karte" nur als Bonus
+      const mg = h.mapGames || 0;
+      let score = (strong ? 1.5 : 0) + Math.min(h.games || 0, 20) * 0.15 + (mg ? 0.3 : 0);
+      if(mg >= 3) score += (h.mapWins / mg - 0.5) * 4;
+      let why = '';
+      if(mg >= 2) why = t('tc_why_map', {n: mg, w: Math.round(h.mapWins / mg * 100)});
+      else if((h.games || 0) >= 3) why = t('tc_why_games', {n: h.games});
+      else if(strong) why = t('tc_why_strong', {map: mapName});
+      list.push({uid, name, info, score, why});
+    });
+    return list.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, 3);
+  }
+  function teamCheckHtml(){
+    if(!teamCheckEnabled() || !pregameLive || !pregameLive.length) return '<div id="teamCheck" hidden></div>';
+    if(pregameMatchId && lsGet(TC_HIDE_KEY) === pregameMatchId) return '<div id="teamCheck" hidden></div>';
+    tcLoadHistory();
+    const mapName = tcMapName();
+    const me = pregameLive.find(pp => pp.puuid === ownPregamePuuid()) || null;
+    const a = tcAnalyse(pregameLive, mapName);
+    const folded = lsGet(TC_FOLD_KEY) === '1';
+    const top = a.tips.slice(0, 3);
+    const worst = top.length ? top[0].sev : 0;
+    const sum = a.n < 2 ? `<span class="tc-sum">${esc(t('tc_waiting'))}</span>`
+      : !top.length ? `<span class="tc-sum ok">${svgIcon('check', 12)}${esc(t('tc_all_good'))}</span>`
+      : `<span class="tc-sum ${worst >= 3 ? 'bad' : 'warn'}">${esc(t(top.length === 1 ? 'tc_hints_1' : 'tc_hints_n', {n: top.length}))}</span>`;
+    const roles = TC_ROLES.map(r => {
+      const c = a.count[r];
+      const cls = c === 0 ? (a.n >= 2 && (r === 'Controller' || r === 'Initiator') ? 'miss' : 'zero') : (c >= 3 ? 'many' : 'ok');
+      return `<span class="tc-role ${cls}"><b>${c}</b>${r}</span>`;
+    }).join('');
+    const tips = top.map(tp => `<li class="s${tp.sev}">${esc(t(tp.key, {n: tp.n, map: mapName || ''}))}</li>`).join('');
+    let sug = '';
+    if(me && !me.locked && a.n >= 1){
+      const need = tcNeededRole(pregameLive, me, mapName);
+      const list = need ? tcSuggestions(need, pregameLive, me, mapName) : [];
+      if(list.length){
+        sug = `<div class="tc-sug"><span class="lbl">${esc(t('tc_for_you', {role: need === 'Viper' ? 'Viper' : need}))}</span>
+          <div class="tc-chips">${list.map(s => `<button type="button" class="tc-chip" data-tc-pick="${esc(s.uid)}" title="${esc(t('tc_pick_hint'))}">
+            <img src="${esc(s.info.icon)}" alt="" loading="lazy"><span class="nm">${esc(s.name)}</span>${s.why ? `<span class="why">${esc(s.why)}</span>` : ''}</button>`).join('')}</div></div>`;
+      }
+    }
+    const mapTip = a.cfg && a.cfg.tip ? `<div class="tc-map">${svgIcon('map', 13)}<span>${esc(t(a.cfg.tip))}</span></div>` : '';
+    return `<div id="teamCheck" class="tc ${folded ? 'folded' : ''}">
+      <div class="tc-head">
+        <span class="tc-ic">${svgIcon('users', 15)}</span>
+        <span class="tc-title">Team-Check</span>${mapName ? `<span class="tc-mapname">${esc(mapName)}</span>` : ''}
+        ${sum}
+        <span class="tc-sp"></span>
+        <button type="button" class="tc-btn" data-tc="fold" title="${esc(t(folded ? 'tc_expand' : 'tc_collapse'))}" aria-expanded="${folded ? 'false' : 'true'}">${svgIcon('chevron', 13)}</button>
+        <button type="button" class="tc-btn" data-tc="hide" title="${esc(t('tc_hide_match'))}">${svgIcon('x', 13)}</button>
+      </div>
+      <div class="tc-body">
+        <div class="tc-roles">${roles}</div>
+        ${tips ? `<ul class="tc-tips">${tips}</ul>` : ''}
+        ${sug}
+        ${mapTip}
+      </div>
+    </div>`;
+  }
+  (function(){
+    const b = document.getElementById('tcToggle');
+    if(!b) return;
+    const paint = () => { b.classList.toggle('on', teamCheckEnabled()); b.setAttribute('aria-pressed', teamCheckEnabled() ? 'true' : 'false'); };
+    paint();
+    b.addEventListener('click', () => { lsSet(TC_OFF_KEY, teamCheckEnabled() ? '1' : null); paint(); updateTeamCheck(); });
+  })();
+  function updateTeamCheck(){
+    const el = document.getElementById('teamCheck');
+    if(!el) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = teamCheckHtml();
+    const next = tmp.firstElementChild;
+    if(next.outerHTML !== el.outerHTML) el.replaceWith(next);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('#teamCheck [data-tc], #teamCheck [data-tc-pick]');
+    if(!b) return;
+    const act = b.getAttribute('data-tc');
+    if(act === 'fold') lsSet(TC_FOLD_KEY, lsGet(TC_FOLD_KEY) === '1' ? null : '1');
+    else if(act === 'hide'){
+      if(pregameMatchId) lsSet(TC_HIDE_KEY, pregameMatchId);
+      toast('info', 'Team-Check', t('tc_hidden_toast'), {id: 'tc', dur: 5000});
+    } else {
+      const id = b.getAttribute('data-tc-pick');
+      const cell = document.querySelector(`.agentpick:not(.instalock) .agent-cell[data-agent="${CSS.escape(id)}"]`);
+      if(cell) cell.click();
+    }
+    updateTeamCheck();
+  });
 
   function bindAgentPick(){
     const panel = document.querySelector('.agentpick:not(.instalock)');
@@ -6252,7 +7078,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
     const headHtml = state === 'MENUS' ? ''
       : matchHeroHtml(state, mapUrl, latestData.mode, t(list.length === 1 ? 'player_count_1' : 'player_count_n', {n: list.length}), heroRight);
-    const html = headHtml + (state === 'PREGAME' ? agentPickHtml() : '') + bodyHtml;
+    const html = headHtml + (state === 'PREGAME' ? agentPickHtml() + teamCheckHtml() : '') + bodyHtml;
     content.classList.toggle('anim', sceneChanged);
     if(sceneChanged){
       // Neue Szene: alles neu, mit gestaffeltem Einflug
@@ -7593,7 +8419,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 
   // ---- Spieldaten für Runen/Zauber/Items (Community Dragon, CORS-offen) ----
   const CDRAGON_GD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
-  const CDRAGON_LOCALES = {de:'de_de', pl:'pl_pl', fr:'fr_fr', es:'es_es', tr:'tr_tr', ko:'ko_kr'};
+  const CDRAGON_LOCALES = {de:'de_de', pl:'pl_pl', fr:'fr_fr', es:'es_es', tr:'tr_tr', ko:'ko_kr', pt:'pt_br', ru:'ru_ru', ja:'ja_jp'};
   const CDRAGON_LOCALE_GD = CDRAGON_LOCALES[LANG] ? CDRAGON_GD.replace('/global/default/', '/global/' + CDRAGON_LOCALES[LANG] + '/') : CDRAGON_GD;
   function cdAsset(path){ return path ? CDRAGON_GD + String(path).replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : ''; }
   let lolGameData = null, lolGameDataPromise = null;
@@ -8708,7 +9534,7 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev1";
+const CURRENT_VERSION = "2.5.0-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
