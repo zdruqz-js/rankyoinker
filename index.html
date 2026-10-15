@@ -376,6 +376,25 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
 }
 @keyframes iconFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-5px);}}
 .status-icon.load{animation:none;}
+/* Warte-Ansicht (beide Spiele gleich): Spiel-Plakette, Logo im drehenden Ring, Status-Zeilen */
+.status-game{display:inline-flex; align-items:center; gap:8px; margin:-8px auto 22px; padding:6px 12px 6px 10px; border-radius:999px;
+  background:var(--surface-2); border:1px solid var(--line-2); font:600 10.5px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2);}
+.status-game svg{color:var(--text);}
+.status-icon.brand{color:var(--text); animation:none;}
+.status-icon.brand svg{filter:drop-shadow(0 0 10px color-mix(in srgb, var(--sc) 55%, transparent));}
+.status-icon.brand::before, .status-icon.brand::after{content:""; position:absolute; inset:-8px; border-radius:50%; border:2px solid transparent;}
+.status-icon.brand::before{border-top-color:var(--sc); border-right-color:color-mix(in srgb, var(--sc) 35%, transparent); animation:spin 1.8s linear infinite;}
+.status-icon.brand::after{inset:-16px; border-color:color-mix(in srgb, var(--sc) 14%, transparent); animation:ringPulse 2.4s ease-in-out infinite;}
+@keyframes ringPulse{0%,100%{opacity:.35; transform:scale(.96);} 50%{opacity:1; transform:scale(1.03);}}
+.status-pills{display:grid; gap:8px; max-width:300px; margin:-4px auto 22px; text-align:left;}
+.status-pills:empty{display:none;}
+.status-pill{display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line);
+  font-size:13px; color:var(--text-2);}
+.status-pill i{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.status-pill.ok i{background:var(--win); box-shadow:0 0 10px color-mix(in srgb, var(--win) 70%, transparent);}
+.status-pill.wait i{background:#f0c36a; box-shadow:0 0 10px rgba(240,195,106,.7); animation:ringPulse 1.6s ease-in-out infinite;}
+.status-pill.bad i{background:var(--loss);}
+@media (prefers-reduced-motion: reduce){ .status-icon.brand::before, .status-icon.brand::after, .status-pill.wait i{animation:none;} }
 .status-icon .loader{
   width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.1); border-top-color:var(--sc);
   animation:spin .9s linear infinite;
@@ -2596,12 +2615,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
 <div id="statusOverlay">
   <div class="status-card err" id="statusCard">
+    <div class="status-game" id="statusGame">VALORANT</div>
     <div class="status-orb"><div class="status-icon" id="statusCardIcon">⚡</div></div>
     <h2 id="statusCardTitle" data-i18n="program_not_running">Programm läuft nicht</h2>
     <p id="statusCardText">
       Keine Verbindung zu <code id="statusCardAddr">ws://localhost:1100</code>.
       Starte <strong>VALORANT</strong>, RankYoinker startet automatisch mit.
     </p>
+    <div class="status-pills" id="statusPills"></div>
     <div>
       <button class="btn-retry" id="logBtnCard">▤ Logs</button>
     </div>
@@ -2619,10 +2640,12 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 </main>
 
 <div id="lolStatusOverlay">
-  <div class="status-card err">
-    <div class="status-orb"><div class="status-icon" id="lolStatusCardIcon"></div></div>
-    <h2 data-i18n="lol_not_running">League of Legends läuft nicht</h2>
+  <div class="status-card wait">
+    <div class="status-game" id="lolStatusGame">LEAGUE OF LEGENDS</div>
+    <div class="status-orb"><div class="status-icon brand" id="lolStatusCardIcon"></div></div>
+    <h2 data-i18n="waiting_for_lol">Warte auf League of Legends</h2>
     <p data-i18n="lol_not_running_hint">Starte League of Legends. Sobald der Client läuft, wird hier automatisch alles angezeigt.</p>
+    <div class="status-pills" id="lolStatusPills"></div>
   </div>
 </div>
 
@@ -3488,7 +3511,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Gleiches Icon+Kreis wie Valorants "Programm läuft nicht" (setStatusIcon('zap'))
   // statt des frueheren ⚡-Emojis, das den Kreis nicht in --red einfaerbte und
   // dessen 6px-Schwebeanimation neben der eigenen bunten Grafik kaum auffiel.
-  document.getElementById('lolStatusCardIcon').innerHTML = svgIcon('zap', 28);
+  document.getElementById('lolStatusCardIcon').innerHTML = lolBrandIcon(30);
   document.getElementById('gswAuto').innerHTML = svgIcon('zap', 13) + '<span>AUTO</span>';
   document.getElementById('gswValorant').innerHTML = valBrandIcon(13) + '<span>VAL</span>';
   document.getElementById('gswLeague').innerHTML = lolBrandIcon(13) + '<span>LOL</span>';
@@ -3593,11 +3616,23 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Kopf der Statuskarte: entweder ein Icon oder das drehende Ladesymbol.
   // updateOverlay() läuft im Sekundentakt — ohne diese Sperre würde das Element
   // jedes Mal neu gebaut und die Drehung fienge dauernd von vorn an.
+  // Status-Zeilen der Warte-Ansicht (VALORANT und League gleich)
+  function statusPillsHtml(game, serviceOk){
+    return `<div class="status-pill ${serviceOk ? 'ok' : 'bad'}"><i></i>${esc(t(serviceOk ? 'status_service_ready' : 'status_service_down'))}</div>`
+      + `<div class="status-pill wait"><i></i>${esc(t('status_game_waiting', {game}))}</div>`;
+  }
+  const statusPills = document.getElementById('statusPills');
+  function setStatusPills(html){ if(statusPills.innerHTML !== html) statusPills.innerHTML = html; }
+  document.getElementById('statusGame').innerHTML = valBrandIcon(13) + '<span>VALORANT</span>';
+  document.getElementById('lolStatusGame').innerHTML = lolBrandIcon(13) + '<span>League of Legends</span>';
   let curStatusIcon = '';
   function setStatusIcon(name){
     if(name === curStatusIcon) return;
     curStatusIcon = name;
-    if(name === 'load'){
+    if(name === 'brand'){
+      statusCardIcon.className = 'status-icon brand';
+      statusCardIcon.innerHTML = valBrandIcon(30);
+    } else if(name === 'load'){
       statusCardIcon.className = 'status-icon load';
       statusCardIcon.innerHTML = '<span class="loader"></span>';
     } else {
@@ -3685,6 +3720,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     // so weit - z. B. direkt nach einem Update/Neustart mitten im Match. Dann
     // nicht "Starte VALORANT" anzeigen (Live-Test 2.4.9-dev1).
     const valorantOpen = !!(procStatus && procStatus.valorant);
+    let pills = '';   // Status-Zeilen nur in den Warte-Zustaenden
     const showConnecting = () => {
       statusCard.className = 'status-card wait';
       setStatusIcon('clock');
@@ -3697,13 +3733,15 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       if(valorantOpen) showConnecting();
       else {
         statusCard.className = 'status-card wait';
-        setStatusIcon('load');
+        setStatusIcon('brand');
         statusCardTitle.textContent = t('waiting_for_valorant');
         statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_vry_autostart')}</span>`;
+        pills = statusPillsHtml('VALORANT', true);
       }
     } else if(running && phase === 'waiting_riot'){
       statusCard.className = 'status-card wait';
-      setStatusIcon('load');
+      setStatusIcon('brand');
+      pills = statusPillsHtml('VALORANT', true);
       statusCardTitle.textContent = t('waiting_for_valorant');
       statusCardText.innerHTML = t('vry_running_no_riot_html')
         + (inMatch ? `<br><span style="color:var(--gold);">${t('match_already_running')}</span>` : '');
@@ -3744,7 +3782,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_lobby_autoload')}</span>`
         + matchHint
         + (!procStatus ? `<br><span style="color:var(--text-faint);">${t('helper_service_unreachable_plain')}</span>` : '');
+      setStatusIcon('brand');
+      pills = statusPillsHtml('VALORANT', !!procStatus);
     }
+    setStatusPills(pills);
 
     // Status hat gewechselt -> Karte fliegt neu ein (der Reflow startet die Animation neu)
     const ovKey = statusCard.className + '|' + statusCardTitle.textContent;
@@ -8296,14 +8337,19 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
 
   async function refreshLol(){
-    let gs;
-    try{ gs = await api('/api/lol/gamestate'); }catch(e){ gs = {state:'OFFLINE'}; }
+    let gs, gsFailed = false;
+    try{ gs = await api('/api/lol/gamestate'); }catch(e){ gs = {state:'OFFLINE'}; gsFailed = true; }
     const state = gs.state || 'OFFLINE';
     lolLastState = state;
     refreshStatusChip();
     // Erst alles anzeigen, sobald der League-Client wirklich läuft - bis dahin
     // ein eigenes Overlay, genau wie bei Valorant über #statusOverlay.
     document.getElementById('lolStatusOverlay').classList.toggle('open', state === 'OFFLINE');
+    if(state === 'OFFLINE'){
+      const pl = document.getElementById('lolStatusPills');
+      const html = statusPillsHtml('League of Legends', !gsFailed);
+      if(pl.innerHTML !== html) pl.innerHTML = html;
+    }
     if(!lolSelfPuuid) loadLolSelf();
     // Stände für die Schnellschalter in der Kopfleiste
     if(state !== 'OFFLINE'){
@@ -9557,9 +9603,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     lolPresets = presetsData || lolPresets;
 
     if(state === 'OFFLINE'){
-      const body = lolLayout('offline');
-      lolSetHero({kind: 'offline', eyebrow: lolStatePillHtml(state), title: 'League of Legends', sub: esc(t('league_client_closed_hint'))});
-      body.innerHTML = '';
+      // Ohne Client zeigt nur die Warte-Karte (#lolStatusOverlay) etwas - frueher stand
+      // dahinter noch eine Kopfkarte "Client geschlossen" mit derselben Meldung, die
+      // die Karte teils verdeckte
+      const el = document.getElementById('lolContent');
+      if(el.innerHTML || el.dataset.kind !== 'offline'){ el.innerHTML = ''; el.dataset.kind = 'offline'; }
       return;
     }
     const [lobby, search, rc, queues] = await Promise.all([
@@ -10042,7 +10090,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev13";
+const CURRENT_VERSION = "2.5.0-dev14";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
