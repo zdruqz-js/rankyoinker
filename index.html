@@ -5553,8 +5553,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
   // ================= MATCH ALS BILD (Banner zum Teilen) =================
   // Zeichnet die Match-Analyse als 1600x900-Banner auf ein Canvas: Karte im
-  // Hintergrund, Agent rechts, Ergebnis, Punktestand, Name, K/D/A, Note und die
-  // wichtigsten Werte - unten RankYoinker-Logo + rankyoinker.de (Werbung, wenn es
+  // Hintergrund, Agent rechts, Ergebnis, Punktestand, Name, K/D/A und die
+  // wichtigsten Werte (ohne Note - auf Wunsch seit dev16) - unten RankYoinker-Logo + rankyoinker.de (Werbung, wenn es
   // jemand teilt). Bilder kommen von valorant-api.com (CORS *), sonst ohne Bild.
   const RP_BANNER_W = 1600, RP_BANNER_H = 900;
   function rpLoadImg(src){
@@ -5669,18 +5669,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const kda = (txt, color) => { x.font = `850 84px ${DISP}`; x.fillStyle = color; x.fillText(txt, sx, 664); sx += x.measureText(txt).width; };
     kda(String(me.kills), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.deaths), '#f5f5f2'); kda(' / ', 'rgba(245,245,242,.32)'); kda(String(me.assists), '#f5f5f2');
     spacing('4px'); x.font = `600 20px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText('K / D / A', X0, 698); spacing('0px');
-    // Note im Ring
-    const grade = rpGrade(me.rating);
-    const gc = grade === 'S' ? '#f3d79c' : col('--g-' + grade.toLowerCase(), ACC);
-    const cx = X0 + 690, cy = 610, rr = 76;
-    x.lineWidth = 12; x.strokeStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(cx, cy, rr, 0, Math.PI * 2); x.stroke();
-    const ringP = me.rating == null ? 0 : Math.max(0.04, Math.min(1, (me.rating - 0.5) / 1.1));
-    x.save(); x.shadowColor = gc; x.shadowBlur = 24; x.strokeStyle = gc; x.lineCap = 'round';
-    x.beginPath(); x.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + ringP * Math.PI * 2); x.stroke(); x.restore();
-    x.textAlign = 'center'; x.font = `900 78px ${DISP}`; x.fillStyle = gc; x.fillText(grade, cx, cy + 22);
-    x.font = `600 21px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.7)'; x.fillText(rpPct(me.rating), cx, cy + 56);
-    spacing('4px'); x.font = `600 18px ${MONO}`; x.fillStyle = 'rgba(245,245,242,.5)'; x.fillText(t('report_col_perf').toUpperCase(), cx, cy + rr + 40); spacing('0px');
-    x.textAlign = 'left';
     // Werte
     const stats = [['ACS', rpNum(me.acs)], ['ADR', rpNum(me.adr)], ['HS%', me.hs == null ? '—' : rpNum(me.hs) + '%'], ['KAST', me.kast == null ? '—' : me.kast + '%']];
     stats.forEach(([lbl, val], i) => {
