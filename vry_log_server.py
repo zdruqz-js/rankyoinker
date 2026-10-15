@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev21"
+APP_VERSION = "2.5.0-dev22"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -7688,7 +7688,9 @@ LOL_REPORT_TRIES = 30            # ~10 min: die Historie kennt das Spiel erst na
 LOL_REPORT_TL_TRIES = 6          # so oft auf die Zeitleiste warten, dann ohne sie
 LOL_INGAME_PHASES = ("GameStart", "InProgress", "Reconnect")
 _lol_report = {"current": None, "pending": None, "tries": 0, "next": 0.0, "data": None,
-               "loaded": False, "busy": False}
+               "loaded": False, "busy": False,
+               # Positionen aus der Live-Client-API, im Spiel gemerkt (siehe _lol_role)
+               "positions": None, "posNext": 0.0, "posBusy": False}
 _lol_report_lock = threading.Lock()
 
 
@@ -7739,6 +7741,22 @@ def _lol_report_track(phase):
             if gid:
                 _lol_report["current"] = gid
                 _lol_report_drop(keep_game=gid)
+        gid = _lol_report["current"]
+        pos = _lol_report["positions"]
+        if gid and (not pos or pos.get("gameId") != gid) and not _lol_report["posBusy"] \
+                and time.time() >= _lol_report["posNext"]:
+            _lol_report.update(posBusy=True, posNext=time.time() + 10.0)
+
+            def capture():
+                try:
+                    got = _lol_positions_capture(gid)
+                    if got:
+                        _lol_report["positions"] = got
+                except Exception:
+                    pass
+                finally:
+                    _lol_report["posBusy"] = False
+            threading.Thread(target=capture, daemon=True).start()
         return
     gid = _lol_report["current"]
     if gid and phase:
@@ -7779,6 +7797,31 @@ def _lol_report_tick(now):
     threading.Thread(target=run, daemon=True).start()
 
 
+def _lol_positions_capture(gid):
+    """Rollen aller zehn aus der Live-Client-API (allPlayers[].position) - live
+    (2026-10-16) die einzige verlaessliche Quelle; das LCU-Match-Protokoll nennt in
+    participants[].timeline.lane z. B. Top-Spieler und Supporter als JUNGLE."""
+    players = _live_get("/playerlist")
+    if not isinstance(players, list) or not players:
+        return None
+    champs = _lol_champion_by_name()
+    by_champ, by_riot = {}, {}
+    for p in players:
+        pos = str(p.get("position") or "").upper()
+        if pos not in _LOL_POSITIONS:
+            continue
+        team = {"ORDER": 100, "CHAOS": 200}.get(str(p.get("team") or "").upper())
+        cid = champs.get(str(p.get("championName") or "").lower())
+        if team and cid:
+            by_champ["%d:%d" % (team, cid)] = pos
+        rid = str(p.get("riotId") or "")
+        if rid and not rid.startswith("#"):
+            by_riot[rid.lower()] = pos
+    if not by_champ and not by_riot:
+        return None                             # z. B. ARAM: keine Positionen
+    return {"gameId": gid, "byChamp": by_champ, "byRiot": by_riot}
+
+
 def _lol_report_build(game_id, attempt=0):
     status, game = lcu_get("/lol-match-history/v1/games/%s" % game_id)
     if status != 200 or not isinstance(game, dict) or not game.get("participants"):
@@ -7792,9 +7835,15 @@ def _lol_report_build(game_id, attempt=0):
         tl = None
     if tl is None and attempt < LOL_REPORT_TL_TRIES:
         return None                             # Zeitleiste kommt oft etwas spaeter
-    return _lol_report_from_game(game, tl, me)
+    pos = _lol_report["positions"]
+    return _lol_report_from_game(game, tl, me, pos if pos and pos.get("gameId") == game_id else None)
 
 
+_LOL_POSITIONS = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
+# Gegenstand der Rollen-Quest (stats.roleBoundItem) - live in beiden Teams einheitlich;
+# die Botlane bekommt statt eines Platzhalters gleich ihre Stiefel (IDs ab 3000)
+_LOL_ROLE_ITEM = {1220: "TOP", 1209: "JUNGLE", 1206: "MIDDLE", 1208: "UTILITY"}
+_LOL_SMITE = 11
 _LOL_LANE_ROLE = {"TOP": "TOP", "JUNGLE": "JUNGLE", "MIDDLE": "MIDDLE", "MID": "MIDDLE"}
 # Gewichte der Note je Rolle: Supporter farmen nicht und machen wenig Schaden,
 # dafuer zaehlen Sicht und Kill-Beteiligung mehr
@@ -7802,15 +7851,36 @@ _LOL_RATING_W = {"default": {"kda": .25, "kp": .15, "dpm": .25, "gpm": .15, "csp
                  "UTILITY": {"kda": .25, "kp": .25, "dpm": .10, "gpm": .05, "cspm": 0.0, "vpm": .35}}
 
 
-def _lol_role(p):
+def _lol_role(p, pl=None, positions=None):
+    """Rolle in drei Stufen: im Spiel gemerkte Position (Live-Client-API), sonst das
+    Rollen-Quest-Item, sonst lane/role aus dem Match-Protokoll - dort steht live
+    oft JUNGLE fuer Top-Spieler und Supporter, darum zaehlt JUNGLE nur mit Smite."""
+    if positions:
+        rid = ("%s#%s" % (pl.get("gameName"), pl.get("tagLine"))).lower() if pl and pl.get("gameName") and pl.get("tagLine") else ""
+        pos = (positions.get("byRiot") or {}).get(rid) \
+            or (positions.get("byChamp") or {}).get("%s:%s" % (p.get("teamId"), p.get("championId")))
+        if pos in _LOL_POSITIONS:
+            return pos
+    try:
+        rbi = int((p.get("stats") or {}).get("roleBoundItem") or 0)
+    except (TypeError, ValueError):
+        rbi = 0
+    if rbi in _LOL_ROLE_ITEM:
+        return _LOL_ROLE_ITEM[rbi]
+    if rbi >= 3000:
+        return "BOTTOM"
+    if _LOL_SMITE in (p.get("spell1Id"), p.get("spell2Id")):
+        return "JUNGLE"
     tl = p.get("timeline") or {}
     lane, role = str(tl.get("lane") or "").upper(), str(tl.get("role") or "").upper()
     if lane in ("BOTTOM", "BOT"):
         return "UTILITY" if "SUPPORT" in role else "BOTTOM"
+    if lane == "JUNGLE":
+        return None                             # ohne Smite kein Jungler
     return _LOL_LANE_ROLE.get(lane)
 
 
-def _lol_report_from_game(game, tl, me_puuid):
+def _lol_report_from_game(game, tl, me_puuid, positions=None):
     idents = {i.get("participantId"): (i.get("player") or {}) for i in (game.get("participantIdentities") or [])}
     parts = [p for p in (game.get("participants") or []) if p.get("participantId") in idents]
     me_pid = next((pid for pid, pl in idents.items() if me_puuid and pl.get("puuid") == me_puuid), None)
@@ -7841,7 +7911,7 @@ def _lol_report_from_game(game, tl, me_puuid):
             "pid": p.get("participantId"), "puuid": pl.get("puuid"),
             "name": ("%s#%s" % (gn, pl.get("tagLine"))) if gn and pl.get("tagLine") else (gn or None),
             "me": p.get("participantId") == me_pid, "ally": tid == my_team, "team": tid,
-            "championId": p.get("championId"), "level": st.get("champLevel"), "role": _lol_role(p),
+            "championId": p.get("championId"), "level": st.get("champLevel"), "role": _lol_role(p, pl, positions),
             "kills": k, "deaths": d, "assists": a, "kda": round((k + a) / (d or 1), 2),
             "kp": round((k + a) / team_kills[tid] * 100) if team_kills[tid] else 0,
             "cs": cs, "csMin": round(cs / mins, 1), "gold": st.get("goldEarned") or 0,
@@ -7956,8 +8026,10 @@ def _lol_report_timeline(tl, idents, parts, my_team, me_pid):
             elif typ == "ELITE_MONSTER_KILL":
                 mt = str(e.get("monsterType") or "").upper()
                 kind = {"DRAGON": "dragon", "BARON_NASHOR": "baron", "RIFTHERALD": "herald", "HORDE": "grub"}.get(mt)
+                # killerTeamId fehlt im LCU (live immer None) -> Team des Killers;
+                # killerId 0 / unbekannt: gar nicht zuordnen statt "Gegner"
                 killer_team = e.get("killerTeamId") or team_of.get(e.get("killerId"))
-                if kind:
+                if kind and killer_team in (100, 200):
                     ev.append({"t": kind, "side": "ally" if killer_team == my_team else "enemy"})
             elif typ == "BUILDING_KILL":
                 kind = {"TOWER_BUILDING": "tower", "INHIBITOR_BUILDING": "inhib"}.get(str(e.get("buildingType") or ""))
