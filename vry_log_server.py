@@ -50,6 +50,7 @@ import shutil
 import socket
 import ssl
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -523,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev1"
+APP_VERSION = "2.5.0-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -651,7 +652,8 @@ def _get_client_id():
 
 # Primary Language ID = niedrigstes Byte einer Windows-LCID, stabile Win32-
 # Konstanten (siehe "Language Identifier Constants and Strings" bei MS).
-_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko"}
+_WIN_PRIMARY_LANG = {0x07: "de", 0x09: "en", 0x15: "pl", 0x0c: "fr", 0x0a: "es", 0x1f: "tr", 0x12: "ko",
+                     0x16: "pt", 0x19: "ru", 0x11: "ja"}
 
 
 def _detect_system_lang():
@@ -2783,7 +2785,7 @@ _presets_lock = threading.Lock()
 _store_lock = threading.Lock()
 _config_lock = threading.Lock()
 
-RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr", "ko")
+RPC_LANGS = ("de", "en", "pl", "fr", "es", "tr", "ko", "pt", "ru", "ja")
 
 
 def set_rpc_lang(lang, auto=False, local=True):
@@ -3775,9 +3777,11 @@ def _pregame_fetch():
     # und "Blue" (verteidigt). Nach der Halbzeit wird getauscht.
     team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
     side = {"red": "attack", "blue": "defense"}.get(team.lower())
+    # Karte + Queue fuer den Team-Check im Overlay (2.5.0)
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
-            "enemies": enemies, "side": side}
+            "enemies": enemies, "side": side,
+            "map": m.get("MapID") or None, "queue": m.get("QueueID") or None}
 
 
 UUID_RE = re.compile(
@@ -4883,6 +4887,197 @@ def _snapshot_tick(state, mid, now):
         _snapshot["sig"] = sig
     except Exception as e:
         report_error("match-snapshot", e)
+
+
+# ============================ Als App installieren (PWA, 2.5.0) ============================
+# Das Overlay laesst sich als App installieren: am PC (localhost ist ein
+# "sicherer Kontext") ueber Chrome/Edge, auf dem Handy ueber "Zum Home-
+# Bildschirm". Icons stecken hier eingebettet (rotes Quadrat mit "Y", wie das
+# Favicon), damit der Installer keine neuen Dateien braucht.
+# iPhones geben einer installierten Web-App eigene, leere Cookies - das
+# Kopplungs-Cookie aus Safari fehlt dort. Darum traegt start_url im Manifest
+# fuer gekoppelte Handys das Geraete-Token (/?d=<token>); der Dienst setzt es
+# beim Start der App als Cookie (wie beim QR-Code) und leitet auf / weiter.
+# Entkoppeln macht den Link wertlos. Der Service Worker speichert nichts, er
+# zeigt nur eine Hinweisseite, wenn der Dienst gerade nicht laeuft.
+_APP_ICONS = {
+    "/app-icon-192.png": "iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAAAwFBMVEX+RlUTCQoAAABOGB3IOEOMKDD/AAD/VVX/RVUjDhD/SFX/RlX/f3//RlX/Pz//R1b/RVX/RlYzERR2IiliHSOwMjz/AH+mLjj/P1XgP0z/P3//ZmYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACXki5xAAAAQHRSTlP+/wD///8BA5L/Fa4CzgQqUGr/////Av8Y/wQFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7D6NIwAAA/dJREFUeNrtndmW4jAMRDVOcIztbM3Wy///59iZZlgDzkJHNaN64IVzQJeo5AoPEale6aoIr0XdGFeW9OMqS2eauiuh0v1VUt8bvgovtjULlH6BYVobCqn8QABfxOodsZCLDIUfAKBD+bUhRjJ1QNCpABW38o8IVRKA1sqyK79DsLG2pwChe1piqrYr7zFApawjtnL2po0uAbRXDbFWo7zuB9h7vu1zaiO/7wMIbxhiL9MVeg9As27/CyPoewDa25IgVNozH9CZfx2ByJ05mU7z3xCMzOk8oL/zH6j+SFBdAhTc5//teVCcA4QBRGA6jqI/AIV3aADOFycAuAY6a6IIoPeWAGX3+hugwJpAl7M0AHhdE6TqcPhGgEI5TAAXLwGF2zTQCxAvgQ4AFaYDjucxAZ5hF6cZffK/CXt0e/ZJsBb+tjGpdwLWezBxgwzQBACDDGAUfZXIAOUX1QStmhpsgIZabICWHDaAoxIboMQHEIlEIpHoP9Eme6rtTJ+zeQlA/uu5Er55lfAx+WsuwS7hq3dz/AyHVzXRdoYf7+35R2xfZ4OEb88m/wZvL/RxyvVfPfqAw3IGmMWBk3+A6comtUA2uQWnaz3BhJulG2hiF8wyhpe0wXqWg3A5G2TLTtCTPsZFihUHA6T38oHhBB02TT5YRYjpkWLLxQAjkzUjA4wqiJUBkltiPWeKXdYGG24NNLArmESI0TaY6V56uUiR8Zqgg5P1iqMBBvQ2wwk6KFKseUWIETZga4DkZM3VAOl/k3A1QPohyytCjIgUiYFpIeXTAHaLAyQdVLwixJj/rLkaIDlScJygM9jgQEw00gZbYqMMLULM0kQ5I4CkZM0rQkyOFBkxU4YWISbaYMcOYFiy3hBDbYENMDRZ5zwBcrgIMTJSbImtMrQIMSpZ55wBcrgIMdgGGTFXhhYhbv6sW6NFiEHJesO//sc+XgmAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAAiAAPxrAOteQQCIRKKflTxzd2kA+Mc2wz84u8EGaPAfHg//+H74BQr4KyzQl4jAr3GBX6QDv8oIfpkU/jov+IVq+Cvt4JcK4q91hF+sib/aFH+5LPx6X/wFy/grrvGXjMOvee9GEcQ1cMcBdA2g9grBB6Yr9C6A2nv+t2et8uf1XwJEJzM/D5oz/94BiOcBZyOE9q+uCr4GiAO25ds+p/nfCxBuMZVl6WVjY23PAWIbqZodgqnVTfv0AShdcEOI5RdapQKE++SAYFsmdnatjbcs9yvtAQgI8XrZ1iwcL0oTq1eV76uzFyA0UhUtX9SNceUCGGXpTFN3JVS6v8rf+KA3Piad3yYAAAAASUVORK5CYII=",
+    "/app-icon-512.png": "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",
+    "/app-icon-maskable-512.png": "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAMAAADDpiTIAAAAwFBMVEX+RlUTCQpOGB0jDhDNOUWTKjI0EhV1IimzMjxhHSPgP0ymLjhbHCIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADJaVA9AAAAQHRSTlP/////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqWzwRwAABCdJREFUeNrt3FFyozAUBMAYBTCQ+593//cnJBHSk173CVz2OB6Ninx8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA2N5LLe8EL2tGy6uWz3ov6rPai1p8wt8ptd7rLWAqi8+34bdtr/WS1movyQ/ADXu0tztgJNWAe84qr2dTANo6Y1WuI2ItnfwsWO0tXyMVgMsn274G/PlLpwB0sYU5d1V7JZtPdcTlZVcA+lhj1IBQbSSXEN072HlEDWj942sCzj0JKwCT1ICrdwQVgM6T8O++gEUB6KzvJxDtSsIk3LYGuAOeahL+8YdgAk5eA0zAIXRbYpwAg7j6HMUuJ8D5asAPvor1CsDhExxxEl4UgBkn4SP0Xx2eP5Df/D12BxxM65thE/C0k/Ctn+TFD8C8NeDGKmcCnroGXKHCRvtJ+LubORPw5D8CS6zCyU2NboY9BpR7EjYBZ5iEiwKgBpiAB/T4Fa0JOPck7DGgPDVge3Rr8BhQ/BpwmICTT8KrCTj5JPx/DXAHPIanbobrFUyPAQ1SA3YTcPIa8FYAkteA0wQ8ogf2GhPwUKovth4DGkzlL2y9PynugEebhIsJOPlZcFEAkp8FL/8Jakj1hjsTcPIaYALOXgPcAWevASbg7JOwCXhMJVAAnACHnoSdALNPwiZgNUABGNCpACR3KQBqQG8m4OSTsB+ArrpPwibgzjpPwibg7g4FILmiAKgBnXgMKHcNMAEH0WkSNgEn/xFQAMLocjNsAg5kdwJUA9ryGFDyGqAABNP4ZtgEnLsGKAABtbwZ9hhQ7hpgAg5pVQCcBU3AqRUnQDXABKwGuANWA0zASZ0KQHJvBSC5RydhE/AAnpyETcC5z4IeA8p9FjQBD+IwAasBToBqgBOgGmACzmpRAJIrCoAaoABktpuA1QB3wJmdJuDkLhOwGqAApLY5AToLegwos1UBSO4wAasBCoAaYAJWA5wAs/rLJOzdyx0AdwACgAAgAAgAAoAAIAAIAAKAACAACAACgAAgAAgAAoAAIAAIAAKAACAACAACgAAgAAgAAoAAIAAIAAKAACAACAACgAAgAAgAAoAAIAAIAAKAACAACAACgAAgAAgAAoAAIAAIAAKAACAACAACgAAgAAgAAoAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACAACgAAgAAgA2QLw8u5N4OtVfum1efcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4K5/EedWDJbnmRQAAAAASUVORK5CYII=",
+    "/apple-touch-icon.png": "iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAMAAAAKE/YAAAAAwFBMVEX/S1v/S1r/Slr/Sln/SVn/SVj/SFf/Rlb/RlX+SVj9R1f+RlX9RlX8RlX+RVT9RVT8RVT8RVP7R1b7RVT7RVP7RFPyRVPrQlDeP0zUO0jMOUXDN0LBNkKwMjycLTaHJy9tICdhHSNSGh9QGR5GFxs7FBctEBMeDQ4ZCwwYCw0YCwwXCwwWCwwVCwwWCgsVCgwVCgsUCgsRCQoOCQkMCAgKBwgJCAgJBwgIBwcHBwcHBgcFBgYDBgYDBQYCBQYABQRStEzqAAAD4ElEQVR42u3caXOaUBgFYEUwRLRQSV0SV9RowVjXxi3y//9VSTqTTpPwXgNHx8yc+53LE3m55y4TMuYXbBmiiSaaaKKJJppoookmmmiiiSaaaKKJJppoookmmmiiiSaaaKIvHW2rmqXswlF1gUZf6Ybc9CtlH8ousGhHbw68nti8ar4odWEVS92e2Ic3aOk2EG0VK4NwuRHaKvQMV+rCzbbDldzDfbVgIcvDNmrDmR8IbbRvZQS1ozW30uWBH8zrmo2t6eimT/5MaNPZ4jb+6RYL1eFiIl3vH1qaix493FznMJLuGizvK+W4x+teexvxb/Z33ZwLH/KsUmXwGEj3He272Zj7upl2KJoni2G1UMSHi23Ug/lU/K23zazz4aX67XwmXjpeNXTnFIn4I9MKf4plPZ/U8x+UtVWu3C/lhxS2M655CrTp6t29WNb+elAoWR+MdqrrNv1yyToN2ioof7F9+31ZO9lotJOf0LCWt83ToKNgVNbmtqm9qU07X5/I74L/9O4i5CxPPQq8+9GsUmGwlke7QyfnmqdDHzPe9gznTXzvFeP7oPKZgv48Wp1so8N/A8FzfI8VSVrXHfOUaDVi9rC6+1eh2PhOvHKJHvfBV8X562wNG9+J0Vap3Jfj3N+/OsDxnXyNaOdrijh/feLo+E6xsI3Keucf827B4zvNatzVOqqyfhnF4PGdBv08S5V/wSgvNAcf36n2PRy9vpBr1d819QI8vtNt1rhaSy6Q6Xxc0+DxnXKHyc115Zcx2HrtnQ+O75RoddJNF8spOr7T7uU5emP1IMb5VPybEsV36g3IKOzk1bncEsV3+l1Tx+jJRYuP7/ToKM6H80lCdLL4BuxPR3G+DpKZE8Y3YlP9JtMJE5V10vhGoNWbTuD4hhxf2Eb9l5zU2PjGnLl8V82JsPENOihSzj6h8Q1Cq+f5yPhGHclFKyrFLBUY3yh0FOetvX+m+IahTdfwjo/zdPGNQ6tnqbD4xqFNJ9dYj88S30B0tPg6cpaaNr6R6OdNp41/hvhGov/OUqenj28oWn00iolvLFp9NAqJbzBaPUtFxDcYrT4aRcQ3Gq06GoXENxz9cjQa+zJOloj4xqNfjkZjk3HeQBU0FG3eaLHLmGDTy+HMSLRzfbcax6Kv7ctE63eP8WiDaKKJJppoookmmmiiiSaaaKKJJppoookmmmiiiSaaaKIvC70cxfwn/Mq7WHQj/B33yYD+haLtfL0f84UGr9/Of7tItGlexX8FI4+8DxRtxX9vpHix6HM1ookmmmiiiSaaaKKJJppoookmmmiiiSaaaKKJJppooon+Ou0PmHSCXIpKwHIAAAAASUVORK5CYII=",
+}
+_SW_JS = r"""// RankYoinker: nur ein Offline-Hinweis, keine Zwischenspeicherung
+const OFFLINE = '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+  + '<meta name="theme-color" content="#070708"><title>RankYoinker</title><style>html,body{height:100%;margin:0}body{display:flex;align-items:center;'
+  + 'justify-content:center;background:#070708;color:#ecebe6;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;padding:24px;text-align:center}'
+  + 'div{max-width:420px}b{display:inline-grid;place-items:center;width:56px;height:56px;border-radius:16px;background:#ff4655;color:#140a0b;'
+  + 'font:900 30px Arial Black,system-ui;margin-bottom:18px}h1{font-size:20px;margin:0 0 8px}p{margin:0;color:#9a9890}</style>'
+  + '<div><b>Y</b><h1>RankYoinker läuft gerade nicht</h1><p>Starte RankYoinker am PC (oder VALORANT/League). Diese Seite versucht es alle paar Sekunden von selbst.</p></div>'
+  + '<script>setTimeout(function(){location.reload()},5000)</script></html>';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', (e) => {
+  if (e.request.mode !== 'navigate') return;
+  e.respondWith(fetch(e.request).catch(() => new Response(OFFLINE, {headers: {'Content-Type': 'text/html; charset=utf-8'}})));
+});
+"""
+
+
+def app_manifest(token=None):
+    return {
+        "id": "/",
+        "name": "RankYoinker",
+        "short_name": "RankYoinker",
+        "description": "Ränge, Stats und Match-Analyse für VALORANT und League of Legends",
+        "start_url": "/?d=" + urllib.parse.quote(token) if token else "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#070708",
+        "theme_color": "#070708",
+        "icons": [
+            {"src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+
+
+# ============================ Problem melden (2.5.0) ============================
+# Knopf "Problem melden" in den Einstellungen des Overlays: Beschreibung des
+# Nutzers plus eine kleine Diagnose (Version, Kanal, Spielzustand, Riot-Pause,
+# Fehler dieser Sitzung) und - nur wenn "Logs anhaengen" angehakt ist - das
+# Ende des vry-Logs. Tokens/Passwoerter (_redact_log) und Windows-Benutzer-
+# namen in Pfaden (_USER_PATH_RE) werden vorher entfernt. Ziel ist das
+# admin-only Dashboard (rankyoinker.de, problem-reports.js). Hoechstens ein
+# Bericht pro Minute; rankyoinker.de begrenzt zusaetzlich (3/h je Installation).
+PROBLEM_REPORT_URL = "https://rankyoinker.de/api/problem-report"
+PROBLEM_LOG_LINES = 400
+PROBLEM_LOG_MAX = 16000
+PROBLEM_MIN_GAP = 60
+_problem = {"last": 0.0}
+_problem_lock = threading.Lock()
+
+
+def _scrub_log(text):
+    return _USER_PATH_RE.sub(r"\1<user>", _redact_log(str(text)))
+
+
+def problem_diagnostics(include_log):
+    d = {"version": APP_VERSION, "session": _TELEMETRY_SESSION}
+    try:
+        cfg = _load_json(CONFIG_JSON_FILE) or {}
+        d["channel"] = "dev" if str(cfg.get("updateChannel", "stable")).lower() == "dev" else "stable"
+    except Exception:
+        pass
+    try:
+        v = sys.getwindowsversion()
+        d["os"] = "Windows %s.%s.%s" % (v.major, v.minor, v.build)
+    except Exception:
+        d["os"] = sys.platform
+    for key, fn in (("activeGame", detect_active_game), ("vryRunning", vry_running)):
+        try:
+            d[key] = fn()
+        except Exception:
+            pass
+    try:
+        d["state"] = (game_state() or {}).get("state")
+    except Exception:
+        pass
+    try:
+        g = pd_gate_state()
+        d["pdGate"] = {"paused": g["paused"], "seconds": g["seconds"]}
+    except Exception:
+        pass
+    d["errors"] = _telemetry_snapshot()
+    log = None
+    if include_log:
+        path = newest_log()
+        if path:
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    lines = fh.readlines()[-PROBLEM_LOG_LINES:]
+                log = _scrub_log("".join(lines))[-PROBLEM_LOG_MAX:]
+            except OSError as e:
+                log = "[Log nicht lesbar: %s]" % type(e).__name__
+    return d, log
+
+
+def problem_report_send(text, contact, include_log):
+    text = str(text or "").strip()[:2000]
+    contact = str(contact or "").strip()[:100]
+    if not text and not include_log:
+        return {"ok": False, "error": "empty"}
+    with _problem_lock:
+        if time.time() - _problem["last"] < PROBLEM_MIN_GAP:
+            return {"ok": False, "error": "too_fast"}
+        _problem["last"] = time.time()
+    diag, log = problem_diagnostics(include_log)
+    payload = {"clientId": _get_client_id(), "version": APP_VERSION, "lang": _heartbeat_lang(),
+               "text": text, "contact": contact, "diag": diag}
+    if log:
+        payload["log"] = log
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    # Server nimmt hoechstens 40 KB - dann vorne am Log kuerzen (anteilig, Umlaute zaehlen doppelt)
+    while len(body) > 38000 and payload.get("log"):
+        keep = int(len(payload["log"]) * 38000 / len(body)) - 200
+        payload["log"] = payload["log"][-keep:] if keep > 0 else None
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(PROBLEM_REPORT_URL, data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-ProblemReport"})
+    try:
+        with _urlopen_public(req, timeout=15) as resp:
+            j = json.loads(resp.read().decode("utf-8") or "{}")
+        record_feature("problemReport")
+        return {"ok": bool(j.get("ok")), "id": j.get("id"), "error": j.get("error")}
+    except urllib.error.HTTPError as e:
+        with _problem_lock:
+            _problem["last"] = 0.0     # abgelehnt -> gleich wieder erlauben
+        try:
+            err = json.loads(e.read().decode("utf-8") or "{}").get("error")
+        except Exception:
+            err = None
+        return {"ok": False, "error": err or ("busy" if e.code == 429 else "http_%d" % e.code)}
+    except Exception as e:
+        with _problem_lock:
+            _problem["last"] = 0.0
+        return {"ok": False, "error": "offline", "detail": type(e).__name__}
+
+
+# ============================ Team-Check (2.5.0) ============================
+# Eigene Bilanz je Agent (gesamt und auf einer Karte) fuer die Vorschlaege im
+# Team-Check der Agentenauswahl. Nur aus den lokal gespeicherten Match-
+# Kurzfassungen (_match_cache / match-digests.json) - keine Riot-Anfrage, die
+# Agentenauswahl darf nie auf pd warten. Spassmodi zaehlen nicht mit.
+HISTORY_SKIP_QUEUES = {"deathmatch", "ggteam", "hurm", "snowball", "onefa", "valaram"}
+
+
+def agent_history(puuid, map_id=None):
+    map_id = str(map_id or "").lower()
+    with _cache_lock:
+        rows = [dg["rows"][puuid] for dg in _match_cache.values()
+                if isinstance(dg, dict) and isinstance(dg.get("rows"), dict) and puuid in dg["rows"]]
+    seen, agents, games = set(), {}, 0
+    for r in rows:
+        if not isinstance(r, dict) or r.get("matchId") in seen:
+            continue
+        seen.add(r.get("matchId"))
+        agent = str(r.get("agent") or "").lower()
+        if not agent or str(r.get("queue") or "").lower() in HISTORY_SKIP_QUEUES:
+            continue
+        games += 1
+        won = r.get("won") is True
+        e = agents.setdefault(agent, {"games": 0, "wins": 0, "mapGames": 0, "mapWins": 0, "score": 0, "rounds": 0})
+        e["games"] += 1
+        e["wins"] += won
+        e["score"] += r.get("score") or 0
+        e["rounds"] += r.get("rounds") or 0
+        if map_id and str(r.get("map") or "").lower() == map_id:
+            e["mapGames"] += 1
+            e["mapWins"] += won
+    out = {a: {"games": e["games"], "wins": e["wins"], "mapGames": e["mapGames"], "mapWins": e["mapWins"],
+               "acs": round(e["score"] / e["rounds"]) if e["rounds"] else None}
+           for a, e in agents.items()}
+    return {"ok": True, "games": games, "agents": out}
 
 
 # ============================ Match-Analyse (2.5.0) ============================
@@ -6904,14 +7099,16 @@ _LOL_BLOCK_NAMES = {
     "de": ("Start", "Build-Reihenfolge", "Situativ"), "en": ("Starter", "Build order", "Situational"),
     "pl": ("Start", "Kolejność buildu", "Sytuacyjne"), "fr": ("Départ", "Ordre du build", "Situationnel"),
     "es": ("Inicio", "Orden del build", "Situacional"), "tr": ("Başlangıç", "Build sırası", "Duruma göre"),
-    "ko": ("시작", "빌드 순서", "상황별"),
+    "ko": ("시작", "빌드 순서", "상황별"), "pt": ("Inicial", "Ordem da build", "Situacional"),
+    "ru": ("Стартовые", "Порядок сборки", "Ситуативные"), "ja": ("スターター", "ビルド順", "状況に応じて"),
 }
 # Kaufweg-Blöcke (Komponenten -> fertiges Item); gleiche Titel wie im Overlay
 _LOL_PATH_NAMES = {
     "de": ("Kaufweg Item {n}", "Kaufweg Stiefel"), "en": ("Path item {n}", "Path boots"),
     "pl": ("Ścieżka przedmiot {n}", "Ścieżka buty"), "fr": ("Parcours objet {n}", "Parcours bottes"),
     "es": ("Ruta objeto {n}", "Ruta botas"), "tr": ("Yol eşya {n}", "Yol botlar"),
-    "ko": ("구매 경로 아이템 {n}", "구매 경로 신발"),
+    "ko": ("구매 경로 아이템 {n}", "구매 경로 신발"), "pt": ("Item do caminho {n}", "Botas do caminho"),
+    "ru": ("Предмет {n}", "Ботинки"), "ja": ("ルートのアイテム{n}", "ルートのブーツ"),
 }
 
 
@@ -7642,6 +7839,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path.startswith("/api/party/"):
             action = path.rsplit("/", 1)[-1]
             self._safe(lambda: party_action(action, body))
+        elif path == "/api/problem-report":
+            self._safe(lambda: problem_report_send(body.get("text"), body.get("contact"), bool(body.get("logs"))))
         elif path == "/api/agent/select":
             self._safe(lambda: agent_action("select", body.get("agent")))
         elif path == "/api/agent/lock":
@@ -7773,6 +7972,36 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(parsed.query)
         is_page = path in ("/", "/index.html", "/vry")
 
+        # App-Icons (PWA) sind harmlos und muessen auch ohne Kopplung kommen -
+        # iOS holt das Home-Bildschirm-Icon teils ohne Cookies.
+        if path in _APP_ICONS:
+            data = base64.b64decode(_APP_ICONS[path])
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        # Start der installierten App auf einem gekoppelten Handy (start_url im
+        # Manifest, siehe app_manifest): Token pruefen, als Cookie setzen.
+        if q.get("d") and is_page:
+            token = q["d"][0]
+            if not pair_check(token, self._client_ip()):
+                self._deny("Diese App-Verknüpfung gilt nicht mehr (Gerät entkoppelt). "
+                           "Kopple das Handy am PC neu und füge die App danach erneut hinzu.", True)
+                return
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Set-Cookie",
+                             "%s=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax"
+                             % (PAIR_COOKIE, token, PAIR_MAX_AGE))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         # QR-Code eingescannt: Code einlösen, Token als Cookie setzen und die
         # Adresse gleich wieder säubern, damit der Code nicht im Verlauf landet.
         if q.get("p"):
@@ -7801,6 +8030,27 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/favicon.ico":
             self._send(204, "")
+
+        elif path == "/manifest.webmanifest":
+            # Gekoppeltes Handy: Token in die start_url (siehe app_manifest)
+            ip = self._client_ip()
+            token = None if _is_local(ip) else self._cookie(PAIR_COOKIE)
+            data = json.dumps(app_manifest(token), ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/manifest+json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        elif path == "/sw.js":
+            data = _SW_JS.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         elif path == "/api/languages":
             # Liste der verfuegbaren Sprachen = einfach die Dateinamen in
@@ -7875,6 +8125,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": str(e)})
             except Exception as e:
                 self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
+
+        elif path == "/api/problem-report/preview":
+            # Zeigt vorab, was "Problem melden" schicken wuerde (gleiche Daten)
+            diag, log = problem_diagnostics(q.get("logs", ["0"])[0] == "1")
+            self._json({"ok": True, "diag": diag, "log": log})
+
+        elif path == "/api/agent-history":
+            try:
+                puuid = get_auth()["puuid"]
+            except Exception as e:
+                self._json({"ok": False, "error": str(e)})
+                return
+            self._json(agent_history(puuid, (q.get("map", [""])[0])[:120]))
 
         elif path == "/api/match-report":
             data = _report_get()
@@ -8178,6 +8441,9 @@ _TRAY_STRINGS = {
     "es": {"open": "Abrir sitio web", "quit": "Cerrar programa"},
     "tr": {"open": "Web sitesini aç", "quit": "Programı kapat"},
     "ko": {"open": "웹사이트 열기", "quit": "프로그램 종료"},
+    "pt": {"open": "Abrir site", "quit": "Fechar programa"},
+    "ru": {"open": "Открыть сайт", "quit": "Закрыть программу"},
+    "ja": {"open": "ウェブサイトを開く", "quit": "プログラムを終了"},
 }
 
 
