@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev8"
+APP_VERSION = "2.5.0-dev9"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -3777,11 +3777,9 @@ def _pregame_fetch():
     # und "Blue" (verteidigt). Nach der Halbzeit wird getauscht.
     team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
     side = {"red": "attack", "blue": "defense"}.get(team.lower())
-    # Karte + Queue fuer den Team-Check im Overlay (2.5.0)
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
-            "enemies": enemies, "side": side,
-            "map": m.get("MapID") or None, "queue": m.get("QueueID") or None}
+            "enemies": enemies, "side": side}
 
 
 UUID_RE = re.compile(
@@ -5098,43 +5096,6 @@ def problem_report_send(text, contact, include_log):
         with _problem_lock:
             _problem["last"] = 0.0
         return {"ok": False, "error": "offline", "detail": type(e).__name__}
-
-
-# ============================ Team-Check (2.5.0) ============================
-# Eigene Bilanz je Agent (gesamt und auf einer Karte) fuer die Vorschlaege im
-# Team-Check der Agentenauswahl. Nur aus den lokal gespeicherten Match-
-# Kurzfassungen (_match_cache / match-digests.json) - keine Riot-Anfrage, die
-# Agentenauswahl darf nie auf pd warten. Spassmodi zaehlen nicht mit.
-HISTORY_SKIP_QUEUES = {"deathmatch", "ggteam", "hurm", "snowball", "onefa", "valaram"}
-
-
-def agent_history(puuid, map_id=None):
-    map_id = str(map_id or "").lower()
-    with _cache_lock:
-        rows = [dg["rows"][puuid] for dg in _match_cache.values()
-                if isinstance(dg, dict) and isinstance(dg.get("rows"), dict) and puuid in dg["rows"]]
-    seen, agents, games = set(), {}, 0
-    for r in rows:
-        if not isinstance(r, dict) or r.get("matchId") in seen:
-            continue
-        seen.add(r.get("matchId"))
-        agent = str(r.get("agent") or "").lower()
-        if not agent or str(r.get("queue") or "").lower() in HISTORY_SKIP_QUEUES:
-            continue
-        games += 1
-        won = r.get("won") is True
-        e = agents.setdefault(agent, {"games": 0, "wins": 0, "mapGames": 0, "mapWins": 0, "score": 0, "rounds": 0})
-        e["games"] += 1
-        e["wins"] += won
-        e["score"] += r.get("score") or 0
-        e["rounds"] += r.get("rounds") or 0
-        if map_id and str(r.get("map") or "").lower() == map_id:
-            e["mapGames"] += 1
-            e["mapWins"] += won
-    out = {a: {"games": e["games"], "wins": e["wins"], "mapGames": e["mapGames"], "mapWins": e["mapWins"],
-               "acs": round(e["score"] / e["rounds"]) if e["rounds"] else None}
-           for a, e in agents.items()}
-    return {"ok": True, "games": games, "agents": out}
 
 
 # ============================ Match-Analyse (2.5.0) ============================
@@ -8220,14 +8181,6 @@ class Handler(BaseHTTPRequestHandler):
             # Zeigt vorab, was "Problem melden" schicken wuerde (gleiche Daten)
             diag, log = problem_diagnostics(q.get("logs", ["0"])[0] == "1")
             self._json({"ok": True, "diag": diag, "log": log})
-
-        elif path == "/api/agent-history":
-            try:
-                puuid = get_auth()["puuid"]
-            except Exception as e:
-                self._json({"ok": False, "error": str(e)})
-                return
-            self._json(agent_history(puuid, (q.get("map", [""])[0])[:120]))
 
         elif path == "/api/match-report":
             data = _report_current()

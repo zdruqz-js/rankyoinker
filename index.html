@@ -2279,7 +2279,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-perf-head{display:flex; gap:22px; align-items:center;}
 .rp-ring{--c:var(--g-c); position:relative; width:118px; height:118px; flex-shrink:0;}
 .rp-ring.g-s{--c:var(--g-s);} .rp-ring.g-a{--c:var(--g-a);} .rp-ring.g-b{--c:var(--g-b);} .rp-ring.g-d{--c:var(--g-d);}
-.rp-ring svg{width:100%; height:100%; transform:rotate(-90deg);}
+.rp-ring svg{width:100%; height:100%; transform:rotate(-90deg); overflow:visible;}
 .rp-ring circle{fill:none; stroke-width:9;}
 .rp-ring .bg{stroke:var(--surface-4);}
 .rp-ring .fg{stroke:var(--c); stroke-linecap:round; filter:drop-shadow(0 0 8px color-mix(in srgb, var(--c) 60%, transparent));
@@ -2300,23 +2300,24 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-perf-text .explain{font-size:12.5px; color:var(--text-3); margin-top:8px; line-height:1.5;}
 /* Lobby-Leiste */
 .rp-lstrip{margin:30px 0 4px;}
-.rp-ls-track{position:relative; height:34px; border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--loss) 16%, transparent), rgba(255,255,255,.03) 50%, color-mix(in srgb, var(--win) 16%, transparent));
+.rp-ls-track{position:relative; height:48px; border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--loss) 16%, transparent), rgba(255,255,255,.03) 50%, color-mix(in srgb, var(--win) 16%, transparent));
   border:1px solid var(--line);}
 .rp-ls-avg{position:absolute; top:-6px; bottom:-6px; width:0;}
 .rp-ls-avg i{position:absolute; top:0; bottom:0; left:-1px; width:2px; background:var(--text-3); border-radius:2px;}
 .rp-ls-avg em{position:absolute; top:-18px; left:50%; transform:translateX(-50%); font:500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
-.rp-ls-dot{position:absolute; top:calc(50% + var(--dy, 0px)); width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; border:2px solid rgba(7,7,8,.9);
+.rp-ls-dot{--rc:var(--text-3); position:absolute; top:calc(50% + var(--dy, 0px)); width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%;
+  border:2px solid var(--rc); background:color-mix(in srgb, var(--rc) 35%, #0b0b0d); box-shadow:0 0 0 2px rgba(7,7,8,.85); overflow:hidden; z-index:1;
   transition:transform .2s var(--spring); cursor:default;}
 .rp-ls-dot::before{content:""; position:absolute; inset:-7px; border-radius:50%;}
-.rp-ls-dot:hover{transform:scale(1.4); z-index:3;}
-.rp-ls-dot.ally{background:var(--ally);} .rp-ls-dot.enemy{background:var(--enemy);}
-.rp-ls-dot.me{--dy:0px; width:30px; height:30px; margin:-15px 0 0 -15px; background:var(--grad-accent); border:2px solid #fff3; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2; overflow:hidden;}
-.rp-ls-dot.me img{width:100%; height:100%; object-fit:cover; border-radius:50%;}
+.rp-ls-dot:hover{transform:scale(1.3); z-index:3;}
+.rp-ls-dot img{display:block; width:100%; height:100%; object-fit:cover; border-radius:50%;}
+.rp-ls-dot.ally{--rc:var(--ally);} .rp-ls-dot.enemy{--rc:var(--enemy);}
+.rp-ls-dot.me{--dy:0px; width:32px; height:32px; margin:-16px 0 0 -16px; background:var(--grad-accent); border:2px solid #f3d79c; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2;}
 .rp-ls-dot.me:hover{transform:scale(1.12);}
 .rp-ls-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3);}
 .rp-ls-legend span{display:inline-flex; align-items:center; gap:6px;}
-.rp-ls-legend i{width:9px; height:9px; border-radius:50%;}
-.rp-ls-legend .ally i{background:var(--ally);} .rp-ls-legend .enemy i{background:var(--enemy);} .rp-ls-legend .me i{background:var(--grad-accent);}
+.rp-ls-legend i{width:10px; height:10px; border-radius:50%; border:2px solid var(--rc); box-sizing:border-box;}
+.rp-ls-legend .ally i{--rc:var(--ally);} .rp-ls-legend .enemy i{--rc:var(--enemy);} .rp-ls-legend .me i{--rc:#f3d79c; background:var(--grad-accent);}
 .rp-stats{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:18px;}
 .rp-stat{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
 .rp-stat .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -2334,13 +2335,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-hl-item.mvp, .rp-hl-item.gold{background:linear-gradient(135deg, rgba(216,184,124,.22), rgba(216,184,124,.06)); border-color:var(--accent-line);}
 .rp-hl-item.mvp .ic, .rp-hl-item.gold .ic{background:var(--grad-accent); color:var(--accent-ink);}
 .rp-hl .none{color:var(--text-3); font-size:13px;}
-.rp-sides{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-top:16px;}
-.rp-side{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
-.rp-side .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.rp-side .val{font:750 21px var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums;}
-.rp-side .val small{font-size:14px; color:var(--text-3); font-weight:600;}
-.rp-side .bar{height:5px; border-radius:5px; background:var(--surface-4); margin-top:8px; overflow:hidden;}
-.rp-side .bar i{display:block; height:100%; background:var(--grad-accent); border-radius:5px;}
 .rp-econ{margin-top:18px;}
 .rp-econ .sub{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px;}
 .rp-econ-row{display:grid; grid-template-columns:86px minmax(0,1fr) 54px; align-items:center; gap:12px; padding:6px 0; font-size:13px;}
@@ -2411,18 +2405,26 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .rp-table th{font:500 10px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
 .rp-table th:first-child, .rp-table td:first-child{text-align:left;}
 /* feste Breite der Namensspalte: beide Team-Tabellen stehen sonst verschieden weit */
-.rp-table th:first-child{box-sizing:border-box; width:370px;}
+.rp-table th:first-child{box-sizing:border-box; width:30%;}
+/* feste Spaltenbreiten: beide Team-Tabellen stehen exakt untereinander */
+.rp-table{table-layout:fixed;}
+.rp-table th.rt{width:132px;} .rp-table th:nth-child(4){width:112px;}
+@media (max-width:1100px){ .rp-table th, .rp-table td{padding-left:8px; padding-right:8px;} }
 .rp-table td{padding:9px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .rp-table tr:last-child td{border-bottom:0;}
 .rp-table tr.me td{background:rgba(216,184,124,.14); border-top:1px solid var(--accent-line); border-bottom:1px solid var(--accent-line); font-weight:650; color:var(--text);}
 .rp-table tr.me td:first-child{box-shadow:inset 4px 0 0 var(--accent); border-radius:12px 0 0 12px;}
 .rp-table tr.me td:last-child{border-radius:0 12px 12px 0;}
 .rp-table tr.me .nm{color:var(--accent); font-weight:750;}
-.rp-table td.rt .rtw{display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; vertical-align:middle;}
-.rp-table td.rt .pct{font:600 11.5px var(--font-mono); color:var(--text-3); min-width:48px; text-align:right;}
+/* Noten-Spalte: Chip genau unter der Ueberschrift, die Prozentzahl rechts daneben
+   (leere linke Spalte gleicher Breite haelt den Chip in der Mitte) */
+.rp-table th.rt, .rp-table td.rt{text-align:center;}
+.rp-table td.rt .rtw{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; column-gap:7px;}
+.rp-table td.rt .rtw::before{content:"";}
+.rp-table td.rt .pct{font:600 11.5px var(--font-mono); color:var(--text-3); text-align:left; white-space:nowrap;}
 .rp-table td.good{color:var(--win);} .rp-table td.bad{color:var(--loss);}
-.rp-gchip{display:inline-grid; place-items:center; width:24px; height:24px; border-radius:8px; font:850 13px var(--font-display); color:#0b0b0c; background:var(--g-c);}
-.rp-gchip.g-s{background:linear-gradient(180deg, #ffe7a8, #d8a84c);} .rp-gchip.g-a{background:var(--g-a);} .rp-gchip.g-b{background:var(--g-b);} .rp-gchip.g-d{background:var(--g-d); color:#fff;}
+.rp-gchip{display:inline-grid; place-items:center; width:24px; height:24px; border-radius:8px; font:850 13px/1 var(--font-display); color:#0b0b0c; background:var(--g-c); text-box:trim-both cap alphabetic;}
+.rp-gchip.g-s{background:linear-gradient(180deg, #ffe7a8, #d8a84c);} .rp-gchip.g-a{background:var(--g-a);} .rp-gchip.g-b{background:var(--g-b);} .rp-gchip.g-d{background:var(--g-d);}
 .rp-pl{display:flex; align-items:center; gap:10px; min-width:0;}
 .rp-pl img.ag{width:32px; height:32px; border-radius:9px; background:var(--bg-3); flex-shrink:0;}
 .rp-table tr.me .rp-pl img.ag{box-shadow:0 0 0 2px var(--accent);}
@@ -2449,13 +2451,13 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   .rp-card{padding:16px;}
   .rp-rdd-body{grid-template-columns:repeat(2, minmax(0,1fr));}
   .report-reopen{right:14px;}
-  .rp-side{padding:11px 10px;} .rp-side .lbl{letter-spacing:.04em;}
+  .rp-ls-dot{width:18px; height:18px; margin:-9px 0 0 -9px;} .rp-ls-dot.me{width:28px; height:28px; margin:-14px 0 0 -14px;}
   /* Scoreboard am Handy: Spalte mit den Namen bleibt stehen, die Werte wischt man
      zur Seite (rechts blendet es aus, solange noch etwas kommt) */
-  .rp-table{min-width:600px; font-size:13px;}
+  .rp-table{min-width:640px; font-size:13px;}
   .rp-table th, .rp-table td{padding:8px 8px;}
   .rp-table th:first-child, .rp-table td:first-child{position:sticky; left:0; z-index:1; background:#0f0f11;}
-  .rp-table th:first-child{width:152px;}
+  .rp-table th:first-child{width:152px;} .rp-table th.rt{width:124px;} .rp-table th:nth-child(4){width:86px;}
   .rp-table tr.me td:first-child{background:linear-gradient(rgba(216,184,124,.14), rgba(216,184,124,.14)), #0f0f11;}
   .rp-pl{gap:7px;} .rp-pl img.ag{width:28px; height:28px;} .rp-pl img.rk, .rp-table .rp-mvp, .rp-table .rp-you{display:none;}
   .rp-pl .nm{max-width:98px;}
@@ -2467,46 +2469,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 }
 /* ueber der unteren Tab-Leiste (Tablet/Handy) */
 @media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
-/* Team-Check (2.5.0) - schmal unter der Agentenauswahl */
-.tc{margin:-18px 0 30px; border-radius:18px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)); padding:12px 14px 14px 16px;}
-.tc + .load-strip{margin-top:0;}
-.set-toggle{width:100%;}
-.tc-head{display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap;}
-.tc-ic{display:grid; place-items:center; width:28px; height:28px; border-radius:9px; background:var(--accent-soft); color:var(--accent); flex-shrink:0;}
-.tc-title{font:700 14.5px var(--font-display); letter-spacing:-.01em;}
-.tc-mapname{font:500 10.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
-.tc-sum{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; color:var(--text-2); background:var(--surface-2); border:1px solid var(--line);}
-.tc-sum.ok{color:var(--win); border-color:color-mix(in srgb, var(--win) 35%, transparent); background:color-mix(in srgb, var(--win) 10%, transparent);}
-.tc-sum.warn{color:#f0c36a; border-color:rgba(240,195,106,.35); background:rgba(240,195,106,.08);}
-.tc-sum.bad{color:var(--loss); border-color:color-mix(in srgb, var(--loss) 38%, transparent); background:color-mix(in srgb, var(--loss) 10%, transparent);}
-.tc-sp{flex:1;}
-.tc-btn{display:grid; place-items:center; width:30px; height:30px; border-radius:9px; border:1px solid transparent; background:transparent; color:var(--text-3); cursor:pointer; transition:background .2s, color .2s;}
-.tc-btn:hover{background:var(--surface-3); color:var(--text);}
-.tc-btn svg{transition:transform .3s var(--ease);}
-.tc.folded .tc-btn[data-tc="fold"] svg{transform:rotate(-90deg);}
-.tc.folded .tc-body{display:none;}
-.tc-body{margin-top:12px; display:grid; gap:12px;}
-.tc-roles{display:flex; gap:6px; flex-wrap:wrap;}
-.tc-role{display:inline-flex; align-items:center; gap:7px; padding:5px 11px 5px 6px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); font-size:12.5px; color:var(--text-2);}
-.tc-role b{display:grid; place-items:center; min-width:20px; height:20px; border-radius:999px; background:var(--surface-4); font:700 11.5px var(--font-mono); color:var(--text);}
-.tc-role.ok b{background:color-mix(in srgb, var(--win) 22%, transparent); color:var(--win);}
-.tc-role.miss{border-color:color-mix(in srgb, var(--loss) 40%, transparent);} .tc-role.miss b{background:color-mix(in srgb, var(--loss) 22%, transparent); color:var(--loss);}
-.tc-role.many b{background:rgba(240,195,106,.18); color:#f0c36a;}
-.tc-tips{list-style:none; margin:0; padding:0; display:grid; gap:6px;}
-.tc-tips li{position:relative; padding-left:16px; font-size:13.5px; line-height:1.5; color:var(--text);}
-.tc-tips li::before{content:''; position:absolute; left:2px; top:.6em; width:7px; height:7px; border-radius:50%; background:var(--text-3);}
-.tc-tips li.s3::before{background:var(--loss);} .tc-tips li.s2::before{background:#f0c36a;}
-.tc-sug{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-.tc-sug .lbl{font:500 10.5px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);}
-.tc-chips{display:flex; gap:8px; flex-wrap:wrap;}
-.tc-chip{display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px 0 4px; border-radius:12px; border:1px solid var(--accent-line); background:var(--accent-soft); color:var(--text); cursor:pointer; font:inherit; transition:transform .2s var(--spring), background .2s;}
-.tc-chip:hover{transform:translateY(-1px); background:rgba(216,184,124,.2);}
-.tc-chip img{width:30px; height:30px; border-radius:8px; background:var(--bg-3);}
-.tc-chip .nm{font:650 13px var(--font-display);}
-.tc-chip .why{font-size:11.5px; color:var(--text-2);}
-.tc-map{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--text-2); padding-top:10px; border-top:1px solid var(--line);}
-.tc-map svg{flex-shrink:0; margin-top:3px; color:var(--text-3);}
-@media (max-width:640px){ .tc{margin:-22px 0 26px; padding:12px;} .tc-chip .why{display:none;} }
 </style>
 </head>
 <body>
@@ -2588,10 +2550,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     <div class="field">
       <label data-i18n="language">Sprache</label>
       <div class="cdrop" id="langDrop"></div>
-    </div>
-    <div class="field">
-      <label data-i18n="tc_setting_label">Agentenauswahl</label>
-      <button type="button" class="lol-toggle set-toggle" id="tcToggle"><span class="sw"></span><span class="lbl" data-i18n="tc_setting">Team-Check anzeigen</span></button>
     </div>
   </div>
 
@@ -3878,7 +3836,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       const live = pregameLive && pregameLive.length;
       html = matchHeroHtml('PREGAME', mapHint, preData && preData.mode, '', dodgeBtnHtml(false))
         + agentPickHtml()
-        + teamCheckHtml()
         + loadStripHtml(pr, loaded, total, pause)
         + `<div class="team-section ally"><div class="card-grid" id="pregameRoster">${live
             ? pregameRosterHtml()
@@ -4612,9 +4569,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
           [p.puuid, p.agent || '', p.locked ? 'L' : p.hovering ? 'H' : '', p.name || ''].join('|')).join(';');
         if(roster !== pregameSig){ pregameSig = roster; pregameLive = players; changed = true; }
 
-        if((j.map || null) !== pregameMap || (j.matchId || null) !== pregameMatchId){
-          pregameMap = j.map || null; pregameMatchId = j.matchId || null; changed = true;
-        }
         const side = j.side || null;
         if(side !== pregameSide){
           pregameSide = side;
@@ -5414,7 +5368,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   function rpTable(list){
     return `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>
-      <th>${esc(t('report_col_player'))}</th><th data-tip="${esc(t('report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
+      <th>${esc(t('report_col_player'))}</th><th class="rt" data-tip="${esc(t('report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
       </tr></thead><tbody>${list.map(rpRow).join('')}</tbody></table></div>`;
   }
   // Lobby-Leiste: alle Spieler nach Rating auf einer Achse, Mitte = Lobby-Schnitt
@@ -5423,28 +5377,29 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(ps.length < 2) return '';
     const lo = Math.min(0.5, ...ps.map(p => p.rating)), hi = Math.max(1.5, ...ps.map(p => p.rating));
     const x = v => ((v - lo) / (hi - lo) * 100).toFixed(2);
-    // Liegen Punkte fast übereinander, rutscht der nächste eine Spur nach oben
-    // bzw. unten, damit jeder einzeln zu sehen (und anzuzeigen) bleibt
-    // (Wer direkt unter deinem großen Punkt läge, kommt darüber bzw. darunter.)
-    const lanes = [0, -9, 9], lastX = {};
+    // Jeder Spieler als Agentenbild im Ring seiner Teamfarbe. Liegen Kreise zu dicht,
+    // kommt der naechste in die Spur darueber/darunter (Mindestabstand je nach
+    // Breite); ist keine frei, in die, deren letzter Kreis am weitesten zurueckliegt.
+    // Direkt hinter deinem grossen Kreis landet keiner in der Mitte.
+    const narrow = window.innerWidth < 640;
+    const gap = narrow ? 6 : 3.6, meGap = narrow ? 8 : 5;
+    const lanes = [0, -13, 13], lastX = {};
     const meP = ps.find(p => p.me), mePx = meP ? Number(x(meP.rating)) : null;
-    let nearMe = 0;
     const placed = ps.slice().sort((a, b) => a.rating - b.rating).map(p => {
       const px = Number(x(p.rating));
-      let dy = 0;
-      if(!p.me && mePx != null && Math.abs(px - mePx) < 4) dy = nearMe++ % 2 ? 15 : -15;
-      else if(!p.me){
-        const lane = lanes.find(l => lastX[l] == null || px - lastX[l] >= 2.6);
-        dy = lane == null ? lanes[0] : lane;
-        lastX[dy] = px;
-      }
+      if(p.me) return {p, px, dy: 0};
+      const nearMe = mePx != null && Math.abs(px - mePx) < meGap;
+      const usable = lanes.filter(l => !(l === 0 && nearMe));
+      let dy = usable.find(l => lastX[l] == null || px - lastX[l] >= gap);
+      if(dy == null) dy = usable.reduce((best, l) => (lastX[l] == null ? -1 : lastX[l]) < (lastX[best] == null ? -1 : lastX[best]) ? l : best, usable[0]);
+      lastX[dy] = px;
       return {p, px, dy};
     });
     const dots = placed.sort((a, b) => (a.p.me ? 1 : 0) - (b.p.me ? 1 : 0)).map(({p, px, dy}) => {
       const a = rpAgent(p.agent);
       const who = p.name || t('unknown_short');
       const line = t('report_col_perf') + ' ' + rpGrade(p.rating) + ' · ' + rpPerfLine(p.rating) + (a.name ? '\n' + a.name : '');
-      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;${dy ? ` --dy:${dy}px;` : ''}" data-tip-head="${esc(p.me ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${p.me && a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="">` : ''}</span>`;
+      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;${dy ? ` --dy:${dy}px;` : ''}" data-tip-head="${esc(p.me ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="" loading="lazy">` : ''}</span>`;
     }).join('');
     return `<div class="rp-lstrip">
       <div class="rp-ls-track"><span class="rp-ls-avg" style="left:${x(1)}%"><i></i><em>${esc(t('report_lobby_avg'))}</em></span>${dots}</div>
@@ -5575,16 +5530,16 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       stat('Econ', rpNum(me.econ), '', esc(t('report_econ_hint')))
     ].join('');
     const hl = (r.highlights || []).map(rpHighlight).join('') || `<span class="none">${esc(t('report_no_highlights'))}</span>`;
-    const sideBox = (lbl, pair) => {
-      const pct = pair && pair[1] ? Math.round(pair[0] / pair[1] * 100) : 0;
-      return `<div class="rp-side"><div class="lbl">${lbl}</div><div class="val">${pair ? pair[0] + '<small> / ' + pair[1] + '</small>' : '—'}</div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
-    };
+    // Gewonnene Runden je Seite und je Kauf, gleiche Balkenzeilen (Pistol steht nur
+    // bei den Kaeufen - frueher zusaetzlich als eigene Kachel neben Angriff/Verteidigung)
+    const winRow = (lbl, won, n) => `<div class="rp-econ-row"><span class="lbl">${lbl}</span><div class="bar"><i style="width:${n ? Math.round(won / n * 100) : 0}%"></i></div><b>${won}/${n}</b></div>`;
+    const sides = !r.ffa && r.sides ? [['report_attack', r.sides.atk], ['report_defense', r.sides.def]].filter(([, pr]) => pr && pr[1]) : [];
+    const sideHtml = sides.length ? `<div class="rp-econ"><div class="sub">${esc(t('report_side_title'))}</div>${sides.map(([k, pr]) => winRow(esc(t(k)), pr[0], pr[1])).join('')}</div>` : '';
     const econ = ['pistol', 'eco', 'half', 'full'].map(k => {
       const rs = (r.timeline || []).filter(x => x.buy === k);
       return rs.length ? {k, won: rs.filter(x => x.win === 'ally').length, n: rs.length} : null;
     }).filter(Boolean);
-    const econHtml = !r.ffa && econ.length ? `<div class="rp-econ"><div class="sub">${esc(t('report_buy_title'))}</div>${econ.map(e =>
-      `<div class="rp-econ-row"><span class="lbl">${RP_BUY[e.k]}</span><div class="bar"><i style="width:${Math.round(e.won / e.n * 100)}%"></i></div><b>${e.won}/${e.n}</b></div>`).join('')}</div>` : '';
+    const econHtml = !r.ffa && econ.length ? `<div class="rp-econ"><div class="sub">${esc(t('report_buy_title'))}</div>${econ.map(e => winRow(RP_BUY[e.k], e.won, e.n)).join('')}</div>` : '';
     const allies = r.players.filter(p => p.ally), enemies = r.players.filter(p => !p.ally);
     const tint = ag.info && ag.info.tint ? ag.info.tint : 'var(--accent)';
     return `
@@ -5628,7 +5583,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         <div class="rp-card rp-hlcard">
           <h3>${esc(t('report_highlights'))}</h3>
           <div class="rp-hl">${hl}</div>
-          ${r.ffa ? '' : `<div class="rp-sides">${sideBox(esc(t('report_attack')), r.sides && r.sides.atk)}${sideBox(esc(t('report_defense')), r.sides && r.sides.def)}${sideBox('Pistol', r.sides && r.sides.pistol)}</div>`}
+          ${sideHtml}
           ${econHtml}
         </div>
       </div>
@@ -5738,7 +5693,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(hint) hint.textContent = pickLocked ? t('agent_locked_hint') : '';
     const roster = document.getElementById('pregameRoster');
     if(roster && pregameLive && pregameLive.length) morphChildren(roster, pregameRosterHtml());
-    updateTeamCheck();
   }
 
   // Je nachdem, ob die Ladeansicht oder die fertigen Karten zu sehen sind
@@ -5825,202 +5779,6 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         </div>
       </div>`;
   }
-
-  // ================= TEAM-CHECK (2.5.0) =================
-  // Kleine Karte unter der Agentenauswahl: Rollen deines Teams, höchstens drei
-  // Hinweise, ein Karten-Tipp und - solange du noch nicht gesperrt hast - bis zu
-  // drei passende Agenten für die fehlende Rolle (frei, freigeschaltet, nach
-  // deiner Bilanz auf dieser Karte). Einklappbar, pro Match wegklickbar und in
-  // den Einstellungen ganz abschaltbar. Die Bilanz kommt nur aus den lokal
-  // gespeicherten Matches (/api/agent-history) - keine Riot-Anfrage.
-  // Karten nach englischem Anzeigenamen (valorant-api.com); "strong" = Agenten,
-  // die dort meist gut funktionieren (nur leichter Bonus bei Vorschlägen), "viper"
-  // = lange Viper-Wand fast Pflicht, "sent" = Flankenschutz besonders wichtig.
-  // Unbekannte/neue Karte: nur der Rollen-Check.
-  const TC_MAPS = {
-    Ascent:   {tip: 'tc_map_ascent',   strong: ['Omen', 'Sova', 'KAY/O', 'Killjoy', 'Jett', 'Cypher', 'Vyse', 'Fade', 'Astra']},
-    Bind:     {tip: 'tc_map_bind',     strong: ['Brimstone', 'Viper', 'Skye', 'Fade', 'Raze', 'Cypher', 'Gekko', 'Clove']},
-    Breeze:   {tip: 'tc_map_breeze',   strong: ['Viper', 'Sova', 'Cypher', 'Jett', 'KAY/O', 'Harbor', 'Chamber'], viper: true},
-    Icebox:   {tip: 'tc_map_icebox',   strong: ['Viper', 'Sova', 'Killjoy', 'Jett', 'Gekko', 'Harbor', 'Reyna'], viper: true},
-    Haven:    {tip: 'tc_map_haven',    strong: ['Omen', 'Breach', 'Sova', 'Killjoy', 'Cypher', 'Jett', 'Neon', 'Astra'], sent: true},
-    Lotus:    {tip: 'tc_map_lotus',    strong: ['Omen', 'Viper', 'Fade', 'Raze', 'Killjoy', 'Vyse', 'Gekko', 'Neon'], sent: true},
-    Split:    {tip: 'tc_map_split',    strong: ['Raze', 'Jett', 'Omen', 'Viper', 'Astra', 'Cypher', 'Sage', 'Skye', 'Breach']},
-    Pearl:    {tip: 'tc_map_pearl',    strong: ['Astra', 'Viper', 'Fade', 'Killjoy', 'Cypher', 'Neon', 'Jett']},
-    Sunset:   {tip: 'tc_map_sunset',   strong: ['Omen', 'Cypher', 'Breach', 'Neon', 'Raze', 'Gekko', 'Fade']},
-    Fracture: {tip: 'tc_map_fracture', strong: ['Breach', 'Brimstone', 'Neon', 'Raze', 'Cypher', 'Fade', 'Tejo'], sent: true},
-    Abyss:    {tip: 'tc_map_abyss',    strong: ['Omen', 'Astra', 'Sova', 'Cypher', 'Chamber', 'Jett', 'Yoru'], sent: true},
-    Corrode:  {tip: 'tc_map_corrode',  strong: []}
-  };
-  const TC_ROLES = ['Controller', 'Initiator', 'Sentinel', 'Duelist'];
-  const TC_OFF_KEY = 'ry_teamcheck_off', TC_FOLD_KEY = 'ry_teamcheck_folded', TC_HIDE_KEY = 'ry_teamcheck_hidden';
-  let pregameMap = null, pregameMatchId = null;
-  let tcHistory = null, tcHistoryFor = null, tcHistoryBusy = false;
-  const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
-  const lsSet = (k, v) => { try{ v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); }catch(e){} };
-  function teamCheckEnabled(){ return lsGet(TC_OFF_KEY) !== '1'; }
-  function tcMapName(){
-    if(pregameMap){
-      const mi = mapInfo[String(pregameMap).toLowerCase()];
-      if(mi && mi.name) return mi.name;
-    }
-    const pre = latestData && latestData.state === 'PREGAME' ? latestData : null;
-    const m = pre && Array.isArray(pre.map) ? pre.map[0] : null;
-    if(m) return (mapInfo[String(m).toLowerCase()] || {}).name || m;
-    return null;
-  }
-  function tcLoadHistory(){
-    const key = (pregameMatchId || '') + '|' + (pregameMap || '');
-    if(!pregameMatchId || tcHistoryBusy || tcHistoryFor === key) return;
-    tcHistoryBusy = true;
-    api('/api/agent-history?map=' + encodeURIComponent(pregameMap || '')).catch(() => null).then(j => {
-      tcHistoryBusy = false; tcHistoryFor = key;
-      tcHistory = j && j.ok ? j : null;
-      updateTeamCheck();
-    });
-  }
-  function tcRoleOf(agentId){
-    const name = agentId ? agentById[String(agentId).toLowerCase()] : null;
-    const info = name ? agentMap[name.toLowerCase()] : null;
-    return {name: name || null, role: info && TC_ROLES.indexOf(info.role) !== -1 ? info.role : null, info};
-  }
-  // Was fehlt? sev: 3 = wichtig, 2 = sinnvoll, 1 = Hinweis
-  function tcAnalyse(players, mapName){
-    const cfg = TC_MAPS[mapName] || null;
-    const count = {Controller: 0, Initiator: 0, Sentinel: 0, Duelist: 0};
-    const picked = [];
-    players.forEach(pp => { const r = tcRoleOf(pp.agent); if(r.role){ count[r.role]++; picked.push(r.name); } });
-    const n = picked.length, size = Math.max(players.length, 1);
-    const tips = [];
-    if(n >= 2 || n >= size - 1){
-      if(!count.Controller) tips.push({sev: 3, key: 'tc_no_controller'});
-      if(count.Duelist >= 3) tips.push({sev: 3, key: 'tc_many_duelists', n: count.Duelist});
-      if(!count.Initiator) tips.push({sev: 2, key: 'tc_no_initiator'});
-      if(!count.Sentinel) tips.push({sev: cfg && cfg.sent ? 2 : 1, key: cfg && cfg.sent ? 'tc_no_sentinel_map' : 'tc_no_sentinel'});
-      if(count.Controller >= 3) tips.push({sev: 2, key: 'tc_many_controllers', n: count.Controller});
-      if(count.Sentinel >= 3) tips.push({sev: 2, key: 'tc_many_sentinels', n: count.Sentinel});
-      if(cfg && cfg.viper && picked.indexOf('Viper') === -1 && n >= 2) tips.push({sev: 2, key: 'tc_need_viper'});
-      if(!count.Duelist && n >= size - 1 && size >= 4) tips.push({sev: 1, key: 'tc_no_duelist'});
-    }
-    tips.sort((a, b) => b.sev - a.sev);
-    return {count, n, size, tips, cfg};
-  }
-  // Welche Rolle fehlt dem Team OHNE deinen (noch nicht gesperrten) Pick?
-  function tcNeededRole(players, me, mapName){
-    const others = players.filter(pp => pp !== me);
-    const a = tcAnalyse(others, mapName);
-    const cfg = TC_MAPS[mapName] || null;
-    if(!a.count.Controller) return 'Controller';
-    if(cfg && cfg.viper && !others.some(pp => tcRoleOf(pp.agent).name === 'Viper') && a.count.Controller < 2) return 'Viper';
-    if(!a.count.Initiator) return 'Initiator';
-    if(!a.count.Sentinel) return 'Sentinel';
-    if(!a.count.Duelist && a.n >= a.size - 2) return 'Duelist';
-    return null;
-  }
-  function tcSuggestions(role, players, me, mapName){
-    const cfg = TC_MAPS[mapName] || {strong: []};
-    const blocked = {};
-    players.forEach(pp => { if(pp !== me && pp.agent) blocked[String(pp.agent).toLowerCase()] = true; });
-    Object.keys(pickTaken || {}).forEach(k => { blocked[k] = true; });
-    const hist = (tcHistory && tcHistory.agents) || {};
-    const list = [];
-    Object.entries(agentById).forEach(([uid, name]) => {
-      const info = agentMap[String(name).toLowerCase()];
-      if(!info || blocked[uid]) return;
-      if(role === 'Viper' ? name !== 'Viper' : info.role !== role) return;
-      const owned = agentBase[uid] || !ownedAgents || !ownedAgents.length || ownedAgents.some(x => String(x).toLowerCase() === uid);
-      if(!owned) return;
-      const h = hist[uid] || {};
-      const strong = cfg.strong.indexOf(name) !== -1;
-      // Vertrautheit zählt am meisten, die Karten-Bilanz erst ab 3 Spielen
-      // (1 Spiel mit 0 % sagt nichts), "stark auf der Karte" nur als Bonus
-      const mg = h.mapGames || 0;
-      let score = (strong ? 1.5 : 0) + Math.min(h.games || 0, 20) * 0.15 + (mg ? 0.3 : 0);
-      if(mg >= 3) score += (h.mapWins / mg - 0.5) * 4;
-      let why = '';
-      if(mg >= 2) why = t('tc_why_map', {n: mg, w: Math.round(h.mapWins / mg * 100)});
-      else if((h.games || 0) >= 3) why = t('tc_why_games', {n: h.games});
-      else if(strong) why = t('tc_why_strong', {map: mapName});
-      list.push({uid, name, info, score, why});
-    });
-    return list.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, 3);
-  }
-  function teamCheckHtml(){
-    if(!teamCheckEnabled() || !pregameLive || !pregameLive.length) return '<div id="teamCheck" hidden></div>';
-    if(pregameMatchId && lsGet(TC_HIDE_KEY) === pregameMatchId) return '<div id="teamCheck" hidden></div>';
-    tcLoadHistory();
-    const mapName = tcMapName();
-    const me = pregameLive.find(pp => pp.puuid === ownPregamePuuid()) || null;
-    const a = tcAnalyse(pregameLive, mapName);
-    const folded = lsGet(TC_FOLD_KEY) === '1';
-    const top = a.tips.slice(0, 3);
-    const worst = top.length ? top[0].sev : 0;
-    const sum = a.n < 2 ? `<span class="tc-sum">${esc(t('tc_waiting'))}</span>`
-      : !top.length ? `<span class="tc-sum ok">${svgIcon('check', 12)}${esc(t('tc_all_good'))}</span>`
-      : `<span class="tc-sum ${worst >= 3 ? 'bad' : 'warn'}">${esc(t(top.length === 1 ? 'tc_hints_1' : 'tc_hints_n', {n: top.length}))}</span>`;
-    const roles = TC_ROLES.map(r => {
-      const c = a.count[r];
-      const cls = c === 0 ? (a.n >= 2 && (r === 'Controller' || r === 'Initiator') ? 'miss' : 'zero') : (c >= 3 ? 'many' : 'ok');
-      return `<span class="tc-role ${cls}"><b>${c}</b>${r}</span>`;
-    }).join('');
-    const tips = top.map(tp => `<li class="s${tp.sev}">${esc(t(tp.key, {n: tp.n, map: mapName || ''}))}</li>`).join('');
-    let sug = '';
-    if(me && !me.locked && a.n >= 1){
-      const need = tcNeededRole(pregameLive, me, mapName);
-      const list = need ? tcSuggestions(need, pregameLive, me, mapName) : [];
-      if(list.length){
-        sug = `<div class="tc-sug"><span class="lbl">${esc(t('tc_for_you', {role: need === 'Viper' ? 'Viper' : need}))}</span>
-          <div class="tc-chips">${list.map(s => `<button type="button" class="tc-chip" data-tc-pick="${esc(s.uid)}" data-tip="${esc(t('tc_pick_hint'))}">
-            <img src="${esc(s.info.icon)}" alt="" loading="lazy"><span class="nm">${esc(s.name)}</span>${s.why ? `<span class="why">${esc(s.why)}</span>` : ''}</button>`).join('')}</div></div>`;
-      }
-    }
-    const mapTip = a.cfg && a.cfg.tip ? `<div class="tc-map">${svgIcon('map', 13)}<span>${esc(t(a.cfg.tip))}</span></div>` : '';
-    return `<div id="teamCheck" class="tc ${folded ? 'folded' : ''}">
-      <div class="tc-head">
-        <span class="tc-ic">${svgIcon('users', 15)}</span>
-        <span class="tc-title">Team-Check</span>${mapName ? `<span class="tc-mapname">${esc(mapName)}</span>` : ''}
-        ${sum}
-        <span class="tc-sp"></span>
-        <button type="button" class="tc-btn" data-tc="fold" data-tip="${esc(t(folded ? 'tc_expand' : 'tc_collapse'))}" aria-expanded="${folded ? 'false' : 'true'}">${svgIcon('chevron', 13)}</button>
-        <button type="button" class="tc-btn" data-tc="hide" data-tip="${esc(t('tc_hide_match'))}">${svgIcon('x', 13)}</button>
-      </div>
-      <div class="tc-body">
-        <div class="tc-roles">${roles}</div>
-        ${tips ? `<ul class="tc-tips">${tips}</ul>` : ''}
-        ${sug}
-        ${mapTip}
-      </div>
-    </div>`;
-  }
-  (function(){
-    const b = document.getElementById('tcToggle');
-    if(!b) return;
-    const paint = () => { b.classList.toggle('on', teamCheckEnabled()); b.setAttribute('aria-pressed', teamCheckEnabled() ? 'true' : 'false'); };
-    paint();
-    b.addEventListener('click', () => { lsSet(TC_OFF_KEY, teamCheckEnabled() ? '1' : null); paint(); updateTeamCheck(); });
-  })();
-  function updateTeamCheck(){
-    const el = document.getElementById('teamCheck');
-    if(!el) return;
-    const tmp = document.createElement('div');
-    tmp.innerHTML = teamCheckHtml();
-    const next = tmp.firstElementChild;
-    if(next.outerHTML !== el.outerHTML) el.replaceWith(next);
-  }
-  document.addEventListener('click', e => {
-    const b = e.target.closest('#teamCheck [data-tc], #teamCheck [data-tc-pick]');
-    if(!b) return;
-    const act = b.getAttribute('data-tc');
-    if(act === 'fold') lsSet(TC_FOLD_KEY, lsGet(TC_FOLD_KEY) === '1' ? null : '1');
-    else if(act === 'hide'){
-      if(pregameMatchId) lsSet(TC_HIDE_KEY, pregameMatchId);
-      toast('info', 'Team-Check', t('tc_hidden_toast'), {id: 'tc', dur: 5000});
-    } else {
-      const id = b.getAttribute('data-tc-pick');
-      const cell = document.querySelector(`.agentpick:not(.instalock) .agent-cell[data-agent="${CSS.escape(id)}"]`);
-      if(cell) cell.click();
-    }
-    updateTeamCheck();
-  });
 
   function bindAgentPick(){
     const panel = document.querySelector('.agentpick:not(.instalock)');
@@ -7548,7 +7306,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
     const headHtml = state === 'MENUS' ? ''
       : matchHeroHtml(state, mapUrl, latestData.mode, t(list.length === 1 ? 'player_count_1' : 'player_count_n', {n: list.length}), heroRight);
-    const html = headHtml + (state === 'PREGAME' ? agentPickHtml() + teamCheckHtml() : '') + bodyHtml;
+    const html = headHtml + (state === 'PREGAME' ? agentPickHtml() : '') + bodyHtml;
     content.classList.toggle('anim', sceneChanged);
     if(sceneChanged){
       // Neue Szene: alles neu, mit gestaffeltem Einflug
@@ -10004,7 +9762,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev8";
+const CURRENT_VERSION = "2.5.0-dev9";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
