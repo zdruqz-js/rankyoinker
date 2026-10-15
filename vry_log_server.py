@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev17"
+APP_VERSION = "2.5.0-dev18"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1772,6 +1772,7 @@ def pd_gate_state():
 # Anfragen (markiert per _low_priority, eigener Pool), solange Kachel- und
 # andere Abfragen anstehen, hoechstens PD_LOW_MAX_WAIT.
 PD_LOW_MAX_WAIT = 25.0
+PD_LOW_HI_MAX_WAIT = 8.0                # so lange hoechstens auf vry.exe (hi_until)
 # Seit 2.5.0-dev17 eine dritte, unterste Stufe: "Letzte 5" (Kacheln, meistgespielter
 # Agent; markiert per _bulk_priority). Live 2026-10-15: 49 von 62 pd-Anfragen eines
 # Matches waren Letzte 5, die Cloudflare-Sperre kam mitten darin, und vry.exe wartete
@@ -1785,6 +1786,10 @@ PD_BULK_MAX_WAIT = 45.0
 _tl = threading.local()
 _pd_high = {"n": 0}
 _pd_low = {"n": 0}                      # Party-Erkennung: wartend oder laufend
+# Party-Erkennung insgesamt (seit 2.5.0-dev18): _pd_low zaehlt nur gerade laufende
+# Anfragen - zwischen ihren Schritten (Historie -> Match-Details) und vor der ersten
+# rutschten sonst "Letzte 5" dazwischen
+_pd_party = {"n": 0}
 _pd_bulk = {"next": 0.0}
 _pd_bulk_lock = threading.Lock()
 _pd_counts = collections.Counter()      # pd-Anfragen im laufenden Match, je Art (fuer /api/gamestate)
@@ -1827,7 +1832,9 @@ def _pd_bulk_wait():
         g = _pd_gate_read()
         now = time.time()
         paused = _pd_bulk_paused(g)
-        busy = paused or _pd_high["n"] > 0 or _pd_low["n"] > 0 or now < g.get("hi_until", 0)
+        urgent = any(sl.get("urgent") for sl in (getattr(_tl, "slots", None) or ()))
+        busy = paused or (not urgent and (_pd_high["n"] > 0 or _pd_low["n"] > 0 or _pd_party["n"] > 0
+                                          or now < g.get("hi_until", 0)))
         if paused and now >= deadline:
             return False
         if not busy or now >= deadline:     # wichtige Abfragen ohne Ende: im Bulk-Takt trotzdem weiter
@@ -1862,8 +1869,12 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
     elif low:
         with _pd_count_lock:
             _pd_low["n"] += 1
-        deadline = time.time() + PD_LOW_MAX_WAIT
-        while _pd_high["n"] > 0 and time.time() < deadline:
+        # seit dev18 auch auf vry.exe (hi_until): Namen/Raenge in dessen Tabelle zuerst
+        now = time.time()
+        deadline, hi_deadline = now + PD_LOW_MAX_WAIT, now + PD_LOW_HI_MAX_WAIT
+        while time.time() < deadline and (
+                _pd_high["n"] > 0
+                or (time.time() < hi_deadline and time.time() < _pd_gate_read().get("hi_until", 0))):
             time.sleep(0.15)
     else:
         with _pd_count_lock:
@@ -2134,7 +2145,7 @@ def _digests_save(force=False):
         report_error("match-digests", e)
 
 
-_inflight = {}                  # Schluessel -> {"ev": Event, "res": Ergebnis}
+_inflight = {}                  # Schluessel -> {"ev": Event, "res": Ergebnis, "urgent": bool}
 _inflight_lock = threading.Lock()
 
 
@@ -2146,19 +2157,31 @@ def _single_flight(key, fn):
     fragte Riot selbst, weil der Cache erst nach der ersten Antwort gefuellt
     war (Party-Mitglieder teilen sich ihre Matches). Wer jetzt zu spaet kommt,
     wartet auf das Ergebnis des ersten. None, wenn der erste gescheitert ist.
+
+    Haelt eine "Letzte 5"-Abfrage den Platz und wartet eine wichtigere darauf
+    (Party-Erkennung, Spieler-Fenster), wird der Platz "urgent": Die Abfrage
+    stellt sich dann nicht mehr hinter Party-Erkennung/Namen an (_pd_bulk_wait),
+    sonst warteten beide aufeinander, bis PD_BULK_MAX_WAIT ablief.
     """
     with _inflight_lock:
         slot = _inflight.get(key)
         owner = slot is None
         if owner:
-            slot = _inflight[key] = {"ev": threading.Event(), "res": None}
+            slot = _inflight[key] = {"ev": threading.Event(), "res": None, "urgent": False}
+        elif not getattr(_tl, "bulk", False) or getattr(_tl, "low", False):
+            slot["urgent"] = True
     if not owner:
         slot["ev"].wait(60)
         return slot["res"]
+    held = getattr(_tl, "slots", None)
+    if held is None:
+        held = _tl.slots = []
+    held.append(slot)
     try:
         slot["res"] = fn()
         return slot["res"]
     finally:
+        held.pop()
         with _inflight_lock:
             _inflight.pop(key, None)
         slot["ev"].set()
@@ -3419,7 +3442,13 @@ def _premades_store(key, mid, state, roster):
         hit = _premade_cache                  # kam evtl. gerade erst herein
         if hit["match"] == key and hit["data"] and (time.time() - hit["ts"] < PREMADE_TTL or _match_current(hit["ts"])):
             return hit["data"]
-    data = _premades_build(mid, state, roster)
+    with _pd_count_lock:
+        _pd_party["n"] += 1
+    try:
+        data = _premades_build(mid, state, roster)
+    finally:
+        with _pd_count_lock:
+            _pd_party["n"] -= 1
     if pd_gate_state()["paused"]:
         # Historie unvollstaendig - nicht fuers ganze Match merken; die Seite fragt in 8 s erneut
         return {"ok": False, "error": "riot-ratelimit"}
@@ -4627,7 +4656,11 @@ def game_state():
     out = {"state": _game["state"], "matchId": _game["matchId"],
            "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
            "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
-           "pdRequests": dict(_pd_counts), "report": match_report_state()}
+           "pdRequests": dict(_pd_counts), "report": match_report_state(),
+           # Diagnose: wann die Seite zuletzt /status fragte, wann vorgeladen wurde
+           "page": {"seenAgo": int(time.time() - _page_seen["ts"]) if _page_seen["ts"] else None,
+                    "prefetch": _prefetch_done["key"],
+                    "prefetchAgo": int(time.time() - _prefetch_done["at"]) if _prefetch_done["at"] else None}}
     if _game["state"] == "INGAME" and _game_roster["match"] and _game_roster["match"] == _game["matchId"]:
         out["roster"] = {"map": _game_roster["map"], "queue": _game_roster["queue"],
                          "players": _game_roster["players"]}
@@ -4777,19 +4810,52 @@ def _maybe_resync(state, mid, now):
 # Raenge); erst danach zeichnet die Seite die Karten und fragt "Letzte 5
 # Matches" und Partys an. Der Dienst kennt den Kader aber schon vorher - also
 # holt er die Daten gleich selbst. Die Seite bekommt sie dann aus dem Cache bzw.
-# haengt sich an die laufende Abfrage (_single_flight). Nur solange die Seite
-# offen ist (/status kommt im 1,5-s-Takt): ohne Zuschauer waeren das rund 60
-# Riot-Anfragen pro Match fuer nichts.
-PREFETCH_PAGE_IDLE = 120
+# haengt sich an die laufende Abfrage (_single_flight). Nur wenn die Seite
+# offen ist bzw. kuerzlich war (/status kommt im 1,5-s-Takt): ohne Zuschauer
+# waeren das rund 60 Riot-Anfragen pro Match fuer nichts. Bis 2.5.0-dev17 galten
+# 120 s - live (2026-10-15) kamen die Gegner-"Letzte 5" dadurch erst ~3 min nach
+# Matchbeginn bzw. gar nicht: Liegt das Spiel im Vordergrund, drosselt oder
+# friert der Browser (Opera GX) den Hintergrund-Tab ein, oder der Tab ist zu und
+# wird erst mitten im Match geoeffnet - dann fehlten die Daten beim Hinsehen.
+# Jetzt: Seite in den letzten 2 h benutzt = Spielsitzung mit Overlay. Die Anfragen
+# laufen im gedrosselten "Letzte 5"-Takt mit niedrigster Prioritaet.
+PREFETCH_PAGE_IDLE = 2 * 3600
+PREFETCH_BASICS_WAIT = 10.0
 _page_seen = {"ts": 0.0}
-_prefetch_done = {"key": None}
+_prefetch_done = {"key": None, "at": 0.0, "n": 0}
+
+
+def _prefetch_basics(roster):
+    """Agentenauswahl: Namen aller Spieler und Raenge der Gegner VOR Party-Erkennung
+    und "Letzte 5". Dieselben Abfragen, die /api/pregame ohnehin stellt -
+    laufende werden nicht doppelt gestartet (_in_background). Live 2026-10-15
+    lief die Party-Erkennung los, bevor die Seite die Gegner-Raenge angestossen hatte."""
+    ids = [p["puuid"] for p in roster]
+    deadline = time.time() + PREFETCH_BASICS_WAIT
+
+    def wait(kind, keys):
+        while time.time() < deadline:
+            with _bg_pending_lock:
+                if not any((kind, k) in _bg_pending for k in keys):
+                    return
+            time.sleep(0.1)
+
+    names_for_nonblocking(ids)
+    wait("names", ids)
+    names, _ = _names_cached(ids, time.time())
+    enemies = [p["puuid"] for p in roster if p.get("team") == "enemy" and names.get(p["puuid"])]
+    for u in enemies:
+        mmr_summary_nonblocking(u)
+    wait("mmr", enemies)
 
 
 def _prefetch_match(state, mid):
     if not mid or time.time() - _page_seen["ts"] > PREFETCH_PAGE_IDLE:
         return
     key = "%s:%s" % (state, mid)
-    if _prefetch_done["key"] == key:
+    # Agentenauswahl: die Gegner tauchen (wenn ueberhaupt) oft erst nach ein paar
+    # Sekunden auf - solange der Kader nicht voll ist, weiter nachsehen
+    if _prefetch_done["key"] == key and (state == "INGAME" or _prefetch_done["n"] >= 10):
         return
     if state == "INGAME":
         if _game_roster["match"] != mid:
@@ -4802,20 +4868,31 @@ def _prefetch_match(state, mid):
         except Exception:
             return
         puuids = [p["puuid"] for p in roster]
-    if not puuids:
+    if not puuids or (_prefetch_done["key"] == key and len(puuids) <= _prefetch_done["n"]):
         return
-    _prefetch_done["key"] = key
+    _prefetch_done.update({"key": key, "at": time.time(), "n": len(puuids)})
 
     def run():
-        # Party-Erkennung zuerst (eigener Thread): seit dev17 warten die "Letzte 5"
-        # auf sie (_pd_bulk_wait) statt umgekehrt
+        if state == "PREGAME":
+            try:
+                _prefetch_basics(roster)
+            except Exception:
+                pass
+        # Dann die Party-Erkennung (eigener Thread): seit dev17 warten die "Letzte 5"
+        # auf sie (_pd_bulk_wait) statt umgekehrt - schon ab hier (_pd_party), nicht
+        # erst ab ihrer ersten Riot-Anfrage
+        with _pd_count_lock:
+            _pd_party["n"] += 1
+
         def party():
             try:
                 premades()
             except Exception:
                 pass
+            finally:
+                with _pd_count_lock:
+                    _pd_party["n"] -= 1
         threading.Thread(target=party, daemon=True).start()
-        time.sleep(0.3)
         # Nacheinander: die Riot-Bremse laesst ohnehin nur ~3 Anfragen/s durch,
         # so ist wenigstens eine Karte nach der anderen fertig statt alle zuletzt
         for pu in puuids:
@@ -5491,6 +5568,12 @@ def _match_report_build(match_id):
             highlights.append({"type": "firstbloods", "n": me_row["fk"]})
         if me_row.get("mvp"):
             highlights.insert(0, {"type": "mvp", "kind": me_row["mvp"]})
+    # Hoechstens 8: erst nach Gewicht auswaehlen, dann nach Runde ordnen. Live
+    # (2026-10-15, 13:9) fiel sonst der eigene 4K aus Runde 21 hinter drei
+    # Team-Flawless heraus.
+    if len(highlights) > 8:
+        weight = {"mvp": 0, "ace": 1, "clutch": 2, "4k": 3, "firstbloods": 4, "flawless": 5}
+        highlights = sorted(highlights, key=lambda h: (weight.get(h["type"], 9), h.get("round") or 0))[:8]
     highlights.sort(key=lambda h: (h["type"] != "mvp", h.get("round") or 0))
 
     report = {
