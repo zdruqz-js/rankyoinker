@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.0-dev2"
+APP_VERSION = "2.5.0-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4889,6 +4889,110 @@ def _snapshot_tick(state, mid, now):
         report_error("match-snapshot", e)
 
 
+# ============================ Eigenes App-Fenster am PC (2.5.0) ============================
+# Statt eines normalen Browser-Tabs oeffnet RankYoinker am PC ein eigenes
+# Fenster ohne Adressleiste: Edge (auf Windows 10/11 immer da) bzw. Chrome im
+# App-Modus (--app=<Adresse>). Gilt fuer Tray, Startmenue/Desktop-Symbol
+# (open_app.vbs -> "vry_log_server.py --open-app") und das Oeffnen nach der
+# Installation (setup/open_overlay.bat). Ohne Edge/Chrome: Standardbrowser.
+_APP_BROWSER_PATHS = (
+    r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+    r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe",
+    r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+    r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+    r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe",
+)
+APP_WINDOW_MARK = os.path.join(DATA_DIR, ".app_window")
+HOSTS_FILE = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "drivers", "etc", "hosts")
+DETACHED_PROCESS = 0x00000008
+
+
+def _app_browser():
+    for raw in _APP_BROWSER_PATHS:
+        path = os.path.expandvars(raw)
+        if "%" not in path and os.path.isfile(path):
+            return path
+    try:
+        import winreg
+        for name in ("msedge.exe", "chrome.exe"):
+            for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\%s" % name) as k:
+                        path = winreg.QueryValue(k, None)
+                    if path and os.path.isfile(path.strip('"')):
+                        return path.strip('"')
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    return None
+
+
+def _local_status_ok(port, host="127.0.0.1", timeout=1.5):
+    try:
+        with urllib.request.urlopen("http://%s:%d/status" % (host, port), timeout=timeout) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def overlay_url():
+    """Kurzadresse http://rankyoinker/, wenn der Installer sie eingetragen hat
+    und Port 80 antwortet - sonst http://localhost:1101/."""
+    try:
+        with open(HOSTS_FILE, encoding="utf-8", errors="replace") as fh:
+            has_host = any(re.search(r"(^|\s)rankyoinker(\s|$)", ln.split("#", 1)[0]) for ln in fh)
+    except OSError:
+        has_host = False
+    if has_host and _local_status_ok(80):
+        return "http://rankyoinker/"
+    return "http://localhost:%d/" % PORT
+
+
+def open_overlay_window(url=None):
+    url = url or overlay_url()
+    exe = _app_browser()
+    if exe:
+        args = [exe, "--app=" + url]
+        if not os.path.exists(APP_WINDOW_MARK):
+            # Nur beim ersten Mal eine sinnvolle Groesse vorgeben - danach merkt
+            # sich der Browser Groesse und Position des App-Fensters selbst.
+            args.append("--window-size=1440,920")
+            try:
+                with open(APP_WINDOW_MARK, "w", encoding="utf-8") as fh:
+                    fh.write(str(int(time.time())))
+            except OSError:
+                pass
+        try:
+            subprocess.Popen(args, close_fds=True, creationflags=DETACHED_PROCESS)
+            return True
+        except Exception as e:
+            _ulog("App-Fenster: Start fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+    try:
+        webbrowser.open(url)
+        return True
+    except Exception as e:
+        _ulog("App-Fenster: Browser oeffnen fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+        return False
+
+
+def _open_app_cli():
+    """"vry_log_server.py --open-app" (Startmenue, Desktop, nach der Installation):
+    Dienst starten, falls er nicht laeuft, dann das App-Fenster oeffnen."""
+    if not _local_status_ok(PORT, timeout=1.0):
+        try:
+            subprocess.Popen([sys.executable, os.path.abspath(__file__)], cwd=BASE, close_fds=True,
+                             creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW)
+        except Exception as e:
+            _ulog("App-Fenster: Dienst starten fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+        for _ in range(24):
+            time.sleep(0.5)
+            if _local_status_ok(PORT, timeout=0.8):
+                break
+    return open_overlay_window()
+
+
 # ============================ Als App installieren (PWA, 2.5.0) ============================
 # Das Overlay laesst sich als App installieren: am PC (localhost ist ein
 # "sicherer Kontext") ueber Chrome/Edge, auf dem Handy ueber "Zum Home-
@@ -8434,16 +8538,16 @@ def _tray_setup_prototypes(user32, shell32, kernel32):
 
 
 _TRAY_STRINGS = {
-    "de": {"open": "Website öffnen", "quit": "Programm schließen"},
-    "en": {"open": "Open website", "quit": "Quit program"},
-    "pl": {"open": "Otwórz stronę", "quit": "Zamknij program"},
-    "fr": {"open": "Ouvrir le site", "quit": "Quitter le programme"},
-    "es": {"open": "Abrir sitio web", "quit": "Cerrar programa"},
-    "tr": {"open": "Web sitesini aç", "quit": "Programı kapat"},
-    "ko": {"open": "웹사이트 열기", "quit": "프로그램 종료"},
-    "pt": {"open": "Abrir site", "quit": "Fechar programa"},
-    "ru": {"open": "Открыть сайт", "quit": "Закрыть программу"},
-    "ja": {"open": "ウェブサイトを開く", "quit": "プログラムを終了"},
+    "de": {"open": "RankYoinker öffnen", "quit": "Programm schließen"},
+    "en": {"open": "Open RankYoinker", "quit": "Quit program"},
+    "pl": {"open": "Otwórz RankYoinker", "quit": "Zamknij program"},
+    "fr": {"open": "Ouvrir RankYoinker", "quit": "Quitter le programme"},
+    "es": {"open": "Abrir RankYoinker", "quit": "Cerrar programa"},
+    "tr": {"open": "RankYoinker'ı aç", "quit": "Programı kapat"},
+    "ko": {"open": "RankYoinker 열기", "quit": "프로그램 종료"},
+    "pt": {"open": "Abrir RankYoinker", "quit": "Fechar programa"},
+    "ru": {"open": "Открыть RankYoinker", "quit": "Закрыть программу"},
+    "ja": {"open": "RankYoinkerを開く", "quit": "プログラムを終了"},
 }
 
 
@@ -8456,10 +8560,8 @@ def _tray_strings():
 
 
 def _tray_open_overlay():
-    try:
-        webbrowser.open("http://localhost:1101/")
-    except Exception as e:
-        _ulog("Tray: Browser oeffnen fehlgeschlagen: %s: %s" % (type(e).__name__, e))
+    # Eigenes App-Fenster (Edge/Chrome --app), sonst Standardbrowser
+    threading.Thread(target=open_overlay_window, daemon=True).start()
 
 
 def _tray_wndproc_factory(user32, shell32, nid):
@@ -8621,6 +8723,10 @@ def _run_tray_icon():
 
 
 if __name__ == "__main__":
+    if "--open-app" in sys.argv[1:]:
+        # Nur das App-Fenster oeffnen (open_app.vbs) - den laufenden Dienst NICHT
+        # beenden, darum vor _kill_other_log_servers()
+        raise SystemExit(0 if _open_app_cli() else 1)
     _kill_other_log_servers()  # Selbstheilung: egal wie gestartet, nie zwei Instanzen
     try:
         # Auf allen Netzwerkkarten hören, damit auch das Handy im selben Netz

@@ -2177,108 +2177,226 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   color:var(--accent); font:600 13px var(--font-display); cursor:pointer; box-shadow:0 14px 34px -16px rgba(0,0,0,.9); transition:transform .25s, filter .25s;}
 .report-reopen:hover{transform:translateY(-2px); filter:brightness(1.1);}
 .report-reopen[hidden]{display:none;}
-.rp-hero{position:relative; overflow:hidden; border-radius:24px; border:1px solid var(--line-2); margin-bottom:18px; --res:var(--draw);}
+#reportView{--g-s:#f5cf7a; --g-a:var(--win); --g-b:#6fb6ff; --g-c:#a7a59d; --g-d:var(--loss);}
+#reportView > *{animation:rpUp .6s cubic-bezier(.22,1,.36,1) both;}
+#reportView > *:nth-child(2){animation-delay:.06s;} #reportView > *:nth-child(3){animation-delay:.12s;} #reportView > *:nth-child(4){animation-delay:.18s;}
+@keyframes rpUp{from{opacity:0; transform:translateY(14px);}}
+/* Kopf: Ergebnis links, dein Agent gross rechts */
+.rp-hero{position:relative; overflow:hidden; border-radius:26px; border:1px solid var(--line-2); margin-bottom:18px; --res:var(--draw); min-height:260px; isolation:isolate;}
 .rp-hero.win{--res:var(--win);} .rp-hero.loss{--res:var(--loss);}
-.rp-bg{position:absolute; inset:0; background-size:cover; background-position:center; opacity:.5; animation:kenBurns 30s ease-in-out infinite alternate;}
-.rp-shade{position:absolute; inset:0; background:linear-gradient(90deg, rgba(7,7,8,.96) 0%, rgba(7,7,8,.78) 45%, rgba(7,7,8,.35) 100%),
-  radial-gradient(120% 90% at 0% 100%, color-mix(in srgb, var(--res) 22%, transparent), transparent 60%);}
-.rp-hero-inner{position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding:28px 30px; flex-wrap:wrap; min-height:200px;}
-.rp-eyebrow{font:600 11px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); display:flex; gap:10px; align-items:center;}
-.rp-eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--res); box-shadow:0 0 12px var(--res);}
-.rp-result{font:850 clamp(36px,5.4vw,58px)/1 var(--font-display); letter-spacing:-.04em; color:var(--res); text-transform:uppercase; margin-top:10px;}
-.rp-score{font:800 clamp(26px,3.6vw,38px)/1 var(--font-display); letter-spacing:-.03em; margin-top:6px; font-variant-numeric:tabular-nums;}
-.rp-score .sep{color:var(--text-3); margin:0 8px; font-weight:600;}
-.rp-meta{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;}
-.rp-meta span{padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid var(--line-2); font-size:12.5px; color:var(--text-2);}
-.rp-back{height:42px; padding:0 18px; border-radius:999px; border:1px solid var(--line-3); background:rgba(255,255,255,.07); color:var(--text);
-  font:650 14px var(--font-display); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .2s, transform .25s;}
+.rp-bg{position:absolute; inset:0; background-size:cover; background-position:center; opacity:.42; animation:kenBurns 30s ease-in-out infinite alternate; z-index:-3;}
+.rp-shade{position:absolute; inset:0; z-index:-2;
+  background:linear-gradient(90deg, rgba(7,7,8,.97) 0%, rgba(7,7,8,.84) 38%, rgba(7,7,8,.4) 70%, rgba(7,7,8,.2) 100%),
+  radial-gradient(90% 120% at 0% 100%, color-mix(in srgb, var(--res) 30%, transparent), transparent 62%),
+  radial-gradient(60% 90% at 88% 30%, color-mix(in srgb, var(--tint) 34%, transparent), transparent 70%);}
+.rp-hero::after{content:''; position:absolute; inset:auto 0 0 0; height:3px; background:linear-gradient(90deg, var(--res), transparent 70%); opacity:.9;}
+.rp-hero-art{position:absolute; right:-2%; top:-10%; width:46%; height:130%; background-size:contain; background-repeat:no-repeat; background-position:center; opacity:.16; z-index:-1; filter:saturate(1.2);}
+.rp-hero-agent{position:absolute; right:3%; bottom:-28%; height:150%; max-height:520px; object-fit:contain; z-index:-1; pointer-events:none;
+  filter:drop-shadow(0 20px 40px rgba(0,0,0,.6)); -webkit-mask-image:linear-gradient(180deg, #000 55%, transparent 92%); mask-image:linear-gradient(180deg, #000 55%, transparent 92%);
+  animation:rpAgentIn .9s cubic-bezier(.22,1,.36,1) .1s both;}
+@keyframes rpAgentIn{from{opacity:0; transform:translateX(30px) scale(.97);}}
+.rp-back{position:absolute; top:18px; right:18px; z-index:2; height:40px; padding:0 16px; border-radius:999px; border:1px solid var(--line-3); background:rgba(10,10,12,.55);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); color:var(--text); font:650 13.5px var(--font-display); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .2s, transform .25s;}
 .rp-back:hover{background:rgba(255,255,255,.12); transform:translateY(-1px);}
-.rp-grid{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; margin-bottom:18px;}
+.rp-hero-inner{position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:30px 32px 28px; flex-wrap:wrap; min-height:260px;}
+.rp-hero-main{min-width:0;}
+.rp-eyebrow{font:600 11px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); display:flex; gap:10px; align-items:center;}
+.rp-eyebrow .dot{width:8px; height:8px; border-radius:50%; background:var(--res); box-shadow:0 0 14px var(--res); animation:pulse 1.8s ease-in-out infinite;}
+.rp-result{font:900 clamp(44px,7vw,84px)/.95 var(--font-display); letter-spacing:-.05em; color:var(--res); text-transform:uppercase; margin-top:12px;
+  text-shadow:0 0 40px color-mix(in srgb, var(--res) 45%, transparent);}
+.rp-score{font:850 clamp(30px,4.2vw,46px)/1 var(--font-display); letter-spacing:-.03em; margin-top:8px; font-variant-numeric:tabular-nums; display:flex; align-items:baseline;}
+.rp-score .a{color:var(--text);} .rp-score .e{color:var(--text-2);}
+.rp-hero.win .rp-score .a{color:var(--win);} .rp-hero.loss .rp-score .e{color:var(--loss);}
+.rp-score .sep{color:var(--text-3); margin:0 10px; font-weight:600;}
+.rp-score small{font-size:.5em; color:var(--text-2); margin-left:4px;}
+.rp-meta{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;}
+.rp-meta span{padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid var(--line-2); font-size:12.5px; color:var(--text-2);}
+.rp-hero-me{margin-right:min(26%, 300px); text-align:right; min-width:0; padding-bottom:4px;}
+.rp-me-name{font:800 clamp(20px,2.4vw,28px)/1.1 var(--font-display); letter-spacing:-.02em; display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  text-shadow:0 2px 18px rgba(0,0,0,.8);}
+.rp-me-sub{font-size:13.5px; color:var(--text-2); margin-top:4px;}
+.rp-me-kda{margin-top:10px; display:flex; gap:6px; align-items:baseline; justify-content:flex-end; font:800 26px var(--font-display); font-variant-numeric:tabular-nums;}
+.rp-me-kda i{font-style:normal; color:var(--text-3); font-weight:500;}
+.rp-me-kda span{font:600 11px var(--font-mono); letter-spacing:.08em; color:var(--text-2); margin-left:10px; padding:4px 8px; border-radius:8px; background:rgba(0,0,0,.4); border:1px solid var(--line-2);}
+.rp-badge{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font:700 11px var(--font-mono); letter-spacing:.08em; text-transform:uppercase;
+  background:var(--grad-accent); color:var(--accent-ink); box-shadow:0 8px 24px -8px rgba(216,184,124,.8);}
+.rp-badge svg{width:13px; height:13px;}
+.rp-badge.team{background:var(--surface-4); color:var(--text); box-shadow:none;}
+/* Karten */
+.rp-grid{display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:18px; margin-bottom:18px;}
 @media (max-width:1000px){ .rp-grid{grid-template-columns:1fr;} }
-.rp-card{border-radius:22px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)); padding:20px 22px; min-width:0;}
+.rp-card{border-radius:22px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); padding:20px 22px; min-width:0;}
 .rp-card + .rp-card{margin-top:18px;}
 .rp-grid .rp-card + .rp-card{margin-top:0;}
-.rp-card h3{font:600 11px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); margin:0 0 14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.rp-card h3{font:600 11px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); margin:0 0 16px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 .rp-card h3 small{font:inherit; letter-spacing:.04em; text-transform:none; color:var(--text-3);}
-.rp-me{display:grid; grid-template-columns:118px minmax(0,1fr); gap:20px; align-items:center;}
-.rp-portrait{width:118px; height:150px; border-radius:18px; overflow:hidden; background:radial-gradient(circle at 50% 30%, var(--surface-4), var(--bg-3)); position:relative; border:1px solid var(--line-2);}
-.rp-portrait img{width:100%; height:100%; object-fit:cover; object-position:50% 12%;}
-.rp-name{font:750 19px var(--font-display); letter-spacing:-.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.rp-agent{color:var(--text-2); font-size:13px; margin-top:2px;}
-.rp-rating{display:flex; align-items:baseline; gap:10px; margin-top:12px; flex-wrap:wrap;}
-.rp-rating b{font:850 54px/1 var(--font-display); letter-spacing:-.045em; background:var(--grad-accent); -webkit-background-clip:text; background-clip:text; color:transparent;}
-.rp-rating .lbl{font:500 10.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
-.rp-badge{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font:700 11px var(--font-mono); letter-spacing:.08em; text-transform:uppercase;
-  background:var(--grad-accent); color:var(--accent-ink);}
-.rp-badge.team{background:var(--surface-4); color:var(--text);}
+/* Leistung: Note im Ring + Satz */
+.rp-perf-head{display:flex; gap:22px; align-items:center;}
+.rp-ring{--c:var(--g-c); position:relative; width:118px; height:118px; flex-shrink:0;}
+.rp-ring.g-s{--c:var(--g-s);} .rp-ring.g-a{--c:var(--g-a);} .rp-ring.g-b{--c:var(--g-b);} .rp-ring.g-d{--c:var(--g-d);}
+.rp-ring svg{width:100%; height:100%; transform:rotate(-90deg);}
+.rp-ring circle{fill:none; stroke-width:9;}
+.rp-ring .bg{stroke:var(--surface-4);}
+.rp-ring .fg{stroke:var(--c); stroke-linecap:round; filter:drop-shadow(0 0 8px color-mix(in srgb, var(--c) 60%, transparent));
+  animation:rpRing 1.2s cubic-bezier(.22,1,.36,1) .2s both;}
+@keyframes rpRing{from{stroke-dasharray:0 100;}}
+.rp-ring .in{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.rp-ring .in b{font:900 52px/1 var(--font-display); color:var(--c); letter-spacing:-.04em; text-shadow:0 0 24px color-mix(in srgb, var(--c) 45%, transparent);}
+.rp-ring.g-s .in b{background:linear-gradient(180deg, #ffe7a8, #d8a84c); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.rp-ring .in span{font:600 12px var(--font-mono); color:var(--text-2); margin-top:4px;}
+.rp-perf-text{min-width:0;}
+.rp-perf-text .big{font:750 20px/1.25 var(--font-display); letter-spacing:-.015em;}
+.rp-perf-text .sub{font-size:13.5px; color:var(--text-2); margin-top:6px;}
+.rp-perf-text .explain{font-size:12.5px; color:var(--text-3); margin-top:8px; line-height:1.5;}
+/* Lobby-Leiste */
+.rp-lstrip{margin:30px 0 4px;}
+.rp-ls-track{position:relative; height:34px; border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--loss) 16%, transparent), rgba(255,255,255,.03) 50%, color-mix(in srgb, var(--win) 16%, transparent));
+  border:1px solid var(--line);}
+.rp-ls-avg{position:absolute; top:-6px; bottom:-6px; width:0;}
+.rp-ls-avg i{position:absolute; top:0; bottom:0; left:-1px; width:2px; background:var(--text-3); border-radius:2px;}
+.rp-ls-avg em{position:absolute; top:-18px; left:50%; transform:translateX(-50%); font:500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
+.rp-ls-dot{position:absolute; top:50%; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; border:2px solid rgba(7,7,8,.9);}
+.rp-ls-dot.ally{background:var(--ally);} .rp-ls-dot.enemy{background:var(--enemy);}
+.rp-ls-dot.me{width:30px; height:30px; margin:-15px 0 0 -15px; background:var(--grad-accent); border:2px solid #fff3; box-shadow:0 0 0 3px var(--accent-soft), 0 0 22px rgba(216,184,124,.7); z-index:2; overflow:hidden;}
+.rp-ls-dot.me img{width:100%; height:100%; object-fit:cover; border-radius:50%;}
+.rp-ls-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3);}
+.rp-ls-legend span{display:inline-flex; align-items:center; gap:6px;}
+.rp-ls-legend i{width:9px; height:9px; border-radius:50%;}
+.rp-ls-legend .ally i{background:var(--ally);} .rp-ls-legend .enemy i{background:var(--enemy);} .rp-ls-legend .me i{background:var(--grad-accent);}
 .rp-stats{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:18px;}
 .rp-stat{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
 .rp-stat .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.rp-stat .val{font:750 20px/1.2 var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
-.rp-stat .delta{font:600 11px var(--font-mono); margin-top:3px; color:var(--text-3);}
-.rp-stat .delta.up{color:var(--win);} .rp-stat .delta.down{color:var(--loss);}
-.rp-note{font-size:12.5px; color:var(--text-3); margin-top:12px;}
-.rp-hl{display:flex; flex-wrap:wrap; gap:8px;}
-.rp-hl span{display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:999px; background:var(--accent-soft); border:1px solid var(--accent-line); font-size:13px;}
-.rp-hl span.mvp{background:var(--grad-accent); color:var(--accent-ink); border-color:transparent; font-weight:700;}
-.rp-hl .none{color:var(--text-3); font-size:13px; background:none; border:0; padding:0;}
+.rp-stat .val{font:750 21px/1.2 var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.02em; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;}
+.rp-stat .sub{font:500 11px var(--font-mono); margin-top:3px; color:var(--text-3); display:flex; gap:6px; align-items:baseline; flex-wrap:wrap;}
+.rp-stat .delta, .rp-stat .sub .delta{font:650 11px var(--font-mono); color:var(--text-3); padding:1px 6px; border-radius:6px; background:var(--surface-3);}
+.rp-stat .delta.up{color:var(--win); background:color-mix(in srgb, var(--win) 14%, transparent);}
+.rp-stat .delta.down{color:var(--loss); background:color-mix(in srgb, var(--loss) 14%, transparent);}
+/* Highlights */
+.rp-hl{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px;}
+.rp-hl-item{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); font-size:13.5px; min-width:0;}
+.rp-hl-item b{font-weight:650; min-width:0;}
+.rp-hl-item .ic{display:grid; place-items:center; width:32px; height:32px; flex-shrink:0; border-radius:10px; background:var(--accent-soft); color:var(--accent);}
+.rp-hl-item .ic svg{width:17px; height:17px;}
+.rp-hl-item.mvp, .rp-hl-item.gold{background:linear-gradient(135deg, rgba(216,184,124,.22), rgba(216,184,124,.06)); border-color:var(--accent-line);}
+.rp-hl-item.mvp .ic, .rp-hl-item.gold .ic{background:var(--grad-accent); color:var(--accent-ink);}
+.rp-hl .none{color:var(--text-3); font-size:13px;}
 .rp-sides{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-top:16px;}
 .rp-side{padding:12px 14px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); min-width:0;}
 .rp-side .lbl{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.rp-side .val{font:750 19px var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums;}
-.rp-side .bar{height:4px; border-radius:4px; background:var(--surface-4); margin-top:8px; overflow:hidden;}
-.rp-side .bar i{display:block; height:100%; background:var(--grad-accent); border-radius:4px;}
+.rp-side .val{font:750 21px var(--font-display); margin-top:5px; font-variant-numeric:tabular-nums;}
+.rp-side .val small{font-size:14px; color:var(--text-3); font-weight:600;}
+.rp-side .bar{height:5px; border-radius:5px; background:var(--surface-4); margin-top:8px; overflow:hidden;}
+.rp-side .bar i{display:block; height:100%; background:var(--grad-accent); border-radius:5px;}
 .rp-econ{margin-top:18px;}
 .rp-econ .sub{font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px;}
 .rp-econ-row{display:grid; grid-template-columns:86px minmax(0,1fr) 54px; align-items:center; gap:12px; padding:6px 0; font-size:13px;}
-.rp-econ-row .bar{height:6px; border-radius:6px; background:var(--surface-4); overflow:hidden;}
-.rp-econ-row .bar i{display:block; height:100%; border-radius:6px; background:var(--win);}
+.rp-econ-row .bar{height:7px; border-radius:7px; background:var(--surface-4); overflow:hidden;}
+.rp-econ-row .bar i{display:block; height:100%; border-radius:7px; background:linear-gradient(90deg, color-mix(in srgb, var(--win) 60%, transparent), var(--win));}
 .rp-econ-row b{font:650 13px var(--font-mono); text-align:right; font-variant-numeric:tabular-nums;}
 .rp-econ-row .lbl{color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.rp-tl{display:flex; gap:4px; flex-wrap:wrap; align-items:stretch;}
-.rp-rd{width:30px; height:46px; border-radius:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  background:var(--surface-2); border:1px solid var(--line); position:relative; cursor:default; transition:transform .2s;}
-.rp-rd:hover{transform:translateY(-2px);}
-.rp-rd.ally{background:color-mix(in srgb, var(--win) 17%, transparent); border-color:color-mix(in srgb, var(--win) 42%, transparent);}
-.rp-rd.enemy{background:color-mix(in srgb, var(--loss) 13%, transparent); border-color:color-mix(in srgb, var(--loss) 34%, transparent);}
-.rp-rd svg{width:13px; height:13px; opacity:.9;}
-.rp-rd .k{display:flex; gap:2px; height:4px;} .rp-rd .k i{width:4px; height:4px; border-radius:50%; background:var(--accent);}
-.rp-rd.died::after{content:''; position:absolute; top:4px; right:4px; width:5px; height:5px; border-radius:50%; background:var(--text-3);}
-.rp-rd .n{font:500 9px var(--font-mono); color:var(--text-3); line-height:1;}
-.rp-rd.cer{box-shadow:0 0 0 1px var(--accent-line) inset;}
-.rp-half{width:1px; align-self:stretch; background:var(--line-3); margin:0 5px;}
-.rp-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--text-3);}
-.rp-legend span{display:inline-flex; align-items:center; gap:6px;} .rp-legend svg{width:12px; height:12px;}
-.rp-legend .kd{width:5px; height:5px; border-radius:50%; background:var(--accent);}
+/* Spielverlauf */
+.rp-flow-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -6px; padding:22px 6px 4px; scrollbar-width:thin;}
+.rp-flow{min-width:calc(var(--n) * 28px); position:relative;}
+.rp-chart{position:relative; height:150px; border-radius:14px; background:linear-gradient(180deg, color-mix(in srgb, var(--win) 7%, transparent), transparent 45%, transparent 55%, color-mix(in srgb, var(--loss) 7%, transparent));
+  border:1px solid var(--line);}
+.rp-chart svg{position:absolute; inset:15px 0; width:100%; height:calc(100% - 30px); overflow:visible;}
+.rp-chart .zero{stroke:var(--line-3); stroke-width:1; stroke-dasharray:4 5; vector-effect:non-scaling-stroke;}
+.rp-chart .area{opacity:.22;}
+.rp-chart .line{fill:none; stroke-width:3; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke;}
+.rp-chart svg{animation:rpReveal 1.4s cubic-bezier(.4,0,.2,1) .25s both;}
+@keyframes rpReveal{from{clip-path:inset(0 100% 0 0);} to{clip-path:inset(0 0 0 0);}}
+.rp-axis{position:absolute; left:10px; font:600 9.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; pointer-events:none;}
+.rp-axis.top{top:6px; color:color-mix(in srgb, var(--win) 80%, var(--text-3));} .rp-axis.bot{bottom:6px; color:color-mix(in srgb, var(--loss) 80%, var(--text-3));}
+.rp-half{position:absolute; top:0; bottom:0; width:0; border-left:1px dashed var(--line-3);}
+.rp-half em{position:absolute; top:-18px; left:0; transform:translateX(-50%); font:500 9.5px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); font-style:normal; white-space:nowrap;}
+.rp-tag{position:absolute; top:-10px; transform:translateX(-50%); z-index:2; padding:2px 7px; border-radius:7px; font:800 9.5px var(--font-mono); letter-spacing:.08em;
+  background:var(--surface-4); color:var(--text); border:1px solid var(--line-3); white-space:nowrap;}
+.rp-tag.gold{background:var(--grad-accent); color:var(--accent-ink); border-color:transparent; box-shadow:0 6px 18px -6px rgba(216,184,124,.9);}
+.rp-sel-line{position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:linear-gradient(180deg, transparent, var(--accent), transparent); opacity:0; transition:left .25s cubic-bezier(.22,1,.36,1), opacity .2s; pointer-events:none;}
+.rp-sel-line.on{opacity:.9;}
+.rp-kl{font:500 9.5px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin:12px 0 6px;}
+.rp-cols{display:grid; grid-template-columns:repeat(var(--n), minmax(0,1fr)); gap:3px;}
+.rp-col{position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0 6px; border-radius:10px; border:1px solid var(--line); cursor:pointer;
+  background:var(--surface-2); color:var(--text-2); font:inherit; transition:transform .2s, background .2s, border-color .2s; min-width:0;}
+.rp-col.ally{background:color-mix(in srgb, var(--win) 12%, transparent); border-color:color-mix(in srgb, var(--win) 34%, transparent);}
+.rp-col.enemy{background:color-mix(in srgb, var(--loss) 10%, transparent); border-color:color-mix(in srgb, var(--loss) 28%, transparent);}
+.rp-col:hover{transform:translateY(-2px);}
+.rp-col.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset, 0 10px 24px -12px rgba(216,184,124,.9); background:color-mix(in srgb, var(--accent) 14%, transparent);}
+.rp-col .kb{position:relative; width:60%; max-width:16px; height:54px; display:flex; align-items:flex-end;}
+.rp-col .kb i{position:relative; display:block; width:100%; border-radius:4px 4px 2px 2px; background:linear-gradient(180deg, #ffe2a0, var(--accent)); box-shadow:0 0 12px rgba(216,184,124,.45);}
+.rp-col .kb i b{position:absolute; top:-15px; left:50%; transform:translateX(-50%); font:800 10.5px var(--font-mono); color:var(--accent);}
+.rp-col .dd{height:12px; color:var(--loss);} .rp-col .dd svg{width:11px; height:11px; display:block;}
+.rp-col .ic svg{width:12px; height:12px; display:block; opacity:.85;}
+.rp-col .n{font:600 9.5px var(--font-mono); color:var(--text-3);}
+.rp-col.cer .n{color:var(--accent);}
+.rp-rd-detail{margin-top:14px; padding:14px 16px; border-radius:16px; background:var(--surface-2); border:1px solid var(--line-2); min-height:84px;}
+.rp-rd-detail:empty{display:none;}
+.rp-rdd-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.rp-rdd-head b{font:750 16px var(--font-display);}
+.rp-rdd-head .res{padding:3px 9px; border-radius:999px; font:700 11px var(--font-mono); letter-spacing:.06em; text-transform:uppercase;}
+.rp-rdd-head .res.win{background:color-mix(in srgb, var(--win) 18%, transparent); color:var(--win);}
+.rp-rdd-head .res.loss{background:color-mix(in srgb, var(--loss) 18%, transparent); color:var(--loss);}
+.rp-rdd-head .side{font-size:12.5px; color:var(--text-2);}
+.rp-rdd-head .cer{padding:3px 9px; border-radius:999px; font:800 10.5px var(--font-mono); letter-spacing:.08em; background:var(--grad-accent); color:var(--accent-ink);}
+.rp-rdd-head .score{margin-left:auto; font:750 15px var(--font-mono); color:var(--text-2); font-variant-numeric:tabular-nums;}
+.rp-rdd-body{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-top:12px;}
+.rp-rdd-body > div{min-width:0;}
+.rp-rdd-body .lbl{display:block; font:500 10px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
+.rp-rdd-body .v{display:flex; align-items:center; gap:6px; margin-top:4px; font:650 14px var(--font-display); min-width:0;}
+.rp-rdd-body .v svg{width:14px; height:14px; flex-shrink:0;}
+.rp-rdd-body .v.good{color:var(--win);} .rp-rdd-body .v.bad{color:var(--loss);}
+.rp-rdd-body .pips{display:inline-flex; gap:3px; margin-left:4px;} .rp-rdd-body .pips i{width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px rgba(216,184,124,.7);}
+/* Scoreboard */
 .rp-team + .rp-team{margin-top:18px;}
 .rp-team-title{display:flex; align-items:center; gap:10px; margin:0 0 6px; font:750 15px var(--font-display);}
 .rp-team-title i{width:8px; height:8px; border-radius:50%; background:var(--ally);}
 .rp-team-title.enemy i{background:var(--enemy);}
 .rp-team-title .sc{margin-left:auto; font:600 12px var(--font-mono); color:var(--text-3);}
 .rp-table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-.rp-table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px;}
+.rp-table{width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:780px;}
 .rp-table th{font:500 10px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
 .rp-table th:first-child, .rp-table td:first-child{text-align:left;}
-.rp-table td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.rp-table td{padding:9px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .rp-table tr:last-child td{border-bottom:0;}
-.rp-table tr.me td{background:var(--accent-soft);}
-.rp-table td.rt{font-weight:750; font-family:var(--font-display);}
+.rp-table tr.me td{background:rgba(216,184,124,.14); border-top:1px solid var(--accent-line); border-bottom:1px solid var(--accent-line); font-weight:650; color:var(--text);}
+.rp-table tr.me td:first-child{box-shadow:inset 4px 0 0 var(--accent); border-radius:12px 0 0 12px;}
+.rp-table tr.me td:last-child{border-radius:0 12px 12px 0;}
+.rp-table tr.me .nm{color:var(--accent); font-weight:750;}
+.rp-table td.rt .rtw{display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; vertical-align:middle;}
+.rp-table td.rt .pct{font:600 11.5px var(--font-mono); color:var(--text-3); min-width:48px; text-align:right;}
 .rp-table td.good{color:var(--win);} .rp-table td.bad{color:var(--loss);}
+.rp-gchip{display:inline-grid; place-items:center; width:24px; height:24px; border-radius:8px; font:850 13px var(--font-display); color:#0b0b0c; background:var(--g-c);}
+.rp-gchip.g-s{background:linear-gradient(180deg, #ffe7a8, #d8a84c);} .rp-gchip.g-a{background:var(--g-a);} .rp-gchip.g-b{background:var(--g-b);} .rp-gchip.g-d{background:var(--g-d); color:#fff;}
 .rp-pl{display:flex; align-items:center; gap:10px; min-width:0;}
 .rp-pl img.ag{width:32px; height:32px; border-radius:9px; background:var(--bg-3); flex-shrink:0;}
+.rp-table tr.me .rp-pl img.ag{box-shadow:0 0 0 2px var(--accent);}
 .rp-pl img.rk{width:22px; height:22px; flex-shrink:0;}
 .rp-pl .nm{overflow:hidden; text-overflow:ellipsis; max-width:190px;}
+.rp-you{font:800 9.5px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border-radius:6px; background:var(--accent); color:var(--accent-ink);}
 .rp-mvp{font:700 9.5px var(--font-mono); letter-spacing:.08em; padding:2px 6px; border-radius:6px; background:var(--grad-accent); color:var(--accent-ink); margin-left:2px;}
 .rp-mvp.team{background:var(--surface-4); color:var(--text);}
+@media (max-width:860px){
+  .rp-hero-me{margin-right:0;}
+  .rp-hero-agent{right:-6%; height:130%; opacity:.55;}
+}
 @media (max-width:640px){
-  .rp-hero-inner{padding:22px 20px; min-height:170px;}
-  .rp-me{grid-template-columns:84px minmax(0,1fr); gap:14px;}
-  .rp-portrait{width:84px; height:112px; border-radius:14px;}
-  .rp-rating b{font-size:44px;}
+  .rp-hero, .rp-hero-inner{min-height:0;}
+  .rp-hero-inner{padding:64px 18px 20px; flex-direction:column; align-items:flex-start; gap:16px;}
+  .rp-hero-me{text-align:left;}
+  .rp-me-name, .rp-me-kda{justify-content:flex-start;}
+  .rp-hero-agent{right:-14%; bottom:-10%; height:115%; opacity:.4;}
+  .rp-back{top:14px; right:14px;}
+  .rp-perf-head{gap:16px;}
+  .rp-ring{width:96px; height:96px;} .rp-ring .in b{font-size:42px;}
+  .rp-perf-text .big{font-size:17px;}
   .rp-stats{grid-template-columns:repeat(2, minmax(0,1fr));}
   .rp-card{padding:16px;}
-  .rp-rd{width:26px; height:42px;}
+  .rp-rdd-body{grid-template-columns:repeat(2, minmax(0,1fr));}
   .report-reopen{right:14px;}
+}
+@media (prefers-reduced-motion: reduce){
+  #reportView > *, .rp-hero-agent, .rp-ring .fg{animation:none;}
+  .rp-chart svg{animation:none;}
 }
 /* ueber der unteren Tab-Leiste (Tablet/Handy) */
 @media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
@@ -3197,11 +3315,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // Die Kopplung verwaltet nur der PC — auf dem Handy hat der Knopf nichts zu tun
   if(ON_PHONE) document.getElementById('pairBtn').style.display = 'none';
   // ================= ALS APP INSTALLIEREN (PWA, 2.5.0) =================
-  // Am PC (localhost) und in der Demo (https) bietet Chrome/Edge die echte
-  // Installation an (beforeinstallprompt). Auf dem Handy laeuft die Seite
-  // ueber http im Heimnetz: iPhone -> "Zum Home-Bildschirm" (startet als App),
-  // Android -> Verknuepfung, die im Browser oeffnet (ohne https keine echte
-  // App). Hinweis-Leiste nur auf dem Handy, einmal wegklickbar.
+  // Nur auf Handy/Tablet - am PC oeffnet RankYoinker ohnehin als eigenes
+  // Fenster (App-Modus von Edge/Chrome, siehe open_overlay_window() im Dienst).
+  // iPhone -> "Zum Home-Bildschirm" (startet als App); Android -> echte
+  // Installation nur ueber https (Demo), im Heimnetz (http) eine Verknuepfung,
+  // die im Browser oeffnet. Hinweis-Leiste einmal wegklickbar.
   const IS_STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const IS_ANDROID = /Android/.test(navigator.userAgent);
@@ -3212,8 +3330,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(document.readyState === 'complete') regSw(); else window.addEventListener('load', regSw);
   }
   function installAvailable(){
-    if(IS_STANDALONE) return false;
-    return !!installPrompt || IS_IOS || IS_ANDROID;
+    return !IS_STANDALONE && (IS_IOS || IS_ANDROID);
   }
   function paintInstall(){
     const btn = document.getElementById('installBtn'), hint = document.getElementById('installHint');
@@ -3225,7 +3342,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     if(hint){
       let off = false;
       try{ off = localStorage.getItem(INSTALL_HINT_KEY) === '1'; }catch(e){}
-      const show = avail && ON_PHONE && !off;
+      const show = avail && !off;
       hint.hidden = !show;
       if(show) hint.innerHTML = `<span class="inst-ic" aria-hidden="true">Y</span>
         <div class="tx"><b>${esc(t('install_title'))}</b><span>${esc(t('install_banner_sub'))}</span></div>
@@ -4994,7 +5111,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const show = avail && !dismissed && activeTab === 'match';
     if(show){
       const key = reportData.matchId + '|' + Object.keys(agentMap).length + '|' + Object.keys(mapInfo).length + '|' + Object.keys(tierMap).length;
-      if(key !== reportRendered){ view.innerHTML = reportHtml(reportData); reportRendered = key; }
+      if(key !== reportRendered){ view.innerHTML = reportHtml(reportData); reportRendered = key; rpSelectRound(rpDefaultRound(reportData)); }
     }
     if(app.classList.contains('report-on') !== show){
       app.classList.toggle('report-on', show);
@@ -5003,7 +5120,14 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     reopen.hidden = !(avail && dismissed && activeTab === 'match');
     if(!reopen.hidden) reopen.innerHTML = `${svgIcon('chart', 14)}<span>${esc(t('report_reopen'))}</span>`;
   }
+  // Runde im Spielverlauf: Antippen (Handy) oder Zeigen (Maus) zeigt die Details
+  document.getElementById('reportView').addEventListener('mouseover', e => {
+    const col = e.target.closest('.rp-col');
+    if(col && matchMedia('(hover: hover)').matches) rpSelectRound(Number(col.dataset.rd));
+  });
   document.getElementById('reportView').addEventListener('click', e => {
+    const col = e.target.closest('.rp-col');
+    if(col){ rpSelectRound(Number(col.dataset.rd)); return; }
     if(e.target.closest('[data-report-close]') && reportData){
       try{ localStorage.setItem(REPORT_DISMISS_KEY, reportData.matchId); }catch(err){}
       updateReportView();
@@ -5024,27 +5148,55 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     time: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>',
     surrender: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>'
   };
+  const RP_HL_ICON = {
+    mvp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5z"/></svg>',
+    ace: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/></svg>',
+    '4k': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+    clutch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/></svg>',
+    flawless: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    firstbloods: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'
+  };
   const RP_BUY = {pistol: 'Pistol', eco: 'Eco', half: 'Half Buy', full: 'Full Buy'};
   function rpNum(v, d){
     if(v == null || isNaN(v)) return '—';
     return Number(v).toLocaleString(LOCALE, {minimumFractionDigits: d || 0, maximumFractionDigits: d || 0});
   }
-  function rpDelta(val, avg, d, invert){
+  function rpDelta(val, avg, d){
     if(val == null || avg == null || !avg) return '';
     const diff = val - avg;
     const rel = Math.abs(diff) / Math.abs(avg);
-    const cls = rel < 0.03 ? '' : ((diff > 0) !== !!invert ? 'up' : 'down');
+    const cls = rel < 0.03 ? '' : (diff > 0 ? 'up' : 'down');
     const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
-    return `<div class="delta ${cls}">${sign}${rpNum(Math.abs(diff), d)}</div>`;
+    return `<span class="delta ${cls}" title="${esc(t('report_vs_avg_short'))}">${sign}${rpNum(Math.abs(diff), d)}</span>`;
   }
   function rpAgent(id){
     const name = id ? agentById[String(id).toLowerCase()] : null;
     return {name: name || '', info: name ? agentMap[name.toLowerCase()] : null};
   }
+  // Note aus dem Rating (1,00 = Schnitt dieser Lobby): S ab +30 %, A ab +12 %,
+  // B ab -5 %, C ab -20 %, sonst D
+  function rpGrade(r){
+    if(r == null || isNaN(r)) return '—';
+    return r >= 1.30 ? 'S' : r >= 1.12 ? 'A' : r >= 0.95 ? 'B' : r >= 0.80 ? 'C' : 'D';
+  }
+  function rpPerfLine(r){
+    if(r == null || isNaN(r)) return '';
+    const pct = Math.round((r - 1) * 100);
+    return pct >= 2 ? t('report_perf_above', {n: pct}) : pct <= -2 ? t('report_perf_below', {n: -pct}) : t('report_perf_even');
+  }
+  function rpPct(r){
+    if(r == null || isNaN(r)) return '';
+    const pct = Math.round((r - 1) * 100);
+    return (pct > 0 ? '+' : pct < 0 ? '−' : '±') + Math.abs(pct) + ' %';
+  }
+  function rpGradeChip(r, big){
+    const g = rpGrade(r);
+    return `<span class="rp-gchip g-${g.toLowerCase()}${big ? ' big' : ''}">${g}</span>`;
+  }
   function rpHighlight(h){
-    if(h.type === 'mvp') return `<span class="mvp">★ ${esc(t(h.kind === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>`;
+    if(h.type === 'mvp') return `<div class="rp-hl-item mvp"><span class="ic">${RP_HL_ICON.mvp}</span><b>${esc(t(h.kind === 'team' ? 'report_team_mvp' : 'report_mvp'))}</b></div>`;
     const key = {ace: 'report_hl_ace', '4k': 'report_hl_4k', clutch: 'report_hl_clutch', flawless: 'report_hl_flawless', firstbloods: 'report_hl_firstbloods'}[h.type];
-    return key ? `<span>${esc(t(key, {r: h.round, vs: h.vs, n: h.n}))}</span>` : '';
+    return key ? `<div class="rp-hl-item ${h.type === 'ace' ? 'gold' : ''}"><span class="ic">${RP_HL_ICON[h.type] || ''}</span><b>${esc(t(key, {r: h.round, vs: h.vs, n: h.n}))}</b></div>` : '';
   }
   function rpRow(p){
     const a = rpAgent(p.agent);
@@ -5054,8 +5206,9 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <td><div class="rp-pl">${a.info && a.info.icon ? `<img class="ag" src="${esc(a.info.icon)}" alt="" loading="lazy">` : '<span class="ag"></span>'}
         ${ri ? `<img class="rk" src="${esc(ri)}" alt="" loading="lazy">` : ''}
         <span class="nm" title="${esc(p.name || '')}">${esc(p.name || t('unknown_short'))}</span>
+        ${p.me ? `<span class="rp-you">${esc(t('report_you'))}</span>` : ''}
         ${p.mvp ? `<span class="rp-mvp ${p.mvp === 'team' ? 'team' : ''}">${p.mvp === 'team' ? 'TEAM MVP' : 'MVP'}</span>` : ''}</div></td>
-      <td class="rt">${rpNum(p.rating, 2)}</td>
+      <td class="rt"><span class="rtw">${rpGradeChip(p.rating)}<span class="pct">${rpPct(p.rating)}</span></span></td>
       <td>${rpNum(p.acs)}</td>
       <td>${p.kills} / ${p.deaths} / ${p.assists}</td>
       <td class="${pm > 0 ? 'good' : pm < 0 ? 'bad' : ''}">${pm > 0 ? '+' : ''}${pm}</td>
@@ -5068,8 +5221,111 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   }
   function rpTable(list){
     return `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>
-      <th>${esc(t('report_col_player'))}</th><th>Rating</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
+      <th>${esc(t('report_col_player'))}</th><th title="${esc(t('report_perf_explain'))}">${esc(t('report_col_perf'))}</th><th>ACS</th><th>K / D / A</th><th>+/−</th><th>ADR</th><th>HS%</th><th>KAST</th><th>FK</th><th>FD</th>
       </tr></thead><tbody>${list.map(rpRow).join('')}</tbody></table></div>`;
+  }
+  // Lobby-Leiste: alle Spieler nach Rating auf einer Achse, Mitte = Lobby-Schnitt
+  function rpLobbyStrip(r){
+    const ps = r.players.filter(p => p.rating != null && !isNaN(p.rating));
+    if(ps.length < 2) return '';
+    const lo = Math.min(0.5, ...ps.map(p => p.rating)), hi = Math.max(1.5, ...ps.map(p => p.rating));
+    const x = v => ((v - lo) / (hi - lo) * 100).toFixed(2);
+    const dots = ps.slice().sort((a, b) => (a.me ? 1 : 0) - (b.me ? 1 : 0)).map(p => {
+      const a = rpAgent(p.agent);
+      return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${x(p.rating)}%" title="${esc((p.name || '') + ' · ' + rpGrade(p.rating) + ' ' + rpPct(p.rating))}">${p.me && a.info && a.info.icon ? `<img src="${esc(a.info.icon)}" alt="">` : ''}</span>`;
+    }).join('');
+    return `<div class="rp-lstrip">
+      <div class="rp-ls-track"><span class="rp-ls-avg" style="left:${x(1)}%"><i></i><em>${esc(t('report_lobby_avg'))}</em></span>${dots}</div>
+      <div class="rp-ls-legend"><span class="ally"><i></i>${esc(t('your_team'))}</span><span class="enemy"><i></i>${esc(t('enemies'))}</span><span class="me"><i></i>${esc(t('report_you'))}</span></div>
+    </div>`;
+  }
+  // Spielverlauf: Vorsprung nach jeder Runde (Linie) + deine Kills pro Runde darunter
+  function rpFlow(r){
+    const tl = r.timeline || [];
+    if(!tl.length) return '';
+    const n = tl.length, COL = 40, H = 120;
+    let diff = 0;
+    const pts = [[0, 0]];
+    tl.forEach((rd, i) => { diff += rd.win === 'ally' ? 1 : rd.win === 'enemy' ? -1 : 0; pts.push([(i + 0.5) * COL, diff]); });
+    pts.push([n * COL, diff]);
+    const maxAbs = Math.max(3, ...pts.map(p => Math.abs(p[1])));
+    const y = v => (H / 2 - v / maxAbs * (H / 2 - 10)).toFixed(1);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + y(p[1])).join(' ');
+    const area = line + ` L${n * COL} ${H / 2} L0 ${H / 2} Z`;
+    const zeroPct = (H / 2) / H * 100;
+    let half = '';
+    tl.forEach((rd, i) => { if(i && rd.side !== tl[i - 1].side && !half) half = `<span class="rp-half" style="left:${(i / n * 100).toFixed(3)}%"><em>${esc(t('report_half'))}</em></span>`; });
+    const tags = tl.map((rd, i) => rd.ceremony === 'ace' || (rd.myKills || 0) >= 4 || rd.ceremony === 'clutch'
+      ? `<span class="rp-tag ${rd.ceremony === 'ace' || rd.myKills >= 5 ? 'gold' : ''}" style="left:${((i + 0.5) / n * 100).toFixed(3)}%">${rd.ceremony === 'ace' || rd.myKills >= 5 ? 'ACE' : rd.ceremony === 'clutch' ? 'CLUTCH' : rd.myKills + 'K'}</span>` : '').join('');
+    const maxK = Math.max(2, ...tl.map(rd => rd.myKills || 0));
+    const cols = tl.map((rd, i) => `<button type="button" class="rp-col ${rd.win} ${rd.ceremony ? 'cer' : ''}" data-rd="${i}" aria-label="${esc(t('report_round_n', {n: rd.n}))}">
+        <span class="kb">${rd.myKills ? `<i style="height:${Math.round(rd.myKills / maxK * 100)}%"><b>${rd.myKills}</b></i>` : ''}</span>
+        <span class="dd">${rd.myDied ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>' : ''}</span>
+        <span class="ic">${RP_HOW_ICON[rd.how] || ''}</span>
+        <span class="n">${rd.n}</span>
+      </button>`).join('');
+    return `<div class="rp-flow-scroll"><div class="rp-flow" style="--n:${n}">
+        <div class="rp-chart">
+          <svg viewBox="0 0 ${n * COL} ${H}" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="rpFlowGrad" x1="0" y1="0" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="var(--win)"/><stop offset="${(zeroPct / 100).toFixed(3)}" stop-color="var(--win)"/>
+              <stop offset="${(zeroPct / 100).toFixed(3)}" stop-color="var(--loss)"/><stop offset="1" stop-color="var(--loss)"/></linearGradient></defs>
+            <line class="zero" x1="0" x2="${n * COL}" y1="${H / 2}" y2="${H / 2}"/>
+            <path class="area" d="${area}" fill="url(#rpFlowGrad)"/>
+            <path class="line" d="${line}" stroke="url(#rpFlowGrad)"/>
+          </svg>
+          ${half}${tags}
+          <span class="rp-sel-line" id="rpSelLine"></span>
+          <span class="rp-axis top">${esc(t('your_team'))}</span><span class="rp-axis bot">${esc(t('enemies'))}</span>
+        </div>
+        <div class="rp-kl"><span>${esc(t('report_my_kills'))}</span></div>
+        <div class="rp-cols">${cols}</div>
+      </div></div>
+      <div class="rp-rd-detail" id="rpRdDetail"></div>`;
+  }
+  function rpRoundDetail(r, i){
+    const tl = r.timeline || [];
+    const rd = tl[i];
+    if(!rd) return '';
+    let a = 0, e = 0;
+    tl.slice(0, i + 1).forEach(x => { if(x.win === 'ally') a++; else if(x.win === 'enemy') e++; });
+    const res = rd.win === 'ally' ? `<span class="res win">${esc(t('report_rd_won'))}</span>` : rd.win === 'enemy' ? `<span class="res loss">${esc(t('report_rd_lost'))}</span>` : '';
+    const cer = rd.ceremony === 'ace' || (rd.myKills || 0) >= 5 ? 'ACE' : rd.ceremony === 'clutch' ? 'CLUTCH' : rd.ceremony === 'flawless' || rd.ceremony === 'teamace' ? 'FLAWLESS' : '';
+    const buy = RP_BUY[rd.buy] && RP_BUY[rd.enemyBuy] ? t('report_rd_econ', {a: RP_BUY[rd.buy], b: RP_BUY[rd.enemyBuy]}) : (RP_BUY[rd.buy] || '');
+    const pips = '<i></i>'.repeat(Math.min(5, rd.myKills || 0));
+    return `<div class="rp-rdd-head">
+        <b>${esc(t('report_round_n', {n: rd.n}))}</b>${res}
+        <span class="side">${esc(t(rd.side === 'atk' ? 'report_attack' : 'report_defense'))}</span>
+        ${cer ? `<span class="cer">${cer}</span>` : ''}
+        <span class="score">${a} : ${e}</span>
+      </div>
+      <div class="rp-rdd-body">
+        <div><span class="lbl">${esc(t('report_rd_how'))}</span><span class="v">${RP_HOW_ICON[rd.how] || ''}${esc(t('report_how_' + rd.how))}</span></div>
+        ${buy ? `<div><span class="lbl">${esc(t('report_rd_buy'))}</span><span class="v">${esc(buy)}</span></div>` : ''}
+        <div><span class="lbl">${esc(t('report_my_kills'))}</span><span class="v kills">${rd.myKills || 0}<span class="pips">${pips}</span></span></div>
+        <div><span class="lbl">${esc(t('report_rd_you'))}</span><span class="v ${rd.myDied ? 'bad' : 'good'}">${esc(t(rd.myDied ? 'report_you_died' : 'report_rd_survived'))}</span></div>
+      </div>`;
+  }
+  // Standard-Auswahl im Spielverlauf: deine beste Runde, sonst die letzte
+  function rpDefaultRound(r){
+    const tl = r.timeline || [];
+    let best = tl.length - 1, bestScore = -1;
+    tl.forEach((rd, i) => {
+      const sc = (rd.ceremony === 'ace' ? 10 : rd.ceremony === 'clutch' ? 8 : 0) + (rd.myKills || 0) * 2 + (rd.win === 'ally' ? 1 : 0);
+      if(sc > bestScore){ bestScore = sc; best = i; }
+    });
+    return best;
+  }
+  function rpSelectRound(i){
+    const view = document.getElementById('reportView');
+    if(!view || !reportData) return;
+    const tl = reportData.timeline || [];
+    if(!tl[i]) return;
+    view.querySelectorAll('.rp-col').forEach(c => c.classList.toggle('sel', Number(c.dataset.rd) === i));
+    const line = document.getElementById('rpSelLine');
+    if(line){ line.style.left = ((i + 0.5) / tl.length * 100).toFixed(3) + '%'; line.classList.add('on'); }
+    const det = document.getElementById('rpRdDetail');
+    if(det) det.innerHTML = rpRoundDetail(reportData, i);
   }
   function reportHtml(r){
     const me = r.players.find(p => p.me) || {};
@@ -5077,43 +5333,33 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const res = r.ffa ? (r.score.place === 1 ? 'win' : 'loss') : r.result;
     const resLabel = r.ffa ? t('report_place', {n: r.score.place, of: r.score.of})
       : t(r.result === 'win' ? 'report_victory' : r.result === 'loss' ? 'report_defeat' : 'report_draw');
-    const score = r.ffa ? `${r.score.ally}<span class="sep">·</span>${esc(t('report_kills_word'))}`
-      : `${r.score.ally}<span class="sep">:</span>${r.score.enemy}`;
+    const score = r.ffa ? `<b>${r.score.ally}</b><span class="sep">·</span><small>${esc(t('report_kills_word'))}</small>`
+      : `<b class="a">${r.score.ally}</b><span class="sep">:</span><b class="e">${r.score.enemy}</b>`;
     const when = r.startedAt ? new Date(r.startedAt).toLocaleString(LOCALE, {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : '';
     const meta = [QUEUE_NAMES[r.queue] || r.queue, r.durationMs ? t('report_minutes', {n: Math.round(r.durationMs / 60000)}) : '',
       r.rounds && !r.ffa ? t('report_rounds_n', {n: r.rounds}) : '', when].filter(Boolean);
     const ag = rpAgent(me.agent);
     const avg = r.myAvg || null;
-    const byAcs = r.players.slice().sort((a, b) => (b.acs || 0) - (a.acs || 0));
-    const place = byAcs.findIndex(p => p.me) + 1;
-    const stat = (lbl, val, delta) => `<div class="rp-stat"><div class="lbl">${lbl}</div><div class="val">${val}</div>${delta || ''}</div>`;
+    const byRating = r.players.slice().sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const place = byRating.findIndex(p => p.me) + 1;
+    const grade = rpGrade(me.rating);
+    const ringP = me.rating == null ? 0 : Math.max(0.04, Math.min(1, (me.rating - 0.5) / 1.1));
+    const stat = (lbl, val, delta, sub) => `<div class="rp-stat"><div class="lbl">${lbl}</div><div class="val">${val}${delta || ''}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
     const stats = [
-      stat('K / D / A', `${me.kills}/${me.deaths}/${me.assists}`,
-        `<div class="delta">K/D ${rpNum(me.kd, 2)}</div>${avg ? rpDelta(me.kd, avg.kd, 2) : ''}`),
+      stat('K / D / A', `${me.kills}/${me.deaths}/${me.assists}`, '', `K/D ${rpNum(me.kd, 2)} ${avg ? rpDelta(me.kd, avg.kd, 2) : ''}`),
       stat('ACS', rpNum(me.acs), avg ? rpDelta(me.acs, avg.acs, 0) : ''),
       stat('ADR', rpNum(me.adr), avg ? rpDelta(me.adr, avg.adr, 0) : ''),
       stat('HS%', me.hs == null ? '—' : rpNum(me.hs, 1) + '%', avg ? rpDelta(me.hs, avg.hs, 1) : ''),
       stat('KAST', me.kast == null ? '—' : me.kast + '%'),
-      stat('First Kills', `${me.fk || 0}`, `<div class="delta">${esc(t('report_fd_n', {n: me.fd || 0}))}</div>`),
-      stat('Multikills', `${(me.mk3 || 0) + (me.mk4 || 0) + (me.ace || 0)}`, `<div class="delta">3K ${me.mk3 || 0} · 4K ${me.mk4 || 0} · ACE ${me.ace || 0}</div>`),
-      stat('Econ', rpNum(me.econ), `<div class="delta">${esc(t('report_econ_hint'))}</div>`)
+      stat('First Kills', `${me.fk || 0}`, '', esc(t('report_fd_n', {n: me.fd || 0}))),
+      stat('Multikills', `${(me.mk3 || 0) + (me.mk4 || 0) + (me.ace || 0)}`, '', `3K ${me.mk3 || 0} · 4K ${me.mk4 || 0} · ACE ${me.ace || 0}`),
+      stat('Econ', rpNum(me.econ), '', esc(t('report_econ_hint')))
     ].join('');
     const hl = (r.highlights || []).map(rpHighlight).join('') || `<span class="none">${esc(t('report_no_highlights'))}</span>`;
-    let tl = '', lastSide = null;
-    (r.timeline || []).forEach(rd => {
-      if(lastSide && rd.side !== lastSide) tl += '<span class="rp-half"></span>';
-      lastSide = rd.side;
-      const how = t('report_how_' + rd.how);
-      const tip = `${t('report_round_n', {n: rd.n})} · ${how} · ${t(rd.side === 'atk' ? 'report_attack' : 'report_defense')} · ${RP_BUY[rd.buy] || ''}`
-        + (rd.myKills ? ` · ${t('report_your_kills', {n: rd.myKills})}` : '') + (rd.myDied ? ` · ${t('report_you_died')}` : '');
-      tl += `<div class="rp-rd ${rd.win} ${rd.myDied ? 'died' : ''} ${rd.ceremony ? 'cer' : ''}" title="${esc(tip)}">
-        ${RP_HOW_ICON[rd.how] || ''}<div class="k">${'<i></i>'.repeat(Math.min(5, rd.myKills || 0))}</div><span class="n">${rd.n}</span></div>`;
-    });
     const sideBox = (lbl, pair) => {
       const pct = pair && pair[1] ? Math.round(pair[0] / pair[1] * 100) : 0;
-      return `<div class="rp-side"><div class="lbl">${lbl}</div><div class="val">${pair ? pair[0] + ' / ' + pair[1] : '—'}</div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+      return `<div class="rp-side"><div class="lbl">${lbl}</div><div class="val">${pair ? pair[0] + '<small> / ' + pair[1] + '</small>' : '—'}</div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
     };
-    // Runden nach Kaufart deines Teams (aus dem Rundenverlauf)
     const econ = ['pistol', 'eco', 'half', 'full'].map(k => {
       const rs = (r.timeline || []).filter(x => x.buy === k);
       return rs.length ? {k, won: rs.filter(x => x.win === 'ally').length, n: rs.length} : null;
@@ -5121,50 +5367,55 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const econHtml = !r.ffa && econ.length ? `<div class="rp-econ"><div class="sub">${esc(t('report_buy_title'))}</div>${econ.map(e =>
       `<div class="rp-econ-row"><span class="lbl">${RP_BUY[e.k]}</span><div class="bar"><i style="width:${Math.round(e.won / e.n * 100)}%"></i></div><b>${e.won}/${e.n}</b></div>`).join('')}</div>` : '';
     const allies = r.players.filter(p => p.ally), enemies = r.players.filter(p => !p.ally);
+    const tint = ag.info && ag.info.tint ? ag.info.tint : 'var(--accent)';
     return `
-      <section class="rp-hero ${res}">
+      <section class="rp-hero ${res}" style="--tint:${esc(tint)}">
         ${mi && mi.splash ? `<div class="rp-bg" style="background-image:url('${esc(mi.splash)}')"></div>` : ''}
         <div class="rp-shade"></div>
+        ${ag.info && ag.info.art ? `<div class="rp-hero-art" style="background-image:url('${esc(ag.info.art)}')"></div>` : ''}
+        ${ag.info && ag.info.portrait ? `<img class="rp-hero-agent" src="${esc(ag.info.portrait)}" alt="">` : ''}
+        <button type="button" class="rp-back" data-report-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
         <div class="rp-hero-inner">
-          <div>
+          <div class="rp-hero-main">
             <div class="rp-eyebrow"><span class="dot"></span>${esc(t('report_title'))}${mi ? ' · ' + esc(mi.name) : ''}</div>
             <div class="rp-result">${esc(resLabel)}</div>
             <div class="rp-score">${score}</div>
             <div class="rp-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
           </div>
-          <button type="button" class="rp-back" data-report-close>${svgIcon('arrow-left', 14)}<span>${esc(t('report_back_lobby'))}</span></button>
+          <div class="rp-hero-me">
+            <div class="rp-me-name">${esc(me.name || '')}${me.mvp ? `<span class="rp-badge ${me.mvp === 'team' ? 'team' : ''}">${RP_HL_ICON.mvp}${esc(t(me.mvp === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>` : ''}</div>
+            <div class="rp-me-sub">${esc(ag.name)}${ag.info && ag.info.role ? ' · ' + esc(ag.info.role) : ''}</div>
+            <div class="rp-me-kda"><b>${me.kills}</b><i>/</i><b>${me.deaths}</b><i>/</i><b>${me.assists}</b><span>ACS ${rpNum(me.acs)}</span></div>
+          </div>
         </div>
       </section>
       <div class="rp-grid">
-        <div class="rp-card">
-          <h3>${esc(t('report_your_game'))}${place ? `<small>${esc(t('report_place_acs', {n: place, of: r.players.length}))}</small>` : ''}</h3>
-          <div class="rp-me">
-            <div class="rp-portrait">${ag.info && ag.info.portrait ? `<img src="${esc(ag.info.portrait)}" alt="">` : ''}</div>
-            <div style="min-width:0">
-              <div class="rp-name">${esc(me.name || '')}</div>
-              <div class="rp-agent">${esc(ag.name)}${ag.info && ag.info.role ? ' · ' + esc(ag.info.role) : ''}</div>
-              <div class="rp-rating"><b>${rpNum(me.rating, 2)}</b><span class="lbl" title="${esc(t('report_rating_tip'))}">Rating</span>
-                ${me.mvp ? `<span class="rp-badge ${me.mvp === 'team' ? 'team' : ''}">★ ${esc(t(me.mvp === 'team' ? 'report_team_mvp' : 'report_mvp'))}</span>` : ''}</div>
+        <div class="rp-card rp-perf">
+          <h3>${esc(t('report_perf_title'))}${avg ? `<small>${esc(t('report_avg_note', {n: avg.games}))}</small>` : ''}</h3>
+          <div class="rp-perf-head">
+            <div class="rp-ring g-${grade.toLowerCase()}">
+              <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" pathLength="100" style="stroke-dasharray:${(ringP * 100).toFixed(1)} 100"/></svg>
+              <div class="in"><b>${grade}</b><span>${rpPct(me.rating)}</span></div>
+            </div>
+            <div class="rp-perf-text">
+              <div class="big">${esc(rpPerfLine(me.rating))}</div>
+              ${place ? `<div class="sub">${esc(t('report_perf_place', {n: place, of: r.players.length}))}</div>` : ''}
+              <div class="explain">${esc(t('report_perf_explain'))}</div>
             </div>
           </div>
+          ${rpLobbyStrip(r)}
           <div class="rp-stats">${stats}</div>
-          <div class="rp-note">${esc(t('report_rating_tip'))}${avg ? ' · ' + esc(t('report_vs_avg', {n: avg.games})) : ''}</div>
         </div>
-        <div class="rp-card">
+        <div class="rp-card rp-hlcard">
           <h3>${esc(t('report_highlights'))}</h3>
           <div class="rp-hl">${hl}</div>
           ${r.ffa ? '' : `<div class="rp-sides">${sideBox(esc(t('report_attack')), r.sides && r.sides.atk)}${sideBox(esc(t('report_defense')), r.sides && r.sides.def)}${sideBox('Pistol', r.sides && r.sides.pistol)}</div>`}
           ${econHtml}
         </div>
       </div>
-      ${r.timeline && r.timeline.length ? `<div class="rp-card">
-        <h3>${esc(t('report_timeline'))}<small>${esc(t('report_timeline_hint'))}</small></h3>
-        <div class="rp-tl">${tl}</div>
-        <div class="rp-legend">
-          <span>${RP_HOW_ICON.elim}${esc(t('report_how_elim'))}</span><span>${RP_HOW_ICON.bomb}${esc(t('report_how_bomb'))}</span>
-          <span>${RP_HOW_ICON.defuse}${esc(t('report_how_defuse'))}</span><span>${RP_HOW_ICON.time}${esc(t('report_how_time'))}</span>
-          <span><i class="kd"></i>${esc(t('report_legend_kill'))}</span>
-        </div>
+      ${r.timeline && r.timeline.length ? `<div class="rp-card rp-flowcard">
+        <h3>${esc(t('report_flow_title'))}<small>${esc(t('report_flow_hint'))}</small></h3>
+        ${rpFlow(r)}
       </div>` : ''}
       <div class="rp-card">
         <h3>Scoreboard</h3>
@@ -9534,7 +9785,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0-dev2";
+const CURRENT_VERSION = "2.5.0-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
