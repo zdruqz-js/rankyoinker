@@ -335,6 +335,7 @@
     "pair_no_device_yet": "No device connected yet.",
     "pair_title": "Connect Phone",
     "pair_scan_instructions": "Scan the code with your phone's camera. It needs to be on the same WiFi network as this PC. The code is single-use and expires after 5 minutes.",
+    "pair_home_wifi_hint": "Only pair on your own WiFi – on public networks (café, hotel, campus) others could read the connection.",
     "pair_new_code_btn": "Generate new code",
     "pair_generate_code_btn": "Generate code",
     "pair_unpair_all_btn": "Unpair all",

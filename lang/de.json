@@ -335,6 +335,7 @@
     "pair_no_device_yet": "Noch kein Gerät verbunden.",
     "pair_title": "Handy verbinden",
     "pair_scan_instructions": "Scanne den Code mit der Kamera deines Handys. Es muss im selben WLAN hängen wie dieser PC. Der Code gilt nur einmal und läuft nach 5 Minuten ab.",
+    "pair_home_wifi_hint": "Nur im eigenen WLAN koppeln – in öffentlichen Netzen (Café, Hotel, Uni) könnten andere die Verbindung mitlesen.",
     "pair_new_code_btn": "Neuen Code erzeugen",
     "pair_generate_code_btn": "Code erzeugen",
     "pair_unpair_all_btn": "Alle entkoppeln",

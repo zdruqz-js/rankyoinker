@@ -334,6 +334,7 @@
     "pair_no_device_yet": "Todavía no hay ningún dispositivo conectado.",
     "pair_title": "Conectar el móvil",
     "pair_scan_instructions": "Escanea el código con la cámara de tu móvil. Debe estar en la misma red Wi-Fi que este PC. El código es de un solo uso y caduca a los 5 minutos.",
+    "pair_home_wifi_hint": "Vincula solo en tu propia red Wi-Fi: en redes públicas (cafetería, hotel, campus) otros podrían leer la conexión.",
     "pair_new_code_btn": "Generar nuevo código",
     "pair_generate_code_btn": "Generar código",
     "pair_unpair_all_btn": "Desvincular todo",

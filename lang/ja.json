@@ -334,6 +334,7 @@
     "pair_no_device_yet": "接続されたデバイスはまだありません。",
     "pair_title": "スマホを接続",
     "pair_scan_instructions": "スマホのカメラでコードを読み取ってください。このPCと同じWi-Fiに接続している必要があります。コードは1回限りで、5分で期限切れになります。",
+    "pair_home_wifi_hint": "ペアリングは自分のWi-Fiだけで – 公共のネットワーク（カフェ・ホテル・学校）では通信を盗み見られる可能性があります。",
     "pair_new_code_btn": "新しいコードを生成",
     "pair_generate_code_btn": "コードを生成",
     "pair_unpair_all_btn": "すべて接続解除",

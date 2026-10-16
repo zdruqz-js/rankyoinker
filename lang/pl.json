@@ -335,6 +335,7 @@
     "pair_no_device_yet": "Jeszcze żadne urządzenie nie zostało połączone.",
     "pair_title": "Połącz telefon",
     "pair_scan_instructions": "Zeskanuj kod aparatem telefonu. Musi być podłączony do tej samej sieci Wi-Fi co ten komputer. Kod jest jednorazowy i wygasa po 5 minutach.",
+    "pair_home_wifi_hint": "Paruj tylko w swojej sieci Wi-Fi – w sieciach publicznych (kawiarnia, hotel, uczelnia) inni mogliby podsłuchać połączenie.",
     "pair_new_code_btn": "Wygeneruj nowy kod",
     "pair_generate_code_btn": "Wygeneruj kod",
     "pair_unpair_all_btn": "Odłącz wszystkie",

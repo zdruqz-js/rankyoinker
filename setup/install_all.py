@@ -25,8 +25,10 @@ nicht mehr normal beenden.
 
 Die Firewall-Freigabe gilt NUR fuer das private Netzprofil und nur fuer
 Adressen aus dem eigenen Subnetz. Sie oeffnet TCP 1101 (Log-Server, liefert
-die Seite aus) und TCP 1100 (WebSocket von vry.exe). Ohne Kopplung ueber den
-QR-Code kommt trotzdem kein fremdes Geraet an die Daten.
+die Seite aus). Ohne Kopplung ueber den QR-Code kommt trotzdem kein fremdes
+Geraet an die Daten. TCP 1100 (WebSocket von vry.exe) war bis 2.5.2 ebenfalls
+freigegeben - seit 2.5.3 lauscht der nur noch auf 127.0.0.1 (das Handy holt die
+Daten ueber den Log-Server), die alte Regel wird beim Update entfernt.
 """
 
 import ctypes
@@ -270,14 +272,9 @@ def adminstep():
     ])
     log("  adminstep - Firewall-Regel 1101 rc=%s" % rc)
 
-    run(["netsh", "advfirewall", "firewall", "delete", "rule", "name=%s" % FWWS])
-    rc = run([
-        "netsh", "advfirewall", "firewall", "add", "rule",
-        "name=%s" % FWWS, "dir=in", "action=allow", "protocol=TCP", "localport=1100",
-        "profile=private", "remoteip=LocalSubnet",
-        "description=vRY Overlay: WebSocket von vry.exe fuer Handys im eigenen Netz",
-    ])
-    log("  adminstep - Firewall-Regel 1100 rc=%s" % rc)
+    # Seit 2.5.3 nicht mehr noetig (WebSocket nur noch auf 127.0.0.1) - alte Regel weg
+    rc = run(["netsh", "advfirewall", "firewall", "delete", "rule", "name=%s" % FWWS])
+    log("  adminstep - alte Firewall-Regel 1100 entfernt rc=%s" % rc)
     log("  adminstep - fertig")
 
 
@@ -286,7 +283,7 @@ def step3_hosts_and_firewall():
     need_admin = (
         bool(hosts_missing_entries())
         or not firewall_rule_exists(FWLOG)
-        or not firewall_rule_exists(FWWS)
+        or firewall_rule_exists(FWWS)
     )
     log("  Check fertig, need_admin=%s" % need_admin)
 
@@ -318,11 +315,8 @@ def step3_hosts_and_firewall():
             if not firewall_rule_exists(FWLOG):
                 print("      Firewall: FEHLGESCHLAGEN - Port 1101 ist nicht freigegeben.")
                 no_fw = True
-            elif not firewall_rule_exists(FWWS):
-                print("      Firewall: FEHLGESCHLAGEN - Port 1100 ist nicht freigegeben.")
-                no_fw = True
             else:
-                print("      Firewall: Port 1100 und 1101 im privaten Netz freigegeben.")
+                print("      Firewall: Port 1101 im privaten Netz freigegeben.")
 
     log("Schritt 3/4: fertig (no_admin=%s no_fw=%s)" % (no_admin, no_fw))
     return no_admin, no_fw
