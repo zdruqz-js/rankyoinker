@@ -334,6 +334,7 @@
     "pair_no_device_yet": "Henüz hiçbir cihaz bağlanmadı.",
     "pair_title": "Telefonu bağla",
     "pair_scan_instructions": "Kodu telefonunun kamerasıyla tara. Telefon bu bilgisayarla aynı kablosuz ağda olmalı. Kod yalnızca bir kez kullanılabilir ve 5 dakika sonra süresi dolar.",
+    "pair_home_wifi_hint": "Yalnızca kendi Wi-Fi ağında eşleştir – halka açık ağlarda (kafe, otel, kampüs) başkaları bağlantıyı okuyabilir.",
     "pair_new_code_btn": "Yeni kod oluştur",
     "pair_generate_code_btn": "Kod oluştur",
     "pair_unpair_all_btn": "Tümünün eşleşmesini kaldır",

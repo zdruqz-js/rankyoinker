@@ -2019,6 +2019,8 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .pair-wrap{padding:30px 30px 26px; text-align:center;}
 .pair-wrap h3{font-size:24px; font-weight:800; letter-spacing:-.03em; margin:0 0 8px;}
 .pair-sub{margin:0 auto 22px; max-width:420px; font-size:14px; line-height:1.6; color:var(--text-2);}
+.pair-sub.pair-warn{display:flex; align-items:flex-start; justify-content:center; gap:6px; margin-top:-14px; font-size:12px; line-height:1.5; color:var(--text-3);}
+.pair-sub.pair-warn svg{flex:0 0 auto; margin-top:3px;}
 .qr-frame{position:relative; display:inline-block; padding:16px; border-radius:22px; background:#fff; line-height:0;
   box-shadow:0 0 0 6px rgba(255,255,255,.06), 0 30px 60px -20px rgba(0,0,0,.9), 0 0 60px -10px rgba(216,184,124,.4); animation:popIn .6s var(--spring) both;}
 .qr-frame svg{display:block; width:min(236px, 58vw); height:auto; image-rendering:pixelated;}
@@ -3556,7 +3558,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   const statusCardText = document.getElementById('statusCardText');
   const appEl = document.getElementById('app');
 
-  document.getElementById('statusCardAddr').textContent = `ws://${NET_HOST}:${port}`;
+  document.getElementById('statusCardAddr').textContent = ON_PHONE ? `${location.host}/api/live` : `ws://${NET_HOST}:${port}`;
 
   // ---------- Kein Start/Stopp mehr von Hand ----------
   // vry.exe hängt jetzt am VALORANT-Prozess: Der Log-Server startet es, sobald
@@ -3937,7 +3939,16 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     return msg;
   }
 
+  function onVryMessage(msg){
+    if(!msg) return;
+    if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
+    else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
+  }
   function connectWS(){
+    // Seit 2.5.3 ist der WebSocket von vry.exe nur noch am PC selbst erreichbar (vorher
+    // konnte jede Webseite und jedes Geraet im WLAN mitlesen). Das Handy holt dieselben
+    // Daten ueber den Dienst (/api/live, mit Kopplung).
+    if(ON_PHONE){ setTimeout(startLivePoll, 0); return; }   // erst nach LOG_URL (steht weiter unten)
     clearTimeout(reconnectTimer);
     try{ if(ws) ws.close(); }catch(e){}
     try{ ws = new WebSocket(`ws://${NET_HOST}:${port}`); }
@@ -3946,10 +3957,40 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     ws.onmessage = (evt) => {
       let msg;
       try{ msg = JSON.parse(evt.data); }catch(e){ return; }
-      if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
-      else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
+      onVryMessage(msg);
     };
     ws.onclose = () => { setConnState('off'); scheduleReconnect(); };
+  }
+  let livePolling = false;
+  async function startLivePoll(){
+    if(livePolling) return;
+    livePolling = true;
+    let seq = -1, first = true;
+    for(;;){
+      try{
+        const r = await fetch(LOG_URL + '/api/live?since=' + seq + '&wait=' + (first ? 0 : 15), {cache: 'no-store'});
+        const j = await r.json();
+        if(!j || !j.ok) throw new Error('live');
+        if(!j.running){
+          // vry.exe laeuft nicht (VALORANT zu) - wie ein geschlossener WebSocket
+          if(connState !== 'off') setConnState('off');
+          seq = -1; first = true;
+          await new Promise(res => setTimeout(res, 2000));
+          continue;
+        }
+        if(first){ setConnState('wait'); first = false; }
+        if(j.seq !== seq){
+          seq = j.seq;
+          onVryMessage(j.version);
+          // vry.exe neu gestartet (noch kein Heartbeat) - wie ein neuer WebSocket
+          if(!j.heartbeat && connState === 'live') setConnState('wait');
+          onVryMessage(j.heartbeat);
+        }
+      }catch(e){
+        setConnState('off'); first = true; seq = -1;
+        await new Promise(res => setTimeout(res, 1500));
+      }
+    }
   }
   function scheduleReconnect(){ clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connectWS, 1000); }
   connectWS();
@@ -7848,7 +7889,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       btn.classList.add('busy');
       label.textContent = t('leaving_match_label');
       toast('busy', t('toast_leaving_match'), t('toast_sending_dodge'), {id:'dodge', dur:0});
-      fetch(LOG_URL + '/api/dodge', {cache:'no-store'})
+      // seit 2.5.3 nur per POST (als GET konnte jede Webseite per <img> dodgen)
+      fetch(LOG_URL + '/api/dodge', {method: 'POST', cache: 'no-store', headers: {'Content-Type': 'text/plain'}, body: '{}'})
         .then(r => r.json())
         .then(j => {
           if(j.ok) toast('success', t('toast_match_dodged'), t('toast_out_of_agent_select'), {id:'dodge'});
@@ -8213,6 +8255,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
        <div class="pair-wrap">
          <h3>${t('pair_title')}</h3>
          <p class="pair-sub">${t('pair_scan_instructions')}</p>
+         <p class="pair-sub pair-warn">${svgIcon('shield', 12)}${t('pair_home_wifi_hint')}</p>
          ${head}
          <div class="pair-actions">
            <button class="pbtn go" id="pairNew">${svgIcon('refresh', 12)}${s.pending ? t('pair_new_code_btn') : t('pair_generate_code_btn')}</button>
@@ -10524,7 +10567,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.2";
+const CURRENT_VERSION = "2.5.3-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

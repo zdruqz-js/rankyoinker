@@ -334,6 +334,7 @@
     "pair_no_device_yet": "Nenhum dispositivo conectado ainda.",
     "pair_title": "Conectar celular",
     "pair_scan_instructions": "Escaneie o código com a câmera do celular. Ele precisa estar na mesma rede Wi-Fi deste PC. O código vale uma vez e expira em 5 minutos.",
+    "pair_home_wifi_hint": "Pareie só no seu próprio Wi-Fi – em redes públicas (café, hotel, faculdade) outras pessoas poderiam ler a conexão.",
     "pair_new_code_btn": "Gerar novo código",
     "pair_generate_code_btn": "Gerar código",
     "pair_unpair_all_btn": "Desconectar todos",

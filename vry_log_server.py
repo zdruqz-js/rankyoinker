@@ -38,6 +38,7 @@ import glob
 import gzip
 import hashlib
 import hmac
+import ipaddress
 import collections
 import itertools
 import json
@@ -524,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.2"
+APP_VERSION = "2.5.3-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1065,7 +1066,7 @@ def check_pending_update():
     report_error("self-update", msg)
 
 
-def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, script, appdir):
+def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, script, appdir, sha256=""):
     """PowerShell-Warteskript fuer das Selbst-Update (siehe _trigger_self_update).
 
     Laeuft unter Windows PowerShell 5.1 - also keine PS7-Syntax (kein ?:, ??, &&).
@@ -1081,6 +1082,23 @@ def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, scr
         "L ('Update gestartet, warte auf PID %d...')" % int(pid),
         "try { Wait-Process -Id %d -Timeout 30 -ErrorAction Stop } catch { }" % int(pid),
         "if (Get-Process -Id %d -ErrorAction SilentlyContinue) { L 'Alter Prozess laeuft nach 30 s noch - beende ihn hart.'; Stop-Process -Id %d -Force }" % (int(pid), int(pid)),
+        # Seit 2.5.3: Hash DIREKT vor dem Start noch einmal pruefen - die Datei liegt in einem
+        # Ordner, den jedes Programm des Nutzers beschreiben darf, und der Installer laeuft
+        # danach mit Admin-Rechten. Passt er nicht mehr: nichts starten, Dienst wieder hoch.
+        "$want = %s" % q(str(sha256 or "").lower()),
+        "if ($want) {",
+        "  $have = ''",
+        "  try { $have = (Get-FileHash -LiteralPath %s -Algorithm SHA256).Hash.ToLower() } catch { }" % q(installer),
+        "  if ($have -ne $want) {",
+        "    L ('ABBRUCH: Installer nach der Pruefung veraendert (' + $have + ') - nichts gestartet.')",
+        "    Remove-Item -LiteralPath %s -Force -ErrorAction SilentlyContinue" % q(installer),
+        "    if ((Test-Path -LiteralPath %s) -and (Test-Path -LiteralPath %s)) { Start-Process -FilePath %s -ArgumentList ('\"' + %s + '\"') -WorkingDirectory %s }" % (
+            q(pythonw), q(script), q(pythonw), q(script), q(appdir)),
+        "    Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue",
+        "    exit",
+        "  }",
+        "  L 'Hash direkt vor dem Start erneut geprueft - passt.'",
+        "}",
         "L ('Alter Prozess beendet, starte Installer (' + %s + ')...')" % q(installer),
         # /CLOSEAPPLICATIONS: der Restart Manager schliesst auch fremde Prozesse,
         # die Dateien in {app} offen halten (still sonst: Abbruch ohne Meldung)
@@ -1253,7 +1271,7 @@ def _trigger_self_update():
     waiter_path = os.path.join(DATA_DIR, "rankyoinker-update-wait.ps1")
     _write_update_pending(version)
     waiter_script = _update_waiter_ps1(my_pid, tmp_path, version, log_path, setup_log,
-                                       pythonw_path, script_path, BASE)
+                                       pythonw_path, script_path, BASE, sha256=actual)
 
     try:
         # utf-8-sig: Windows PowerShell 5.1 liest .ps1 ohne BOM als ANSI -
@@ -5301,6 +5319,35 @@ def problem_report_send(text, contact, include_log):
         return {"ok": False, "error": "offline", "detail": type(e).__name__}
 
 
+# ============================ Live-Daten fuers Handy (2.5.3) ============================
+# vry.exe schickt Spieler-Daten per WebSocket (Port 1100). Bis 2.5.2 lauschte der im
+# ganzen Netz ohne Anmeldung - jede Webseite und jedes Geraet im WLAN konnte Daten und
+# Ingame-Chat mitlesen. Seit 2.5.3 nur noch 127.0.0.1 mit Origin-Pruefung; vry.exe legt
+# Version + letzten Heartbeat zusaetzlich in DATA_DIR/live.json ab (src/server.py), und
+# das Handy holt sie hier ueber /api/live (gekoppelt, Long-Polling).
+LIVE_FILE = os.path.join(DATA_DIR, "live.json")
+LIVE_MAX_WAIT = 20.0
+_live_running = {"at": 0.0, "v": False}
+
+
+def _live_vry_running():
+    now = time.time()
+    if now - _live_running["at"] > 3.0:
+        _live_running.update(at=now, v=vry_running())
+    return _live_running["v"]
+
+
+def live_state(since, wait):
+    deadline = time.time() + max(0.0, min(float(wait or 0), LIVE_MAX_WAIT))
+    while True:
+        d = _load_json(LIVE_FILE) or {}
+        seq = d.get("seq") if isinstance(d.get("seq"), int) else 0
+        if seq != since or time.time() >= deadline:
+            return {"ok": True, "seq": seq, "running": _live_vry_running(),
+                    "version": d.get("version"), "heartbeat": d.get("heartbeat")}
+        time.sleep(0.25)
+
+
 # ============================ Bildspeicher (2.5.1) ============================
 # Grosse Bilder (Kartenbilder, Agenten-Portraits, Champion-Splashs) holt das Overlay
 # ueber /img?u=<Adresse> vom Dienst statt direkt vom CDN: gleiche Herkunft wie die
@@ -8621,6 +8668,7 @@ def _lol_record_encounter_now():
 # ein, und Tray/Desktop-Symbol (overlay_url) oeffnen genau diese Adresse. Fehlte bis
 # 2.5.0-dev5 - von dort wurde jeder POST (Instalock, Agent waehlen, Update ...) abgelehnt.
 _ORIGIN_OK = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\]|vry|rankyoinker)(:\d+)?$", re.I)
+_HOST_NAMES_OK = {"localhost", "127.0.0.1", "[::1]", "vry", "rankyoinker"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -8630,18 +8678,14 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _cors(self):
-        """Freigabe nur fuer die eigene Seite. 'null' deckt den Aufruf von
-        index.html per file:// ab — dort gibt es keine Cookies, der Zugriff
-        laeuft dann ueber die Localhost-Regel."""
+        """Freigabe nur fuer die eigene Seite. 'null' (file://, aber auch jede
+        Webseite mit sandboxed iframe) bekommt seit 2.5.3 keine Freigabe mehr."""
         origin = self.headers.get("Origin")
         if not origin:
             return
         if _ORIGIN_OK.match(origin):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Credentials", "true")
-            self.send_header("Vary", "Origin")
-        elif origin == "null":
-            self.send_header("Access-Control-Allow-Origin", "null")
             self.send_header("Vary", "Origin")
 
     def _send(self, code, body):
@@ -8684,11 +8728,40 @@ class Handler(BaseHTTPRequestHandler):
         Webseite aus missbrauchen, praktisch Remote Code Execution
         (Community-Sicherheitsbericht, 2026-09-28).
         Erlaubt: kein Origin-Header (kommt von einem echten Browser-POST
-        praktisch nie vor, nur von curl/Tools), "null" (index.html per
-        file:// geoeffnet, siehe _cors()), und unsere eigenen Origins
-        (_ORIGIN_OK - localhost/127.0.0.1/vry, jeder Port)."""
+        praktisch nie vor, nur von curl/Tools) und unsere eigenen Origins
+        (_ORIGIN_OK - localhost/127.0.0.1/vry/rankyoinker, jeder Port)."""
         origin = self.headers.get("Origin")
-        return (not origin) or origin == "null" or bool(_ORIGIN_OK.match(origin))
+        # "null" (Seite per file:// geoeffnet) war bis 2.5.2 erlaubt - den Origin kann aber
+        # JEDE Webseite erzeugen (sandboxed iframe, data:-URL) und damit den Dienst
+        # fernsteuern und auslesen (Sicherheitspruefung 2026-10-17). Seit 2.5.3 nicht mehr.
+        return (not origin) or bool(_ORIGIN_OK.match(origin))
+
+    def _host_ok(self):
+        """Gegen DNS-Rebinding (seit 2.5.3): Eine fremde Webseite kann ihren eigenen
+        Namen auf 127.0.0.1 zeigen lassen - ihre GET-Anfragen kommen dann ohne Origin
+        vom PC selbst und galten als eigene Seite. Erlaubt sind nur unsere Namen und
+        IP-Adressen (die lassen sich nicht per DNS umbiegen; das Handy kommt per IP)."""
+        host = (self.headers.get("Host") or "").strip().lower()
+        if not host:
+            return True                      # kein Browser (Browser schicken immer Host)
+        if host.startswith("["):
+            name = host.split("]", 1)[0] + "]"
+        else:
+            name = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+        if name in _HOST_NAMES_OK:
+            return True
+        try:
+            ipaddress.ip_address(name.strip("[]"))
+            return True
+        except ValueError:
+            return False
+
+    def _host_check(self):
+        if self._host_ok():
+            return True
+        self.close_connection = True
+        self._json({"ok": False, "error": "Unbekannter Host - abgelehnt."}, 403)
+        return False
 
     def _origin_trusted(self):
         if self._origin_ok_silent():
@@ -8759,6 +8832,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         # Der Vorab-Check des Browsers darf nicht an der Kopplung scheitern
+        if not self._host_check():
+            return
         self.send_response(204)
         self._cors()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -8769,6 +8844,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if not self._host_check():
+            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -8802,6 +8879,8 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: party_action(action, body))
         elif path == "/api/problem-report":
             self._safe(lambda: problem_report_send(body.get("text"), body.get("contact"), bool(body.get("logs"))))
+        elif path == "/api/dodge":
+            self._safe(dodge_pregame)
         elif path == "/api/share/upload":
             q = urllib.parse.parse_qs(parsed.query)
             self._safe(lambda: share_upload(raw, (q.get("game") or [""])[0], (q.get("match") or [""])[0]))
@@ -8935,6 +9014,8 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         q = urllib.parse.parse_qs(parsed.query)
         is_page = path in ("/", "/index.html", "/vry")
+        if not self._host_check():
+            return
 
         # Lesezeichen-Symbol ist harmlos und muss auch ohne Kopplung kommen -
         # iOS holt das Home-Bildschirm-Icon teils ohne Cookies.
@@ -9192,12 +9273,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
 
         elif path == "/api/dodge":
+            # Seit 2.5.3 nur per POST: als GET reichte ein <img src=".../api/dodge"> auf
+            # einer beliebigen Webseite, um den Nutzer aus der Agentenauswahl zu werfen
+            self._json({"ok": False, "error": "Nur per POST."}, 405)
+
+        elif path == "/api/live":
+            # Live-Daten von vry.exe fuers Handy (seit 2.5.3): der WebSocket von vry.exe
+            # ist nur noch am PC selbst erreichbar, das Handy holt sie hier - mit Kopplung
             try:
-                self._json(dodge_pregame())
-            except RiotError as e:
-                self._json({"ok": False, "error": str(e)})
-            except Exception as e:
-                self._json({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
+                since = int((q.get("since") or ["-1"])[0])
+                wait = float((q.get("wait") or ["0"])[0])
+            except ValueError:
+                since, wait = -1, 0.0
+            self._json(live_state(since, wait))
 
         elif path == "/api/activegame":
             self._json(detect_active_game())

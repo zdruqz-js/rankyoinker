@@ -334,6 +334,7 @@
     "pair_no_device_yet": "Aucun appareil connecté pour l'instant.",
     "pair_title": "Connecter le téléphone",
     "pair_scan_instructions": "Scanne le code avec l'appareil photo de ton téléphone. Il doit être connecté au même réseau Wi-Fi que ce PC. Le code n'est valable qu'une fois et expire après 5 minutes.",
+    "pair_home_wifi_hint": "N’associe que sur ton propre Wi-Fi – sur un réseau public (café, hôtel, campus), d’autres pourraient lire la connexion.",
     "pair_new_code_btn": "Générer un nouveau code",
     "pair_generate_code_btn": "Générer un code",
     "pair_unpair_all_btn": "Tout déconnecter",
