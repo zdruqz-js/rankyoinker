@@ -5703,17 +5703,37 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   // wichtigsten Werte (ohne Note - auf Wunsch seit dev16) - unten RankYoinker-Logo + rankyoinker.de (Werbung, wenn es
   // jemand teilt). Bilder kommen von valorant-api.com (CORS *), sonst ohne Bild.
   const RP_BANNER_W = 1600, RP_BANNER_H = 900;
+  // media.valorant-api.com schickt die CORS-Freigabe nur bei Anfragen MIT Origin und ohne
+  // "Vary: Origin". Das Overlay zeigt dieselben Bilder vorher als normales Hintergrundbild -
+  // der Browser hatte die Antwort ohne Freigabe im Cache, das Banner bekam sie fuers Canvas
+  // nicht und fiel auf "ohne Bilder" zurueck (live, 2.5.0). Eigene Adresse = eigener Cache-Eintrag.
+  function rpCorsUrl(src){
+    return /^https:\/\/media\.valorant-api\.com\//.test(src) ? src + (src.includes('?') ? '&' : '?') + 'rycors=1' : src;
+  }
   function rpLoadImg(src){
     return new Promise(res => {
       if(!src) return res(null);
-      const im = new Image();
-      let done = false;
-      const fin = ok => { if(!done){ done = true; res(ok ? im : null); } };
-      im.crossOrigin = 'anonymous';
-      im.onload = () => fin(im.naturalWidth > 0);
-      im.onerror = () => fin(false);
-      setTimeout(() => fin(false), 9000);
-      im.src = src;
+      let done = false, blobUrl = null;
+      const fin = im => { if(!done){ done = true; res(im); } };
+      const show = (url, cors) => new Promise(ok => {
+        const im = new Image();
+        if(cors) im.crossOrigin = 'anonymous';
+        im.onload = () => ok(im.naturalWidth > 0 ? im : null);
+        im.onerror = () => ok(null);
+        im.src = url;
+      });
+      setTimeout(() => fin(null), 20000);      // Kartenbilder sind 1,5-7 MB
+      show(rpCorsUrl(src), true).then(async im => {
+        if(im) return fin(im);
+        // Zweite Sicherung: am Browser-Cache vorbei holen; eine blob:-Adresse ist eigene
+        // Herkunft und macht das Canvas nicht "tainted"
+        try{
+          const r = await fetch(rpCorsUrl(src), {mode: 'cors', cache: 'reload'});
+          if(!r.ok) return fin(null);
+          blobUrl = URL.createObjectURL(await r.blob());
+          fin(await show(blobUrl, false));
+        }catch(e){ fin(null); }
+      });
     });
   }
   function rpFitFont(x, text, weight, size, family, maxW){
@@ -10484,7 +10504,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.0";
+const CURRENT_VERSION = "2.5.1-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
