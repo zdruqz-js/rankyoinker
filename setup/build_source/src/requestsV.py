@@ -1,4 +1,5 @@
 import base64
+import collections
 import json
 import threading
 import time
@@ -50,8 +51,26 @@ PD_GATE_LOCKFILE = os.path.join(data_dir(), "pd-gate.lock")
 # stellt seine "Letzte 5"-Abfragen so lange zurueck (_pd_bulk_wait im Dienst)
 PD_HI_HOLD = 3.0
 _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "reason": "",
-            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0}
+            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0,
+            # Kontext fuer Sperren-Meldungen (seit 2.5.2, gleich wie im Dienst halten): eigene
+            # pd-Anfragen der letzten 60 s und die letzte eigene Sperre - der Dienst meldet sie
+            # mit seinem Fehlerbericht, vry.exe selbst schickt keinen
+            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": ""}
 _pd_lock = threading.Lock()
+PD_CTX_WINDOW = 60.0
+_pd_recent = collections.deque()          # (Zeitpunkt, Art) der eigenen pd-Anfragen
+
+
+def _pd_kind(url):
+    if "/match-details/" in url:
+        return "details"
+    if "/competitiveupdates" in url or "/match-history/" in url:
+        return "history"
+    if "/mmr/" in url:
+        return "mmr"
+    if "/name-service/" in url:
+        return "names"
+    return "other"
 
 
 _pd_shared_off = {"until": 0.0}
@@ -173,8 +192,16 @@ def pd_feedback(response, ticket, log):
     status = response.status_code if response is not None else None
     probe = ticket == "probe"
     msg = None
+    try:
+        kind = _pd_kind(str(getattr(response, "url", "") or ""))
+    except Exception:
+        kind = "other"
     with _PdState() as g:
         now = time.time()
+        _pd_recent.append((now, kind))
+        while _pd_recent and now - _pd_recent[0][0] > PD_CTX_WINDOW:
+            _pd_recent.popleft()
+        g["vry60"], g["vry60_at"] = len(_pd_recent), now
         if probe:
             g["probe_until"] = 0.0
         if is_cloudflare_block(response):
@@ -185,6 +212,10 @@ def pd_feedback(response, ticket, log):
                 g.update(strikes=strikes, last_block=now, blocked_until=now + pause,
                          need_probe=True, interval=PD_MAX_INTERVAL, reason="cloudflare")
                 msg = f"pd: {short_error(response)} - alle pd-Anfragen pausieren {int(pause)} s ({strikes}. in Folge)"
+                kinds = collections.Counter(k for _, k in _pd_recent)
+                g["vry_blk_at"] = now
+                g["vry_blk_msg"] = json.dumps({"st": status, "p": int(pause), "k": strikes, "ep": kind,
+                                               "kinds": dict(kinds.most_common(5))})
         elif status == 429:
             try:
                 wait = float(response.headers.get("Retry-After") or 0)
