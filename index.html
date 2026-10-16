@@ -3475,6 +3475,22 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   let agentById = {};     // uuid -> Anzeigename
   let agentBase = {};     // uuid -> true, wenn Standard-Agent (immer verfügbar)
 
+  // Grosse Bilder (Kartenbilder, Agenten-Portraits, Champion-Splashs) ueber den lokalen
+  // Dienst (/img, seit 2.5.1): gleiche Herkunft wie die Seite - kein CORS-Problem mehr im
+  // Teilen-Banner - und auf der Platte zwischengespeichert. Nicht in der Website-Demo.
+  const IMG_PROXY_RE = /^https:\/\/(media\.valorant-api\.com|cdn\.communitydragon\.org|raw\.communitydragon\.org)\//;
+  const IMG_BASE = /^https?:$/.test(location.protocol) ? '' : 'http://127.0.0.1:1101';
+  function imgUrl(u){
+    if(!u || (window.RY_DEMO && !window.RY_IMG_PROXY) || !IMG_PROXY_RE.test(u)) return u;   // RY_IMG_PROXY: nur fuer Tests
+    // auch ' ( ) kodieren - der Link steht oft in CSS url('...')
+    return IMG_BASE + '/img?u=' + encodeURIComponent(u).replace(/['()*!]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  }
+  // Original-Adresse eines /img-Links (fuer den Rueckfall direkt vom CDN)
+  function imgOrig(u){
+    const m = /\/img\?u=([^&]+)/.exec(u || '');
+    if(!m) return u;
+    try{ return decodeURIComponent(m[1]); }catch(e){ return u; }
+  }
   async function loadStaticGameData(){
     try{
       const [agentsRes, tiersRes, mapsRes] = await Promise.all([
@@ -3484,7 +3500,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       ]);
       ((mapsRes && mapsRes.data) || []).forEach(m => {
         if(m.mapUrl) mapNames[String(m.mapUrl).toLowerCase()] = m.displayName;
-        const mi = {name: m.displayName, splash: m.splash || m.listViewIcon || null, sites: m.tacticalDescription || ''};
+        const mi = {name: m.displayName, splash: imgUrl(m.splash || m.listViewIcon || null), sites: m.tacticalDescription || ''};
         if(m.mapUrl) mapInfo[String(m.mapUrl).toLowerCase()] = mi;
         if(m.displayName && !mapInfo[String(m.displayName).toLowerCase()]) mapInfo[String(m.displayName).toLowerCase()] = mi;
       });
@@ -3500,7 +3516,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         const g = (a.backgroundGradientColors || [])[0];
         agentMap[String(a.displayName).toLowerCase()] = {
           icon: a.displayIconSmall || a.displayIcon,
-          portrait: a.fullPortrait || a.bustPortrait || a.displayIcon,
+          portrait: imgUrl(a.fullPortrait || a.bustPortrait || a.displayIcon),
           role: a.role ? a.role.displayName : null,
           roleIcon: a.role ? a.role.displayIcon : null,
           art: a.background || null,
@@ -3766,7 +3782,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   function matchHeroHtml(state, mapRaw, mode, sub, rightHtml){
     const raw = String(mapRaw || '');
     const info = raw ? (mapInfo[raw.toLowerCase()] || null) : null;
-    const img = info && info.splash ? info.splash : (/^https?:\/\//.test(raw) ? raw : null);
+    const img = info && info.splash ? info.splash : (/^https?:\/\//.test(raw) ? imgUrl(raw) : null);
     const name = info ? info.name : (raw && !/^https?:|^\//.test(raw) ? raw : '');
     const title = name || (state === 'PREGAME' ? t('agent_select_title') : t('match_word'));
     const eyebrow = state === 'INGAME'
@@ -5723,7 +5739,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         im.src = url;
       });
       setTimeout(() => fin(null), 20000);      // Kartenbilder sind 1,5-7 MB
-      show(rpCorsUrl(src), true).then(async im => {
+      // 1. ueber den lokalen Dienst (gleiche Herkunft), 2. direkt vom CDN unter eigener Adresse,
+      // 3. direkt vom CDN am Browser-Cache vorbei
+      const proxied = src !== imgOrig(src);
+      src = imgOrig(src);
+      (proxied ? show(imgUrl(src), true) : Promise.resolve(null)).then(im => im || show(rpCorsUrl(src), true)).then(async im => {
         if(im) return fin(im);
         // Zweite Sicherung: am Browser-Cache vorbei holen; eine blob:-Adresse ist eigene
         // Herkunft und macht das Canvas nicht "tainted"
@@ -8797,7 +8817,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     const p = LOL_LANE_SVG[pos];
     return p ? `<svg class="lane-ic" width="${size || 16}" height="${size || 16}" viewBox="0 0 34 34" fill="currentColor" aria-hidden="true">${p}</svg>` : '';
   }
-  function lolChampSplash(id){ return id ? `https://cdn.communitydragon.org/latest/champion/${id}/splash-art/centered` : ''; }
+  function lolChampSplash(id){ return id ? imgUrl(`https://cdn.communitydragon.org/latest/champion/${id}/splash-art/centered`) : ''; }
   function lolSubJoin(parts){ return parts.filter(Boolean).join('<span class="dotsep"></span>'); }
   function lolQueueName(id){
     const q = id != null && lolQueuesCache && (lolQueuesCache.queues || []).find(x => x.id === id);
@@ -10504,7 +10524,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.1-dev1";
+const CURRENT_VERSION = "2.5.1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

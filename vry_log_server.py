@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.1-dev1"
+APP_VERSION = "2.5.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5225,6 +5225,146 @@ def problem_report_send(text, contact, include_log):
         return {"ok": False, "error": "offline", "detail": type(e).__name__}
 
 
+# ============================ Bildspeicher (2.5.1) ============================
+# Grosse Bilder (Kartenbilder, Agenten-Portraits, Champion-Splashs) holt das Overlay
+# ueber /img?u=<Adresse> vom Dienst statt direkt vom CDN: gleiche Herkunft wie die
+# Seite (kein CORS - live fehlten im Teilen-Banner Karte und Agent, weil
+# media.valorant-api.com die Freigabe nur mit Origin und ohne "Vary: Origin" schickt),
+# auf der Platte zwischengespeichert (schneller, offline, das Handy laedt uebers
+# Heimnetz). Nur diese drei Server, nur https, nur echte PNG/JPEG/WEBP/GIF (Magic
+# Bytes) - kein Umweg ins Internet, kein SVG (koennte Skript enthalten).
+IMG_HOSTS = ("media.valorant-api.com", "cdn.communitydragon.org", "raw.communitydragon.org")
+IMG_CACHE_DIR = os.path.join(DATA_DIR, "img-cache")
+IMG_CACHE_MAX = 300 * 1024 * 1024
+IMG_MAX_BYTES = 15 * 1024 * 1024
+IMG_URL_MAX = 400
+_img_sem = threading.Semaphore(6)
+_img_trim = {"next": 0.0}
+# CommunityDragon antwortet ohne Browser-User-Agent mit 403
+_IMG_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+
+def _img_allowed(u):
+    if not isinstance(u, str) or len(u) > IMG_URL_MAX:
+        return False
+    try:
+        p = urllib.parse.urlsplit(u)
+        port = p.port
+    except ValueError:
+        return False
+    return (p.scheme == "https" and p.hostname in IMG_HOSTS and not p.username and not p.password
+            and port in (None, 443) and not any(c in u for c in "\\\r\n\t "))
+
+
+def _img_type(data):
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    return None
+
+
+class _ImgRedirect(urllib.request.HTTPRedirectHandler):
+    """Weiterleitungen nur zu den erlaubten Servern (CDragon leitet um)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _img_allowed(newurl):
+            raise urllib.error.HTTPError(newurl, 403, "Weiterleitung nicht erlaubt", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _img_open(req, timeout):
+    handlers = [_ImgRedirect()]
+    try:
+        return urllib.request.build_opener(*handlers).open(req, timeout=timeout)
+    except urllib.error.URLError as e:
+        if _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
+            return urllib.request.build_opener(urllib.request.HTTPSHandler(context=_CERTIFI_CTX),
+                                               *handlers).open(req, timeout=timeout)
+        raise
+
+
+def _img_cache_trim():
+    now = time.time()
+    if now < _img_trim["next"]:
+        return
+    _img_trim["next"] = now + 60
+    try:
+        files = []
+        for name in os.listdir(IMG_CACHE_DIR):
+            path = os.path.join(IMG_CACHE_DIR, name)
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            files.append((st.st_mtime, st.st_size, path))
+        total = sum(f[1] for f in files)
+        if total <= IMG_CACHE_MAX:
+            return
+        for mtime, size, path in sorted(files):          # am laengsten unbenutzt zuerst
+            try:
+                os.remove(path)
+            except OSError:
+                continue
+            total -= size
+            if total <= IMG_CACHE_MAX * 0.8:
+                break
+    except OSError:
+        pass
+
+
+def img_get(u):
+    """(Bytes, Content-Type) fuer eine erlaubte Bildadresse - aus dem Speicher oder
+    einmal vom CDN geholt. None, wenn nicht erlaubt oder nicht zu bekommen."""
+    if not _img_allowed(u):
+        return None
+    key = hashlib.sha256(u.encode("utf-8")).hexdigest()
+    path = os.path.join(IMG_CACHE_DIR, key)
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        t = _img_type(data)
+        if t:
+            try:
+                os.utime(path, None)                       # zuletzt benutzt (fuers Aufraeumen)
+            except OSError:
+                pass
+            return data, t
+    except OSError:
+        pass
+
+    def fetch():
+        try:
+            with _img_sem:
+                req = urllib.request.Request(u, headers={"User-Agent": _IMG_UA, "Accept": "image/*"})
+                with _img_open(req, 20) as r:
+                    if r.status != 200 or not _img_allowed(r.geturl()):
+                        return None
+                    data = r.read(IMG_MAX_BYTES + 1)
+            if len(data) > IMG_MAX_BYTES:
+                return None
+            t = _img_type(data)
+            if not t:
+                return None
+            try:
+                os.makedirs(IMG_CACHE_DIR, exist_ok=True)
+                tmp = "%s.%d.tmp" % (path, threading.get_ident())
+                with open(tmp, "wb") as f:
+                    f.write(data)
+                os.replace(tmp, path)
+                _img_cache_trim()
+            except OSError:
+                pass                                       # Platte voll o. Ae.: trotzdem ausliefern
+            return data, t
+        except Exception:
+            return None
+    return _single_flight(("img", key), fetch)
+
+
 # ============================ Teilen-Link (2.5.0-dev21) ============================
 # "Teilen" in der Match-Analyse: Das Overlay schickt das gezeichnete Banner (PNG,
 # 1600x900) hierher, der Dienst laedt es EINMAL pro Match auf rankyoinker.de hoch
@@ -8770,6 +8910,29 @@ class Handler(BaseHTTPRequestHandler):
 
         if is_page:
             self._send_page()
+
+        elif path == "/img":
+            got = img_get((q.get("u") or [""])[0])
+            if not got:
+                self.send_response(404)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+            else:
+                data, ctype = got
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=604800")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                # oeffentliche Bilder - darf jede Herkunft ins Canvas zeichnen (auch file://)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                try:
+                    self.wfile.write(data)
+                except OSError:
+                    pass
 
         elif path == "/favicon.ico":
             self._send(204, "")
