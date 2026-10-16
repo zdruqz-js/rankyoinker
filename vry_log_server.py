@@ -524,7 +524,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1598,7 +1598,11 @@ PD_GATE_LOCKFILE = os.path.join(DATA_DIR, "pd-gate.lock")
 # lange halten sich die "Letzte 5"-Abfragen des Dienstes zurueck (_pd_bulk_wait)
 PD_HI_HOLD = 3.0
 _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "reason": "",
-            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0}
+            "strikes": 0, "last_block": 0.0, "need_probe": False, "probe_until": 0.0, "hi_until": 0.0,
+            # Kontext fuer Sperren-Meldungen (seit 2.5.2, beide Prozesse gleich halten): pd-Anfragen
+            # der letzten 60 s je Prozess und die letzte Sperre, die vry.exe ausgeloest hat
+            # (vry.exe schickt selbst keine Fehlerberichte - der Dienst meldet sie mit)
+            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": ""}
 _pd_gate_lock = threading.Lock()
 
 
@@ -1707,11 +1711,82 @@ def _is_cloudflare_block(info):
             or b"error code:" in low)
 
 
+# ---- Kontext fuer Sperren-Meldungen (2.5.2) ----
+# Live 2026-10-16: Sperren fast nur bei koreanischen Installationen, teils mit 9-10
+# Riot-Accounts (PC-Bang mit geteilter IP?). Die Meldung allein sagte nicht, wann und
+# bei welcher Last - jetzt mit Spielphase, Region und Anfragen der letzten 60 s.
+PD_CTX_WINDOW = 60.0
+_pd_recent = collections.deque()           # (Zeitpunkt, Art) der eigenen pd-Anfragen
+_pd_recent_lock = threading.Lock()
+_game_hist = collections.deque(maxlen=12)  # (seit, Zustand) - fuer "PREGAME seit 12 s"
+_vry_blk_seen = {"at": time.time()}        # Sperren von vry.exe vor dem Start nicht nachmelden
+
+
+def _pd_recent_note(kind, now):
+    with _pd_recent_lock:
+        _pd_recent.append((now, kind or "other"))
+        while _pd_recent and now - _pd_recent[0][0] > PD_CTX_WINDOW:
+            _pd_recent.popleft()
+        return len(_pd_recent)
+
+
+def _pd_recent_kinds(t):
+    """Eigene pd-Anfragen der 60 s vor t, je Art."""
+    with _pd_recent_lock:
+        return collections.Counter(k for ts, k in _pd_recent if t - PD_CTX_WINDOW <= ts <= t + 0.5)
+
+
+def _kinds_txt(c):
+    return ", ".join("%s %d" % (k, n) for k, n in c.most_common(5))
+
+
+def _state_at(t):
+    state, since = None, 0.0
+    for ts, st in list(_game_hist):
+        if ts <= t:
+            state, since = st, ts
+    return (state or _game.get("state") or "?"), (int(t - since) if since else None)
+
+
+def _pd_block_context(t, kind, own_label, own_kinds, other_label, other_n):
+    state, secs = _state_at(t)
+    shard = ((_auth.get("data") or {}).get("shard")) or "?"
+    own_n = sum(own_kinds.values())
+    parts = ["%s%s" % (state, " seit %d s" % secs if secs is not None else ""), shard]
+    if kind:
+        parts.append("bei %s" % kind)
+    parts.append("60 s: %s %d%s, %s %d" % (own_label, own_n, " (%s)" % _kinds_txt(own_kinds) if own_n else "",
+                                          other_label, other_n))
+    return " | " + " | ".join(parts)
+
+
+def _pd_vry_blocks_tick():
+    """Sperre, die vry.exe ausgeloest hat (steht in pd-gate.json), als Fehler mitmelden."""
+    g = _pd_gate_read()
+    at = float(g.get("vry_blk_at") or 0)
+    if at <= _vry_blk_seen["at"]:
+        return
+    _vry_blk_seen["at"] = at
+    try:
+        d = json.loads(g.get("vry_blk_msg") or "{}")
+    except ValueError:
+        d = {}
+    kinds = collections.Counter({str(k)[:12]: int(v) for k, v in (d.get("kinds") or {}).items() if isinstance(v, int)})
+    msg = "vry.exe: Cloudflare-Sperre auf pd (Status %s) - %ss Pause (%s. in Folge)" % (
+        d.get("st", "?"), d.get("p", "?"), d.get("k", "?"))
+    report_error("riot-ratelimit", msg + _pd_block_context(at, str(d.get("ep") or "")[:12], "vry.exe", kinds,
+                                                           "Dienst", sum(_pd_recent_kinds(at).values())))
+
+
 def _pd_feedback(status, info, probe=False):
     """Ergebnis einer pd-Anfrage zurueckmelden: Sperre setzen bzw. Tempo anpassen."""
     blocked_msg = None
+    kind = (info or {}).get("kind")
+    n60 = _pd_recent_note(kind, time.time())
     with _PdState() as g:
         now = time.time()
+        g["svc60"], g["svc60_at"] = n60, now
+        vry_n = int(g.get("vry60") or 0) if now - float(g.get("vry60_at") or 0) <= PD_CTX_WINDOW else 0
         if probe:
             g["probe_until"] = 0.0
         if status in (403, 429) and _is_cloudflare_block(info):
@@ -1742,7 +1817,8 @@ def _pd_feedback(status, info, probe=False):
         elif probe:
             g["need_probe"] = True              # Testanfrage ohne verwertbare Antwort -> naechste testet
     if blocked_msg:
-        report_error("riot-ratelimit", blocked_msg)
+        report_error("riot-ratelimit", blocked_msg + _pd_block_context(now, kind, "Dienst", _pd_recent_kinds(now),
+                                                                       "vry.exe", vry_n))
 
 
 def _pd_gate_read():
@@ -1883,7 +1959,7 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
         ticket = _pd_acquire()
         if not ticket:
             return 429, None
-        info = {}
+        info = {"kind": _pd_kind(path)}
         try:
             status, j = _http(auth[base_key] + path, auth["headers"], method=method, body=body, info=info)
         except Exception:
@@ -5859,6 +5935,10 @@ def _game_watcher():
     while True:
         time.sleep(GAME_INTERVAL)
         try:
+            _pd_vry_blocks_tick()
+        except Exception:
+            pass
+        try:
             _digests_save()
             now = time.time()
             if not game_ready():
@@ -5880,6 +5960,7 @@ def _game_watcher():
                 if _game["state"] == "INGAME" and _game["matchId"] and state != "INGAME":
                     _report_schedule(_game["matchId"])     # Match vorbei -> Analyse holen
                 _game.update({"state": state, "matchId": mid, "since": now})
+                _game_hist.append((now, state))
             _game["ts"] = now
             _snapshot_tick(state, mid, now)
             if state in ("PREGAME", "INGAME"):
