@@ -223,7 +223,7 @@
     "lol_wr_short": "WR",
     "winrate_label": "Процент побед",
     "performance_recent_matches": "Результаты, последние матчи",
-    "last_n_matches": "Последние {n} матчей",
+    "last_5_matches": "Последние 5 матчей",
     "no_data": "нет данных",
     "complete_loadout": "Полный набор",
     "agent_not_unlocked": "не открыт",

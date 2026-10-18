@@ -1,21 +1,3 @@
-import requests
-
-SERVICE_URL = "http://127.0.0.1:1101"     # lokaler Dienst (vry_log_server.py)
-_svc = requests.Session()
-_svc.trust_env = False                    # nie ueber einen System-Proxy, ist ja lokal
-
-
-class _ServiceResponse:
-    """Antwort aus dem Dienst im Gewand einer requests-Antwort (get_rank liest .ok/.json())."""
-    ok = True
-    status_code = 200
-
-    def __init__(self, data):
-        self._data = data
-
-    def json(self):
-        return self._data
-
 
 class Rank:
     def __init__(self, Requests, log, content, ranks_before):
@@ -29,28 +11,9 @@ class Rank:
         if puuid in self.requestMap:
             return self.requestMap[puuid]
 
-        response = self._from_service(puuid)
-        if response is None:
-            response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
+        response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
         self.requestMap[puuid] = response
         return response
-
-    def _from_service(self, puuid):
-        """Rang ueber den lokalen Dienst (2.5.4-dev3): Der hat viele Spieler schon
-        (Gegner aus der Agentenauswahl, Lobby) und legt gleichzeitige Abfragen
-        zusammen - vorher fragten Dienst und vry.exe denselben Spieler je einmal
-        bei Riot. Kein Dienst oder keine Antwort: None, dann wie bisher selbst.
-        Die Log-Zeile mit /mmr/v1/players/<puuid> braucht der Dienst fuer die
-        Lade-Ansicht (parse_progress, RE_MMR_PLAYER)."""
-        try:
-            r = _svc.get(SERVICE_URL + "/api/mmr-raw", params={"puuid": puuid}, timeout=(1.5, 40))
-            j = r.json() if r.status_code == 200 else None
-        except Exception:
-            return None
-        if not isinstance(j, dict) or not j.get("ok") or not isinstance(j.get("data"), dict):
-            return None
-        self.log(f"fetch: url: 'service', endpoint: /mmr/v1/players/{puuid}, method: get, response code: 200")
-        return _ServiceResponse(j["data"])
 
     def invalidate_cached_responses(self):
         self.requestMap = {}

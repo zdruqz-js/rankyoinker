@@ -4112,35 +4112,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return msg;
   }
 
-  // Match vorbei / Dodge schneller (2.5.4-dev3): vry.exe meldet die Lobby erst,
-  // nachdem es Namen und Raenge dafuer geladen hat - bei einer Riot-Pause bis zu
-  // einer Minute, und haengt es noch in der Agentenauswahl, merkt es einen Dodge
-  // erst danach. Der Dienst sieht den Wechsel nach 1-2 s (eigene Presence,
-  // game.since). Ein Heartbeat aus PREGAME/INGAME, der davor gebaut wurde, ist
-  // ueberholt: Die Seite zeigt dann die Lobby (Mitglieder kommen aus /api/lobby).
-  function outdatedHeartbeat(d){
-    const g = procStatus && procStatus.game;
-    const since = g && g.state === 'MENUS' ? Number(g.since) || 0 : 0;
-    return !!(d && since && d.state !== 'MENUS' && (Number(d.time) || 0) < since);
-  }
-  // Der echte Heartbeat bleibt angehaengt: Meldet der Dienst danach wieder DASSELBE
-  // Match (Fehlalarm), zeigt die Seite es wieder - vry.exe schickt im laufenden
-  // Match sonst keinen neuen Heartbeat. Ein neues Match bringt vry.exe selbst.
-  let lastSvcMatch = null;
-  function asLobby(d){ return Object.assign({}, d, {state: 'MENUS', players: {}, realHeartbeat: d, realMatch: lastSvcMatch}); }
-  function lobbyWasFalseAlarm(d){
-    const g = procStatus && procStatus.game;
-    return !!(d && d.realHeartbeat && d.realMatch && g && g.matchId === d.realMatch && g.state === d.realHeartbeat.state);
-  }
-
   function onVryMessage(msg){
     if(!msg) return;
     if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
-    else if(msg.type === 'heartbeat'){
-      const d = withPuuids(msg);
-      latestData = outdatedHeartbeat(d) ? asLobby(d) : d;
-      setConnState('live'); render();
-    }
+    else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
   }
   function connectWS(){
     // Seit 2.5.3 ist der WebSocket von vry.exe nur noch am PC selbst erreichbar (vorher
@@ -4394,9 +4369,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         lastAccountPuuid = procStatus.puuid;
         if(tabsPrefetched !== lastAccountPuuid && !prefetchTimer) prefetchTimer = setTimeout(prefetchTabs, 3000);
       }
-      if(outdatedHeartbeat(latestData)){ latestData = asLobby(latestData); render(); }
-      else if(lobbyWasFalseAlarm(latestData)){ latestData = latestData.realHeartbeat; render(); }
-      if(procStatus.game && procStatus.game.matchId) lastSvcMatch = procStatus.game.matchId;
       matchViewSync();
       syncReport();
 
@@ -4424,7 +4396,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(connState !== 'live') updateOverlay();
   }
 
-  // ---- Skins/Shop im Hintergrund vorladen (2.5.4-dev3) ----
+  // ---- Skins/Shop im Hintergrund vorladen (2.5.4) ----
   // Nutzerwunsch: Die Reiter sollen fertig sein, bevor man sie anklickt (vorher
   // gab es waehrend einer Riot-Sperre nur Fehler). Der Dienst haelt den Stand je
   // Account bereit (auch ueber einen Neustart), hier kommen Katalog, Besitz,
@@ -4687,28 +4659,26 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(party) paintPremades();
   }
 
-  // Ergebnis-Punkte der letzten Matches — links der jüngste.
+  // Ergebnis-Punkte der letzten 5 Matches — links der jüngste.
   // Details stehen in der Einzelübersicht des Spielers.
-  // Gleiche Anzahl wie RECENT_MATCHES im Dienst.
-  const RECENT_N = 5;
   function recentTileHtml(p){
     const id = p.puuid || '';
     if(!id) return '';
     const d = kdaCache[id];
     if(d === undefined){
       return `<div class="lm-tile pending" data-kda="${esc(id)}">
-        <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
-        <div class="dots">${'<span class="dot skel"></span>'.repeat(RECENT_N)}</div></div>`;
+        <div class="rt-label">${t('last_5_matches')}</div>
+        <div class="dots">${'<span class="dot skel"></span>'.repeat(5)}</div></div>`;
     }
-    const res = ((d && d.results) || []).slice(0, RECENT_N);
+    const res = (d && d.results) || [];
     if(!res.length){
       return `<div class="lm-tile" data-kda="${esc(id)}">
-        <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
-        <div class="dots">${'<span class="dot none solid"></span>'.repeat(RECENT_N)}<span class="sep">${t('no_data')}</span></div></div>`;
+        <div class="rt-label">${t('last_5_matches')}</div>
+        <div class="dots">${'<span class="dot none solid"></span>'.repeat(5)}<span class="sep">${t('no_data')}</span></div></div>`;
     }
     const wins = res.filter(r => r.won === true).length;
     const draws = res.filter(r => r.won === 'draw').length;
-    const dots = res.map((r, i) => {
+    const dots = res.slice(0, 5).map((r, i) => {
       const cls = r.won === true ? 'w' : r.won === false ? 'l' : r.won === 'draw' ? 'd' : 'none';
       // Community-Wunsch: statt nur einer Farbe den tatsaechlich gespielten
       // Agenten je Match zeigen (Bild im Ring) - r.agent kommt roh als
@@ -4721,10 +4691,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       const inner = info && info.icon ? `<img src="${esc(info.icon)}" alt="" loading="lazy">` : '';
       return `<span class="dot ${cls}${inner ? '' : ' solid'}" style="animation-delay:${i * 60}ms" data-tip="${esc(tip)}">${inner}</span>`;
     }).join('');
-    const pad = '<span class="dot none solid"></span>'.repeat(Math.max(0, RECENT_N - res.length));
+    const pad = '<span class="dot none solid"></span>'.repeat(Math.max(0, 5 - res.length));
     const summary = draws ? `${wins}W · ${draws}D · ${res.length - wins - draws}L` : `${wins}W · ${res.length - wins}L`;
     return `<div class="lm-tile" data-kda="${esc(id)}">
-      <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
+      <div class="rt-label">${t('last_5_matches')}</div>
       <div class="dots">${dots}${pad}<span class="sep">${summary}</span></div></div>`;
   }
 
@@ -4815,7 +4785,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
 
   // K/D und HS des letzten Matches: seit 2.4.4 vom lokalen Dienst (/api/kda,
-  // dieselbe Partie wie die "Letzte Matches"-Reihe). vry.exe fragt sie nicht
+  // dieselbe Partie wie die "Letzte 5 Matches"-Reihe). vry.exe fragt sie nicht
   // mehr selbst bei Riot ab (war doppelt und trug zu Rate-Limits beim
   // Matchstart bei); ältere vry-Versionen schicken sie noch mit.
   function hsOf(p, id){
@@ -7172,7 +7142,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function renderSkins(quiet){
     const el = document.getElementById('panelSkins');
     // Vorgeladener bzw. letzter Stand sofort, ohne Ladebalken - der frische kommt
-    // still nach (2.5.4-dev3). Vorher lud der Reiter erst beim Anklicken, und bei
+    // still nach (2.5.4). Vorher lud der Reiter erst beim Anklicken, und bei
     // einer Riot-Sperre stand dann nur eine Fehlermeldung da.
     let painted = null;
     if(!el.querySelector('.gun-grid') && currentLoadout && skinLevelMap && presetsReady){
@@ -10826,7 +10796,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4-dev3";
+const CURRENT_VERSION = "2.5.4-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

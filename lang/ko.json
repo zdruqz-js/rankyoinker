@@ -224,7 +224,7 @@
     "lol_wr_short": "승률",
     "winrate_label": "승률",
     "performance_recent_matches": "최근 매치 성적",
-    "last_n_matches": "최근 {n}경기",
+    "last_5_matches": "최근 5경기",
     "no_data": "데이터 없음",
     "complete_loadout": "전체 로드아웃",
     "agent_not_unlocked": "해금 안 됨",

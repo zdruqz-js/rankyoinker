@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.4-dev3"
+APP_VERSION = "2.5.4-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2040,7 +2040,7 @@ ITEM_TYPES = {
     "cards": "3f296c07-64c3-494c-923b-fe692a4fa1bd",
     "titles": "de7caa6b-adf7-4588-bbd1-143831e786c6",
 }
-# ---- Je Account gemerkt: Besitz, Shop, Loadout, Agenten (2.5.4-dev3) ----
+# ---- Je Account gemerkt: Besitz, Shop, Loadout, Agenten (2.5.4) ----
 # Skins- und Shop-Reiter luden erst beim Anklicken. Lag gerade eine Riot-Sperre an,
 # kam eine Fehlermeldung - beim Besitz sogar ok mit leeren Listen, die Seite und
 # Dienst dann 10 Minuten als "besitzt nichts" behielten. Und die Zwischenspeicher
@@ -2239,10 +2239,6 @@ _pool = ThreadPoolExecutor(max_workers=3)   # Riot mag keine Anfrage-Lawine
 # (siehe _low_priority) und duerfen dabei keine Plaetze in _pool blockieren.
 _premade_pool = ThreadPoolExecutor(max_workers=3)
 STATS_TTL = 300
-# "Letzte 5" auf den Spielerkarten (card_data) und der meistgespielte Agent
-# (most_played_agent) fragen dieselbe Anzahl, damit sie sich einen Eintrag in
-# _stats_cache teilen (2.5.4-dev2 hatte testweise 3 - sah in der Kachel zu leer aus).
-RECENT_MATCHES = 5
 
 
 def _cache_put(cache, key, value, limit=CACHE_MAX):
@@ -2374,74 +2370,15 @@ def _match_details_fetch(match_id):
     return digest
 
 
-# ---- Eine Match-Liste je Spieler (2.5.4-dev3) ----
-# Karten ("Letzte 5": Competitive zuerst) und Party-Erkennung (alle Modi) fragten je
-# Spieler eine eigene Liste ab (competitiveupdates mit bzw. ohne queue-Filter) - beim
-# Matchstart bis zu 20 Abfragen. match-history liefert zu jedem Match den Modus mit,
-# eine Liste der letzten HISTORY_N reicht beiden. Stehen darin zu wenige Competitive-
-# Matches fuer die Karte, fragt _recent_match_ids() wie bisher competitiveupdates
-# (gleiches Ergebnis wie vorher). Antwortet match-history mehrmals hintereinander
-# nicht (ausser Riot-Pause), gilt fuer diese Sitzung wieder der alte Weg.
-HISTORY_N = 10
-HISTORY_OFF_AFTER = 3
-_hist_cache = {}                 # puuid -> (Zeitpunkt, {"items": [[MatchID, QueueID], ...], "full": bool})
-_hist_fail = {"n": 0}
-
-
-def _history(puuid, max_age):
-    """{"items", "full"} der letzten HISTORY_N Matches (neueste zuerst) oder None."""
-    with _cache_lock:
-        hit = _hist_cache.get(puuid)
-    if hit and isinstance(hit[1], dict) and (time.time() - hit[0] < max_age or _match_current(hit[0])):
-        return hit[1]
-    if _hist_fail["n"] >= HISTORY_OFF_AFTER:
-        return None
-    return _single_flight(("hist", puuid), lambda: _history_fetch(puuid, max_age))
-
-
-def _history_fetch(puuid, max_age):
-    with _cache_lock:
-        hit = _hist_cache.get(puuid)          # kam evtl. gerade erst herein
-    if hit and isinstance(hit[1], dict) and time.time() - hit[0] < max_age:
-        return hit[1]
-    try:
-        status, j = riot_get("pd", "/match-history/v1/history/%s?startIndex=0&endIndex=%d" % (puuid, HISTORY_N))
-    except Exception:
-        return None
-    if status != 200 or not isinstance(j, dict):
-        if status not in (None, 429) and not pd_gate_state()["paused"]:
-            _hist_fail["n"] += 1
-        return None
-    _hist_fail["n"] = 0
-    items = [[m.get("MatchID"), m.get("QueueID") or ""] for m in (j.get("History") or []) if m.get("MatchID")]
-    try:
-        total = int(j.get("Total") or 0)
-    except (TypeError, ValueError):
-        total = 0
-    out = {"items": items, "full": len(items) >= HISTORY_N or total > len(items)}
-    with _cache_lock:
-        _cache_put(_hist_cache, puuid, (time.time(), out))
-    return out
-
-
 def _recent_match_ids(puuid, count):
     """Letzte Match-IDs eines Spielers — erst Competitive, sonst alle Modi."""
-    h = _history(puuid, STATS_TTL) if count <= HISTORY_N else None
-    if h is not None:
-        comp = [m for m, q in h["items"] if q == "competitive"]
-        if len(comp) >= count:
-            return comp[:count]
-        if not h["full"]:                      # das ist schon die ganze Historie
-            return (comp or [m for m, _ in h["items"]])[:count]
     status, j = riot_get(
         "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d&queue=competitive"
         % (puuid, count))
     ids = []
     if status == 200 and j:
         ids = [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
-    if not ids and h is not None:
-        ids = [m for m, _ in h["items"]]       # alle Modi - die Liste ist schon da
-    elif not ids:
+    if not ids:
         status, j = riot_get("pd", "/match-history/v1/history/%s?startIndex=0&endIndex=%d"
                              % (puuid, count))
         if status == 200 and j:
@@ -2634,7 +2571,7 @@ def card_data(puuid):
     """Was die Spielerkarte braucht: Punktreihe (inkl. gespieltem Agent pro
     Match) + letztes Match fuer HS/KD-Luecken.
 
-    Nutzt player_stats() fuer die "Letzte Matches"-Reihe (RECENT_MATCHES) statt der frueheren,
+    Nutzt player_stats() fuer die "Last 5 Matches"-Reihe statt der frueheren,
     guenstigeren Abschaetzung (nur Sieg/Niederlage aus dem RR-Vorzeichen,
     kein Agent) - Community-Wunsch: die kleine Punktreihe auf der Karte soll
     den gespielten Agenten je Match zeigen statt nur eine Farbe.
@@ -2643,9 +2580,9 @@ def card_data(puuid):
     5 Minuten - kostet in der Praxis also nur beim allerersten Anblick eines
     neuen Spielers wirklich mehr Riot-Anfragen als vorher, nicht bei jedem
     Poll. Ersetzt auch den bisher separaten player_stats(puuid, 1)-Aufruf
-    fuer "last" - das erste der Matches ist exakt dasselbe Match.
+    fuer "last" - der erste der 5 Matches ist exakt dasselbe Match.
     """
-    st = player_stats(puuid, RECENT_MATCHES, season=False)
+    st = player_stats(puuid, 5, season=False)
     matches = st.get("matches") or []
     results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent")}
                for m in matches]
@@ -2798,79 +2735,23 @@ def _load_seasons():
         pass
 
 
-# Rohantwort von /mmr fuer vry.exe (mmr_raw, /api/mmr-raw): Dienst und vry.exe
-# fragten dieselben Spieler je einmal ab - die Gegner z. B. der Dienst in der
-# Agentenauswahl und vry.exe beim Matchstart noch einmal (2.5.4-dev3).
-_mmr_raw_cache = collections.OrderedDict()   # puuid -> (Zeitpunkt, Antwort)
-MMR_RAW_MAX = 40
-
-
-# In der Lobby fragte die Seite alle 3 s /api/lobby, und der Dienst holte die Raenge
-# der Party alle MMR_TTL neu - 30 min Lobby = ~15 Riot-Anfragen je Mitglied, obwohl
-# sich ein Rang nur durch ein Match (oder einen Dodge) aendert. Ein Stand, der
-# mindestens MMR_SETTLE nach dem letzten Matchende geholt wurde (dann steht das neue
-# RR sicher bei Riot), gilt in der Lobby MMR_IDLE_TTL (2.5.4-dev3).
-MMR_SETTLE = 90
-MMR_IDLE_TTL = 600
-_last_match_end = {"ts": 0.0}
-
-
-def _mmr_fresh(hit):
-    """Raenge aendern sich waehrend eines Matches nicht: gilt bis Matchende (seit
-    2.5.4-dev3), sonst MMR_TTL - nach dem Match soll das neue RR kommen."""
-    if not hit:
-        return False
-    age = time.time() - hit[0]
-    if age < MMR_TTL or _match_current(hit[0]):
-        return True
-    return (_game["state"] == "MENUS" and age < MMR_IDLE_TTL
-            and hit[0] >= _last_match_end["ts"] + MMR_SETTLE)
-
-
 def mmr_summary(puuid):
     """Aktueller Rang + RR + hoechster je erreichter Rang + Saison-Bilanz eines Spielers."""
     _snapshot_wait()
-    with _cache_lock:
-        hit = _mmr_cache.get(puuid)
-    if _mmr_fresh(hit):
-        return hit[1]
-    res = _single_flight(("mmr", puuid), lambda: _mmr_fetch(puuid))
-    return res if res is not None else _mmr_empty()
-
-
-def mmr_raw(puuid):
-    """Rohantwort von /mmr/v1/players/<puuid> (fuer vry.exe) oder None."""
-    _snapshot_wait()
-    with _cache_lock:
-        hit = _mmr_raw_cache.get(puuid)
-    if not _mmr_fresh(hit):
-        _single_flight(("mmr", puuid), lambda: _mmr_fetch(puuid, need_raw=True))
-        with _cache_lock:
-            hit = _mmr_raw_cache.get(puuid)
-    return hit[1] if _mmr_fresh(hit) else None
-
-
-def _mmr_empty():
-    return {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None,
-            "seasonWins": None, "seasonGames": None}
-
-
-def _mmr_fetch(puuid, need_raw=False):
-    with _cache_lock:                    # kam evtl. gerade erst herein
-        hit = _mmr_cache.get(puuid)
-        raw = _mmr_raw_cache.get(puuid)
-    if _mmr_fresh(hit) and (not need_raw or _mmr_fresh(raw)):
-        return hit[1]
     now = time.time()
-    out = _mmr_empty()
+    with _cache_lock:
+        hit = _mmr_cache.get(puuid)
+        if hit and now - hit[0] < MMR_TTL:
+            return hit[1]
+
+    out = {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None,
+           "seasonWins": None, "seasonGames": None}
     try:
         status, j = riot_get("pd", "/mmr/v1/players/%s" % puuid)
     except Exception:
         return out                   # nicht cachen, beim naechsten Mal erneut
     if status != 200 or not j:
         return out                   # dito (Rate-Limit/Pause, Token) - nicht 2 Minuten "kein Rang"
-    with _cache_lock:
-        _cache_put(_mmr_raw_cache, puuid, (now, j), MMR_RAW_MAX)
     if status == 200 and j:
         last = j.get("LatestCompetitiveUpdate") or {}
         seasons = (((j.get("QueueSkills") or {}).get("competitive") or {})
@@ -2934,10 +2815,11 @@ AGENT_HISTORY_MATCHES = 3      # bewusst knapp: jedes Match kostet einen eigenen
 
 def mmr_summary_nonblocking(puuid):
     """Fuer /api/pregame: gecachter Rang sofort (sonst {}), Abfrage im Hintergrund."""
+    now = time.time()
     with _cache_lock:
         hit = _mmr_cache.get(puuid)
-    if _mmr_fresh(hit):
-        return hit[1]
+        if hit and now - hit[0] < MMR_TTL:
+            return hit[1]
     _in_background("mmr", [puuid], lambda ids: [mmr_summary(u) for u in ids])
     return {}
 
@@ -2963,7 +2845,7 @@ def most_played_agent(puuid):
 
     result = None
     try:
-        st = player_stats(puuid, RECENT_MATCHES, season=False)   # gleicher Cache wie card_data()
+        st = player_stats(puuid, 5, season=False)
         if st.get("error"):
             return None                     # nicht cachen, spaeter erneut
         matches = (st.get("matches") or [])[:AGENT_HISTORY_MATCHES]
@@ -3527,9 +3409,6 @@ def _premade_history(puuid):
     Erkennung laeuft in der Agentenauswahl und beim Matchstart noch einmal (dann
     mit den Gegnern, siehe premades()) - weitgehend mit denselben Spielern.
     """
-    h = _history(puuid, PREMADE_HIST_TTL)      # dieselbe Liste wie die Karten (2.5.4-dev3)
-    if h is not None:
-        return [m for m, _ in h["items"]]
     now = time.time()
     with _cache_lock:
         hit = _premade_hist_cache.get(puuid)
@@ -4797,10 +4676,10 @@ def _clear_account_caches():
     with _auth_lock:
         _auth["data"] = None
         _auth["ts"] = 0.0
-    # Besitz/Shop/Loadout liegen seit 2.5.4-dev3 je Account (acct_cached). Match-Details
-    # bleiben: sie haengen nicht am eigenen Konto, und Riot fragen kostet.
+    # Besitz/Shop/Loadout liegen seit 2.5.4 je Account (acct_cached)
     with _cache_lock:
         _stats_cache.clear()
+        _match_cache.clear()
         _rr_cache.clear()
     _pregame_cache["data"] = None
     _pregame_invalidate()
@@ -4857,7 +4736,7 @@ def _account_watcher():
             pass
 
 
-# ---- Skins/Shop vorladen (2.5.4-dev3) ----
+# ---- Skins/Shop vorladen (2.5.4) ----
 # Nutzerwunsch: Die Reiter sollen schon fertig sein, wenn man sie anklickt - sonst
 # gab es waehrend einer Riot-Sperre nur Fehler. Laeuft, sobald ein Account erkannt
 # ist (Start oder Wechsel), holt nur, was fehlt oder veraltet ist (Shop: erst nach
@@ -4988,89 +4867,21 @@ STALE_AFTER = 12.0        # so lange darf vry.exe hinterherhinken
 SYNC_COOLDOWN = 90.0      # Mindestabstand zweier Nachhol-Neustarts
 START_SETTLE = 25.0       # frisch gestartetes vry.exe darf erst mal laden
 _sync = {"last": 0.0, "match": None, "mismatch": 0.0}
-# Schneller merken, dass ein Match vorbei ist bzw. gedodged wurde (2.5.4-dev3).
-# Zwischen zwei Durchlaeufen liest der Waechter jede Sekunde die eigene
-# Chat-Presence (lokale Riot-Client-API, kostet keine Riot-Anfrage). Meldet sie
-# einen anderen Zustand, laeuft der naechste Durchlauf sofort - hoechstens alle
-# GAME_FAST_MIN s und nur GAME_FAST_MAX s lang, falls Presence und glz sich
-# laenger uneinig sind (dann wieder der normale 5-s-Takt).
-GAME_FAST_STEP = 1.0
-GAME_FAST_MIN = 2.0
-GAME_FAST_MAX = 20.0
-_game_fast = {"last": 0.0, "first": 0.0}
 
 
 def _live_state():
     """Echter Spielzustand laut Riot: INGAME / PREGAME / MENUS."""
     auth = get_auth()
-    s1, j = riot_get("glz", "/core-game/v1/players/%s" % auth["puuid"])
-    if s1 == 200 and j and j.get("MatchID"):
+    status, j = riot_get("glz", "/core-game/v1/players/%s" % auth["puuid"])
+    if status == 200 and j and j.get("MatchID"):
         return "INGAME", j["MatchID"]
-    s2, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
-    if s2 == 200 and j and j.get("MatchID"):
+    status, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
+    if status == 200 and j and j.get("MatchID"):
         # Der Agentenauswahl-Cache bekommt die frische ID gleich mit
         _pregame_mid["id"] = j["MatchID"]
         _pregame_mid["ts"] = time.time()
         return "PREGAME", j["MatchID"]
-    # Menue nur bei eindeutiger Antwort (beide 404) oder wenn die eigene Presence es
-    # sagt. Bis 2.5.4-dev2 galt jede Fehlantwort (Sperre 429, Riot 5xx) als Menue -
-    # seit die Seite dem Dienst beim Matchende folgt, stuende sie dann mitten im
-    # Match in der Lobby. Unklar -> Ausnahme, der Waechter behaelt den alten Stand.
-    if (s1 == 404 and s2 == 404) or _presence_state() == "MENUS":
-        return "MENUS", None
-    raise RiotError("Spielzustand unklar (core-game %s, pregame %s)" % (s1, s2))
-
-
-def _presence_state():
-    """Eigener Zustand (MENUS/PREGAME/INGAME) aus der lokalen Chat-Presence, sonst None."""
-    me = _account["puuid"]
-    if not me:
-        return None
-    try:
-        status, j = _riot_local_get("/chat/v4/presences")
-    except Exception:
-        return None
-    if status != 200 or not isinstance(j, dict):
-        return None
-    for pr in j.get("presences") or []:
-        priv = pr.get("private")
-        if pr.get("puuid") != me or pr.get("product") != "valorant" or not priv or "{" in str(priv):
-            continue
-        try:
-            d = json.loads(base64.b64decode(priv))
-        except Exception:
-            continue
-        if not isinstance(d, dict):
-            continue
-        # Riot wechselt zwischen verschachtelter und flacher Struktur (wie presences.py)
-        st = (d.get("matchPresenceData") or {}).get("sessionLoopState") or d.get("sessionLoopState")
-        if st in ("MENUS", "PREGAME", "INGAME"):
-            return st
-    return None
-
-
-def _game_wait():
-    """Bis zum naechsten Durchlauf warten - frueher, wenn die Presence einen anderen
-    Zustand meldet (siehe GAME_FAST_*)."""
-    end = time.time() + GAME_INTERVAL
-    while True:
-        left = end - time.time()
-        if left <= 0:
-            return
-        time.sleep(min(GAME_FAST_STEP, left))
-        if _game["state"] not in ("MENUS", "PREGAME", "INGAME"):
-            continue
-        st = _presence_state()
-        now = time.time()
-        if not st or st == _game["state"]:
-            _game_fast["first"] = 0.0
-            continue
-        if not _game_fast["first"]:
-            _game_fast["first"] = now
-        if now - _game_fast["first"] > GAME_FAST_MAX or now - _game_fast["last"] < GAME_FAST_MIN:
-            continue
-        _game_fast["last"] = now
-        return
+    return "MENUS", None
 
 
 _game_roster = {"match": None, "map": "", "queue": "", "players": []}
@@ -5079,9 +4890,6 @@ _game_roster = {"match": None, "map": "", "queue": "", "players": []}
 def game_state():
     """Spielzustand fuer die Oberflaeche — unabhaengig davon, was vry.exe sieht."""
     out = {"state": _game["state"], "matchId": _game["matchId"],
-           # since: seit wann der Zustand gilt - die Seite verwirft damit Heartbeats von
-           # vry.exe, die noch vor dem Matchende/Dodge gebaut wurden (2.5.4-dev3)
-           "since": int(_game["since"]),
            "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
            "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
            "pdRequests": dict(_pd_counts), "report": match_report_state(),
@@ -5346,14 +5154,12 @@ def _prefetch_match(state, mid):
 # die Datei geloescht. Gegenstueck in vry.exe: src/match_snapshot.py.
 MATCH_SNAPSHOT_FILE = os.path.join(DATA_DIR, "match-snapshot.json")
 _SNAPSHOT_CACHES = (("stats", _stats_cache), ("mmr", _mmr_cache), ("agents", _agent_history_cache),
-                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache), ("names", _name_cache),
-                    ("hist", _hist_cache))
+                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache), ("names", _name_cache))
 _snapshot = {"match": None, "since": 0.0, "sig": None, "restored": 0}   # restored: fuer /api/gamestate
 # Format je Cache: aendert sich, WAS ein Cache-Eintrag bedeutet, hier erhoehen -
 # ein Snapshot aus einer aelteren Version (Update mitten im Match) bringt diesen
 # Teil dann nicht mit, der Rest bleibt. mmr 2 = Rang mit Act-Uebernahme (2.4.9).
-_SNAPSHOT_FMT = {"stats": 1, "mmr": 2, "agents": 1, "premadeHist": 1, "rr": 1, "names": 1, "premades": 1,
-                 "hist": 1}
+_SNAPSHOT_FMT = {"stats": 1, "mmr": 2, "agents": 1, "premadeHist": 1, "rr": 1, "names": 1, "premades": 1}
 _snapshot_ready = threading.Event()
 
 
@@ -6306,7 +6112,7 @@ def _match_report_build(match_id):
 
 def _game_watcher():
     while True:
-        _game_wait()
+        time.sleep(GAME_INTERVAL)
         try:
             _pd_vry_blocks_tick()
         except Exception:
@@ -6332,8 +6138,6 @@ def _game_watcher():
             if state != _game["state"] or mid != _game["matchId"]:
                 if _game["state"] == "INGAME" and _game["matchId"] and state != "INGAME":
                     _report_schedule(_game["matchId"])     # Match vorbei -> Analyse holen
-                if _game["state"] in ("PREGAME", "INGAME") and state == "MENUS":
-                    _last_match_end["ts"] = now            # Raenge koennen sich geaendert haben
                 _game.update({"state": state, "matchId": mid, "since": now})
                 _game_hist.append((now, state))
             _game["ts"] = now
@@ -9584,21 +9388,6 @@ class Handler(BaseHTTPRequestHandler):
             # roh in der Riot-URL -> InvalidURL / UnicodeEncodeError.
             self._safe(lambda: rr_history(puuid, n) if _is_puuid(puuid)
                        else {"ok": False, "error": "Keine Spieler-ID verfügbar."})
-
-        elif path == "/api/mmr-raw":
-            # Fuer vry.exe (src/rank.py, 2.5.4-dev3): Rang-Rohdaten ueber den Dienst,
-            # damit Dienst und vry.exe einen Spieler nicht je einmal bei Riot abfragen.
-            puuid = q.get("puuid", [""])[0]
-            if not _is_local(self._client_ip()):
-                self._json({"ok": False, "error": "Nur am PC selbst."}, 403)
-            elif not _is_puuid(puuid):
-                self._json({"ok": False, "error": "Keine Spieler-ID."})
-            else:
-                try:
-                    raw = mmr_raw(puuid)
-                except Exception as e:
-                    raw = None
-                self._json({"ok": raw is not None, "data": raw})
 
         elif path == "/api/player":
             puuid = q.get("puuid", [""])[0]

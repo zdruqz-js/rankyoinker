@@ -223,7 +223,7 @@
     "lol_wr_short": "勝率",
     "winrate_label": "勝率",
     "performance_recent_matches": "パフォーマンス（直近のマッチ）",
-    "last_n_matches": "直近{n}マッチ",
+    "last_5_matches": "直近5マッチ",
     "no_data": "データなし",
     "complete_loadout": "ロードアウト全体",
     "agent_not_unlocked": "未開放",
