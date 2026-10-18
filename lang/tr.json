@@ -223,7 +223,7 @@
     "lol_wr_short": "WR",
     "winrate_label": "Kazanma oranı",
     "performance_recent_matches": "Performans, son maçlar",
-    "last_5_matches": "Son 5 maç",
+    "last_n_matches": "Son {n} maç",
     "no_data": "veri yok",
     "complete_loadout": "Tam teçhizat",
     "agent_not_unlocked": "açılmadı",

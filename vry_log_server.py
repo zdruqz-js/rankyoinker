@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.4-dev1"
+APP_VERSION = "2.5.4-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2183,6 +2183,12 @@ _pool = ThreadPoolExecutor(max_workers=3)   # Riot mag keine Anfrage-Lawine
 # (siehe _low_priority) und duerfen dabei keine Plaetze in _pool blockieren.
 _premade_pool = ThreadPoolExecutor(max_workers=3)
 STATS_TTL = 300
+# "Letzte Matches" auf den Spielerkarten (card_data) und der meistgespielte Agent
+# (most_played_agent) - seit 2.5.4-dev2 3 statt 5 (Nutzerwunsch, Riot-Limit beim
+# Matchstart): jedes Match kostet pro Spieler einen eigenen match-details-Aufruf,
+# bei 10 Spielern also bis zu 20 Anfragen weniger. Beide fragen dieselbe Anzahl,
+# damit sie sich einen Eintrag in _stats_cache teilen.
+RECENT_MATCHES = 3
 
 
 def _cache_put(cache, key, value, limit=CACHE_MAX):
@@ -2515,7 +2521,7 @@ def card_data(puuid):
     """Was die Spielerkarte braucht: Punktreihe (inkl. gespieltem Agent pro
     Match) + letztes Match fuer HS/KD-Luecken.
 
-    Nutzt player_stats() fuer die "Last 5 Matches"-Reihe statt der frueheren,
+    Nutzt player_stats() fuer die "Letzte Matches"-Reihe (RECENT_MATCHES) statt der frueheren,
     guenstigeren Abschaetzung (nur Sieg/Niederlage aus dem RR-Vorzeichen,
     kein Agent) - Community-Wunsch: die kleine Punktreihe auf der Karte soll
     den gespielten Agenten je Match zeigen statt nur eine Farbe.
@@ -2524,9 +2530,9 @@ def card_data(puuid):
     5 Minuten - kostet in der Praxis also nur beim allerersten Anblick eines
     neuen Spielers wirklich mehr Riot-Anfragen als vorher, nicht bei jedem
     Poll. Ersetzt auch den bisher separaten player_stats(puuid, 1)-Aufruf
-    fuer "last" - der erste der 5 Matches ist exakt dasselbe Match.
+    fuer "last" - das erste der Matches ist exakt dasselbe Match.
     """
-    st = player_stats(puuid, 5, season=False)
+    st = player_stats(puuid, RECENT_MATCHES, season=False)
     matches = st.get("matches") or []
     results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent")}
                for m in matches]
@@ -2789,7 +2795,7 @@ def most_played_agent(puuid):
 
     result = None
     try:
-        st = player_stats(puuid, 5, season=False)
+        st = player_stats(puuid, RECENT_MATCHES, season=False)   # gleicher Cache wie card_data()
         if st.get("error"):
             return None                     # nicht cachen, spaeter erneut
         matches = (st.get("matches") or [])[:AGENT_HISTORY_MATCHES]

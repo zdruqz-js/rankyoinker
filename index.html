@@ -4626,26 +4626,30 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(party) paintPremades();
   }
 
-  // Ergebnis-Punkte der letzten 5 Matches — links der jüngste.
+  // Ergebnis-Punkte der letzten Matches — links der jüngste.
   // Details stehen in der Einzelübersicht des Spielers.
+  // Seit 2.5.4-dev2 3 statt 5 (RECENT_MATCHES im Dienst): jedes Match ist pro
+  // Spieler eine eigene Riot-Anfrage, beim Matchstart bis zu 20 weniger.
+  const RECENT_N = 3;
   function recentTileHtml(p){
     const id = p.puuid || '';
     if(!id) return '';
     const d = kdaCache[id];
     if(d === undefined){
       return `<div class="lm-tile pending" data-kda="${esc(id)}">
-        <div class="rt-label">${t('last_5_matches')}</div>
-        <div class="dots">${'<span class="dot skel"></span>'.repeat(5)}</div></div>`;
+        <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
+        <div class="dots">${'<span class="dot skel"></span>'.repeat(RECENT_N)}</div></div>`;
     }
-    const res = (d && d.results) || [];
+    // slice: ein im localStorage gemerktes Match (ry_match_view) kann noch 5 enthalten
+    const res = ((d && d.results) || []).slice(0, RECENT_N);
     if(!res.length){
       return `<div class="lm-tile" data-kda="${esc(id)}">
-        <div class="rt-label">${t('last_5_matches')}</div>
-        <div class="dots">${'<span class="dot none solid"></span>'.repeat(5)}<span class="sep">${t('no_data')}</span></div></div>`;
+        <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
+        <div class="dots">${'<span class="dot none solid"></span>'.repeat(RECENT_N)}<span class="sep">${t('no_data')}</span></div></div>`;
     }
     const wins = res.filter(r => r.won === true).length;
     const draws = res.filter(r => r.won === 'draw').length;
-    const dots = res.slice(0, 5).map((r, i) => {
+    const dots = res.map((r, i) => {
       const cls = r.won === true ? 'w' : r.won === false ? 'l' : r.won === 'draw' ? 'd' : 'none';
       // Community-Wunsch: statt nur einer Farbe den tatsaechlich gespielten
       // Agenten je Match zeigen (Bild im Ring) - r.agent kommt roh als
@@ -4658,10 +4662,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       const inner = info && info.icon ? `<img src="${esc(info.icon)}" alt="" loading="lazy">` : '';
       return `<span class="dot ${cls}${inner ? '' : ' solid'}" style="animation-delay:${i * 60}ms" data-tip="${esc(tip)}">${inner}</span>`;
     }).join('');
-    const pad = '<span class="dot none solid"></span>'.repeat(Math.max(0, 5 - res.length));
+    const pad = '<span class="dot none solid"></span>'.repeat(Math.max(0, RECENT_N - res.length));
     const summary = draws ? `${wins}W · ${draws}D · ${res.length - wins - draws}L` : `${wins}W · ${res.length - wins}L`;
     return `<div class="lm-tile" data-kda="${esc(id)}">
-      <div class="rt-label">${t('last_5_matches')}</div>
+      <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
       <div class="dots">${dots}${pad}<span class="sep">${summary}</span></div></div>`;
   }
 
@@ -4730,10 +4734,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   // ---------- Smurf-Hinweis ----------
   // Bewusst sehr streng (lieber nie anschlagen als falsch): niedriges Account-
-  // Level UND in allen letzten 5 RANKED-Matches dominant (K/D, Headshots,
-  // fast nur Siege). Ein ehrlicher Neuling kommt da praktisch nie hin. Das
-  // Level kann versteckt sein (0) - dann gibt es nie einen Hinweis.
-  const SMURF = {maxLevel: 40, games: 5, minKd: 1.5, minHs: 24, minWins: 4};
+  // Level UND in allen letzten Matches (seit 2.5.4-dev2 3 statt 5) Ranked und
+  // dominant (K/D, Headshots, nur Siege). Ein ehrlicher Neuling kommt da praktisch
+  // nie hin. Das Level kann versteckt sein (0) - dann gibt es nie einen Hinweis.
+  const SMURF = {maxLevel: 40, games: 3, minKd: 1.5, minHs: 24, minWins: 3};
   function smurfHint(level, tot){
     if(!tot || !(level >= 1 && level <= SMURF.maxLevel)) return null;
     if(tot.games < SMURF.games || !(tot.kd >= SMURF.minKd) || !(tot.hsPercent >= SMURF.minHs) || !(tot.wins >= SMURF.minWins)) return null;
@@ -4752,7 +4756,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
 
   // K/D und HS des letzten Matches: seit 2.4.4 vom lokalen Dienst (/api/kda,
-  // dieselbe Partie wie die "Letzte 5 Matches"-Reihe). vry.exe fragt sie nicht
+  // dieselbe Partie wie die "Letzte Matches"-Reihe). vry.exe fragt sie nicht
   // mehr selbst bei Riot ab (war doppelt und trug zu Rate-Limits beim
   // Matchstart bei); ältere vry-Versionen schicken sie noch mit.
   function hsOf(p, id){
@@ -10740,7 +10744,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4-dev1";
+const CURRENT_VERSION = "2.5.4-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

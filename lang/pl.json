@@ -224,7 +224,7 @@
     "lol_wr_short": "WR",
     "winrate_label": "Winrate",
     "performance_recent_matches": "Wyniki, ostatnie mecze",
-    "last_5_matches": "Ostatnie 5 meczów",
+    "last_n_matches": "Ostatnie {n} mecze",
     "no_data": "brak danych",
     "complete_loadout": "Pełny loadout",
     "agent_not_unlocked": "nieodblokowany",
