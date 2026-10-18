@@ -132,7 +132,7 @@
     "toast_selection_failed": "선택 실패",
     "toast_agent_locked": "요원 고정됨",
     "toast_lock_failed": "고정 실패",
-    "lock_too_early_msg": "요원 선택이 시작되고 잠시 후에만 고정할 수 있습니다. {n}초 남았습니다.",
+    "lock_too_early_msg": "인스타락과 같은 짧은 보호 대기 시간입니다. {n}초 남았습니다.",
     "toast_instalock_enabled": "자동 선택 활성화됨",
     "toast_instalock_not_possible": "자동 선택 불가능",
     "toast_instalock_off": "자동 선택 꺼짐",

@@ -131,7 +131,7 @@
     "toast_selection_failed": "Seçim başarısız oldu",
     "toast_agent_locked": "Ajan kilitlendi",
     "toast_lock_failed": "Kilitleme başarısız oldu",
-    "lock_too_early_msg": "Kilitleme, ajan seçimi başladıktan kısa süre sonra mümkün, {n} sn kaldı.",
+    "lock_too_early_msg": "Instalock'taki gibi kısa bir güvenlik beklemesi, {n} sn kaldı.",
     "toast_instalock_enabled": "Instalock etkinleştirildi",
     "toast_instalock_not_possible": "Instalock mümkün değil",
     "toast_instalock_off": "Instalock kapalı",

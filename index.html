@@ -884,6 +884,12 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .agent-cell.locked::before{content:""; position:absolute; inset:0; z-index:1; background:linear-gradient(180deg, rgba(61,220,132,.18), transparent 60%);}
 .agent-cell.taken{opacity:.22; filter:grayscale(1); pointer-events:none;}
 .agent-cell.notowned{opacity:.3; filter:grayscale(1);}
+/* Schutzzeit am Anfang der Agentenauswahl (2.5.4): Kacheln ruhig, Klick tut nichts */
+.agentpick.pick-wait .agent-cell{cursor:not-allowed;}
+.agentpick.pick-wait .agent-cell:not(.taken):not(.notowned):not(.sel){opacity:.55;}
+.agentpick.pick-wait .agent-cell:hover{transform:none; border-color:var(--line); box-shadow:none;}
+.agentpick.pick-wait .agent-cell:hover img{transform:none;}
+.agentpick.pick-wait .fav-star{cursor:pointer;}
 .agent-cell.notowned::after{
   content:""; position:absolute; top:6px; right:6px; width:14px; height:14px; z-index:2;
   background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='11' width='16' height='10' rx='2.5'/><path d='M8 11V7a4 4 0 0 1 8 0v4'/></svg>") center/contain no-repeat;
@@ -6327,9 +6333,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // sprang zurück und wieder vor, bei schnellen Klicks mehrmals hin und her.
   let pickPending = null;            // {agent, until}
   const PICK_PENDING_MS = 4000;
-  // Von Hand sperren erst nach derselben Schutzzeit wie beim Instalock (11 s ab Beginn
-  // der Auswahl). Die Uhr führt der Dienst (lockIn in /api/pregame) und lehnt zu frühes
-  // Sperren selbst ab - hier nur Countdown und gesperrter Knopf.
+  // Von Hand hovern und sperren erst nach derselben Schutzzeit wie beim Instalock (11 s ab
+  // Beginn der Auswahl). Die Uhr führt der Dienst (lockIn in /api/pregame) und lehnt zu
+  // frühe Anfragen selbst ab - hier nur Countdown, gesperrter Knopf und ruhige Kacheln.
   let pickLockAt = 0, pickLockTimer = null;
   function pickLockLeft(){ return pickLocked ? 0 : Math.max(0, Math.ceil((pickLockAt - Date.now()) / 1000)); }
   function setPickLockIn(sec){
@@ -6348,6 +6354,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return pickLocked ? t('agent_locked_hint') : (pickLockLeft() ? t('agent_lock_wait_hint') : '');
   }
   function updateLockBtn(){
+    const panel = document.querySelector('.agentpick:not(.instalock):not(.lolpick)');
+    if(panel) panel.classList.toggle('pick-wait', pickLockLeft() > 0);
     const lb = document.getElementById('lockBtn');
     if(lb){
       lb.disabled = !(pickSelected && !pickLocked) || pickLockLeft() > 0;
@@ -6385,7 +6393,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         if(pickWanted !== id) return;
         if(!j.ok){
           if(pickPending && pickPending.agent === id) pickPending = null;
-          toast('error', t('toast_selection_failed'), j.error || '', {id:'pick', dur:7000});
+          if(j.code === 'lock-too-early'){
+            setPickLockIn(j.wait || 0);
+            toast('error', t('toast_selection_failed'), t('lock_too_early_msg', {n: Math.ceil(j.wait || 0)}), {id:'pick', dur:5000});
+          } else toast('error', t('toast_selection_failed'), j.error || '', {id:'pick', dur:7000});
         }
         syncPregame();
       });
@@ -6498,7 +6509,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       .filter(Boolean);
     const cells = list.filter(a => favs.indexOf(a) === -1).map(agentCellHtml).join('');
     return `
-      <div class="agentpick">
+      <div class="agentpick ${pickLockLeft() ? 'pick-wait' : ''}">
         <div class="ap-top">
           <span class="ap-title">${t('agent_select_title')}</span>
           <span class="side-slot">${sideBadgeHtml()}</span>
@@ -6539,6 +6550,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         // Fest gewählt, von einem Mitspieler gesperrt oder nicht freigeschaltet:
         // Riot lehnt das ohnehin ab, die Anzeige soll dann gar nicht erst wechseln.
         if(pickLocked || cell.classList.contains('taken') || cell.classList.contains('notowned')) return;
+        if(pickLockLeft()) return;   // Schutzzeit läuft (Countdown am Knopf)
         const id = cell.getAttribute('data-agent');
         if(String(pickSelected || '').toLowerCase() === id.toLowerCase() && pickWanted === id) return;
         // sofort anzeigen (Raster und eigene Zeile), Riot bestätigt gleich hinterher
@@ -10823,7 +10835,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4-dev5";
+const CURRENT_VERSION = "2.5.4-dev6";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

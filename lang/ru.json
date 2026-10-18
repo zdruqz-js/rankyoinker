@@ -131,7 +131,7 @@
     "toast_selection_failed": "Не удалось выбрать",
     "toast_agent_locked": "Агент залочен",
     "toast_lock_failed": "Не удалось залочить",
-    "lock_too_early_msg": "Залочить можно только вскоре после начала выбора агентов, осталось {n} с.",
+    "lock_too_early_msg": "Короткая защитная пауза, как у Instalock, осталось {n} с.",
     "toast_instalock_enabled": "Instalock включён",
     "toast_instalock_not_possible": "Instalock невозможен",
     "toast_instalock_off": "Instalock выключен",

@@ -132,7 +132,7 @@
     "toast_selection_failed": "Selection failed",
     "toast_agent_locked": "Agent locked",
     "toast_lock_failed": "Lock failed",
-    "lock_too_early_msg": "Locking only works shortly after agent select starts, {n}s left.",
+    "lock_too_early_msg": "Short safety delay, same as Instalock, {n}s left.",
     "toast_instalock_enabled": "Instalock enabled",
     "toast_instalock_not_possible": "Instalock not possible",
     "toast_instalock_off": "Instalock off",

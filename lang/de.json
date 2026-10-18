@@ -132,7 +132,7 @@
     "toast_selection_failed": "Auswahl fehlgeschlagen",
     "toast_agent_locked": "Agent gesperrt",
     "toast_lock_failed": "Sperren fehlgeschlagen",
-    "lock_too_early_msg": "Sperren geht erst kurz nach Beginn der Agentenauswahl, noch {n} s.",
+    "lock_too_early_msg": "Kurze Schutzzeit wie beim Instalock, noch {n} s.",
     "toast_instalock_enabled": "Instalock aktiviert",
     "toast_instalock_not_possible": "Instalock nicht möglich",
     "toast_instalock_off": "Instalock aus",

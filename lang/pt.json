@@ -131,7 +131,7 @@
     "toast_selection_failed": "Falha na seleção",
     "toast_agent_locked": "Agente travado",
     "toast_lock_failed": "Falha ao travar",
-    "lock_too_early_msg": "Só dá para travar pouco depois do início da seleção de agentes, faltam {n} s.",
+    "lock_too_early_msg": "Breve espera de segurança, igual ao Instalock, faltam {n} s.",
     "toast_instalock_enabled": "Instalock ativado",
     "toast_instalock_not_possible": "Instalock não é possível",
     "toast_instalock_off": "Instalock desligado",

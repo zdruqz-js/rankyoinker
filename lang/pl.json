@@ -132,7 +132,7 @@
     "toast_selection_failed": "Wybór nie powiódł się",
     "toast_agent_locked": "Agent zablokowany",
     "toast_lock_failed": "Blokowanie nie powiodło się",
-    "lock_too_early_msg": "Zablokować można dopiero chwilę po rozpoczęciu wyboru agentów, jeszcze {n} s.",
+    "lock_too_early_msg": "Krótkie opóźnienie ochronne, jak przy Instalocku, jeszcze {n} s.",
     "toast_instalock_enabled": "Instalock włączony",
     "toast_instalock_not_possible": "Instalock niemożliwy",
     "toast_instalock_off": "Instalock wyłączony",

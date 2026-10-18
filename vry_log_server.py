@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.4-dev5"
+APP_VERSION = "2.5.4-dev6"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2981,23 +2981,22 @@ def pick_agent(mid, kind, agent_id):
 def agent_action(kind, agent_id):
     """kind: 'select' (nur hovern) oder 'lock' (fest waehlen).
 
-    Sperren erst MANUAL_LOCK_MIN nach Beginn der Auswahl - dieselbe Schutzzeit wie
-    beim Instalock, sonst waere der Knopf im Overlay/am Handy ein Sofort-Sperr-Tool.
-    Dafuer immer mit frischer ID: Nach einem Dodge zaehlt die neue Auswahl ab ihrem
-    Beginn, nicht die alte aus dem 60-s-Cache."""
+    Beides erst MANUAL_LOCK_MIN nach Beginn der Auswahl - dieselbe Schutzzeit wie
+    beim Instalock, sonst waere das Overlay/Handy ein Sofort-Pick-Tool (Nutzerwunsch
+    2.5.4-dev6: auch Hovern). Dafuer immer mit frischer ID: Nach einem Dodge zaehlt
+    die neue Auswahl ab ihrem Beginn, nicht die alte aus dem 60-s-Cache."""
     if not agent_id:
         return {"ok": False, "error": "Kein Agent angegeben."}
-    mid = pregame_match_id(force=(kind == "lock"))
+    mid = pregame_match_id(force=True)
     if not mid:
         return {"ok": False, "error": "Gerade keine Agentenauswahl aktiv."}
-    if kind == "lock":
-        wait = manual_lock_wait(mid)
-        if 0 < wait <= MANUAL_LOCK_GRACE:
-            time.sleep(wait)        # Knopf und Dienst-Uhr laufen nicht auf die Zehntel gleich
-        elif wait > 0:
-            return {"ok": False, "code": "lock-too-early", "wait": round(wait, 1),
-                    "error": "Sperren geht erst %d s nach Beginn der Agentenauswahl (noch %d s)."
-                             % (MANUAL_LOCK_MIN, math.ceil(wait))}
+    wait = manual_lock_wait(mid)
+    if 0 < wait <= MANUAL_LOCK_GRACE:
+        time.sleep(wait)            # Knopf und Dienst-Uhr laufen nicht auf die Zehntel gleich
+    elif wait > 0:
+        return {"ok": False, "code": "lock-too-early", "wait": round(wait, 1),
+                "error": "Agent waehlen geht erst %d s nach Beginn der Agentenauswahl (noch %d s)."
+                         % (MANUAL_LOCK_MIN, math.ceil(wait))}
     ok, err = pick_agent(mid, kind, agent_id)
     return {"ok": True} if ok else {"ok": False, "error": err}
 
@@ -3982,7 +3981,7 @@ def _fetch_shop():
 
 _pregame_mid = {"id": None, "ts": 0.0}
 # Seit wann kennt der Dienst welche Agentenauswahl? Daran haengt die Schutzzeit fuers
-# Sperren von Hand (MANUAL_LOCK_MIN beim Instalock). Jede frische MatchID laeuft
+# Waehlen von Hand (MANUAL_LOCK_MIN beim Instalock). Jede frische MatchID laeuft
 # ueber _pregame_note() - wer eine neue Stelle baut, muss sie auch dort durchschicken.
 _pregame_seen = collections.OrderedDict()
 _pregame_seen_lock = threading.Lock()
@@ -4001,7 +4000,7 @@ def _pregame_note(mid):
 
 
 def manual_lock_wait(mid):
-    """Sekunden, bis RankYoinker in dieser Agentenauswahl von Hand sperren darf.
+    """Sekunden, bis RankYoinker in dieser Agentenauswahl von Hand waehlen/sperren darf.
     Unbekannte Auswahl (gerade erst aufgetaucht) -> volle Schutzzeit."""
     with _pregame_seen_lock:
         seen = _pregame_seen.get(mid)
@@ -4429,8 +4428,8 @@ IL_LOCK_GAP = 0.35
 # index.html oder eine direkte Anfrage an /api/instalock/arm auf 0s stellen.
 IL_DELAY = 11.5
 IL_JITTER = 0.5
-# Dieselbe Schutzzeit gilt fuers Sperren von Hand ueber RankYoinker (Knopf in der
-# Agentenauswahl, auch am Handy) - auch ohne scharfen Instalock. Gezaehlt ab dem
+# Dieselbe Schutzzeit gilt fuers Hovern und Sperren von Hand ueber RankYoinker
+# (Agentenauswahl im Overlay, auch am Handy) - auch ohne scharfen Instalock. Gezaehlt ab dem
 # ersten Sehen der Auswahl (_pregame_note), geprueft im Dienst (agent_action).
 MANUAL_LOCK_MIN = IL_DELAY - IL_JITTER
 MANUAL_LOCK_GRACE = 1.0   # so knapp zu frueh wartet der Dienst einfach kurz

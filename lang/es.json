@@ -131,7 +131,7 @@
     "toast_selection_failed": "Error en la selección",
     "toast_agent_locked": "Agente bloqueado",
     "toast_lock_failed": "Error al bloquear",
-    "lock_too_early_msg": "Solo se puede bloquear poco después de empezar la selección de agentes, faltan {n} s.",
+    "lock_too_early_msg": "Breve espera de seguridad, igual que con Instalock, faltan {n} s.",
     "toast_instalock_enabled": "Instalock activado",
     "toast_instalock_not_possible": "Instalock no es posible",
     "toast_instalock_off": "Instalock desactivado",

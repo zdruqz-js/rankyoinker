@@ -131,7 +131,7 @@
     "toast_selection_failed": "Échec de la sélection",
     "toast_agent_locked": "Agent verrouillé",
     "toast_lock_failed": "Échec du verrouillage",
-    "lock_too_early_msg": "Le verrouillage n'est possible que peu après le début de la sélection, encore {n} s.",
+    "lock_too_early_msg": "Court délai de sécurité, comme avec l'Instalock, encore {n} s.",
     "toast_instalock_enabled": "Instalock activé",
     "toast_instalock_not_possible": "Instalock impossible",
     "toast_instalock_off": "Instalock désactivé",
