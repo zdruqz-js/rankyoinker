@@ -639,6 +639,7 @@
     "perf_hint_msg": "Dieses Gerät kommt bei den Effekten kaum hinterher (z. B. ohne Hardwarebeschleunigung). Der Performance-Modus läuft deutlich flüssiger.",
     "perf_hint_btn": "Einschalten",
     "perf_on_title": "Performance-Modus an",
-    "perf_on_msg": "Du kannst ihn jederzeit in den Einstellungen unter „Darstellung“ ausschalten."
+    "perf_on_msg": "Du kannst ihn jederzeit in den Einstellungen unter „Darstellung“ ausschalten.",
+    "toast_loadout_not_updated": "Loadout nicht aktualisiert – letzter Stand"
   }
 }

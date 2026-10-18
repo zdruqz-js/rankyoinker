@@ -638,6 +638,7 @@
     "perf_hint_msg": "Este dispositivo apenas puede con los efectos (p. ej., sin aceleración por hardware). El modo rendimiento va mucho más fluido.",
     "perf_hint_btn": "Activar",
     "perf_on_title": "Modo rendimiento activado",
-    "perf_on_msg": "Puedes desactivarlo cuando quieras en Ajustes, en «Visualización»."
+    "perf_on_msg": "Puedes desactivarlo cuando quieras en Ajustes, en «Visualización».",
+    "toast_loadout_not_updated": "Loadout no actualizado: último estado"
   }
 }

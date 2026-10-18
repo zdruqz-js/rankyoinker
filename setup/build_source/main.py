@@ -346,6 +346,7 @@ try:
 
     firstTime = True
     firstPrint = True
+    last_hb_state = None      # Zustand des letzten Durchlaufs (sofortige Lobby-Meldung)
     while True:
         table.clear()
         table.set_default_field_names()
@@ -482,6 +483,16 @@ try:
                 "puuid": Requests.puuid,
                 "players": {},
             }
+            # Zurueck in der Lobby (Matchende, Dodge): sofort melden, nicht erst nach
+            # Namen und Raengen der Party - die kosten pd-Anfragen und dauerten bei
+            # einer Riot-Pause bis zu einer Minute (2.5.4-dev3). Die Seite fuellt die
+            # Lobby bis dahin aus /api/lobby des Dienstes.
+            if game_state == "MENUS" and last_hb_state in ("PREGAME", "INGAME"):
+                try:
+                    Server.send_payload("heartbeat", dict(heartbeat_data))
+                except Exception:
+                    pass
+            last_hb_state = game_state
 
             if game_state == "INGAME":
                 # Zeit-Diagnose: jeder grosse Schritt beim Laden eines Matches

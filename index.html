@@ -4112,10 +4112,35 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return msg;
   }
 
+  // Match vorbei / Dodge schneller (2.5.4-dev3): vry.exe meldet die Lobby erst,
+  // nachdem es Namen und Raenge dafuer geladen hat - bei einer Riot-Pause bis zu
+  // einer Minute, und haengt es noch in der Agentenauswahl, merkt es einen Dodge
+  // erst danach. Der Dienst sieht den Wechsel nach 1-2 s (eigene Presence,
+  // game.since). Ein Heartbeat aus PREGAME/INGAME, der davor gebaut wurde, ist
+  // ueberholt: Die Seite zeigt dann die Lobby (Mitglieder kommen aus /api/lobby).
+  function outdatedHeartbeat(d){
+    const g = procStatus && procStatus.game;
+    const since = g && g.state === 'MENUS' ? Number(g.since) || 0 : 0;
+    return !!(d && since && d.state !== 'MENUS' && (Number(d.time) || 0) < since);
+  }
+  // Der echte Heartbeat bleibt angehaengt: Meldet der Dienst danach wieder DASSELBE
+  // Match (Fehlalarm), zeigt die Seite es wieder - vry.exe schickt im laufenden
+  // Match sonst keinen neuen Heartbeat. Ein neues Match bringt vry.exe selbst.
+  let lastSvcMatch = null;
+  function asLobby(d){ return Object.assign({}, d, {state: 'MENUS', players: {}, realHeartbeat: d, realMatch: lastSvcMatch}); }
+  function lobbyWasFalseAlarm(d){
+    const g = procStatus && procStatus.game;
+    return !!(d && d.realHeartbeat && d.realMatch && g && g.matchId === d.realMatch && g.state === d.realHeartbeat.state);
+  }
+
   function onVryMessage(msg){
     if(!msg) return;
     if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
-    else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
+    else if(msg.type === 'heartbeat'){
+      const d = withPuuids(msg);
+      latestData = outdatedHeartbeat(d) ? asLobby(d) : d;
+      setConnState('live'); render();
+    }
   }
   function connectWS(){
     // Seit 2.5.3 ist der WebSocket von vry.exe nur noch am PC selbst erreichbar (vorher
@@ -4367,7 +4392,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       if(procStatus.puuid){
         if(lastAccountPuuid && procStatus.puuid !== lastAccountPuuid) onAccountSwitch();
         lastAccountPuuid = procStatus.puuid;
+        if(tabsPrefetched !== lastAccountPuuid && !prefetchTimer) prefetchTimer = setTimeout(prefetchTabs, 3000);
       }
+      if(outdatedHeartbeat(latestData)){ latestData = asLobby(latestData); render(); }
+      else if(lobbyWasFalseAlarm(latestData)){ latestData = latestData.realHeartbeat; render(); }
+      if(procStatus.game && procStatus.game.matchId) lastSvcMatch = procStatus.game.matchId;
       matchViewSync();
       syncReport();
 
@@ -4395,11 +4424,43 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(connState !== 'live') updateOverlay();
   }
 
+  // ---- Skins/Shop im Hintergrund vorladen (2.5.4-dev3) ----
+  // Nutzerwunsch: Die Reiter sollen fertig sein, bevor man sie anklickt (vorher
+  // gab es waehrend einer Riot-Sperre nur Fehler). Der Dienst haelt den Stand je
+  // Account bereit (auch ueber einen Neustart), hier kommen Katalog, Besitz,
+  // gemerktes Loadout und Shop schon in die Seite. Beim Anklicken zeichnet der
+  // Reiter sofort und holt das Loadout still frisch nach.
+  let tabsPrefetched = null, prefetchTimer = null;
+  function prefetchTabs(){
+    prefetchTimer = null;
+    const acct = lastAccountPuuid;
+    if(!acct || tabsPrefetched === acct) return;
+    tabsPrefetched = acct;
+    // VALORANT noch nicht offen o. Ae.: in 30 s noch einmal (der Dienst antwortet
+    // dann aus seinem Speicher, das kostet keine Riot-Anfrage)
+    const retry = () => {
+      if(tabsPrefetched !== acct) return;
+      tabsPrefetched = null;
+      if(!prefetchTimer) prefetchTimer = setTimeout(prefetchTabs, 30000);
+    };
+    loadSkinData().then(() => Promise.all([
+      loadCurrencies(), loadEntitlements(), loadPresets(),
+      currentLoadout ? true : api('/api/loadout?cached=1').then(j => {
+        if(j && j.ok && !currentLoadout && lastAccountPuuid === acct) currentLoadout = j;
+        return !!(j && j.ok);
+      }),
+      shopStillValid() ? true : api('/api/shop').then(j => {
+        if(j && j.ok && !shopState.data && lastAccountPuuid === acct){ shopState.data = j; shopState.at = Date.now(); }
+        return !!(j && j.ok);
+      }),
+    ])).then(r => { if(!r[3] || !r[4] || !entOwned) retry(); }).catch(retry);
+  }
+
   // ---- Account-Wechsel: alles neu holen, nichts vom alten Konto stehen lassen ----
   function onAccountSwitch(){
     Object.keys(kdaCache).forEach(k => delete kdaCache[k]);
     Object.keys(encCache).forEach(k => delete encCache[k]);
-    presetCache = {}; presetAccount = null;
+    presetCache = {}; presetAccount = null; presetsReady = false; tabsPrefetched = null;
     currentLoadout = null;
     entOwned = null; ownedAgents = null; ownPuuid = null;
     shopState.data = null; shopState.at = 0;
@@ -4628,9 +4689,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   // Ergebnis-Punkte der letzten Matches — links der jüngste.
   // Details stehen in der Einzelübersicht des Spielers.
-  // Seit 2.5.4-dev2 3 statt 5 (RECENT_MATCHES im Dienst): jedes Match ist pro
-  // Spieler eine eigene Riot-Anfrage, beim Matchstart bis zu 20 weniger.
-  const RECENT_N = 3;
+  // Gleiche Anzahl wie RECENT_MATCHES im Dienst.
+  const RECENT_N = 5;
   function recentTileHtml(p){
     const id = p.puuid || '';
     if(!id) return '';
@@ -4640,7 +4700,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <div class="rt-label">${t('last_n_matches', {n: RECENT_N})}</div>
         <div class="dots">${'<span class="dot skel"></span>'.repeat(RECENT_N)}</div></div>`;
     }
-    // slice: ein im localStorage gemerktes Match (ry_match_view) kann noch 5 enthalten
     const res = ((d && d.results) || []).slice(0, RECENT_N);
     if(!res.length){
       return `<div class="lm-tile" data-kda="${esc(id)}">
@@ -4734,10 +4793,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   // ---------- Smurf-Hinweis ----------
   // Bewusst sehr streng (lieber nie anschlagen als falsch): niedriges Account-
-  // Level UND in allen letzten Matches (seit 2.5.4-dev2 3 statt 5) Ranked und
-  // dominant (K/D, Headshots, nur Siege). Ein ehrlicher Neuling kommt da praktisch
-  // nie hin. Das Level kann versteckt sein (0) - dann gibt es nie einen Hinweis.
-  const SMURF = {maxLevel: 40, games: 3, minKd: 1.5, minHs: 24, minWins: 3};
+  // Level UND in allen letzten 5 RANKED-Matches dominant (K/D, Headshots,
+  // fast nur Siege). Ein ehrlicher Neuling kommt da praktisch nie hin. Das
+  // Level kann versteckt sein (0) - dann gibt es nie einen Hinweis.
+  const SMURF = {maxLevel: 40, games: 5, minKd: 1.5, minHs: 24, minWins: 4};
   function smurfHint(level, tot){
     if(!tot || !(level >= 1 && level <= SMURF.maxLevel)) return null;
     if(tot.games < SMURF.games || !(tot.kd >= SMURF.minKd) || !(tot.hsPercent >= SMURF.minHs) || !(tot.wins >= SMURF.minWins)) return null;
@@ -6973,6 +7032,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function loadEntitlements(){
     if(entOwned) return Promise.resolve();
     return api('/api/entitlements').catch(apiFail).then(j => {
+      // Fehlschlag (Riot-Sperre) nicht als "besitzt nichts" merken - sonst blieb das
+      // bis zum Neuladen so; der naechste Aufruf versucht es erneut
+      if(!j || !j.ok) return;
       const set = k => new Set((j[k] || []).map(x => String(x).toLowerCase()));
       entOwned = {skins: set('skins'), chromas: set('chromas'), buddies: set('buddies'),
                   sprays: set('sprays'), cards: set('cards'), titles: set('titles')};
@@ -7078,12 +7140,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   });
 
   // Presets liegen in vry_presets.json neben vry.exe — der Log-Server liest und schreibt sie.
-  let presetCache = {}, presetFile = 'vry_presets.json', presetAccount = null;
+  let presetCache = {}, presetFile = 'vry_presets.json', presetAccount = null, presetsReady = false;
   function presets(){ return presetCache; }
 
   function loadPresets(){
     return api('/api/presets').catch(apiFail).then(j => {
       if(!j.ok) return j;
+      presetsReady = true;
       presetCache = j.presets || {};
       if(j.file) presetFile = j.file;
       presetAccount = j.account || null;
@@ -7108,90 +7171,109 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // bis die neuen Daten da sind, und ohne erneuten Einflug aller Karten.
   function renderSkins(quiet){
     const el = document.getElementById('panelSkins');
-    if(!quiet || !el.querySelector('.gun-grid')){
+    // Vorgeladener bzw. letzter Stand sofort, ohne Ladebalken - der frische kommt
+    // still nach (2.5.4-dev3). Vorher lud der Reiter erst beim Anklicken, und bei
+    // einer Riot-Sperre stand dann nur eine Fehlermeldung da.
+    let painted = null;
+    if(!el.querySelector('.gun-grid') && currentLoadout && skinLevelMap && presetsReady){
+      paintSkins(el, currentLoadout, false);
+      painted = JSON.stringify(currentLoadout.Guns || []);
+      quiet = true;
+    } else if(!quiet || !el.querySelector('.gun-grid')){
       quiet = false;
       el.innerHTML = `<div class="panel-loading">${svgIcon('loader',15,'spin')} ${t('loading_loadout')}</div>`;
     }
     Promise.all([loadSkinData(), api('/api/loadout').catch(apiFail), loadPresets()]).then(([, j]) => {
-      // Presets sind lokal gespeichert (vry_presets.json) und komplett
-      // unabhängig vom Live-Loadout - wenn Riots API gerade mal nicht
-      // lesbar ist (z.B. Status 404), sollen sie trotzdem sichtbar und
-      // nutzbar bleiben statt dass der ganze Tab nur eine Fehlermeldung
-      // zeigt und "verschwindet".
-      currentLoadout = j.ok ? j : null;
-      const p = presets();
-      const chips = Object.keys(p).map(name => `
-        <span class="preset-chip">
-          <span class="use" data-use="${esc(name)}" data-tip="${t('view_loadout')}">${esc(name)}</span>
-          <button class="del" data-del="${esc(name)}" data-tip="${t('delete_preset')}">${svgIcon('x',11)}</button>
-        </span>`).join('') || `<span class="preset-none">${t('no_presets_saved')}</span>`;
+      if(!j.ok && currentLoadout){          // Riot zickt: der letzte Stand bleibt stehen
+        if(!el.querySelector('.gun-grid')) paintSkins(el, currentLoadout, false);
+        toast('warn', t('toast_loadout_not_updated'), j.error || '', {id:'loadout', dur:6000});
+        return;
+      }
+      if(j.stale) toast('warn', t('toast_loadout_not_updated'), '', {id:'loadout', dur:6000});
+      if(painted !== null && j.ok && JSON.stringify(j.Guns || []) === painted){ currentLoadout = j; return; }
+      paintSkins(el, j, quiet);
+    });
+  }
 
-      // Waffen in Kauf-Reihenfolge (Pistolen -> Gewehre -> Messer) statt Riots zufälliger Reihenfolge
-      const wName = g => weaponNameMap[String(g.ID || '').toLowerCase()] || '?';
-      const wPos = g => { const i = WEAPON_ORDER.indexOf(wName(g)); return i === -1 ? 99 : i; };
-      const currentSection = j.ok
-        ? `<div class="gun-grid">${(j.Guns || []).slice().sort((a, b) => wPos(a) - wPos(b)).map((g, i) => {
-            const sk = skinVisual(g);
-            const wn = wName(g);
-            return `<div class="gun-card" style="${sk && sk.tier ? `--tier:${esc(sk.tier)};` : ''}animation-delay:${Math.min(i, 22) * 30}ms;" data-gun="${esc(g.ID || '')}" data-label="${esc(t('change_label'))}">
-              <div class="gimg">${sk && sk.icon ? `<img src="${esc(sk.icon)}" alt="" loading="lazy">` : `<span style="color:var(--text-faint);font-size:11px;">${t('no_image')}</span>`}</div>
-              <div class="gw">${esc(wn)}${sk && sk.level > 1 ? ' · Lvl ' + sk.level : ''}</div>
-              <div class="gs">${esc(sk ? sk.name : t('default_skin'))}</div>
-            </div>`;
-          }).join('')}</div>`
-        : `<div class="panel-empty">${esc(j.error || t('loadout_unreadable'))}</div>`;
+  function paintSkins(el, j, quiet){
+    // Presets sind lokal gespeichert (vry_presets.json) und komplett
+    // unabhängig vom Live-Loadout - wenn Riots API gerade mal nicht
+    // lesbar ist (z.B. Status 404), sollen sie trotzdem sichtbar und
+    // nutzbar bleiben statt dass der ganze Tab nur eine Fehlermeldung
+    // zeigt und "verschwindet".
+    currentLoadout = j.ok ? j : null;
+    const p = presets();
+    const chips = Object.keys(p).map(name => `
+      <span class="preset-chip">
+        <span class="use" data-use="${esc(name)}" data-tip="${t('view_loadout')}">${esc(name)}</span>
+        <button class="del" data-del="${esc(name)}" data-tip="${t('delete_preset')}">${svgIcon('x',11)}</button>
+      </span>`).join('') || `<span class="preset-none">${t('no_presets_saved')}</span>`;
 
-      el.classList.toggle('quiet', !!quiet);
-      el.innerHTML = `
-        <div class="page-head">
-          <div><span class="eyebrow">VALORANT · ${t('tab_skins')}</span><h1>${t('current_loadout')}</h1></div>
-          <div class="page-head-actions preset-row">
-            <button class="pbtn go" id="savePreset" ${j.ok ? '' : `disabled data-tip="${t('current_loadout_unreadable')}"`}>${svgIcon('save',14)}${t('save_current_loadout')}</button>
-          </div>
+    // Waffen in Kauf-Reihenfolge (Pistolen -> Gewehre -> Messer) statt Riots zufälliger Reihenfolge
+    const wName = g => weaponNameMap[String(g.ID || '').toLowerCase()] || '?';
+    const wPos = g => { const i = WEAPON_ORDER.indexOf(wName(g)); return i === -1 ? 99 : i; };
+    const currentSection = j.ok
+      ? `<div class="gun-grid">${(j.Guns || []).slice().sort((a, b) => wPos(a) - wPos(b)).map((g, i) => {
+          const sk = skinVisual(g);
+          const wn = wName(g);
+          return `<div class="gun-card" style="${sk && sk.tier ? `--tier:${esc(sk.tier)};` : ''}animation-delay:${Math.min(i, 22) * 30}ms;" data-gun="${esc(g.ID || '')}" data-label="${esc(t('change_label'))}">
+            <div class="gimg">${sk && sk.icon ? `<img src="${esc(sk.icon)}" alt="" loading="lazy">` : `<span style="color:var(--text-faint);font-size:11px;">${t('no_image')}</span>`}</div>
+            <div class="gw">${esc(wn)}${sk && sk.level > 1 ? ' · Lvl ' + sk.level : ''}</div>
+            <div class="gs">${esc(sk ? sk.name : t('default_skin'))}</div>
+          </div>`;
+        }).join('')}</div>`
+      : `<div class="panel-empty">${esc(j.error || t('loadout_unreadable'))}</div>`;
+
+    el.classList.toggle('quiet', !!quiet);
+    el.innerHTML = `
+      <div class="page-head">
+        <div><span class="eyebrow">VALORANT · ${t('tab_skins')}</span><h1>${t('current_loadout')}</h1></div>
+        <div class="page-head-actions preset-row">
+          <button class="pbtn go" id="savePreset" ${j.ok ? '' : `disabled data-tip="${t('current_loadout_unreadable')}"`}>${svgIcon('save',14)}${t('save_current_loadout')}</button>
         </div>
-        <div class="preset-chips"><span class="eyebrow">${t('tab_lol_presets')}</span>${chips}</div>
-        ${currentSection}`;
+      </div>
+      <div class="preset-chips"><span class="eyebrow">${t('tab_lol_presets')}</span>${chips}</div>
+      ${currentSection}`;
 
-      const saveBtn = document.getElementById('savePreset');
-      if(saveBtn && j.ok) saveBtn.addEventListener('click', () => {
-        askName({
-          title: t('save_preset_title'),
-          sub: t('save_preset_sub'),
-          placeholder: t('save_preset_placeholder'),
-          okLabel: t('save'),
-          exists: n => Object.prototype.hasOwnProperty.call(presets(), n)
-        }).then(name => {
-          if(!name) return;
-          // Bewusst nur die Waffen — Sprays und Spielerkarte gehören nicht ins Preset
-          const data = {Guns: currentLoadout.Guns};
-          api('/api/presets/save', {name: name, data: data}).catch(apiFail).then(r => {
-            if(r.ok){
-              presetCache = r.presets || presetCache;
-              toast('success', t('toast_preset_saved'), name + ' → ' + presetFile, {dur:3500});
-              renderSkins(true);
-            } else toast('error', t('toast_save_failed'), r.error || '', {dur:7000});
-          });
+    const saveBtn = document.getElementById('savePreset');
+    if(saveBtn && j.ok) saveBtn.addEventListener('click', () => {
+      askName({
+        title: t('save_preset_title'),
+        sub: t('save_preset_sub'),
+        placeholder: t('save_preset_placeholder'),
+        okLabel: t('save'),
+        exists: n => Object.prototype.hasOwnProperty.call(presets(), n)
+      }).then(name => {
+        if(!name) return;
+        // Bewusst nur die Waffen — Sprays und Spielerkarte gehören nicht ins Preset
+        const data = {Guns: currentLoadout.Guns};
+        api('/api/presets/save', {name: name, data: data}).catch(apiFail).then(r => {
+          if(r.ok){
+            presetCache = r.presets || presetCache;
+            toast('success', t('toast_preset_saved'), name + ' → ' + presetFile, {dur:3500});
+            renderSkins(true);
+          } else toast('error', t('toast_save_failed'), r.error || '', {dur:7000});
         });
       });
-      // Erst anschauen, dann anwenden — der Klick öffnet die Vorschau
-      // (funktioniert unabhängig vom Live-Loadout, Presets sind lokal)
-      el.querySelectorAll('[data-use]').forEach(b => b.addEventListener('click', () => {
-        openPresetPreview(b.getAttribute('data-use'));
-      }));
-      el.querySelectorAll('.gun-card').forEach(c => c.addEventListener('click', () => {
-        openSkinPicker(c.getAttribute('data-gun'));
-      }));
-      el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-        const name = b.getAttribute('data-del');
-        api('/api/presets/delete', {name: name}).catch(apiFail).then(r => {
-          if(r.ok){
-            presetCache = r.presets || {};
-            toast('info', t('toast_preset_deleted'), name, {dur:2500});
-            renderSkins(true);
-          } else toast('error', t('toast_delete_failed'), r.error || '', {dur:6000});
-        });
-      }));
     });
+    // Erst anschauen, dann anwenden — der Klick öffnet die Vorschau
+    // (funktioniert unabhängig vom Live-Loadout, Presets sind lokal)
+    el.querySelectorAll('[data-use]').forEach(b => b.addEventListener('click', () => {
+      openPresetPreview(b.getAttribute('data-use'));
+    }));
+    el.querySelectorAll('.gun-card').forEach(c => c.addEventListener('click', () => {
+      openSkinPicker(c.getAttribute('data-gun'));
+    }));
+    el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      const name = b.getAttribute('data-del');
+      api('/api/presets/delete', {name: name}).catch(apiFail).then(r => {
+        if(r.ok){
+          presetCache = r.presets || {};
+          toast('info', t('toast_preset_deleted'), name, {dur:2500});
+          renderSkins(true);
+        } else toast('error', t('toast_delete_failed'), r.error || '', {dur:6000});
+      });
+    }));
   }
 
   // ---------- Vorschau eines gespeicherten Presets ----------
@@ -10744,7 +10826,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4-dev2";
+const CURRENT_VERSION = "2.5.4-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

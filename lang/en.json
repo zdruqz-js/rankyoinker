@@ -639,6 +639,7 @@
     "perf_hint_msg": "This device can barely keep up with the effects (e.g. without hardware acceleration). Performance mode runs much smoother.",
     "perf_hint_btn": "Turn on",
     "perf_on_title": "Performance mode on",
-    "perf_on_msg": "You can turn it off anytime in Settings under “Display”."
+    "perf_on_msg": "You can turn it off anytime in Settings under “Display”.",
+    "toast_loadout_not_updated": "Loadout not updated – showing last state"
   }
 }

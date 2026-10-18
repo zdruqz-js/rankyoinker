@@ -638,6 +638,7 @@
     "perf_hint_msg": "Bu cihaz efektlere zor yetişiyor (ör. donanım hızlandırma kapalı). Performans modu çok daha akıcı çalışır.",
     "perf_hint_btn": "Aç",
     "perf_on_title": "Performans modu açık",
-    "perf_on_msg": "İstediğin zaman Ayarlar'da “Görünüm” altından kapatabilirsin."
+    "perf_on_msg": "İstediğin zaman Ayarlar'da “Görünüm” altından kapatabilirsin.",
+    "toast_loadout_not_updated": "Teçhizat güncellenmedi – son durum"
   }
 }

@@ -224,7 +224,7 @@
     "lol_wr_short": "WR",
     "winrate_label": "Winrate",
     "performance_recent_matches": "Wyniki, ostatnie mecze",
-    "last_n_matches": "Ostatnie {n} mecze",
+    "last_n_matches": "Ostatnie {n} meczów",
     "no_data": "brak danych",
     "complete_loadout": "Pełny loadout",
     "agent_not_unlocked": "nieodblokowany",
@@ -639,6 +639,7 @@
     "perf_hint_msg": "To urządzenie ledwo nadąża z efektami (np. bez akceleracji sprzętowej). Tryb wydajności działa dużo płynniej.",
     "perf_hint_btn": "Włącz",
     "perf_on_title": "Tryb wydajności włączony",
-    "perf_on_msg": "Możesz go w każdej chwili wyłączyć w ustawieniach w sekcji „Wygląd”."
+    "perf_on_msg": "Możesz go w każdej chwili wyłączyć w ustawieniach w sekcji „Wygląd”.",
+    "toast_loadout_not_updated": "Loadout nie zaktualizowany – ostatni stan"
   }
 }

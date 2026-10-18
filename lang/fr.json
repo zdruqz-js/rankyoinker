@@ -638,6 +638,7 @@
     "perf_hint_msg": "Cet appareil a du mal à suivre les effets (par ex. sans accélération matérielle). Le mode performance est bien plus fluide.",
     "perf_hint_btn": "Activer",
     "perf_on_title": "Mode performance activé",
-    "perf_on_msg": "Tu peux le désactiver à tout moment dans les paramètres, rubrique « Affichage »."
+    "perf_on_msg": "Tu peux le désactiver à tout moment dans les paramètres, rubrique « Affichage ».",
+    "toast_loadout_not_updated": "Loadout non actualisé – dernier état"
   }
 }

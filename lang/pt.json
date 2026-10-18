@@ -638,6 +638,7 @@
     "perf_hint_msg": "Este dispositivo mal consegue acompanhar os efeitos (por ex. sem aceleração de hardware). O modo desempenho roda bem mais liso.",
     "perf_hint_btn": "Ativar",
     "perf_on_title": "Modo desempenho ativado",
-    "perf_on_msg": "Você pode desativar quando quiser em Configurações, em “Aparência”."
+    "perf_on_msg": "Você pode desativar quando quiser em Configurações, em “Aparência”.",
+    "toast_loadout_not_updated": "Loadout não atualizado – último estado"
   }
 }
