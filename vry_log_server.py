@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.4-dev4"
+APP_VERSION = "2.5.4-dev5"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2979,12 +2979,25 @@ def pick_agent(mid, kind, agent_id):
 
 
 def agent_action(kind, agent_id):
-    """kind: 'select' (nur hovern) oder 'lock' (fest waehlen)."""
+    """kind: 'select' (nur hovern) oder 'lock' (fest waehlen).
+
+    Sperren erst MANUAL_LOCK_MIN nach Beginn der Auswahl - dieselbe Schutzzeit wie
+    beim Instalock, sonst waere der Knopf im Overlay/am Handy ein Sofort-Sperr-Tool.
+    Dafuer immer mit frischer ID: Nach einem Dodge zaehlt die neue Auswahl ab ihrem
+    Beginn, nicht die alte aus dem 60-s-Cache."""
     if not agent_id:
         return {"ok": False, "error": "Kein Agent angegeben."}
-    mid = pregame_match_id()
+    mid = pregame_match_id(force=(kind == "lock"))
     if not mid:
         return {"ok": False, "error": "Gerade keine Agentenauswahl aktiv."}
+    if kind == "lock":
+        wait = manual_lock_wait(mid)
+        if 0 < wait <= MANUAL_LOCK_GRACE:
+            time.sleep(wait)        # Knopf und Dienst-Uhr laufen nicht auf die Zehntel gleich
+        elif wait > 0:
+            return {"ok": False, "code": "lock-too-early", "wait": round(wait, 1),
+                    "error": "Sperren geht erst %d s nach Beginn der Agentenauswahl (noch %d s)."
+                             % (MANUAL_LOCK_MIN, math.ceil(wait))}
     ok, err = pick_agent(mid, kind, agent_id)
     return {"ok": True} if ok else {"ok": False, "error": err}
 
@@ -3968,6 +3981,33 @@ def _fetch_shop():
 
 
 _pregame_mid = {"id": None, "ts": 0.0}
+# Seit wann kennt der Dienst welche Agentenauswahl? Daran haengt die Schutzzeit fuers
+# Sperren von Hand (MANUAL_LOCK_MIN beim Instalock). Jede frische MatchID laeuft
+# ueber _pregame_note() - wer eine neue Stelle baut, muss sie auch dort durchschicken.
+_pregame_seen = collections.OrderedDict()
+_pregame_seen_lock = threading.Lock()
+
+
+def _pregame_note(mid):
+    """Frische MatchID der Agentenauswahl merken (Cache + wann zuerst gesehen)."""
+    now = time.time()
+    _pregame_mid["id"] = mid
+    _pregame_mid["ts"] = now
+    with _pregame_seen_lock:
+        if mid not in _pregame_seen:
+            _pregame_seen[mid] = now
+            while len(_pregame_seen) > 8:
+                _pregame_seen.popitem(last=False)
+
+
+def manual_lock_wait(mid):
+    """Sekunden, bis RankYoinker in dieser Agentenauswahl von Hand sperren darf.
+    Unbekannte Auswahl (gerade erst aufgetaucht) -> volle Schutzzeit."""
+    with _pregame_seen_lock:
+        seen = _pregame_seen.get(mid)
+    if seen is None:
+        return MANUAL_LOCK_MIN
+    return max(0.0, seen + MANUAL_LOCK_MIN - time.time())
 
 
 def pregame_match_id(force=False):
@@ -3980,8 +4020,7 @@ def pregame_match_id(force=False):
     if status != 200 or not j or not j.get("MatchID"):
         _pregame_mid["id"] = None
         return None
-    _pregame_mid["id"] = j["MatchID"]
-    _pregame_mid["ts"] = time.time()
+    _pregame_note(j["MatchID"])
     return _pregame_mid["id"]
 
 
@@ -4390,6 +4429,11 @@ IL_LOCK_GAP = 0.35
 # index.html oder eine direkte Anfrage an /api/instalock/arm auf 0s stellen.
 IL_DELAY = 11.5
 IL_JITTER = 0.5
+# Dieselbe Schutzzeit gilt fuers Sperren von Hand ueber RankYoinker (Knopf in der
+# Agentenauswahl, auch am Handy) - auch ohne scharfen Instalock. Gezaehlt ab dem
+# ersten Sehen der Auswahl (_pregame_note), geprueft im Dienst (agent_action).
+MANUAL_LOCK_MIN = IL_DELAY - IL_JITTER
+MANUAL_LOCK_GRACE = 1.0   # so knapp zu frueh wartet der Dienst einfach kurz
 
 _il_lock = threading.Lock()
 _il = {
@@ -4471,8 +4515,7 @@ def _pregame_id_fresh():
     status, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
     if status != 200 or not j or not j.get("MatchID"):
         return None
-    _pregame_mid["id"] = j["MatchID"]
-    _pregame_mid["ts"] = time.time()
+    _pregame_note(j["MatchID"])
     return j["MatchID"]
 
 
@@ -4878,8 +4921,7 @@ def _live_state():
     status, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
     if status == 200 and j and j.get("MatchID"):
         # Der Agentenauswahl-Cache bekommt die frische ID gleich mit
-        _pregame_mid["id"] = j["MatchID"]
-        _pregame_mid["ts"] = time.time()
+        _pregame_note(j["MatchID"])
         return "PREGAME", j["MatchID"]
     return "MENUS", None
 
@@ -9404,7 +9446,11 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/pregame":
             try:
-                self._json(pregame_state())
+                d = pregame_state()
+                if d.get("ok") and d.get("matchId"):
+                    # erst hier ausrechnen - pregame_state() ist bis zu 0,7 s gecacht
+                    d = dict(d, lockIn=round(manual_lock_wait(d["matchId"]), 1))
+                self._json(d)
             except RiotError as e:
                 self._json({"ok": False, "error": str(e)})
             except Exception as e:

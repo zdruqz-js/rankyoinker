@@ -4856,6 +4856,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         if(!j || !j.ok) return;
         if(seq < pregameAppliedSeq) return;
         pregameAppliedSeq = seq;
+        if(typeof j.lockIn === 'number') setPickLockIn(j.lockIn);
         const live = latestData && latestData.state === 'PREGAME' ? latestData : null;
         const mePuuid = (live && live.puuid) || ownPuuid;
         const players = withPendingPick(j.players || [], mePuuid);
@@ -4942,7 +4943,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     pregameTimer = setInterval(syncPregame, 1000);   // nahezu live; Server cacht 0,7 s
     syncPregame();
   }
-  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; }   // Seite gilt nur für diese eine Auswahl
+  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; pickLockAt = 0; }   // Seite und Schutzzeit gelten nur für diese eine Auswahl
 
   // variant 'peak' = kompakte Zeile (Peak bzw. Flex), sonst die große Kachel mit RR-Balken
   function rankTileHtml(label, rankNum, opts){
@@ -6326,6 +6327,36 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // sprang zurück und wieder vor, bei schnellen Klicks mehrmals hin und her.
   let pickPending = null;            // {agent, until}
   const PICK_PENDING_MS = 4000;
+  // Von Hand sperren erst nach derselben Schutzzeit wie beim Instalock (11 s ab Beginn
+  // der Auswahl). Die Uhr führt der Dienst (lockIn in /api/pregame) und lehnt zu frühes
+  // Sperren selbst ab - hier nur Countdown und gesperrter Knopf.
+  let pickLockAt = 0, pickLockTimer = null;
+  function pickLockLeft(){ return pickLocked ? 0 : Math.max(0, Math.ceil((pickLockAt - Date.now()) / 1000)); }
+  function setPickLockIn(sec){
+    pickLockAt = sec > 0 ? Date.now() + sec * 1000 : 0;
+    updateLockBtn();
+    if(pickLockAt && !pickLockTimer) pickLockTimer = setInterval(() => {
+      updateLockBtn();
+      if(Date.now() >= pickLockAt){ clearInterval(pickLockTimer); pickLockTimer = null; }
+    }, 250);
+  }
+  function lockBtnLabel(){
+    const left = pickLockLeft();
+    return left ? t('choose_agent_wait', {n: left}) : t('choose_agent_btn');
+  }
+  function lockHintText(){
+    return pickLocked ? t('agent_locked_hint') : (pickLockLeft() ? t('agent_lock_wait_hint') : '');
+  }
+  function updateLockBtn(){
+    const lb = document.getElementById('lockBtn');
+    if(lb){
+      lb.disabled = !(pickSelected && !pickLocked) || pickLockLeft() > 0;
+      const sp = lb.querySelector('span');
+      if(sp) sp.textContent = lockBtnLabel();
+    }
+    const hint = document.getElementById('lockHint');   // League hat eigene .ap-hint
+    if(hint){ const txt = lockHintText(); hint.textContent = txt; hint.hidden = !txt; }
+  }
   function withPendingPick(list, mePuuid){
     if(!pickPending || !mePuuid) return list;
     const me = list.find(p => p.puuid === mePuuid);
@@ -6395,14 +6426,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       cell.classList.toggle('sel', uid === sel && !pickLocked);
       cell.classList.toggle('locked', uid === sel && pickLocked);
     });
-    const lb = document.getElementById('lockBtn');
-    if(lb){
-      lb.disabled = !(pickSelected && !pickLocked);
-      const sp = lb.querySelector('span');
-      if(sp) sp.textContent = t('choose_agent_btn');
-    }
-    const hint = document.querySelector('.ap-actions .ap-hint');
-    if(hint) hint.textContent = pickLocked ? t('agent_locked_hint') : '';
+    updateLockBtn();
     const roster = document.getElementById('pregameRoster');
     if(roster && pregameLive && pregameLive.length) morphChildren(roster, pregameRosterHtml());
   }
@@ -6484,10 +6508,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <div class="ap-divider"></div>` : ''}
         <div class="agent-grid" id="agentGrid">${cells}</div>
         <div class="ap-actions">
-          <button class="btn-lock" id="lockBtn" ${pickSelected && !pickLocked ? '' : 'disabled'}>
-            ${svgIcon('check', 13)}<span>${t('choose_agent_btn')}</span>
+          <button class="btn-lock" id="lockBtn" ${pickSelected && !pickLocked && !pickLockLeft() ? '' : 'disabled'}>
+            ${svgIcon('check', 13)}<span>${lockBtnLabel()}</span>
           </button>
-          ${pickLocked ? `<span class="ap-hint">${t('agent_locked_hint')}</span>` : ''}
+          <span class="ap-hint" id="lockHint" ${lockHintText() ? '' : 'hidden'}>${lockHintText()}</span>
         </div>
       </div>`;
   }
@@ -6529,7 +6553,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const lockBtn = document.getElementById('lockBtn');
     if(lockBtn){
       lockBtn.addEventListener('click', () => {
-        if(!pickSelected || pickLocked) return;
+        if(!pickSelected || pickLocked || pickLockLeft()) return;
         const agent = pickSelected;
         lockBtn.disabled = true;
         const label = lockBtn.querySelector('span');
@@ -6539,6 +6563,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
           if(j.ok){
             pickSelected = agent; pickLocked = true; pickPending = null;
             toast('success', t('toast_agent_locked'), agentById[agent.toLowerCase()] || '', {id:'pick'});
+          } else if(j.code === 'lock-too-early'){
+            setPickLockIn(j.wait || 0);
+            toast('error', t('toast_lock_failed'), t('lock_too_early_msg', {n: Math.ceil(j.wait || 0)}), {id:'pick', dur:5000});
           } else toast('error', t('toast_lock_failed'), j.error || '', {id:'pick', dur:7000});
           refreshPregameView();
           syncPregame();
@@ -10796,7 +10823,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4-dev4";
+const CURRENT_VERSION = "2.5.4-dev5";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
