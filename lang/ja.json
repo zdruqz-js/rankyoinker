@@ -629,6 +629,15 @@
     "report_rd_buy": "購入",
     "report_rd_econ": "{a} 対 {b}",
     "report_rd_you": "あなた",
-    "report_rd_survived": "生存"
+    "report_rd_survived": "生存",
+    "settings_display_label": "表示",
+    "perf_mode": "パフォーマンスモード",
+    "perf_mode_hint": "エフェクトを減らして滑らかに – 性能の低いPCやハードウェアアクセラレーションがオフの場合に。",
+    "perf_mode_recommended": "このデバイスにおすすめ",
+    "perf_hint_title": "ページがカクつきますか？",
+    "perf_hint_msg": "このデバイスはエフェクトの描画が追いついていません（例：ハードウェアアクセラレーションがオフ）。パフォーマンスモードならずっと滑らかに動きます。",
+    "perf_hint_btn": "オンにする",
+    "perf_on_title": "パフォーマンスモード オン",
+    "perf_on_msg": "設定の「表示」からいつでもオフにできます。"
   }
 }

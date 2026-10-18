@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.3"
+APP_VERSION = "2.5.4-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -3005,6 +3005,23 @@ def set_rpc_lang(lang, auto=False, local=True):
         data["lang"] = lang
         if not auto:
             data["langExplicit"] = True
+        _save_json(CONFIG_JSON_FILE, data)
+    return {"ok": True}
+
+
+def set_perf_mode(on, local=True):
+    """Performance-Modus des Overlays (2.5.4) zusaetzlich in config.json. Die Seite
+    merkt ihn sich im localStorage, der gilt aber je Adresse (http://rankyoinker/
+    und localhost:1101 getrennt) und ist nach dem Leeren der Browserdaten weg.
+    Nur vom PC selbst - ein gekoppeltes Handy hat seinen eigenen Schalter."""
+    if not local:
+        return {"ok": True, "ignored": True}
+    on = on is True
+    with _config_lock:
+        data = _load_json(CONFIG_JSON_FILE)
+        if data.get("perfMode") is on:
+            return {"ok": True}
+        data["perfMode"] = on
         _save_json(CONFIG_JSON_FILE, data)
     return {"ok": True}
 
@@ -8893,6 +8910,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/set-lang":
             local = _is_local(self._client_ip())
             self._safe(lambda: set_rpc_lang(body.get("lang"), auto=bool(body.get("auto")), local=local))
+        elif path == "/api/set-perf":
+            local = _is_local(self._client_ip())
+            self._safe(lambda: set_perf_mode(body.get("on"), local=local))
         elif path == "/api/presets/save":
             self._safe(lambda: preset_save(body.get("name"), body.get("data")))
         elif path == "/api/presets/delete":
@@ -9153,14 +9173,17 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/local-config":
             # Liest ausschliesslich fuer den Update-Check gedachte, lokale
             # Einstellungen aus config.json (siehe checkForUpdate() in
-            # index.html) - aktuell nur "updateChannel" ("stable"/"dev").
+            # index.html) - "updateChannel" ("stable"/"dev") - und seit 2.5.4
+            # "perfMode" (true/false, null = noch nie gesetzt, siehe set_perf_mode()).
             # Kein Riot-Zugriff noetig, darum ganz oben und ohne try/RiotError.
             try:
                 data = _load_json(CONFIG_JSON_FILE)
                 channel = str((data or {}).get("updateChannel", "stable")).lower()
+                perf = data.get("perfMode")
             except Exception:
-                channel = "stable"
-            self._json({"ok": True, "updateChannel": channel if channel == "dev" else "stable"})
+                channel, perf = "stable", None
+            self._json({"ok": True, "updateChannel": channel if channel == "dev" else "stable",
+                        "perfMode": perf if isinstance(perf, bool) else None})
 
         elif path == "/api/session":
             try:

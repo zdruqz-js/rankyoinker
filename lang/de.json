@@ -630,6 +630,15 @@
     "report_rd_buy": "Kauf",
     "report_rd_econ": "{a} gegen {b}",
     "report_rd_you": "Du",
-    "report_rd_survived": "überlebt"
+    "report_rd_survived": "überlebt",
+    "settings_display_label": "Darstellung",
+    "perf_mode": "Performance-Modus",
+    "perf_mode_hint": "Weniger Effekte, dafür flüssig – für schwächere PCs oder ohne Hardwarebeschleunigung.",
+    "perf_mode_recommended": "Für dieses Gerät empfohlen",
+    "perf_hint_title": "Ruckelt die Seite?",
+    "perf_hint_msg": "Dieses Gerät kommt bei den Effekten kaum hinterher (z. B. ohne Hardwarebeschleunigung). Der Performance-Modus läuft deutlich flüssiger.",
+    "perf_hint_btn": "Einschalten",
+    "perf_on_title": "Performance-Modus an",
+    "perf_on_msg": "Du kannst ihn jederzeit in den Einstellungen unter „Darstellung“ ausschalten."
   }
 }

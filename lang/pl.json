@@ -630,6 +630,15 @@
     "report_rd_buy": "Zakup",
     "report_rd_econ": "{a} kontra {b}",
     "report_rd_you": "Ty",
-    "report_rd_survived": "przeżyłeś"
+    "report_rd_survived": "przeżyłeś",
+    "settings_display_label": "Wygląd",
+    "perf_mode": "Tryb wydajności",
+    "perf_mode_hint": "Mniej efektów, za to płynnie – dla słabszych komputerów lub bez akceleracji sprzętowej.",
+    "perf_mode_recommended": "Zalecane dla tego urządzenia",
+    "perf_hint_title": "Strona się zacina?",
+    "perf_hint_msg": "To urządzenie ledwo nadąża z efektami (np. bez akceleracji sprzętowej). Tryb wydajności działa dużo płynniej.",
+    "perf_hint_btn": "Włącz",
+    "perf_on_title": "Tryb wydajności włączony",
+    "perf_on_msg": "Możesz go w każdej chwili wyłączyć w ustawieniach w sekcji „Wygląd”."
   }
 }

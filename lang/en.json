@@ -630,6 +630,15 @@
     "report_rd_buy": "Buy",
     "report_rd_econ": "{a} vs {b}",
     "report_rd_you": "You",
-    "report_rd_survived": "survived"
+    "report_rd_survived": "survived",
+    "settings_display_label": "Display",
+    "perf_mode": "Performance mode",
+    "perf_mode_hint": "Fewer effects, smooth instead – for weaker PCs or without hardware acceleration.",
+    "perf_mode_recommended": "Recommended for this device",
+    "perf_hint_title": "Is the page lagging?",
+    "perf_hint_msg": "This device can barely keep up with the effects (e.g. without hardware acceleration). Performance mode runs much smoother.",
+    "perf_hint_btn": "Turn on",
+    "perf_on_title": "Performance mode on",
+    "perf_on_msg": "You can turn it off anytime in Settings under “Display”."
   }
 }

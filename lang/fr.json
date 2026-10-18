@@ -629,6 +629,15 @@
     "report_rd_buy": "Achat",
     "report_rd_econ": "{a} contre {b}",
     "report_rd_you": "Toi",
-    "report_rd_survived": "survécu"
+    "report_rd_survived": "survécu",
+    "settings_display_label": "Affichage",
+    "perf_mode": "Mode performance",
+    "perf_mode_hint": "Moins d’effets, mais fluide – pour les PC moins puissants ou sans accélération matérielle.",
+    "perf_mode_recommended": "Recommandé pour cet appareil",
+    "perf_hint_title": "La page saccade ?",
+    "perf_hint_msg": "Cet appareil a du mal à suivre les effets (par ex. sans accélération matérielle). Le mode performance est bien plus fluide.",
+    "perf_hint_btn": "Activer",
+    "perf_on_title": "Mode performance activé",
+    "perf_on_msg": "Tu peux le désactiver à tout moment dans les paramètres, rubrique « Affichage »."
   }
 }

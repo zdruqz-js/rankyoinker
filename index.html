@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>RankYoinker Overlay</title>
 <meta name="theme-color" content="#070708">
+<!-- Performance-Modus (2.5.4): schon vor dem ersten Zeichnen setzen, sonst laufen Sterne
+     und Blur kurz an. Das Tag trägt eine id, weil demo-dev-src/build.sh den Demo-Mock vor das
+     erste Skript-Tag ohne Attribute setzt - der Mock gehört vor das App-Skript, nicht hierher. -->
+<script id="perfBoot">try{if(localStorage.getItem('ry_perf')==='1')document.documentElement.classList.add('perf');}catch(e){}</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='26' fill='%23FF4655'/%3E%3Ctext x='50' y='70' font-size='60' font-family='Arial Black' fill='%23140a0b' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
@@ -275,7 +279,8 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
 .sidebar-section:has(.cdrop.open), .settings-pop .field:has(.cdrop.open), .lc-field:has(.cdrop.open), .llb-field:has(.cdrop.open), .lol-lobbybar:has(.cdrop.open){z-index:40;}
 .sidebar.open .sidebar-section:nth-of-type(2){animation-delay:.05s;}
 .sidebar.open .sidebar-section:nth-of-type(3){animation-delay:.1s;}
-.sidebar.open .sidebar-foot{animation-delay:.15s;}
+.sidebar.open .sidebar-section:nth-of-type(4){animation-delay:.15s;}
+.sidebar.open .sidebar-foot{animation-delay:.2s;}
 @keyframes sheetItem{from{opacity:0; transform:translateX(22px);}}
 .sidebar-btn{
   display:flex; align-items:center; gap:12px; width:100%; height:48px; padding:0 16px;
@@ -2565,6 +2570,62 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 @media (prefers-reduced-motion: reduce){ #lolReportView > *{animation:none;} }
 /* ueber der unteren Tab-Leiste (Tablet/Handy) */
 @media (max-width:860px){ .report-reopen{bottom:calc(80px + env(safe-area-inset-bottom));} }
+
+/* ================= Toast-Knopf ================= */
+.toast .tact{margin-top:10px; height:30px; padding:0 13px; border-radius:9px; cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--tc) 42%, transparent); background:color-mix(in srgb, var(--tc) 16%, transparent);
+  color:var(--text); font:650 12.5px var(--font-display); transition:background .2s ease;}
+.toast .tact:hover{background:color-mix(in srgb, var(--tc) 28%, transparent);}
+
+/* ================= Schalter in den Einstellungen ================= */
+.lol-toggle.set-toggle{width:100%; align-items:flex-start; padding:13px 14px; min-height:0;}
+.set-toggle .sw{margin-top:1px;}
+.set-toggle .st-txt{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.set-toggle small{font-size:12px; line-height:1.45; color:var(--text-3);}
+.set-toggle small.st-rec{color:var(--accent); font-weight:600;}
+
+/* ================= Performance-Modus (2.5.4) =================
+   Für PCs ohne Hardwarebeschleunigung oder mit schwacher Grafik (Schalter in den
+   Einstellungen, Klasse "perf" auf <html>). Dort zeichnet der Prozessor jedes Bild
+   selbst: Blur hinter Glasflächen, Dauer-Animationen, Weichzeichner beim Einblenden,
+   Mischmodi und große Schatten-Filter kosten pro Bild ein Vielfaches. Alles davon
+   aus, Glasflächen dafür deckender. Ladekreise drehen weiter. */
+html.perf{
+  --shadow-card:0 1px 0 rgba(255,255,255,.04) inset;
+  --shadow-pop:0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(255,255,255,.06), 0 18px 36px -18px rgba(0,0,0,.9);
+}
+html.perf .stars, html.perf .grain, html.perf .pc-art{display:none;}
+html.perf *, html.perf *::before, html.perf *::after{
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+  animation-duration:.001s !important; animation-delay:0s !important; animation-iteration-count:1 !important;
+  transition-duration:0s !important; transition-delay:0s !important;
+}
+html.perf .spin, html.perf .ls-spin, html.perf .status-icon .loader, html.perf .searching svg,
+html.perf .status-icon.brand::before{animation-duration:1s !important; animation-iteration-count:infinite !important;}
+html.perf .toast .tprog{animation-duration:var(--tdur, 4500ms) !important;}
+/* Ohne Blur dahinter scheint sonst der Inhalt durch. :where() zählt nicht zur
+   Spezifität - Zustände wie .lb-chip.on oder :hover behalten ihre Farbe. */
+:where(html.perf) .topbar::before{background:rgba(9,9,11,.97);}
+:where(html.perf) .sidebar{background:#131316;}
+:where(html.perf) .sidebar-overlay{background:rgba(4,4,6,.72);}
+:where(html.perf) .status-card{background:linear-gradient(180deg, #17171b, #0e0e10);}
+:where(html.perf) .toast{background:#18181c;}
+:where(html.perf) #modalWrap, :where(html.perf) #askWrap, :where(html.perf) #probWrap, :where(html.perf) #shareWrap,
+:where(html.perf) .ry-upd-wrap{background:rgba(4,4,6,.9);}
+:where(html.perf) .tcmp, :where(html.perf) .lh-search, :where(html.perf) .lh-turn, :where(html.perf) .pr-rank,
+:where(html.perf) .modal-close, :where(html.perf) .rp-back, :where(html.perf) .rp-meta span{background:rgba(12,12,14,.86);}
+:where(html.perf) .tracker-btn, :where(html.perf) .lb-chip{background:rgba(24,24,28,.86);}
+@media (max-width:860px){ :where(html.perf) .tb-nav .tabs{background:rgba(20,20,24,.97);} }
+/* Schatten-Filter auf Bildern und Text (werden bei jedem Neuzeichnen weichgerechnet) */
+html.perf .mh-title, html.perf .tside img, html.perf .pcard-portrait img.portrait, html.perf .weapon-show img.wimg,
+html.perf .rank-tile .ricon, html.perf .rank-hero img, html.perf .rank-emblem-lol, html.perf .mrank-tile img,
+html.perf .mskin-card img.sk, html.perf .gun-card img, html.perf .skin-opt img, html.perf .shop-card .tier-ic,
+html.perf .shop-card img.sk, html.perf .bi img, html.perf .lh-ring .bar.low, html.perf .tcmp.lol .tside .lol-emb.tside-emb,
+html.perf .lr-rank .lol-emb.lr-emb, html.perf .pr-rank .lol-emb.pr-emb, html.perf .donut .bar, html.perf .rp-hero-agent,
+html.perf .rp-ring .fg, html.perf .rp-ring.g-s .in b, html.perf .status-icon.brand svg{filter:none !important;}
+/* Graustufen, die etwas bedeuten (Hover in der Auswahl, schon gekauft), bleiben */
+html.perf .pcard.hovering img.portrait{filter:grayscale(.35) !important;}
+html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) !important;}
 </style>
 </head>
 <body>
@@ -2647,6 +2708,18 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       <label data-i18n="language">Sprache</label>
       <div class="cdrop" id="langDrop"></div>
     </div>
+  </div>
+
+  <div class="sidebar-section">
+    <label data-i18n="settings_display_label">Darstellung</label>
+    <button type="button" class="lol-toggle set-toggle" id="perfToggle" role="switch" aria-checked="false">
+      <span class="sw"></span>
+      <span class="st-txt">
+        <span class="lbl" data-i18n="perf_mode">Performance-Modus</span>
+        <small data-i18n="perf_mode_hint">Weniger Effekte, dafür flüssig – für schwächere PCs oder ohne Hardwarebeschleunigung.</small>
+        <small class="st-rec" id="perfRec" data-i18n="perf_mode_recommended" hidden>Für dieses Gerät empfohlen</small>
+      </span>
+    </button>
   </div>
 
   <div class="sidebar-section">
@@ -2784,9 +2857,10 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
   "use strict";
 
   // Ambiente Hintergrund-Sterne - 1:1 von rankyoinker.de/script.js übernommen.
-  (function stars(){
+  // Im Performance-Modus gar nicht erst anlegen (makeStars() holt sie beim Ausschalten nach).
+  function makeStars(){
     const container = document.getElementById("stars");
-    if(!container) return;
+    if(!container || container.childElementCount) return;
     const count = Math.min(70, Math.round((window.innerWidth * window.innerHeight) / 18000));
     const frag = document.createDocumentFragment();
     for(let i = 0; i < count; i++){
@@ -2812,7 +2886,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
       frag.appendChild(star);
     }
     container.appendChild(frag);
-  })();
+  }
+  if(!document.documentElement.classList.contains('perf')) makeStars();
 
   const WEAPON_ORDER = ["Classic","Shorty","Frenzy","Ghost","Bandit","Sheriff","Stinger","Spectre","Bucky","Judge","Bulldog","Guardian","Phantom","Vandal","Warden","Marshal","Outlaw","Operator","Ares","Odin","Melee"];
   const RANK_NAMES = ["Unranked","Unranked","Unranked","Iron 1","Iron 2","Iron 3","Bronze 1","Bronze 2","Bronze 3","Silver 1","Silver 2","Silver 3","Gold 1","Gold 2","Gold 3","Platinum 1","Platinum 2","Platinum 3","Diamond 1","Diamond 2","Diamond 3","Ascendant 1","Ascendant 2","Ascendant 3","Immortal 1","Immortal 2","Immortal 3","Radiant"];
@@ -3156,7 +3231,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
     el.innerHTML =
       `<span class="ticon">${svgIcon(TOAST_ICON[type] || 'info', 15, type === 'busy' ? 'spin' : '')}</span>` +
       `<div class="tbody"><div class="ttitle">${esc(title)}</div>` +
-      (msg ? `<div class="tmsg">${esc(msg)}</div>` : '') + `</div>` +
+      (msg ? `<div class="tmsg">${esc(msg)}</div>` : '') +
+      (opts.action ? `<button class="tact" type="button">${esc(opts.action.label)}</button>` : '') + `</div>` +
       `<button class="tclose" type="button" aria-label="${esc(t('close'))}">${svgIcon('x', 12)}</button>` +
       (dur ? `<span class="tprog" style="--tdur:${dur}ms;"></span>` : '');
 
@@ -3165,6 +3241,8 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 
     function arm(){ if(dur) el._timer = setTimeout(() => closeToast(el), dur); }
     el.querySelector('.tclose').addEventListener('click', () => closeToast(el));
+    // opts.action = {label, fn}: Knopf im Toast, schließt ihn nach dem Klick
+    if(opts.action) el.querySelector('.tact').addEventListener('click', () => { closeToast(el); opts.action.fn(); });
     el.addEventListener('mouseenter', () => { clearTimeout(el._timer); el.classList.add('paused'); });
     el.addEventListener('mouseleave', () => {
       const p = el.querySelector('.tprog');
@@ -3466,6 +3544,101 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
         .finally(() => { btn.disabled = false; });
     });
   })();
+
+  // ================= PERFORMANCE-MODUS (2.5.4) =================
+  // Ohne Hardwarebeschleunigung oder mit schwacher Grafik rechnet der Prozessor
+  // jedes Bild selbst - Blur hinter Glasflächen, Dauer-Animationen (Sterne, Zoom
+  // auf Kartenbildern) und Mischmodi ließen die Seite dort stark ruckeln. Der
+  // Schalter setzt die Klasse "perf" auf <html> (CSS am Ende des <style>).
+  // Gemerkt im localStorage ("ry_perf", das Skript im <head> liest ihn vor dem
+  // ersten Zeichnen) und am PC zusätzlich in config.json: localStorage gilt je
+  // Adresse (http://rankyoinker/ und localhost:1101 getrennt) und ist nach dem
+  // Leeren der Browserdaten weg. Das Handy hat seinen eigenen Schalter.
+  const PERF_KEY = 'ry_perf', PERF_HINT_KEY = 'ry_perf_hint';
+  const perfToggle = document.getElementById('perfToggle');
+  function perfOn(){ return document.documentElement.classList.contains('perf'); }
+  function applyPerf(on){
+    document.documentElement.classList.toggle('perf', on);
+    perfToggle.classList.toggle('on', on);
+    perfToggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    if(on){ const s = document.getElementById('stars'); if(s) s.textContent = ''; }
+    else makeStars();
+  }
+  function setPerf(on){
+    applyPerf(on);
+    try{ localStorage.setItem(PERF_KEY, on ? '1' : '0'); }catch(e){}
+    if(!ON_PHONE) api('/api/set-perf', {on}).catch(() => {});
+  }
+  applyPerf(perfOn());
+  perfToggle.addEventListener('click', () => setPerf(!perfOn()));
+  try{ if(localStorage.getItem(PERF_HINT_KEY) === '1') document.getElementById('perfRec').hidden = false; }catch(e){}
+
+  // Am PC gilt config.json (eine Quelle für beide Adressen). Kennt der Dienst
+  // noch keinen Stand (frische config.json), bekommt er den der Seite.
+  setTimeout(() => {
+    if(ON_PHONE) return;
+    fetch(LOG_URL + '/api/local-config', {cache:'no-store'})
+      .then(r => r.json())
+      .then(j => {
+        if(!j || !j.ok) return;
+        let local = null;
+        try{ local = localStorage.getItem(PERF_KEY); }catch(e){}
+        if(typeof j.perfMode !== 'boolean'){
+          if(local !== null) api('/api/set-perf', {on: local === '1'}).catch(() => {});
+          return;
+        }
+        if(j.perfMode !== perfOn()) applyPerf(j.perfMode);
+        try{ localStorage.setItem(PERF_KEY, j.perfMode ? '1' : '0'); }catch(e){}
+      })
+      .catch(() => {});
+  }, 0);
+
+  // Einmaliger Hinweis, solange nie selbst gewählt wurde: ohne Grafik-
+  // beschleunigung oder unter 24 Bildern pro Sekunde (gemessen nur, während die
+  // Seite sichtbar ist; 24, weil der Energiesparmodus von Chrome auf 30 begrenzt).
+  // Ohne Beschleunigung gibt neueres Chrome/Edge gar kein WebGL mehr her, ältere
+  // Browser zeichnen es per Software - failIfMajorPerformanceCaveat allein reicht
+  // nicht (Headless-Chrome liefert damit trotzdem SwiftShader), darum auch den
+  // Renderer-Namen prüfen.
+  function perfNoGpu(){
+    try{
+      const gl = document.createElement('canvas').getContext('webgl', {failIfMajorPerformanceCaveat: true});
+      if(!gl) return true;
+      let r = String(gl.getParameter(gl.RENDERER) || '');
+      if(/^webkit webgl$/i.test(r)){             // Chrome verdeckt den echten Namen hier
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if(dbg) r = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '');
+      }
+      const lose = gl.getExtension('WEBGL_lose_context');
+      if(lose) lose.loseContext();
+      return /swiftshader|llvmpipe|softpipe|basic render|software/i.test(r);
+    }catch(e){ return false; }
+  }
+  function perfSampleFps(done){
+    let first = 0, last = 0, n = 0;
+    function step(ts){
+      if(document.visibilityState !== 'visible') return;   // Hintergrund/verdeckt: nicht werten
+      if(!first) first = ts; else { n++; last = ts; }
+      if(n >= 90 || (n && last - first > 4000)) return done(n * 1000 / (last - first));
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  setTimeout(() => {
+    try{ if(localStorage.getItem(PERF_KEY) !== null || localStorage.getItem(PERF_HINT_KEY)) return; }catch(e){ return; }
+    if(perfOn()) return;
+    const show = () => {
+      if(perfOn()) return;
+      try{ localStorage.setItem(PERF_HINT_KEY, '1'); }catch(e){}
+      document.getElementById('perfRec').hidden = false;
+      toast('info', t('perf_hint_title'), t('perf_hint_msg'), {dur: 16000, action: {label: t('perf_hint_btn'), fn: () => {
+        setPerf(true);
+        toast('success', t('perf_on_title'), t('perf_on_msg'), {dur: 7000});
+      }}});
+    };
+    if(perfNoGpu()) show();
+    else perfSampleFps(fps => { if(fps < 24) show(); });
+  }, 6000);
 
   // ---------- static game data ----------
   let agentMap = {};
@@ -10567,7 +10740,7 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.3";
+const CURRENT_VERSION = "2.5.4-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

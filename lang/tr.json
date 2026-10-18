@@ -629,6 +629,15 @@
     "report_rd_buy": "Satın alma",
     "report_rd_econ": "{a} – {b}",
     "report_rd_you": "Sen",
-    "report_rd_survived": "hayatta kaldın"
+    "report_rd_survived": "hayatta kaldın",
+    "settings_display_label": "Görünüm",
+    "perf_mode": "Performans modu",
+    "perf_mode_hint": "Daha az efekt, ama akıcı – zayıf bilgisayarlar veya donanım hızlandırma kapalıyken.",
+    "perf_mode_recommended": "Bu cihaz için önerilir",
+    "perf_hint_title": "Sayfa takılıyor mu?",
+    "perf_hint_msg": "Bu cihaz efektlere zor yetişiyor (ör. donanım hızlandırma kapalı). Performans modu çok daha akıcı çalışır.",
+    "perf_hint_btn": "Aç",
+    "perf_on_title": "Performans modu açık",
+    "perf_on_msg": "İstediğin zaman Ayarlar'da “Görünüm” altından kapatabilirsin."
   }
 }

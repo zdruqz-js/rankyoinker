@@ -629,6 +629,15 @@
     "report_rd_buy": "Compra",
     "report_rd_econ": "{a} contra {b}",
     "report_rd_you": "Você",
-    "report_rd_survived": "sobreviveu"
+    "report_rd_survived": "sobreviveu",
+    "settings_display_label": "Aparência",
+    "perf_mode": "Modo desempenho",
+    "perf_mode_hint": "Menos efeitos, mas tudo fluido – para PCs mais fracos ou sem aceleração de hardware.",
+    "perf_mode_recommended": "Recomendado para este dispositivo",
+    "perf_hint_title": "A página está travando?",
+    "perf_hint_msg": "Este dispositivo mal consegue acompanhar os efeitos (por ex. sem aceleração de hardware). O modo desempenho roda bem mais liso.",
+    "perf_hint_btn": "Ativar",
+    "perf_on_title": "Modo desempenho ativado",
+    "perf_on_msg": "Você pode desativar quando quiser em Configurações, em “Aparência”."
   }
 }

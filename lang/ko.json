@@ -630,6 +630,15 @@
     "report_rd_buy": "구매",
     "report_rd_econ": "{a} 대 {b}",
     "report_rd_you": "나",
-    "report_rd_survived": "생존"
+    "report_rd_survived": "생존",
+    "settings_display_label": "화면",
+    "perf_mode": "성능 모드",
+    "perf_mode_hint": "효과를 줄이고 부드럽게 – 사양이 낮은 PC나 하드웨어 가속이 꺼진 경우에 좋습니다.",
+    "perf_mode_recommended": "이 기기에 권장",
+    "perf_hint_title": "페이지가 끊기나요?",
+    "perf_hint_msg": "이 기기는 효과를 따라가기 어렵습니다(예: 하드웨어 가속 꺼짐). 성능 모드가 훨씬 부드럽게 작동합니다.",
+    "perf_hint_btn": "켜기",
+    "perf_on_title": "성능 모드 켜짐",
+    "perf_on_msg": "설정의 “화면”에서 언제든지 끌 수 있습니다."
   }
 }
