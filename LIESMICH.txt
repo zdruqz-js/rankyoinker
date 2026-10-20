@@ -102,7 +102,12 @@ Programme und Features).
 --------------------------------------------------------
 Normalerweise gar nichts: RankYoinker geht mit VALORANT von selbst zu.
 
-Willst du es doch von Hand: Doppelklick auf  stop_vry.bat
+Ganz beenden: Rechtsklick auf das RankYoinker-Symbol unten rechts in
+der Taskleiste (steckt es nicht direkt dort, im kleinen Pfeil ^ daneben)
+> "Programm schliessen". Wieder starten: die Verknuepfung "RankYoinker"
+im Startmenue (oder auf dem Desktop) - sie oeffnet auch gleich die Seite.
+
+Fuer Fortgeschrittene, im Programmordner: Doppelklick auf  stop_vry.bat
 Das ist der Not-Aus - es beendet vry.exe UND den Hilfsdienst und
 damit auch die Automatik. Danach ist die Seite nicht mehr
 erreichbar; erst ein Doppelklick auf start_vry.vbs schaltet

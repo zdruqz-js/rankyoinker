@@ -67,7 +67,9 @@ jobs:
               }
             }
           }
-          $sm = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\RankYoinker"
+          $progs = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
+          $sm = Join-Path $progs "RankYoinker"          # Startmenue-Ordner bis 2.5.4
+          $one = Join-Path $progs "RankYoinker.lnk"     # ab 2.5.5 nur noch diese eine Verknuepfung
           # --- 1. alte Version ---
           Install (Get-ChildItem old\*.exe)[0].FullName
           DumpKeys "alt"
@@ -77,7 +79,7 @@ jobs:
           if ($pfOld) {
             Write-Host "Alte Version liegt bereits in Program Files: Update-Test ohne Umzug"
             Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue (alt): $($_.Name)" }
-            Check (Test-Path "$sm\Open overlay in browser.url") "alte Version hat die Browser-Verknuepfung"
+            Check (Test-Path $sm) "alte Version hat ihren Startmenue-Ordner"
           } else {
             Check (Test-Path "$old\vry_log_server.py") "alte Version liegt in ProgramData"
             Check (Test-Path $key32) "alte Version hat 32-Bit-Deinstallationseintrag"
@@ -122,9 +124,18 @@ jobs:
           # --- 2b. "RankYoinker oeffnen" (ab 2.5.0): Startmenue-Eintrag + "--open-app" ---
           # Seit 2.5.0-dev7 wieder normale Website im Standardbrowser (kein --app-Fenster mehr)
           if (Test-Path "$new\open_app.vbs") {
-            Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue: $($_.Name)" }
-            Check (Test-Path "$sm\Open RankYoinker.lnk") "Startmenue-Eintrag 'Open RankYoinker'"
-            Check (-not (Test-Path "$sm\Open overlay in browser.url")) "alte Browser-Verknuepfung entfernt"
+            Get-ChildItem $progs -Filter "RankYoinker*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue: $($_.Name)" }
+            Get-ChildItem $sm -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Startmenue-Ordner: $($_.Name)" }
+            if (Test-Path $one) {
+              # ab 2.5.5: eine Verknuepfung, alter Ordner (starten/beenden/oeffnen/deinstallieren) weg
+              Check (-not (Test-Path $sm)) "alter Startmenue-Ordner entfernt"
+              $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($one)
+              Write-Host "Verknuepfung: $($lnk.TargetPath) $($lnk.Arguments) | Symbol $($lnk.IconLocation)"
+              Check ($lnk.Arguments -like "*open_app.vbs*") "Verknuepfung 'RankYoinker' oeffnet open_app.vbs"
+              Check ($lnk.IconLocation -like "*rankyoinker.ico*") "Verknuepfung hat das RankYoinker-Symbol"
+            } else {
+              Check (Test-Path "$sm\Open RankYoinker.lnk") "Startmenue-Eintrag 'Open RankYoinker'"
+            }
             Start-Process -FilePath "$new\pythonw.exe" -ArgumentList "`"$new\vry_log_server.py`"", "--open-app" -WorkingDirectory $new
             Start-Sleep -Seconds 12
             $br = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "http://(rankyoinker|localhost:1101)/" -and $_.CommandLine -notmatch "vry_log_server" }
@@ -142,11 +153,16 @@ jobs:
           Start-Sleep -Seconds 15
           Check (-not (Test-Path "$new\vry_log_server.py")) "Deinstallation entfernt Program Files\RankYoinker"
           Check (-not (Test-Path $key64)) "Deinstallation entfernt den Eintrag"
+          Check (-not (Test-Path $one)) "Deinstallation entfernt die Verknuepfung"
+          Check (-not (Test-Path $sm)) "kein Startmenue-Ordner nach der Deinstallation"
 
           # --- 4. frische Installation ---
           Remove-Item $old -Recurse -Force -ErrorAction SilentlyContinue
           Install (Get-ChildItem new\*.exe)[0].FullName
           Check (Test-Path "$new\vry_log_server.py") "frische Installation landet in Program Files"
           Check (-not (Test-Path $old)) "frische Installation legt nichts in ProgramData an"
+          if (Test-Path "$new\open_app.vbs") {
+            Check ((Test-Path $one) -and -not (Test-Path $sm)) "frische Installation: genau eine Startmenue-Verknuepfung"
+          }
 
           if ($fail) { throw "$fail Pruefung(en) fehlgeschlagen" }

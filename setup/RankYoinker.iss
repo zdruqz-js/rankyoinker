@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev7"
+#define MyAppVersion "2.5.5-dev8"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -108,30 +108,6 @@ french.AdditionalIconsGroup=Icônes supplémentaires :
 spanish.AdditionalIconsGroup=Iconos adicionales:
 turkish.AdditionalIconsGroup=Ek simgeler:
 korean.AdditionalIconsGroup=추가 아이콘:
-
-english.StartMenuStartName=Start RankYoinker
-german.StartMenuStartName=RankYoinker starten
-polish.StartMenuStartName=Uruchom RankYoinker
-french.StartMenuStartName=Démarrer RankYoinker
-spanish.StartMenuStartName=Iniciar RankYoinker
-turkish.StartMenuStartName=RankYoinker'ı başlat
-korean.StartMenuStartName=RankYoinker 시작
-
-english.StartMenuStopName=Stop RankYoinker
-german.StartMenuStopName=RankYoinker beenden
-polish.StartMenuStopName=Zatrzymaj RankYoinker
-french.StartMenuStopName=Arrêter RankYoinker
-spanish.StartMenuStopName=Detener RankYoinker
-turkish.StartMenuStopName=RankYoinker'ı durdur
-korean.StartMenuStopName=RankYoinker 종료
-
-english.StartMenuOverlayName=Open RankYoinker
-german.StartMenuOverlayName=RankYoinker öffnen
-polish.StartMenuOverlayName=Otwórz RankYoinker
-french.StartMenuOverlayName=Ouvrir RankYoinker
-spanish.StartMenuOverlayName=Abrir RankYoinker
-turkish.StartMenuOverlayName=RankYoinker'ı aç
-korean.StartMenuOverlayName=RankYoinker 열기
 
 english.InstallStatusMsg=Setting up autostart, firewall and short address...
 german.InstallStatusMsg=Richte Autostart, Firewall und Kurzadresse ein...
@@ -232,23 +208,16 @@ Source: "..\open_app.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags: ignoreversion
 
 [InstallDelete]
-; Alte Startmenue-Verknuepfung "Overlay im Browser oeffnen" (bis 2.4.9, URL-
-; Verknuepfung) - heisst seit 2.5.0 "RankYoinker oeffnen" (startet bei Bedarf den Dienst)
-Type: files; Name: "{group}\Open overlay in browser.url"
-Type: files; Name: "{group}\Overlay im Browser öffnen.url"
-Type: files; Name: "{group}\Otwórz nakładkę w przeglądarce.url"
-Type: files; Name: "{group}\Ouvrir l'overlay dans le navigateur.url"
-Type: files; Name: "{group}\Abrir el overlay en el navegador.url"
-Type: files; Name: "{group}\Overlay'i tarayıcıda aç.url"
-Type: files; Name: "{group}\브라우저에서 오버레이 열기.url"
+; Bis 2.5.4 gab es einen Startmenue-Ordner "RankYoinker" mit starten / beenden / oeffnen /
+; deinstallieren (davor zusaetzlich "Overlay im Browser oeffnen.url"). Seit 2.5.5 nur noch eine
+; Verknuepfung direkt im Startmenue (Nutzerwunsch) - der alte Ordner kommt beim Update weg.
+Type: filesandordirs; Name: "{group}"
 
 [Icons]
-Name: "{group}\{cm:StartMenuStartName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\{cm:StartMenuStopName}"; Filename: "{app}\stop_vry.bat"; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\{cm:StartMenuOverlayName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
-Name: "{group}\{cm:UninstallProgram,RankYoinker}"; Filename: "{uninstallexe}"
-; Desktop-Symbol oeffnet seit 2.5.0 die Seite im Browser statt vry.exe (das startet
-; der Dienst ohnehin selbst, sobald VALORANT laeuft)
+; Seit 2.5.5 nur EINE Verknuepfung "RankYoinker" (Startmenue und optional Desktop): oeffnet die Seite im
+; Browser und startet bei Bedarf den Dienst (vry.exe startet der Dienst selbst, sobald VALORANT laeuft).
+; Beenden ueber das Tray-Symbol ("Programm schliessen" = stop_everything), Deinstallieren ueber Windows-Apps.
+Name: "{autoprograms}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"
 Name: "{autodesktop}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
 
 [Run]
