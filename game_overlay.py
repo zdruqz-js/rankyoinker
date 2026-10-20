@@ -81,6 +81,8 @@ FONTS = {
     "big": ("black", 28), "banner": ("black", 23), "grade": ("black", 34), "value": ("display", 15),
     "delta": ("semibold", 9.5), "body": ("regular", 12), "small": ("regular", 10.5), "btn": ("display", 13),
     "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
+    # Bilanz unter "Letzte 5" (3W · 2L): bis 2.5.5 Geist Mono 8,5 px - bei 100 % kaum lesbar
+    "form": ("semibold", 9.5),
 }
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 # Laufweite wie auf der Website (letter-spacing in em, negativ = enger). GDI+ kennt weder Laufweite
@@ -395,8 +397,7 @@ def _form(ops, m, x, y, w, form):
         ops.add("fill", px, y, d, d, d / 2.0, col, 240)
         ops.add("fill", px + 1.6, y + 1.2, 2.2, 2.2, 1.1, COL["white"], 90)      # Lichtpunkt
     label = form_label(form)
-    lw = tracked_width(m, label, "label", 0.6)
-    ops.add("ttext", x + (w - lw) / 2.0, y + 10, 14, label, "label", COL["text3"], 255, 0.6)
+    ops.add("text", x, y + 10, w, 14, label, "form", COL["text3"], 255, "c", False)
 
 
 def _player_row(ops, m, ctx, x, y, w, p, pregame):
@@ -937,6 +938,7 @@ def _prototypes(user32, gdi32, kernel32, gdip):
             ("GdipSetPixelOffsetMode", [vp, i]),
             ("GdipSetInterpolationMode", [vp, i]),
             ("GdipSetTextRenderingHint", [vp, i]),
+            ("GdipSetTextContrast", [vp, ui]),
             ("GdipSetCompositingQuality", [vp, i]),
             ("GdipScaleWorldTransform", [vp, f, f, i]),
             ("GdipSaveGraphics", [vp, P(ui)]),
@@ -1308,6 +1310,10 @@ class Gdi:
         kind = it[0]
         if kind == "textmode":
             self.set_text_mode(*it[1:])
+            return
+        if kind == "texthint":          # nur text_test: Kantenglaettung (3 = mit Raster, 4 = ohne) + Kontrast
+            self.gdip.GdipSetTextRenderingHint(g, it[1])
+            self.gdip.GdipSetTextContrast(g, it[2])
             return
         if kind == "fill":
             _, x, y, w, h, r, color, alpha = it
@@ -2002,8 +2008,26 @@ def text_test(gdi, m, ctx, board, out_dir):
         row(ops, 40 + bw, y, key, text, align, COL["text"], 255)
     for scale in (1.0, 1.5):
         gdi.free(gdi.render(ops, scale, os.path.join(out_dir, "text-look@%sx.png" % scale)))
+    # Kleine helle Schrift auf Dunkel: GDI+-Kontrast 0-12 (Standard 4) und Kantenglaettung mit/ohne Raster
+    lines = [("name", "zdruqz  Kaiserschmarrn"), ("rank", "Platinum 2  Ascendant 1"), ("sub", "WR 54 % · K/D 1.12"),
+             ("sub", "47 RR · Peak Dia 2"), ("form", "3W · 2L   4W · 1L"), ("label", "DEIN TEAM  ACS  ADR")]
+    variants = [(4, 0), (4, 2), (4, 4), (4, 8), (4, 12), (3, 4)]
+    cw, lh = 230, 22
+    ops = Ops(cw * len(variants) + 20, 40 + lh * len(lines) + 20)
+    ops.add("fill", 0, 0, ops.w, ops.h, 0, "#141417", 255)
+    for ci, (hint, contrast) in enumerate(variants):
+        cx = 10 + ci * cw
+        ops.add("texthint", 4, 4)
+        ops.add("ttext", cx, 10, 20, ("HINT %d · KONTRAST %d" % (hint, contrast)), "eyebrow", COL["accent"], 255, 1.0)
+        ops.add("texthint", hint, contrast)
+        for li, (key, text) in enumerate(lines):
+            col = COL["text"] if key in ("name",) else (COL["teal"] if key == "rank" else COL["text2"])
+            ops.add("text", cx, 40 + li * lh, cw - 10, lh, text, key, col, 255, "l", False)
+    ops.add("texthint", 4, 4)
+    gdi.free(gdi.render(ops, 1.0, os.path.join(out_dir, "text-contrast@1.0x.png")))
     gdi.set_text_mode(native=True)
     gdi.free(gdi.render(layout_board(m, ctx, board), 1.5, os.path.join(out_dir, "board-old@1.5x.png")))
+    gdi.free(gdi.render(layout_board(m, ctx, board), 1.0, os.path.join(out_dir, "board-old@1.0x.png")))
     gdi.set_text_mode()
 
 
