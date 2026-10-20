@@ -83,6 +83,8 @@ FONTS = {
     "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
     # Bilanz unter "Letzte 5" (3W · 2L): bis 2.5.5 Geist Mono 8,5 px - bei 100 % kaum lesbar
     "form": ("semibold", 9.5),
+    # Urteil unter dem VS-Balken ("Deutlicher Vorteil ..."): halbfett wie .tverdict im Overlay (bis 2.5.6-dev1 "small")
+    "verdict": ("semibold", 11.5),
 }
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 # Laufweite wie auf der Website (letter-spacing in em, negativ = enger). GDI+ kennt weder Laufweite
@@ -299,10 +301,13 @@ def _chip(ops, m, x, y, text, color, align_right=False, fill_alpha=34, h=20):
 
 
 def _header(ops, m, ctx, x, y, w, label, dot_color=None):
+    """Logo + Chip rechts; ohne label kein Chip (ausser in der Vorschau)."""
     _brand(ops, x, y)
     if ctx.get("preview"):
-        label = tr(ctx["strings"], "ovl_preview") + " · " + label
-    _pill(ops, m, x + w, y, label, dot_color)
+        pv = tr(ctx["strings"], "ovl_preview")
+        label = pv + " · " + label if label else pv
+    if label:
+        _pill(ops, m, x + w, y, label, dot_color)
     return y + 22 + 12
 
 
@@ -359,7 +364,7 @@ def _compare(ops, m, ctx, x, y, w, cmp):
     ops.add("fill", mx + 4 + (mw - 8) / 2.0 - 0.5, y + 24, 1, 9, 0, COL["white"], 140)
     vcol = {"up": COL["win"], "down": COL["loss"]}.get(kind, COL["text2"])
     ops.add("line", x + 14, y + 48, x + w - 14, y + 48, COL["white"], 16, 1.0)
-    ops.add("text", x + 10, y + 49, w - 20, 16, text, "small", vcol, 255, "c", False)
+    ops.add("text", x + 10, y + 49, w - 20, 16, text, "verdict", vcol, 255, "c", False)
     return y + h + 10
 
 
@@ -503,7 +508,7 @@ def _panel(m, ctx, data, pregame):
     if pregame:
         y = _header(inner, m, ctx, x, y, iw, tr(strings, "ovl_eyebrow_pregame"), COL["accent"])
     else:
-        y = _header(inner, m, ctx, x, y, iw, "LIVE", COL["win"])
+        y = _header(inner, m, ctx, x, y, iw, None)
     sub = [s for s in (data.get("mode"), data.get("sideText")) if s]
     il = (data.get("il") or {}).get("text") if pregame else None
     _banner(inner, m, ctx, x, y, iw, 60, data.get("mapImg"), data.get("map") or "", " · ".join(sub), il)
@@ -1979,7 +1984,7 @@ def text_test(gdi, m, ctx, board, out_dir):
                ("title", "Keep going with Jett?", "l"), ("name", "zdruqz", "l"), ("name", "Kaiserschmarrn", "l"),
                ("name", "AVATAR Tyrone", "l"), ("rank", "Platinum 2", "l"), ("rank", "Ascendant 1", "l"),
                ("sub", "WR 54 % · K/D 1.12", "l"), ("sub", "47 RR · Peak Dia 2", "l"),
-               ("body", "Deutlicher Vorteil für die Gegner", "c"), ("value", "21 / 14 / 6", "l"),
+               ("verdict", "Deutlicher Vorteil für die Gegner", "c"), ("value", "21 / 14 / 6", "l"),
                ("rr", "+18 RR", "r"), ("btn", "Open analysis", "c"), ("chip", "Team MVP", "c"),
                ("tag", "#EUW", "l"), ("grade", "A", "c"), ("eyebrow", "DEIN TEAM", "l"), ("label", "3W · 2L", "l")]
     rh, bw = 40, 470
