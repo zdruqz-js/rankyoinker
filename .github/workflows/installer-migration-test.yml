@@ -92,6 +92,9 @@ jobs:
           DumpKeys "neu"
           Check (Test-Path "$new\vry_log_server.py") "neue Version liegt in Program Files"
           Check (Test-Path "$new\pythonw.exe") "pythonw.exe in Program Files"
+          if (Test-Path "$new\README.txt") {
+            Check (-not (Test-Path "$new\LIESMICH.txt")) "alte deutsche LIESMICH.txt entfernt (seit 2.5.5 README.txt)"
+          }
           if (-not $pfOld) {
             Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
             Check (-not (Test-Path "$old\version.dll")) "untergeschobene Datei entfernt"

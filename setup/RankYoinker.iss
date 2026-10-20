@@ -12,7 +12,7 @@
 ;      liegen seit 2.3.14 ohnehin in %LOCALAPPDATA%\RankYoinker),
 ;   2. danach automatisch setup\install_all.py ausführt (Start/Stop-
 ;      Buttons, Autostart des Log-Servers, http://vry + Firewall-
-;      Freigabe fürs Handy - siehe LIESMICH.txt),
+;      Freigabe fürs Handy - siehe setup\README.txt),
 ;   3. beim Deinstallieren setup\uninstall_all.py ausführt, damit
 ;      nichts (Autostart, Firewall-Regeln, hosts-Eintrag) zurückbleibt.
 ;
@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev8"
+#define MyAppVersion "2.5.5-dev9"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -154,7 +154,7 @@ Name: "{app}"
 [Files]
 ; Programmdateien - alles ausser Logs/Cache/persönlichen Presets und
 ; Kopplungen des vorherigen Nutzers (die baut die App beim ersten Start
-; von selbst neu auf, siehe LIESMICH.txt).
+; von selbst neu auf).
 Source: "..\vry.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\vry_log_server.py"; DestDir: "{app}"; Flags: ignoreversion
 ; Fenster ueber VALORANT fuer "Weiter mit <Agent>?" (Instalock, ab 2.5.5) - startet der Dienst
@@ -190,7 +190,8 @@ Source: "..\lang\*"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs 
 ; Start automatisch mit denselben Standardwerten angelegt, die vorher aus
 ; config.default.json kamen (DEFAULT_CONFIG in src/constants.py - inhaltlich
 ; identisch, nur eine Python- statt JSON-Quelle).
-Source: "..\LIESMICH.txt"; DestDir: "{app}"; Flags: ignoreversion
+; Kurzanleitung fuer Nutzer (seit 2.5.5 Englisch als README.txt, vorher LIESMICH.txt auf Deutsch)
+Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry_hidden.vbs"; DestDir: "{app}"; Flags: ignoreversion
@@ -212,6 +213,8 @@ Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags:
 ; deinstallieren (davor zusaetzlich "Overlay im Browser oeffnen.url"). Seit 2.5.5 nur noch eine
 ; Verknuepfung direkt im Startmenue (Nutzerwunsch) - der alte Ordner kommt beim Update weg.
 Type: filesandordirs; Name: "{group}"
+; Deutsche Kurzanleitung bis 2.5.4 - seit 2.5.5 README.txt (Englisch, das Programm ist international)
+Type: files; Name: "{app}\LIESMICH.txt"
 
 [Icons]
 ; Seit 2.5.5 nur EINE Verknuepfung "RankYoinker" (Startmenue und optional Desktop): oeffnet die Seite im

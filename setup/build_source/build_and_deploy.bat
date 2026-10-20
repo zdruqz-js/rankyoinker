@@ -1,7 +1,7 @@
 @echo off
 rem RankYoinker - baut eine neue vry.exe aus diesem Quellcode und legt sie
 rem direkt an der richtigen Stelle ab (vry\vry.exe + vry\lib\). Nur auf
-rem Windows lauffaehig, braucht Python 3.10 (siehe README.md/LIESMICH.txt).
+rem Windows lauffaehig, braucht Python 3.10 (siehe README.md).
 rem Einfach per Doppelklick starten, laeuft aus jedem Ordner heraus.
 setlocal
 cd /d "%~dp0"
