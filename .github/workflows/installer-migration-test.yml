@@ -36,6 +36,20 @@ jobs:
           gh release download $env:NEW_TAG --repo $env:GITHUB_REPOSITORY --pattern "*.exe" --dir new
           Get-ChildItem old, new
 
+      - name: rankyoinker.de sperren (keine Test-Installationen im Dashboard)
+        shell: pwsh
+        run: |
+          # Der installierte Dienst meldet sich bei rankyoinker.de (Heartbeat, Client-Report). Ohne
+          # Sperre stand jeder Testlauf als neue Installation im Dashboard (Englisch, kein Account,
+          # neueste dev-Version). Die Deinstallation entfernt nur "127.0.0.1 vry/rankyoinker" -
+          # diese Zeilen bleiben fuer alle Schritte stehen.
+          $h = "$env:SystemRoot\System32\drivers\etc\hosts"
+          Add-Content -Path $h -Value "", "127.0.0.1 rankyoinker.de", "::1 rankyoinker.de", "127.0.0.1 www.rankyoinker.de", "::1 www.rankyoinker.de"
+          ipconfig /flushdns | Out-Null
+          $ips = @([System.Net.Dns]::GetHostAddresses("rankyoinker.de") | ForEach-Object { $_.IPAddressToString })
+          Write-Host "rankyoinker.de -> $($ips -join ', ')"
+          if (@($ips | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -gt 0) { Write-Host "Sperre greift nicht"; exit 1 }
+
       - name: Test
         shell: pwsh
         run: |
