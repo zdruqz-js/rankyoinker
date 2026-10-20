@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://rankyoinker.de"><img src="docs/banner.webp?v=2" alt="RankYoinker: Know who you're up against. For VALORANT and League of Legends." width="100%"></a>
+<a href="https://rankyoinker.de"><img src="docs/banner.webp?v=3" alt="RankYoinker: Know who you're up against. For VALORANT and League of Legends." width="100%"></a>
 
 <br>
 
@@ -29,16 +29,16 @@ RankYoinker runs quietly in the background and fills in the overview on its own 
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/val-match.webp?v=2" alt="Live match overview with ranks, peak, RR and last matches of all ten players"><br><sub><b>Live match</b>: every player's rank, stats and parties</sub></td>
-<td width="50%"><img src="docs/screenshots/val-agent.webp?v=2" alt="Agent select in the browser with instalock"><br><sub><b>Agent select</b>: hover, lock and instalock from the browser</sub></td>
+<td width="50%"><img src="docs/screenshots/val-match.webp?v=3" alt="Live match overview with ranks, peak, RR and last matches of all ten players"><br><sub><b>Live match</b>: every player's rank, stats and parties</sub></td>
+<td width="50%"><img src="docs/screenshots/val-agent.webp?v=3" alt="Agent select in the browser with instalock"><br><sub><b>Agent select</b>: hover, lock and instalock from the browser</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/val-skins.webp?v=2" alt="Skins and loadout presets"><br><sub><b>Skins</b>: swap skins and save whole loadouts as presets</sub></td>
-<td width="50%"><img src="docs/screenshots/val-shop.webp?v=2" alt="Daily shop, bundles and Night Market"><br><sub><b>Shop</b>: daily offers, bundles and the Night Market</sub></td>
+<td width="50%"><img src="docs/screenshots/val-skins.webp?v=3" alt="Skins and loadout presets"><br><sub><b>Skins</b>: swap skins and save whole loadouts as presets</sub></td>
+<td width="50%"><img src="docs/screenshots/val-shop.webp?v=3" alt="Daily shop, bundles and Night Market"><br><sub><b>Shop</b>: daily offers, bundles and the Night Market</sub></td>
 </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/val-overlay.webp?v=2" alt="In-game overlay: ranks in agent select, all players while holding Tab, result card after the match" width="100%"><br><sub><b>In-game overlay</b> (new in 2.5.5): agent select, the player table while you hold Tab, and your result after the match</sub></p>
+<p align="center"><img src="docs/screenshots/val-overlay.webp?v=3" alt="In-game overlay: ranks in agent select, all players while holding Tab, result card after the match" width="100%"><br><sub><b>In-game overlay</b> (new in 2.5.5): agent select, the player table while you hold Tab, and your result after the match</sub></p>
 
 - **In-game overlay (new).** Ranks, parties and win rates already in agent select, every player with rank, peak and last five matches while you hold Tab, and your grade, K/D/A, RR and highlights after the match. Small windows right on top of VALORANT that never take focus. Don't want it? Turn it off with one click under "Game overlay" in the settings.
 - **Live match overview.** Rank, peak, RR, win rate, K/D and the last five matches of all ten players, plus a team comparison showing who has the edge.
@@ -54,8 +54,8 @@ RankYoinker runs quietly in the background and fills in the overview on its own 
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/lol-champ.webp?v=2" alt="Draft-style champ select with bans, picks and timer"><br><sub><b>Champ select</b>: picks, bans, timer and auto pick/ban</sub></td>
-<td width="50%"><img src="docs/screenshots/lol-game.webp?v=2" alt="Live game with lane matchups and ranks of all ten players"><br><sub><b>Live game</b>: lane matchups, kills, CS and ranks</sub></td>
+<td width="50%"><img src="docs/screenshots/lol-champ.webp?v=3" alt="Draft-style champ select with bans, picks and timer"><br><sub><b>Champ select</b>: picks, bans, timer and auto pick/ban</sub></td>
+<td width="50%"><img src="docs/screenshots/lol-game.webp?v=3" alt="Live game with lane matchups and ranks of all ten players"><br><sub><b>Live game</b>: lane matchups, kills, CS and ranks</sub></td>
 </tr>
 </table>
 
