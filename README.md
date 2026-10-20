@@ -71,7 +71,7 @@ RankYoinker runs quietly in the background and fills in the overview on its own 
 
 - 📱 **On your phone.** Pair via QR code and control everything from your phone on the same Wi-Fi.
 - 🎮 **Discord Rich Presence.** Shows your game status on Discord automatically.
-- 🌐 **7 languages.** German, English, Polish, French, Spanish, Turkish and Korean.
+- 🌐 **10 languages.** German, English, Polish, French, Spanish, Turkish, Korean, Portuguese (Brazil), Russian and Japanese.
 - 🔄 **One-click updates.** New versions arrive as a popup and are checked via SHA-256 before they install.
 
 <p align="center"><sub>All screenshots come from the <a href="https://rankyoinker.de/demo/">live preview</a> with made-up players. Click through it yourself, no install needed.</sub></p>
