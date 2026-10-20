@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://rankyoinker.de"><img src="docs/banner.webp" alt="RankYoinker: Know who you're up against. For VALORANT and League of Legends." width="100%"></a>
+<a href="https://rankyoinker.de"><img src="docs/banner.webp?v=2" alt="RankYoinker: Know who you're up against. For VALORANT and League of Legends." width="100%"></a>
 
 <br>
 
@@ -17,27 +17,30 @@ Plus instalock, auto pick, matchup builds, skins and your shop. One app for VALO
 
 ### [Download](https://rankyoinker.de/download) &nbsp;·&nbsp; [Website](https://rankyoinker.de) &nbsp;·&nbsp; [Live&nbsp;preview](https://rankyoinker.de/demo/) &nbsp;·&nbsp; [Discord](https://rankyoinker.de/discord)
 
-<sub>Windows 10/11 &nbsp;·&nbsp; free,&nbsp;no&nbsp;ads &nbsp;·&nbsp; open&nbsp;source &nbsp;·&nbsp; 7&nbsp;languages</sub>
+<sub>Windows 10/11 &nbsp;·&nbsp; free,&nbsp;no&nbsp;ads &nbsp;·&nbsp; open&nbsp;source &nbsp;·&nbsp; 10&nbsp;languages</sub>
 
 </div>
 
 <br>
 
-RankYoinker runs quietly in the background and fills in the overview on its own as soon as you play. There's no button to press and no overlay to toggle: open `http://rankyoinker` in any browser (or on your phone) and everything is there. It switches between VALORANT and League by itself.
+RankYoinker runs quietly in the background and fills in the overview on its own as soon as you play. There's no button to press: open `http://rankyoinker` in any browser (or on your phone) and everything is there. It switches between VALORANT and League by itself. New in 2.5.5: small windows right inside VALORANT, so you don't even have to tab out.
 
 ## VALORANT
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/val-match.webp" alt="Live match overview with ranks, peak, RR and last matches of all ten players"><br><sub><b>Live match</b>: every player's rank, stats and parties</sub></td>
-<td width="50%"><img src="docs/screenshots/val-agent.webp" alt="Agent select in the browser with instalock"><br><sub><b>Agent select</b>: hover, lock and instalock from the browser</sub></td>
+<td width="50%"><img src="docs/screenshots/val-match.webp?v=2" alt="Live match overview with ranks, peak, RR and last matches of all ten players"><br><sub><b>Live match</b>: every player's rank, stats and parties</sub></td>
+<td width="50%"><img src="docs/screenshots/val-agent.webp?v=2" alt="Agent select in the browser with instalock"><br><sub><b>Agent select</b>: hover, lock and instalock from the browser</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/val-skins.webp" alt="Skins and loadout presets"><br><sub><b>Skins</b>: swap skins and save whole loadouts as presets</sub></td>
-<td width="50%"><img src="docs/screenshots/val-shop.webp" alt="Daily shop, bundles and Night Market"><br><sub><b>Shop</b>: daily offers, bundles and the Night Market</sub></td>
+<td width="50%"><img src="docs/screenshots/val-skins.webp?v=2" alt="Skins and loadout presets"><br><sub><b>Skins</b>: swap skins and save whole loadouts as presets</sub></td>
+<td width="50%"><img src="docs/screenshots/val-shop.webp?v=2" alt="Daily shop, bundles and Night Market"><br><sub><b>Shop</b>: daily offers, bundles and the Night Market</sub></td>
 </tr>
 </table>
 
+<p align="center"><img src="docs/screenshots/val-overlay.webp?v=2" alt="In-game overlay: ranks in agent select, all players while holding Tab, result card after the match" width="100%"><br><sub><b>In-game overlay</b> (new in 2.5.5): agent select, the player table while you hold Tab, and your result after the match</sub></p>
+
+- **In-game overlay (new).** Ranks, parties and win rates already in agent select, every player with rank, peak and last five matches while you hold Tab, and your grade, K/D/A, RR and highlights after the match. Small windows right on top of VALORANT that never take focus. Don't want it? Turn it off with one click under "Game overlay" in the settings.
 - **Live match overview.** Rank, peak, RR, win rate, K/D and the last five matches of all ten players, plus a team comparison showing who has the edge.
 - **Agent select in your browser.** Hover and lock agents, pin favorites and dodge if you need to, right from the overlay.
 - **Instalock.** Locks your agent after a random delay of 11 to 12 seconds, even with the tab closed.
@@ -51,8 +54,8 @@ RankYoinker runs quietly in the background and fills in the overview on its own 
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/lol-champ.webp" alt="Draft-style champ select with bans, picks and timer"><br><sub><b>Champ select</b>: picks, bans, timer and auto pick/ban</sub></td>
-<td width="50%"><img src="docs/screenshots/lol-game.webp" alt="Live game with lane matchups and ranks of all ten players"><br><sub><b>Live game</b>: lane matchups, kills, CS and ranks</sub></td>
+<td width="50%"><img src="docs/screenshots/lol-champ.webp?v=2" alt="Draft-style champ select with bans, picks and timer"><br><sub><b>Champ select</b>: picks, bans, timer and auto pick/ban</sub></td>
+<td width="50%"><img src="docs/screenshots/lol-game.webp?v=2" alt="Live game with lane matchups and ranks of all ten players"><br><sub><b>Live game</b>: lane matchups, kills, CS and ranks</sub></td>
 </tr>
 </table>
 
