@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev4"
+#define MyAppVersion "2.5.5-dev5"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -72,9 +72,8 @@ WizardStyle=modern
 ; zeigen, egal ob Windows schon eindeutig Deutsch/Polnisch/... läuft.
 ShowLanguageDialog=auto
 UninstallDisplayIcon={app}\rankyoinker.ico
-; Nachgebaut aus dem Logo oben links auf der Overlay-Seite selbst
-; (.brand-mark in index.html: abgerundetes Quadrat, Gold-Verlauf, "Y").
-; Erzeugt mit setup\make_icon.ps1.
+; Logo seit 2.5.5-dev5 (weisses "R" mit Kunai, wie Website und Overlay-Seite).
+; Erzeugt mit setup\make_logo_assets.py aus der Logo-Vorlage.
 SetupIconFile=rankyoinker.ico
 
 [Languages]
@@ -189,6 +188,8 @@ Source: "..\game_overlay.py"; DestDir: "{app}"; Flags: ignoreversion
 ; Schriften der Website fuer das Spiel-Overlay (Inter, Inter Tight, Geist Mono - SIL OFL 1.1,
 ; erzeugt mit setup\make_overlay_fonts.py; nur fuer das Overlay geladen, nichts wird installiert)
 Source: "..\fonts\*"; DestDir: "{app}\fonts"; Flags: ignoreversion
+; Logo fuer das Spiel-Overlay (Kopfzeile der Fenster)
+Source: "..\assets\logo-mark.png"; DestDir: "{app}\assets"; Flags: ignoreversion
 ; Eingebettetes Python 3.10.11 (offizielle "embeddable" Distribution von
 ; python.org) fuer den Log-Server (vry_log_server.py) - damit braucht
 ; RankYoinker keine systemweite Python-Installation mehr. "lib" (weiter

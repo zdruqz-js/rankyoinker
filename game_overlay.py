@@ -53,7 +53,7 @@ TRACK = 1.7        # Zeichenabstand der Mono-Ueberschriften (Website: .18em)
 
 COL = {
     "bg": "#09090b", "tile": "#18181c", "white": "#ffffff", "black": "#000000",
-    "text": "#f5f5f2", "text2": "#a9a9a2", "text3": "#6d6d67",
+    "text": "#f5f5f2", "text2": "#b0b0a9", "text3": "#7f7f78",     # etwas heller als die Website - im Spiel lesbarer
     "accent": "#d8b87c", "accent2": "#f3dfb0", "accent3": "#a9864c", "accent_ink": "#1b1408",
     "brand": "#ff4655", "brand_hi": "#ff6b78", "brand_lo": "#d42b3d", "teal": "#0ac8b9",
     "ally": "#5aa9ff", "enemy": "#ff4d5e", "win": "#3ddc84", "loss": "#ff6b7a", "draw": "#9a9a95",
@@ -81,6 +81,8 @@ FONTS = {
     "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
 }
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+# Logo (seit 2.5.5-dev5, erzeugt mit setup/make_logo_assets.py)
+LOGO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo-mark.png")
 
 # Tasten fuer die Spielertabelle (virtuelle Tastencodes)
 KEYS = {"tab": 0x09, "capslock": 0x14, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "x1": 0x05, "x2": 0x06}
@@ -236,11 +238,11 @@ def _frame(ops, x, y, w, h):
 
 
 def _brand(ops, x, y):
-    """Logo wie oben links auf der Website: rotes Quadrat mit "Y" + Schriftzug."""
-    ops.add("glow", x - 8, y - 4, 38, 34, COL["brand"], 90)
-    ops.add("dgrad", x, y, 22, 22, 7, COL["brand_hi"], 255, COL["brand_lo"], 255)
-    ops.add("line", x + 6, y + 0.9, x + 16, y + 0.9, COL["white"], 90, 1.0)
-    ops.add("text", x, y + 0.5, 22, 22, "Y", "mark", "#ffffff", 255, "c", False)
+    """Logo wie oben links auf der Website (rotes "R" mit Kunai) + Schriftzug."""
+    ops.add("glow", x - 9, y - 6, 40, 36, COL["brand"], 80)
+    ops.add("fill", x, y, 22, 22, 6, "#0b0b0d", 255)
+    ops.add("image", x, y, 22, 22, LOGO, 6, 255, False)
+    ops.add("stroke", x, y, 22, 22, 6, COL["white"], 34, 1.0)
     ops.add("text", x + 30, y, 130, 22, "RankYoinker", "brand", COL["text"], 255, "l", False)
 
 
@@ -428,6 +430,7 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
     tier = int(p.get("tier") or 0)
     ranked = tier > 2
     if p.get("rankImg") and ranked:
+        ops.add("glow", rx - 7, y + 1, 40, 40, tier_color(tier), 60)
         ops.add("image", rx, y + 8, 26, 26, p["rankImg"], 0, 255, False)
     else:
         ops.add("fill", rx + 5, y + 13, 16, 16, 8, COL["white"], 18)
@@ -443,12 +446,15 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
             COL["text3"], 255, "l", False)
 
 
-def _section(ops, m, ctx, x, y, w, label, color, players, pregame):
-    _eyebrow(ops, m, x + 2, y, label, color)
-    at = avg_tier(players)
-    if at:
-        ops.add("text", x, y, w, 20, tr(ctx["strings"], "ovl_avg", rank=rank_name(at)), "small",
-                COL["text3"], 255, "r", False)
+def _section(ops, m, ctx, x, y, w, label, color, players, pregame, show_avg=True):
+    lw = _eyebrow(ops, m, x + 2, y, label, color)
+    at = avg_tier(players) if show_avg else 0
+    right = tr(ctx["strings"], "ovl_avg", rank=rank_name(at)) if at else ""
+    rw = m(right, "small") + 10 if right else 0
+    if right:
+        ops.add("text", x, y, w, 20, right, "small", COL["text3"], 255, "r", False)
+    if x + w - rw - (x + lw + 14) > 20:       # Linie bis zum Durchschnitt (wie die Website-Ueberschriften)
+        ops.add("hgrad", x + lw + 14, y + 10, w - rw - lw - 14, 1, 0, color, 70, color, 0)
     y += 24
     for p in players:
         _player_row(ops, m, ctx, x, y, w, p, pregame)
@@ -483,7 +489,7 @@ def _panel(m, ctx, data, pregame):
     for i, (label, color, players) in enumerate(groups):
         if i:
             y += 8
-        y = _section(inner, m, ctx, x, y, iw, label, color, players[:14], pregame)
+        y = _section(inner, m, ctx, x, y, iw, label, color, players[:14], pregame, show_avg=not data.get("cmp"))
     h = (y - y0) + PAD - ROW_GAP
     _frame(ops, x0, y0, w, h)
     ops.items.extend(inner.items)
@@ -667,7 +673,7 @@ def layout_card(m, ctx, res, ask, ui):
             if note:
                 inner.add("text", x0 + w - P - 160, y + 33, 148, 16, note, "small", ncol, 255, "r", False)
             y += 64
-        _button(inner, "open", x0 + P, y, w - 2 * P, 36, tr(strings, "ovl_open_report"), False, hv == "open")
+        _button(inner, "open", x0 + P, y, w - 2 * P, 36, tr(strings, "ovl_open_report") + "  \u2192", False, hv == "open")
         y += 36 + P
     if ask:
         if res:
