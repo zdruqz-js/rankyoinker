@@ -25,10 +25,10 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 # (Quelle, Achsen, Familienname, Dateiname, Gewicht)
-# Seit 2.5.6 je eine Stufe kraeftiger als auf der Website (Text 500 statt 400, Namen/Zahlen 750, Mono 600):
+# Seit 2.5.6 kraeftiger als auf der Website (Text 560 statt 400, Namen/Zahlen 750, Mono 600):
 # GDI+ zeichnet in Graustufen ohne die Verstaerkung von DirectWrite/Chrome, gleiche Gewichte wirkten duenn.
 FONTS = (
-    ("inter.ttf", {"wght": 500, "opsz": 14}, "RY Inter Medium", "RYInter-Medium.ttf", 500),
+    ("inter.ttf", {"wght": 560, "opsz": 14}, "RY Inter Medium", "RYInter-Medium.ttf", 560),
     ("inter.ttf", {"wght": 600, "opsz": 14}, "RY Inter SemiBold", "RYInter-SemiBold.ttf", 600),
     ("intertight.ttf", {"wght": 750}, "RY Inter Tight Display", "RYInterTight-Display.ttf", 750),
     ("intertight.ttf", {"wght": 900}, "RY Inter Tight Black", "RYInterTight-Black.ttf", 900),

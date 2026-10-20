@@ -55,7 +55,7 @@ TRACK = 1.7        # Zeichenabstand der Mono-Ueberschriften (Website: .18em)
 
 COL = {
     "bg": "#09090b", "tile": "#18181c", "white": "#ffffff", "black": "#000000",
-    "text": "#f5f5f2", "text2": "#b0b0a9", "text3": "#7f7f78",     # etwas heller als die Website - im Spiel lesbarer
+    "text": "#f5f5f2", "text2": "#bcbcb5", "text3": "#8b8b84",     # heller als die Website - im Spiel lesbarer (2.5.6 noch etwas heller)
     "accent": "#d8b87c", "accent2": "#f3dfb0", "accent3": "#a9864c", "accent_ink": "#1b1408",
     "brand": "#ff4655", "brand_hi": "#ff6b78", "brand_lo": "#d42b3d", "teal": "#0ac8b9",
     "ally": "#5aa9ff", "enemy": "#ff4d5e", "win": "#3ddc84", "loss": "#ff6b7a", "draw": "#9a9a95",
@@ -372,8 +372,14 @@ def _name_tag(ops, m, x, y, w, h, name, tag, col_name, extra_w=0):
     tw = m(tag, "tag") if tag else 0
     full = m(name, "name") + 1
     nw = min(full, max(24, w - tw - 4 - extra_w))
-    # gekuerzter Name: "…" endet sonst direkt am Tag (eigener Satz fuellt die Breite genauer als GDI+)
-    ops.add("text", x, y, nw + 2 if nw >= full else nw - 1, h, name, "name", col_name, 255, "l", False)
+    if nw < full:
+        # selbst kuerzen, damit der Tag direkt hinter dem "…" steht (sonst blieb je nach Buchstabe eine Luecke)
+        s = name
+        while len(s) > 1 and m(s.rstrip() + "\u2026", "name") + 1 > nw:
+            s = s[:-1]
+        name = s.rstrip() + "\u2026"
+        nw = min(nw, m(name, "name") + 1)
+    ops.add("text", x, y, nw + 2, h, name, "name", col_name, 255, "l", False)
     end = x + nw
     if tag and nw + 4 + tw + extra_w <= w + 1:
         ops.add("text", x + nw + 4, y + 1, tw + 2, h, tag, "tag", COL["text3"], 255, "l", False)
@@ -856,7 +862,7 @@ _PNG_CLSID = (0x557CF406, 0x1A04, 0x11D3, (0x9A, 0x73, 0x00, 0x00, 0xF8, 0x1E, 0
 # der Website (fonts/, erzeugt mit setup/make_overlay_fonts.py), sonst Windows-Schriften.
 # Stil 1 = fett, falls es den Schnitt nicht gibt.
 _FAMILIES = {
-    # seit 2.5.6 eine Stufe kraeftiger als die Website (siehe setup/make_overlay_fonts.py): "regular" = Inter 500
+    # seit 2.5.6 kraeftiger als die Website (siehe setup/make_overlay_fonts.py): "regular" = Inter 560
     "regular": (("RY Inter Medium", 0, True), ("Segoe UI Semibold", 0, False), ("Segoe UI", 0, False)),
     "semibold": (("RY Inter SemiBold", 0, True), ("Segoe UI Semibold", 0, False), ("Segoe UI", 1, False)),
     "display": (("RY Inter Tight Display", 0, True), ("Segoe UI", 1, False)),
