@@ -61,6 +61,9 @@ class Ws:
         # fuer den Zustands-Fallback (siehe Patch-Hinweis)
         self._presences = Presences(Requests, self.log)
         self._last_rpc_refresh = 0.0
+        # Zuletzt gesehener Zustand der eigenen Presence (Event oder Abfrage), siehe
+        # _detect_state_via_api - nur ein echter Wechsel der Presence zaehlt dort
+        self._presence_seen = None
 
     def set_player_data(self, player_data):
         self.player_data = player_data
@@ -138,16 +141,19 @@ class Ws:
         return "DISCONNECTED"
 
     async def _poll_game_state(self, initial_game_state):
-        """Fallback: Zustandswechsel ueber die Spiel-API erkennen.
+        """Fallback: Zustandswechsel ueber Presence-Abfrage bzw. Spiel-API erkennen.
 
-        Gibt erst zurueck, wenn sich der Zustand wirklich geaendert hat -
-        solange die eigene Chat-Presence normal ankommt, tut die Schleife
-        gar nichts und der Websocket bleibt allein zustaendig.
+        Gibt erst zurueck, wenn sich der Zustand wirklich geaendert hat. Der
+        erste Blick kommt sofort (2.5.5): Der Websocket wird erst nach dem Laden
+        des vorigen Zustands neu verbunden - ein Matchende oder Dodge in dieser
+        Zeit kam nie als Event an und fiel erst beim Sicherheits-Check auf
+        (bis zu ~20 s, so lange stand im Overlay noch das alte Match).
         """
         loop = asyncio.get_event_loop()
         ticks = 0
         while True:
-            await asyncio.sleep(STATE_POLL_INTERVAL)
+            if ticks:
+                await asyncio.sleep(STATE_POLL_INTERVAL)
             ticks += 1
             # Neben dem eigentlichen Deceive-Fallback (unten) alle paar Ticks
             # AUCH pruefen, wenn die eigene Presence ganz normal da ist:
@@ -189,9 +195,18 @@ class Ws:
         if presence is None:
             return None
         if self._presences.has_own_presence(presence) and not force:
-            # alles normal - der Websocket meldet Wechsel selbst (force
-            # umgeht das fuer den periodischen Sicherheits-Check oben)
-            return None
+            # Eigene Presence ist da (lokal, kostet keine Riot-Anfrage). Der Websocket
+            # meldet Wechsel selbst, verpasst aber die waehrend des Ladens (siehe
+            # _poll_game_state). Nur ein echter Wechsel der Presence zaehlt: Hat die
+            # Spiel-API (force/Deceive) vry.exe schon weitergeschaltet, waehrend die
+            # Presence noch haengt, darf ihr alter Stand nicht zurueckschalten.
+            try:
+                st = self._presences.get_game_state(presence)
+            except Exception:
+                return None
+            prev = self._presence_seen or initial_game_state
+            self._presence_seen = st or self._presence_seen
+            return st if st and st != prev else None
 
         prefer = initial_game_state if initial_game_state in ("PREGAME", "INGAME") else None
         state = self._presences.get_api_game_state(prefer=prefer, max_age=0)
@@ -256,6 +271,7 @@ class Ws:
                     state = None
 
                 if state is not None:
+                    self._presence_seen = state
                     if self.cfg.get_feature_flag("discord_rpc") and private_data:
                         self.rpc.set_rpc(private_data)
                     if state != initial_game_state:

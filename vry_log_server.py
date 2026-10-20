@@ -520,7 +520,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.5-dev10"
+APP_VERSION = "2.5.5-dev11"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -5959,20 +5959,100 @@ STALE_AFTER = 12.0        # so lange darf vry.exe hinterherhinken
 SYNC_COOLDOWN = 90.0      # Mindestabstand zweier Nachhol-Neustarts
 START_SETTLE = 25.0       # frisch gestartetes vry.exe darf erst mal laden
 _sync = {"last": 0.0, "match": None, "mismatch": 0.0}
+# Matchende und Dodge schneller merken (2.5.5, Nutzerwunsch). In Agentenauswahl und
+# Match liest der Waechter zwischen zwei Durchlaeufen jede Sekunde die eigene
+# Chat-Presence (lokale Riot-Client-API, keine Riot-Anfrage). Meldet sie einen anderen
+# Zustand, laeuft der naechste Durchlauf sofort - hoechstens alle GAME_FAST_MIN s und
+# nur GAME_FAST_MAX s lang, falls Presence und glz sich laenger uneinig sind (dann
+# wieder der normale 5-s-Takt). Im Menue reicht der normale Takt.
+GAME_FAST_STEP = 1.0
+GAME_FAST_MIN = 2.0
+GAME_FAST_MAX = 20.0
+_game_fast = {"last": 0.0, "first": 0.0}
+# Antwortet glz mit einem Fehler (Sperre 429, Riot 5xx), ist der Zustand unklar. Bis 2.5.4
+# galt das als Menue - seit die Seite dem Dienst beim Matchende folgt, stuende sie dann
+# mitten im Match in der Lobby. Haelt das laenger als LIVE_UNCLEAR_MAX an, doch Menue
+# (sonst bliebe nach einem Match mit Riot-Stoerung ewig das alte Match stehen).
+LIVE_UNCLEAR_MAX = 30.0
+_live_unclear = {"since": 0.0}
 
 
 def _live_state():
-    """Echter Spielzustand laut Riot: INGAME / PREGAME / MENUS."""
+    """Echter Spielzustand laut Riot: INGAME / PREGAME / MENUS (unklar -> RiotError)."""
     auth = get_auth()
-    status, j = riot_get("glz", "/core-game/v1/players/%s" % auth["puuid"])
-    if status == 200 and j and j.get("MatchID"):
+    s1, j = riot_get("glz", "/core-game/v1/players/%s" % auth["puuid"])
+    if s1 == 200 and j and j.get("MatchID"):
+        _live_unclear["since"] = 0.0
         return "INGAME", j["MatchID"]
-    status, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
-    if status == 200 and j and j.get("MatchID"):
+    s2, j = riot_get("glz", "/pregame/v1/players/%s" % auth["puuid"])
+    if s2 == 200 and j and j.get("MatchID"):
+        _live_unclear["since"] = 0.0
         # Der Agentenauswahl-Cache bekommt die frische ID gleich mit
         _pregame_note(j["MatchID"])
         return "PREGAME", j["MatchID"]
-    return "MENUS", None
+    # Menue nur bei eindeutiger Antwort (kein Match = 404) oder wenn die eigene
+    # Presence es sagt, sonst bleibt der alte Stand (siehe LIVE_UNCLEAR_MAX)
+    now = time.time()
+    if (s1 in (200, 404) and s2 in (200, 404)) or _presence_state() == "MENUS":
+        _live_unclear["since"] = 0.0
+        return "MENUS", None
+    if not _live_unclear["since"]:
+        _live_unclear["since"] = now
+    if now - _live_unclear["since"] > LIVE_UNCLEAR_MAX:
+        return "MENUS", None
+    raise RiotError("Spielzustand unklar (core-game %s, pregame %s)" % (s1, s2))
+
+
+def _presence_state():
+    """Eigener Zustand (MENUS/PREGAME/INGAME) aus der lokalen Chat-Presence, sonst None."""
+    me = _account["puuid"]
+    if not me:
+        return None
+    try:
+        status, j = _riot_local_get("/chat/v4/presences")
+    except Exception:
+        return None
+    if status != 200 or not isinstance(j, dict):
+        return None
+    for pr in j.get("presences") or []:
+        priv = pr.get("private")
+        if pr.get("puuid") != me or pr.get("product") != "valorant" or not priv or "{" in str(priv):
+            continue
+        try:
+            d = json.loads(base64.b64decode(priv))
+        except Exception:
+            continue
+        if not isinstance(d, dict):
+            continue
+        # Riot wechselt zwischen verschachtelter und flacher Struktur (wie presences.py)
+        st = (d.get("matchPresenceData") or {}).get("sessionLoopState") or d.get("sessionLoopState")
+        if st in ("MENUS", "PREGAME", "INGAME"):
+            return st
+    return None
+
+
+def _game_wait():
+    """Bis zum naechsten Durchlauf warten - frueher, wenn die Presence in Agentenauswahl
+    oder Match einen anderen Zustand meldet (siehe GAME_FAST_*)."""
+    end = time.time() + GAME_INTERVAL
+    while True:
+        left = end - time.time()
+        if left <= 0:
+            return
+        time.sleep(min(GAME_FAST_STEP, left))
+        if _game["state"] not in ("PREGAME", "INGAME"):
+            continue
+        st = _presence_state()
+        now = time.time()
+        if not st or st == _game["state"]:
+            _game_fast["first"] = 0.0
+            continue
+        if not _game_fast["first"]:
+            _game_fast["first"] = now
+        if now - _game_fast["first"] > GAME_FAST_MAX or now - _game_fast["last"] < GAME_FAST_MIN:
+            continue
+        _game_fast["last"] = now
+        return
 
 
 _game_roster = {"match": None, "map": "", "queue": "", "players": []}
@@ -5981,6 +6061,9 @@ _game_roster = {"match": None, "map": "", "queue": "", "players": []}
 def game_state():
     """Spielzustand fuer die Oberflaeche — unabhaengig davon, was vry.exe sieht."""
     out = {"state": _game["state"], "matchId": _game["matchId"],
+           # since: seit wann der Zustand gilt - die Seite verwirft damit Heartbeats von
+           # vry.exe, die noch vor dem Matchende/Dodge gebaut wurden (2.5.5)
+           "since": int(_game["since"]),
            "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
            "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
            "pdRequests": dict(_pd_counts), "report": match_report_state(),
@@ -7203,7 +7286,7 @@ def _match_report_build(match_id):
 
 def _game_watcher():
     while True:
-        time.sleep(GAME_INTERVAL)
+        _game_wait()
         try:
             _pd_vry_blocks_tick()
         except Exception:

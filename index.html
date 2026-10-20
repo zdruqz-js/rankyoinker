@@ -4246,10 +4246,34 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return msg;
   }
 
+  // Match vorbei / Dodge schneller (2.5.5, Nutzerwunsch): vry.exe meldet die Lobby
+  // erst, wenn es mit dem Laden fertig ist - steckt es dann noch in der Agentenauswahl
+  // oder im Match, merkt es einen Dodge erst danach. Der Dienst sieht den Wechsel nach
+  // 1-2 s (eigene Presence, game.since). Ein Heartbeat aus PREGAME/INGAME, der davor
+  // gebaut wurde, ist ueberholt: Die Seite zeigt dann die Lobby (Mitglieder aus /api/lobby).
+  function outdatedHeartbeat(d){
+    const g = procStatus && procStatus.game;
+    const since = g && g.state === 'MENUS' ? Number(g.since) || 0 : 0;
+    return !!(d && since && d.state !== 'MENUS' && (Number(d.time) || 0) < since);
+  }
+  // Der echte Heartbeat bleibt angehaengt: Meldet der Dienst danach wieder DASSELBE
+  // Match (Fehlalarm), zeigt die Seite es wieder - vry.exe schickt im laufenden Match
+  // sonst keinen neuen Heartbeat. Ein neues Match bringt vry.exe selbst.
+  let lastSvcMatch = null;
+  function asLobby(d){ return Object.assign({}, d, {state: 'MENUS', players: {}, realHeartbeat: d, realMatch: lastSvcMatch}); }
+  function lobbyWasFalseAlarm(d){
+    const g = procStatus && procStatus.game;
+    return !!(d && d.realHeartbeat && d.realMatch && g && g.matchId === d.realMatch && g.state === d.realHeartbeat.state);
+  }
+
   function onVryMessage(msg){
     if(!msg) return;
     if(msg.type === 'version'){ appVersion = msg.core; if(connState !== 'live') setConnState('wait'); }
-    else if(msg.type === 'heartbeat'){ latestData = withPuuids(msg); setConnState('live'); render(); }
+    else if(msg.type === 'heartbeat'){
+      const d = withPuuids(msg);
+      latestData = outdatedHeartbeat(d) ? asLobby(d) : d;
+      setConnState('live'); render();
+    }
   }
   function connectWS(){
     // Seit 2.5.3 ist der WebSocket von vry.exe nur noch am PC selbst erreichbar (vorher
@@ -4503,6 +4527,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         lastAccountPuuid = procStatus.puuid;
         if(tabsPrefetched !== lastAccountPuuid && !prefetchTimer) prefetchTimer = setTimeout(prefetchTabs, 3000);
       }
+      if(outdatedHeartbeat(latestData)){ latestData = asLobby(latestData); render(); }
+      else if(lobbyWasFalseAlarm(latestData)){ latestData = latestData.realHeartbeat; render(); }
+      if(procStatus.game && procStatus.game.matchId) lastSvcMatch = procStatus.game.matchId;
       matchViewSync();
       syncReport();
 
@@ -11036,7 +11063,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.5-dev10";
+const CURRENT_VERSION = "2.5.5-dev11";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
