@@ -694,6 +694,7 @@
     "ovl_hidden": "Скрыт",
     "ovl_avg": "Ср. {rank}",
     "ovl_preview": "ПРЕВЬЮ",
-    "ovl_grade": "Оценка"
+    "ovl_grade": "Оценка",
+    "ovl_today": "Сегодня {rr} · {w}–{l}"
   }
 }

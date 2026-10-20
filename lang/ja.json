@@ -694,6 +694,7 @@
     "ovl_hidden": "非表示",
     "ovl_avg": "平均 {rank}",
     "ovl_preview": "プレビュー",
-    "ovl_grade": "評価"
+    "ovl_grade": "評価",
+    "ovl_today": "今日 {rr} · {w}勝{l}敗"
   }
 }

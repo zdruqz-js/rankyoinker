@@ -37,23 +37,28 @@ import urllib.request
 from ctypes import wintypes
 
 # ============================ Aussehen ============================
+# Wie rankyoinker.de: fast schwarze Flaechen mit goldenem und rotem Schimmer, rotes "Y"-Logo,
+# goldene Mono-Ueberschriften mit leuchtendem Punkt und weitem Zeichenabstand, Pillen-Chips.
 
 SH = 18            # Rand fuer den weichen Schatten rund um jedes Panel (logische Pixel)
-PANEL_W = 368      # Agentenauswahl + Spielertabelle
-CARD_W = 384       # Ergebnis / Instalock-Frage
+PANEL_W = 424      # Agentenauswahl + Spielertabelle
+CARD_W = 400       # Ergebnis / Instalock-Frage
 PAD = 14
 ROW_H = 42
 ROW_GAP = 3
-RANK_W = 142
-RADIUS = 16
+RANK_W = 150
+FORM_W = 44        # "Letzte 5" als Punktreihe
+RADIUS = 18
+TRACK = 1.7        # Zeichenabstand der Mono-Ueberschriften (Website: .18em)
 
 COL = {
-    "bg": "#0e0f13", "tile": "#1c1d23", "white": "#ffffff", "black": "#000000",
+    "bg": "#09090b", "tile": "#18181c", "white": "#ffffff", "black": "#000000",
     "text": "#f5f5f2", "text2": "#a9a9a2", "text3": "#6d6d67",
-    "accent": "#d8b87c", "accent2": "#f3dfb0", "accent_ink": "#1b1408",
+    "accent": "#d8b87c", "accent2": "#f3dfb0", "accent3": "#a9864c", "accent_ink": "#1b1408",
+    "brand": "#ff4655", "brand_hi": "#ff6b78", "brand_lo": "#d42b3d", "teal": "#0ac8b9",
     "ally": "#5aa9ff", "enemy": "#ff4d5e", "win": "#3ddc84", "loss": "#ff6b7a", "draw": "#9a9a95",
 }
-BG_ALPHA = 238
+BG_ALPHA = 248
 TIER_COLORS = ((2, "#7a8590"), (5, "#9aa3ad"), (8, "#c99060"), (11, "#d3dbe3"), (14, "#f0cb52"),
                (17, "#46d0bd"), (20, "#c895f5"), (23, "#43e08c"), (26, "#ff5d7a"), (99, "#ffe58a"))
 PARTY_COLORS = ("#2dd4bf", "#c084fc", "#f4b850", "#f472b6", "#a3e635", "#fb923c", "#38bdf8")
@@ -69,10 +74,11 @@ _RANK_SHORT = {"Platinum": "Plat", "Diamond": "Dia", "Ascendant": "Asc", "Immort
 # Schriftrollen: (Schnitt, Groesse in logischen Pixeln) - Schnitte wie auf der Website:
 # Inter fuer Text, Inter Tight fuer Namen/Raenge/Zahlen, Geist Mono fuer kleine Ueberschriften
 FONTS = {
-    "eyebrow": ("mono", 10), "title": ("display", 16), "name": ("display", 13),
+    "eyebrow": ("mono", 9.5), "label": ("mono", 8.5), "title": ("display", 16), "name": ("display", 13),
     "tag": ("regular", 11), "sub": ("regular", 11), "rank": ("display", 12.5), "chip": ("semibold", 10.5),
-    "big": ("black", 27), "grade": ("black", 26), "value": ("display", 15), "label": ("mono", 8.5),
-    "body": ("regular", 12), "btn": ("display", 13), "rr": ("black", 18),
+    "big": ("black", 28), "banner": ("black", 23), "grade": ("black", 26), "value": ("display", 15),
+    "delta": ("semibold", 9.5), "body": ("regular", 12), "small": ("regular", 10.5), "btn": ("display", 13),
+    "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
 }
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 
@@ -87,13 +93,15 @@ FALLBACK = {
     "ovl_team_ally": "YOUR TEAM", "ovl_team_enemy": "ENEMIES", "ovl_team_all": "PLAYERS",
     "ovl_open_report": "Open analysis", "ovl_rank_up": "Ranked up!", "ovl_rank_down": "Ranked down",
     "ovl_il_in": "{name} in {n} s", "ovl_il_locked": "{name} locked", "ovl_hidden": "Hidden",
-    "ovl_avg": "Avg {rank}", "ovl_preview": "PREVIEW", "ovl_grade": "Grade",
+    "ovl_avg": "Avg {rank}", "ovl_preview": "PREVIEW", "ovl_grade": "Grade", "ovl_today": "Today {rr} · {w}–{l}",
     "report_victory": "Victory", "report_defeat": "Defeat", "report_draw": "Draw", "report_place": "Place {n} of {of}",
     "report_mvp": "Match MVP", "report_team_mvp": "Team MVP", "pregame_you": "You", "pregame_hovering": "Hovering",
     "instalock_ask_title": "Keep going with {name}?",
     "instalock_ask_body": "Should Instalock lock {name} in the next match too? No answer pauses it.",
     "instalock_ask_skip": "Don't ask for the next {n} matches", "instalock_ask_yes": "Yes", "instalock_ask_no": "No",
-    "peak_label": "Peak",
+    "peak_label": "Peak", "verdict_even": "Even", "verdict_slight_edge": "Slight edge",
+    "verdict_clear_edge": "Clear edge", "verdict_strong_edge": "Strong edge",
+    "for_your_team": "for your team", "for_the_enemies": "for the enemies",
 }
 
 
@@ -145,12 +153,45 @@ def avg_tier(players):
     return int(round(sum(tiers) / len(tiers))) if tiers else 0
 
 
+def verdict(ally, enemy, strings):
+    """Teamvergleich wie teamCompareHtml() im Overlay: Abstand in Rangstufen -> Text, Lage des
+    Balkens (8..92 %) und Richtung (up/down/even)."""
+    diff = ((ally.get("tier") or 0) * 100 + (ally.get("rr") or 0)
+            - (enemy.get("tier") or 0) * 100 - (enemy.get("rr") or 0)) / 100.0
+    a = abs(diff)
+    if a < 0.25:
+        return tr(strings, "verdict_even"), 50.0, "even"
+    word = "verdict_slight_edge" if a < 1 else "verdict_clear_edge" if a < 2 else "verdict_strong_edge"
+    text = tr(strings, word) + " " + tr(strings, "for_your_team" if diff > 0 else "for_the_enemies")
+    return text, max(8.0, min(92.0, 50 + diff * 14)), ("up" if diff > 0 else "down")
+
+
 def split_riot_id(name):
     s = str(name or "")
     i = s.rfind("#")
     if i > 0:
         return s[:i], s[i:]
     return s, ""
+
+
+def fit_join(m, items, font, width, sep="  ·  "):
+    """So viele Angaben wie ganz hineinpassen (keine halben Werte mit "..."), in dieser Reihenfolge."""
+    out = []
+    for it in items:
+        if not it:
+            continue
+        if m(sep.join(out + [it]), font) <= width:
+            out.append(it)
+        elif not out:
+            out.append(it)          # die erste darf notfalls gekuerzt werden
+            break
+        else:
+            break
+    return sep.join(out)
+
+
+def tracked_width(m, s, font, track=TRACK):
+    return sum(m(ch, font) for ch in s) + track * max(0, len(s) - 1)
 
 
 # ============================ Zeichenbefehle ============================
@@ -176,12 +217,62 @@ class Ops:
         return None
 
 
+def _frame_light(ops, x, y, w, h):
+    """Lichtverlauf + goldener und roter Schimmer (wie .glow/.card auf der Website)."""
+    ops.add("vgrad", x, y, w, h, RADIUS, COL["white"], 11, COL["white"], 3)
+    ops.add("clip", x, y, w, h, RADIUS)
+    ops.add("glow", x + w * 0.18, y - 120, w * 0.95, 230, COL["accent"], 44)
+    ops.add("glow", x - w * 0.42, y - 150, w * 0.95, 300, COL["brand"], 34)
+    ops.add("unclip")
+
+
 def _frame(ops, x, y, w, h):
-    """Panel-Grund: Schatten, Glasflaeche, Lichtkante oben, feiner Rand."""
-    ops.add("shadow", x, y, w, h, RADIUS, SH - 2, 120)
+    """Panel-Grund wie die Karten der Website: Schatten, fast schwarz, Schimmer, feiner Rand, Lichtkante."""
+    ops.add("shadow", x, y, w, h, RADIUS, SH - 2, 130)
     ops.add("fill", x, y, w, h, RADIUS, COL["bg"], BG_ALPHA)
-    ops.add("vgrad", x, y, w, min(70, h), RADIUS, COL["white"], 14, COL["white"], 0)
-    ops.add("stroke", x, y, w, h, RADIUS, COL["white"], 26, 1.0)
+    _frame_light(ops, x, y, w, h)
+    ops.add("stroke", x, y, w, h, RADIUS, COL["white"], 30, 1.0)
+    ops.add("line", x + RADIUS, y + 0.6, x + w - RADIUS, y + 0.6, COL["white"], 40, 1.0)
+
+
+def _brand(ops, x, y):
+    """Logo wie oben links auf der Website: rotes Quadrat mit "Y" + Schriftzug."""
+    ops.add("glow", x - 8, y - 4, 38, 34, COL["brand"], 90)
+    ops.add("dgrad", x, y, 22, 22, 7, COL["brand_hi"], 255, COL["brand_lo"], 255)
+    ops.add("line", x + 6, y + 0.9, x + 16, y + 0.9, COL["white"], 90, 1.0)
+    ops.add("text", x, y + 0.5, 22, 22, "Y", "mark", "#ffffff", 255, "c", False)
+    ops.add("text", x + 30, y, 130, 22, "RankYoinker", "brand", COL["text"], 255, "l", False)
+
+
+def _eyebrow(ops, m, x, y, text, color=None, dot=True, align="l", alpha=255):
+    """Goldene Mono-Ueberschrift mit leuchtendem Punkt (.eyebrow der Website). Gibt die Breite zurueck."""
+    color = color or COL["accent"]
+    tw = tracked_width(m, text, "eyebrow")
+    total = tw + (12 if dot else 0)
+    if align == "r":
+        x -= total
+    if dot:
+        ops.add("glow", x - 5, y + 2, 16, 16, color, 120)
+        ops.add("fill", x, y + 7, 6, 6, 3, color, 255)
+        x += 12
+    ops.add("ttext", x, y, 20, text, "eyebrow", color, alpha, TRACK)
+    return total
+
+
+def _pill(ops, m, x_right, y, text, dot_color=None):
+    """Chip wie "v2.5.4 | Fuer VALORANT ..." oben auf der Website, rechtsbuendig."""
+    tw = tracked_width(m, text, "eyebrow", 1.2)
+    w = tw + 22 + (12 if dot_color else 0)
+    x = x_right - w
+    ops.add("fill", x, y, w, 22, 11, COL["white"], 12)
+    ops.add("stroke", x, y, w, 22, 11, COL["white"], 28, 1.0)
+    tx = x + 11
+    if dot_color:
+        ops.add("glow", tx - 5, y + 3, 16, 16, dot_color, 130)
+        ops.add("fill", tx, y + 8, 6, 6, 3, dot_color, 255)
+        tx += 12
+    ops.add("ttext", tx, y + 1, 20, text, "eyebrow", COL["text2"], 255, 1.2)
+    return w
 
 
 def _chip(ops, m, x, y, text, color, align_right=False, fill_alpha=34, h=20):
@@ -194,20 +285,95 @@ def _chip(ops, m, x, y, text, color, align_right=False, fill_alpha=34, h=20):
     return w
 
 
-def _name_tag(ops, m, x, y, w, h, name, tag, col_name):
+def _header(ops, m, ctx, x, y, w, label, dot_color=None):
+    _brand(ops, x, y)
+    if ctx.get("preview"):
+        label = tr(ctx["strings"], "ovl_preview") + " · " + label
+    _pill(ops, m, x + w, y, label, dot_color)
+    return y + 22 + 12
+
+
+def _banner(ops, m, ctx, x, y, w, h, img, title, sub, right=None):
+    """Kartenbild als Kopf (wie der Match-Kopf im Overlay): grosser Kartenname, darunter Mono."""
+    lang = ctx.get("lang")
+    ops.add("clip", x, y, w, h, 12)
+    ops.add("fill", x, y, w, h, 0, COL["tile"], 255)
+    if img:
+        ops.add("image", x, y, w, h, img, 0, 255, True)
+    ops.add("hgrad", x, y, w, h, 0, COL["bg"], 236, COL["bg"], 60)
+    ops.add("vgrad", x, y + h * 0.45, w, h * 0.55, 0, COL["bg"], 0, COL["bg"], 150)
+    ops.add("unclip")
+    ops.add("stroke", x, y, w, h, 12, COL["white"], 26, 1.0)
+    rw = 0
+    if right:
+        rw = _chip(ops, m, x + w - 12, y + (h - 22) / 2.0, right, COL["accent"], align_right=True, h=22) + 10
+    ops.add("text", x + 14, y + 8, w - 28 - rw, 30, upper(title or "—", lang), "banner", COL["text"], 255, "l", False)
+    if sub:
+        ops.add("ttext", x + 15, y + h - 23, 18, upper(sub, lang), "eyebrow", COL["text2"], 255, TRACK)
+
+
+def _compare(ops, m, ctx, x, y, w, cmp):
+    """Teamvergleich wie im Overlay: Durchschnittsrang beider Teams, VS-Balken, Urteil."""
+    strings = ctx["strings"]
+    a, e = (cmp or {}).get("ally"), (cmp or {}).get("enemy")
+    if not a or not e:
+        return y
+    h = 66
+    ops.add("fill", x, y, w, h, 12, COL["white"], 8)
+    ops.add("stroke", x, y, w, h, 12, COL["white"], 20, 1.0)
+    side_w = (w - 120) / 2.0
+    for side, data, label, col in (("l", a, tr(strings, "ovl_team_ally"), COL["ally"]),
+                                   ("r", e, tr(strings, "ovl_team_enemy"), COL["enemy"])):
+        tier = int(data.get("tier") or 0)
+        if side == "l":
+            ix, tx, al = x + 10, x + 44, "l"
+        else:
+            ix, tx, al = x + w - 10 - 28, x + w - 44 - (side_w - 44), "r"
+        if data.get("img"):
+            ops.add("image", ix, y + 10, 28, 28, data["img"], 0, 255, False)
+        tw = side_w - 44
+        if al == "l":
+            ops.add("ttext", tx, y + 7, 16, label, "label", col, 255, 1.2)
+        else:
+            lw = tracked_width(m, label, "label", 1.2)
+            ops.add("ttext", tx + tw - lw, y + 7, 16, label, "label", col, 255, 1.2)
+        ops.add("text", tx, y + 22, tw, 20, rank_name(tier), "rank", tier_color(tier), 255, al, False)
+    text, pct, kind = verdict(a, e, strings)
+    mx, mw = x + side_w + 6, 108
+    ops.add("text", mx, y + 6, mw, 14, "VS", "vs", COL["text3"], 255, "c", False)
+    ops.add("fill", mx + 4, y + 26, mw - 8, 5, 2.5, COL["enemy"], 150)
+    ops.add("fill", mx + 4, y + 26, (mw - 8) * pct / 100.0, 5, 2.5, COL["ally"], 230)
+    ops.add("fill", mx + 4 + (mw - 8) / 2.0 - 0.5, y + 24, 1, 9, 0, COL["white"], 140)
+    vcol = {"up": COL["win"], "down": COL["loss"]}.get(kind, COL["text2"])
+    ops.add("line", x + 14, y + 48, x + w - 14, y + 48, COL["white"], 16, 1.0)
+    ops.add("text", x + 10, y + 49, w - 20, 16, text, "small", vcol, 255, "c", False)
+    return y + h + 10
+
+
+def _name_tag(ops, m, x, y, w, h, name, tag, col_name, extra_w=0):
     tw = m(tag, "tag") if tag else 0
-    nw = min(m(name, "name") + 1, max(24, w - tw - 4))
+    nw = min(m(name, "name") + 1, max(24, w - tw - 4 - extra_w))
     ops.add("text", x, y, nw + 2, h, name, "name", col_name, 255, "l", False)
-    if tag and nw + 4 + tw <= w + 1:
+    end = x + nw
+    if tag and nw + 4 + tw + extra_w <= w + 1:
         ops.add("text", x + nw + 4, y + 1, tw + 2, h, tag, "tag", COL["text3"], 255, "l", False)
+        end = x + nw + 4 + tw
+    return end
+
+
+def _form(ops, x, y, form):
+    """"Letzte 5" als Punktreihe: gruen Sieg, rot Niederlage, grau Unentschieden."""
+    for i, r in enumerate((form or [])[:5]):
+        col = {"w": COL["win"], "l": COL["loss"]}.get(r, COL["draw"])
+        ops.add("fill", x + i * 8.5, y, 6, 6, 2, col, 230)
 
 
 def _player_row(ops, m, ctx, x, y, w, p, pregame):
-    strings, lang = ctx["strings"], ctx.get("lang")
+    strings = ctx["strings"]
     me = bool(p.get("me"))
     if me:
-        ops.add("fill", x, y, w, ROW_H, 11, COL["accent"], 26)
-        ops.add("stroke", x, y, w, ROW_H, 11, COL["accent"], 70, 1.0)
+        ops.add("hgrad", x, y, w, ROW_H, 11, COL["accent"], 46, COL["accent"], 14)
+        ops.add("stroke", x, y, w, ROW_H, 11, COL["accent"], 80, 1.0)
     else:
         ops.add("fill", x, y, w, ROW_H, 11, COL["white"], 8)
     pc = party_color(p.get("party"))
@@ -223,35 +389,40 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
         ops.add("text", tx, ty, ts, ts, "?", "name", COL["text3"], 255, "c", False)
     if pregame and p.get("locked"):
         ops.add("stroke", tx, ty, ts, ts, 9, COL["accent"], 150, 1.2)
-    # Name
+    # Name (+ Begegnungen)
     nx = tx + ts + 10
-    nw = x + w - RANK_W - nx - 6
+    form = p.get("form") or []
+    nw = x + w - RANK_W - (FORM_W if form else 0) - nx - 6
     name, tag = split_riot_id(p.get("name"))
+    enc = int(p.get("enc") or 0)
+    enc_txt = "%d×" % enc if enc >= 2 else ""
+    enc_w = (m(enc_txt, "chip") + 12) if enc_txt else 0
     if p.get("hidden") or not name:
-        name, tag = (p.get("agent") or tr(strings, "ovl_hidden")), ""
-        _name_tag(ops, m, nx, y + 4, nw, 19, name, "", COL["text2"])
+        end = _name_tag(ops, m, nx, y + 4, nw, 19, p.get("agent") or tr(strings, "ovl_hidden"), "", COL["text2"], enc_w)
     else:
-        _name_tag(ops, m, nx, y + 4, nw, 19, name, tag, COL["text"])
+        end = _name_tag(ops, m, nx, y + 4, nw, 19, name, tag, COL["text"], enc_w)
+    if enc_txt and end + 6 + enc_w <= nx + nw + 1:
+        ops.add("fill", end + 6, y + 7, enc_w, 15, 7.5, COL["accent"], 30)
+        ops.add("text", end + 6, y + 7, enc_w, 15, enc_txt, "delta", COL["accent"], 255, "c", False)
     sub = []
     if me:
         sub.append(tr(strings, "pregame_you"))
     if hovering:
         sub.append(tr(strings, "pregame_hovering"))
-    if pregame and p.get("level"):
-        sub.append("Lvl %s" % p["level"])
+    if isinstance(p.get("wr"), (int, float)):
+        sub.append("WR %d %%" % round(p["wr"]))
     if not pregame:
-        if p.get("kd") not in (None, ""):
-            try:
-                sub.append("K/D %.2f" % float(p["kd"]))
-            except (TypeError, ValueError):
-                pass
-        if p.get("hs") not in (None, ""):
-            try:
-                sub.append("HS %d%%" % round(float(p["hs"])))
-            except (TypeError, ValueError):
-                pass
-    ops.add("text", nx, y + 22, nw, 16, "  ·  ".join(sub), "sub",
+        if isinstance(p.get("kd"), (int, float)):
+            sub.append("K/D %.2f" % p["kd"])
+        if isinstance(p.get("hs"), (int, float)):
+            sub.append("HS %d %%" % round(p["hs"]))
+    if p.get("level"):
+        sub.append("Lvl %s" % p["level"])
+    ops.add("text", nx, y + 22, nw, 16, fit_join(m, sub, "sub", nw), "sub",
             COL["accent"] if me else COL["text3"], 255, "l", False)
+    # Letzte 5
+    if form:
+        _form(ops, x + w - RANK_W - FORM_W + 2, y + 18, form)
     # Rang
     rx = x + w - RANK_W
     tier = int(p.get("tier") or 0)
@@ -268,17 +439,17 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
     peak = int(p.get("peak") or 0)
     if peak > 2 and (peak > tier or not ranked):
         low.append("%s %s" % (tr(strings, "peak_label"), rank_short(peak)))
-    ops.add("text", rx + 32, y + 22, RANK_W - 36, 16, "  ·  ".join(low), "sub", COL["text3"], 255, "l", False)
+    ops.add("text", rx + 32, y + 22, RANK_W - 36, 16, fit_join(m, low, "sub", RANK_W - 36), "sub",
+            COL["text3"], 255, "l", False)
 
 
 def _section(ops, m, ctx, x, y, w, label, color, players, pregame):
-    ops.add("fill", x + 2, y + 7, 6, 6, 3, color, 255)
-    ops.add("text", x + 14, y, w - 14, 20, label, "eyebrow", color, 255, "l", False)
+    _eyebrow(ops, m, x + 2, y, label, color)
     at = avg_tier(players)
     if at:
-        ops.add("text", x, y, w, 20, tr(ctx["strings"], "ovl_avg", rank=rank_name(at)), "sub",
+        ops.add("text", x, y, w, 20, tr(ctx["strings"], "ovl_avg", rank=rank_name(at)), "small",
                 COL["text3"], 255, "r", False)
-    y += 22
+    y += 24
     for p in players:
         _player_row(ops, m, ctx, x, y, w, p, pregame)
         y += ROW_H + ROW_GAP
@@ -287,28 +458,20 @@ def _section(ops, m, ctx, x, y, w, label, color, players, pregame):
 
 def _panel(m, ctx, data, pregame):
     strings, lang = ctx["strings"], ctx.get("lang")
-    ops = Ops()
+    ops, inner = Ops(), Ops()
     x0, y0, w = SH, SH, PANEL_W
-    items = []
-    inner = Ops()
     x, y = x0 + PAD, y0 + PAD
     iw = w - 2 * PAD
-    eyebrow = tr(strings, "ovl_eyebrow_pregame" if pregame else "ovl_eyebrow_board")
-    if data.get("mode"):
-        eyebrow += " · " + upper(str(data["mode"]), lang)
-    if ctx.get("preview"):
-        eyebrow = tr(strings, "ovl_preview") + " · " + eyebrow
-    inner.add("text", x, y, iw - 90, 14, eyebrow, "eyebrow", COL["text3"], 255, "l", False)
-    inner.add("text", x, y, iw, 14, "RANKYOINKER", "eyebrow", COL["accent"], 210, "r", False)
-    title = data.get("map") or ""
-    if data.get("sideText"):
-        title = (title + "  ·  " if title else "") + data["sideText"]
-    il = data.get("il") if pregame else None
-    chip_w = 0
-    if il and il.get("text"):
-        chip_w = _chip(inner, m, x + iw, y + 17, il["text"], COL["accent"], align_right=True) + 8
-    inner.add("text", x, y + 15, iw - chip_w, 24, title or " ", "title", COL["text"], 255, "l", False)
-    y += 46
+    if pregame:
+        y = _header(inner, m, ctx, x, y, iw, tr(strings, "ovl_eyebrow_pregame"), COL["accent"])
+    else:
+        y = _header(inner, m, ctx, x, y, iw, "LIVE", COL["win"])
+    sub = [s for s in (data.get("mode"), data.get("sideText")) if s]
+    il = (data.get("il") or {}).get("text") if pregame else None
+    _banner(inner, m, ctx, x, y, iw, 60, data.get("mapImg"), data.get("map") or "", " · ".join(sub), il)
+    y += 60 + 10
+    if not data.get("ffa"):
+        y = _compare(inner, m, ctx, x, y, iw, data.get("cmp"))
     groups = []
     if data.get("ffa"):
         groups.append((tr(strings, "ovl_team_all"), COL["text2"], data.get("allies") or []))
@@ -337,7 +500,8 @@ def layout_board(m, ctx, data):
 
 
 def _close_btn(ops, x, y, hover):
-    ops.add("fill", x, y, 26, 26, 13, COL["black"] if not hover else COL["white"], 110 if not hover else 30)
+    ops.add("fill", x, y, 26, 26, 13, COL["black"] if not hover else COL["white"], 120 if not hover else 30)
+    ops.add("stroke", x, y, 26, 26, 13, COL["white"], 30, 1.0)
     c = COL["text"] if hover else COL["text2"]
     ops.add("line", x + 9, y + 9, x + 17, y + 17, c, 255, 1.6)
     ops.add("line", x + 17, y + 9, x + 9, y + 17, c, 255, 1.6)
@@ -346,13 +510,35 @@ def _close_btn(ops, x, y, hover):
 
 def _button(ops, name, x, y, w, h, text, primary, hover):
     if primary:
-        ops.add("vgrad", x, y, w, h, 10, COL["accent2"] if hover else "#ead2a0", 255, COL["accent"], 255)
+        ops.add("glow", x + w * 0.1, y + h * 0.3, w * 0.8, h * 1.1, COL["accent"], 70 if hover else 45)
+        ops.add("dgrad", x, y, w, h, 11, COL["accent2"] if hover else "#ecd5a2", 255, COL["accent3"], 255)
+        ops.add("line", x + 10, y + 0.8, x + w - 10, y + 0.8, COL["white"], 110, 1.0)
         ops.add("text", x, y, w, h, text, "btn", COL["accent_ink"], 255, "c", False)
     else:
-        ops.add("fill", x, y, w, h, 10, COL["white"], 22 if hover else 12)
-        ops.add("stroke", x, y, w, h, 10, COL["white"], 40 if hover else 26, 1.0)
+        ops.add("fill", x, y, w, h, 11, COL["white"], 22 if hover else 12)
+        ops.add("stroke", x, y, w, h, 11, COL["white"], 46 if hover else 28, 1.0)
         ops.add("text", x, y, w, h, text, "btn", COL["text"], 255, "c", False)
     ops.hit(name, x, y, w, h)
+
+
+def _stat_tiles(ops, m, x, y, w, stats):
+    gap = 8
+    n = len(stats)
+    sw = (w - gap * (n - 1)) / float(n)
+    for i, st in enumerate(stats):
+        sx = x + i * (sw + gap)
+        ops.add("vgrad", sx, y, sw, 50, 11, COL["white"], 16, COL["white"], 6)
+        ops.add("stroke", sx, y, sw, 50, 11, COL["white"], 18, 1.0)
+        ops.add("text", sx, y + 7, sw, 20, str(st.get("value") or "—"), "value", COL["text"], 255, "c", False)
+        label = st.get("label") or ""
+        d = st.get("delta")
+        lw = tracked_width(m, label, "label", 1.0)
+        dw = (m(d, "delta") + 5) if d else 0
+        lx = sx + (sw - lw - dw) / 2.0
+        ops.add("ttext", lx, y + 30, 14, label, "label", COL["text3"], 255, 1.0)
+        if d:
+            ops.add("text", lx + lw + 5, y + 29, dw + 2, 15, d, "delta",
+                    COL["win"] if st.get("up") else COL["loss"], 255, "l", False)
 
 
 def layout_card(m, ctx, res, ask, ui):
@@ -360,19 +546,24 @@ def layout_card(m, ctx, res, ask, ui):
     ui: {"hover": Name, "skip": Haken gesetzt?, "frac": Restzeit 0..1 oder None}"""
     strings, lang = ctx["strings"], ctx.get("lang")
     hv = (ui or {}).get("hover")
-    ops = Ops()
-    inner = Ops()
+    ops, inner = Ops(), Ops()
     x0, y0, w = SH, SH, CARD_W
     P = 16
     y = y0
+    light_at = None
     if res:
-        bh = 108
-        inner.add("clip", x0, y0, w, 400, RADIUS)
+        bh = 134
         if res.get("mapImg"):
+            inner.add("clip", x0, y0, w, bh, RADIUS)
+            inner.add("fill", x0, y0, w, bh, 0, COL["bg"], 255)
             inner.add("image", x0, y0, w, bh, res["mapImg"], 0, 255, True)
-        inner.add("hgrad", x0, y0, w, bh, 0, COL["bg"], 245, COL["bg"], 110)
-        inner.add("vgrad", x0, y0 + 30, w, bh - 30, 0, COL["bg"], 0, COL["bg"], BG_ALPHA)
-        inner.add("unclip")
+            inner.add("hgrad", x0, y0, w, bh, 0, COL["bg"], 240, COL["bg"], 90)
+            inner.add("vgrad", x0, y0 + 30, w, bh - 30, 0, COL["bg"], 0, COL["bg"], 255)
+            inner.add("unclip")
+            # gleiche Lichtebenen wie im Panel darunter -> keine Kante (eingefuegt, wenn die Hoehe feststeht)
+            light_at = len(inner.items)
+        _brand(inner, x0 + P, y0 + 14)
+        _close_btn(inner, x0 + w - 12 - 26, y0 + 12, hv == "close")
         kind = res.get("result") or "draw"
         tcol = {"win": COL["win"], "loss": COL["loss"]}.get(kind, COL["draw"])
         eyebrow = tr(strings, "ovl_eyebrow_result")
@@ -380,31 +571,39 @@ def layout_card(m, ctx, res, ask, ui):
             eyebrow += " · " + upper(str(res["mode"]), lang)
         if ctx.get("preview"):
             eyebrow = tr(strings, "ovl_preview") + " · " + eyebrow
-        inner.add("text", x0 + P, y0 + 14, w - 2 * P - 34, 14, eyebrow, "eyebrow", COL["text2"], 255, "l", False)
+        _eyebrow(inner, m, x0 + P, y0 + 46, eyebrow, COL["accent"])
         title = upper(tr(strings, {"win": "report_victory", "loss": "report_defeat"}.get(kind, "report_draw")), lang)
         score = res.get("score") or {}
+        ty = y0 + 66
         if score.get("place"):
-            right = tr(strings, "report_place", n=score["place"], of=score.get("of") or "?")
-            inner.add("text", x0 + P, y0 + 36, w - 2 * P, 34, title, "big", tcol, 255, "l", False)
-            inner.add("text", x0 + P, y0 + 70, w - 2 * P, 18, right, "body", COL["text"], 255, "l", False)
+            inner.add("text", x0 + P, ty, w - 2 * P, 36, title, "big", tcol, 255, "l", False)
         else:
             sc = "%s : %s" % (score.get("ally", "?"), score.get("enemy", "?"))
             sw = m(sc, "big") + 4
-            inner.add("text", x0 + P, y0 + 36, w - 2 * P - sw - 8, 34, title, "big", tcol, 255, "l", False)
-            inner.add("text", x0 + w - P - sw, y0 + 36, sw, 34, sc, "big", COL["text"], 255, "r", False)
-            inner.add("text", x0 + P, y0 + 72, w - 2 * P, 18, res.get("map") or "", "body", COL["text2"], 255, "l", False)
-        _close_btn(inner, x0 + w - 10 - 26, y0 + 8, hv == "close")
+            inner.add("glow", x0 + P - 20, ty - 4, m(title, "big") + 40, 44, tcol, 40)
+            inner.add("text", x0 + P, ty, w - 2 * P - sw - 8, 36, title, "big", tcol, 255, "l", False)
+            inner.add("text", x0 + w - P - sw, ty, sw, 36, sc, "big", COL["text"], 255, "r", False)
+        info = [res.get("map") or ""]
+        if score.get("place"):
+            info.append(tr(strings, "report_place", n=score["place"], of=score.get("of") or "?"))
+        elif res.get("place"):
+            info.append(tr(strings, "report_place", n=res["place"], of=res.get("of") or "?"))
+        inner.add("text", x0 + P, y0 + 104, w - 2 * P, 18, "  ·  ".join(i for i in info if i), "body",
+                  COL["text2"], 255, "l", False)
         y = y0 + bh + 6
         # Agent, Note, Leistung
-        inner.add("fill", x0 + P, y, 48, 48, 12, COL["tile"], 255)
+        inner.add("fill", x0 + P, y, 50, 50, 13, COL["tile"], 255)
         if res.get("agentImg"):
-            inner.add("image", x0 + P, y, 48, 48, res["agentImg"], 12, 255, False)
+            inner.add("image", x0 + P, y, 50, 50, res["agentImg"], 13, 255, False)
+        inner.add("stroke", x0 + P, y, 50, 50, 13, COL["white"], 24, 1.0)
         g = res.get("grade") or "-"
         c1, c2 = GRADE_COLORS.get(g, ("#3a3a40", "#3a3a40"))
-        gx = x0 + P + 58
-        inner.add("vgrad", gx, y, 48, 48, 12, c1, 255, c2, 255)
-        inner.add("text", gx, y + 1, 48, 48, g, "grade", "#0b0b0c", 255, "c", False)
-        tx = gx + 60
+        gx = x0 + P + 60
+        inner.add("glow", gx - 10, y - 6, 70, 62, c2, 70)
+        inner.add("vgrad", gx, y, 50, 50, 13, c1, 255, c2, 255)
+        inner.add("line", gx + 10, y + 0.8, gx + 40, y + 0.8, COL["white"], 120, 1.0)
+        inner.add("text", gx, y + 1, 50, 50, g, "grade", "#0b0b0c", 255, "c", False)
+        tx = gx + 62
         tw = x0 + w - P - tx
         head = tr(strings, "ovl_grade") + " " + g
         hw = min(m(head, "title") + 2, tw)
@@ -413,55 +612,79 @@ def layout_card(m, ctx, res, ask, ui):
             label = tr(strings, "report_team_mvp" if res["mvp"] == "team" else "report_mvp")
             if hw + 8 + m(label, "chip") + 16 <= tw:
                 _chip(inner, m, tx + hw + 8, y + 5, label, COL["accent"])
-        inner.add("text", tx, y + 27, tw, 18, res.get("perf") or "", "body", COL["text2"], 255, "l", False)
-        y += 60
-        # Werte
+        inner.add("text", tx, y + 28, tw, 18, res.get("perf") or "", "body", COL["text2"], 255, "l", False)
+        y += 62
+        # Highlights
+        hls = res.get("highlights") or []
+        if hls:
+            hx = x0 + P
+            for txt in hls[:4]:
+                cw = m(txt, "chip") + 16
+                if hx + cw > x0 + w - P:
+                    break
+                hx += _chip(inner, m, hx, y, txt, COL["accent"], fill_alpha=26) + 6
+            y += 30
+        # Werte (mit Abstand zum eigenen Schnitt)
         stats = res.get("stats") or []
         if stats:
-            gap = 8
-            sw = (w - 2 * P - gap * (len(stats) - 1)) / float(len(stats))
-            for i, (label, value) in enumerate(stats):
-                sx = x0 + P + i * (sw + gap)
-                inner.add("fill", sx, y, sw, 46, 10, COL["white"], 9)
-                inner.add("text", sx, y + 6, sw, 20, str(value), "value", COL["text"], 255, "c", False)
-                inner.add("text", sx, y + 27, sw, 13, label, "label", COL["text3"], 255, "c", False)
-            y += 54
+            _stat_tiles(inner, m, x0 + P, y, w - 2 * P, stats)
+            y += 58
+        if res.get("line"):
+            inner.add("text", x0 + P, y - 2, w - 2 * P, 16, res["line"], "small", COL["text3"], 255, "c", False)
+            y += 20
         # RR
         rr = res.get("rr")
         if rr:
-            inner.add("fill", x0 + P, y, w - 2 * P, 44, 10, COL["white"], 7)
+            inner.add("vgrad", x0 + P, y, w - 2 * P, 56, 12, COL["white"], 14, COL["white"], 5)
+            inner.add("stroke", x0 + P, y, w - 2 * P, 56, 12, COL["white"], 20, 1.0)
             tier = int(rr.get("tier") or 0)
             if rr.get("img"):
-                inner.add("image", x0 + P + 9, y + 7, 30, 30, rr["img"], 0, 255, False)
-            line1 = rank_name(tier) + ("  ·  %s RR" % rr["rr"] if rr.get("rr") is not None else "")
-            inner.add("text", x0 + P + 48, y + 5, w - 2 * P - 150, 18, line1, "rank", tier_color(tier), 255, "l", False)
+                inner.add("image", x0 + P + 10, y + 11, 34, 34, rr["img"], 0, 255, False)
+            lx = x0 + P + 54
+            lw = w - 2 * P - 54 - 112
+            inner.add("text", lx, y + 6, lw, 18, rank_name(tier), "rank", tier_color(tier), 255, "l", False)
+            if isinstance(rr.get("rr"), int) and tier > 2:
+                frac = max(0.0, min(1.0, rr["rr"] / 100.0))
+                inner.add("fill", lx, y + 27, lw, 4, 2, COL["white"], 22)
+                inner.add("fill", lx, y + 27, max(4.0, lw * frac), 4, 2, tier_color(tier), 255)
+                inner.add("text", lx, y + 34, lw, 16, "%d / 100 RR" % rr["rr"], "small", COL["text3"], 255, "l", False)
             before = int(rr.get("before") or 0)
+            note, ncol = "", COL["text3"]
             if before and tier > before:
-                inner.add("text", x0 + P + 48, y + 23, w - 2 * P - 150, 15, tr(strings, "ovl_rank_up"), "sub",
-                          COL["accent"], 255, "l", False)
+                note, ncol = tr(strings, "ovl_rank_up"), COL["accent"]
             elif before and tier < before:
-                inner.add("text", x0 + P + 48, y + 23, w - 2 * P - 150, 15, tr(strings, "ovl_rank_down"), "sub",
-                          COL["loss"], 255, "l", False)
+                note, ncol = tr(strings, "ovl_rank_down"), COL["loss"]
             earned = rr.get("earned")
             if earned is not None:
                 txt = ("+%d RR" % earned) if earned > 0 else ("−%d RR" % abs(earned)) if earned < 0 else "±0 RR"
                 col = COL["win"] if earned > 0 else COL["loss"] if earned < 0 else COL["text2"]
-                inner.add("text", x0 + w - P - 112, y, 100, 44, txt, "rr", col, 255, "r", False)
-            y += 52
-        _button(inner, "open", x0 + P, y, w - 2 * P, 34, tr(strings, "ovl_open_report"), False, hv == "open")
-        y += 34 + P
+                inner.add("text", x0 + w - P - 112, y + 6, 100, 26, txt, "rr", col, 255, "r", False)
+            today = rr.get("today")
+            if not note and today and today.get("n"):
+                t_rr = today.get("rr") or 0
+                rr_txt = ("+%d RR" % t_rr) if t_rr > 0 else ("−%d RR" % abs(t_rr)) if t_rr < 0 else "±0 RR"
+                note = tr(strings, "ovl_today", rr=rr_txt, w=today.get("w", 0), l=today.get("l", 0))
+            if note:
+                inner.add("text", x0 + w - P - 160, y + 33, 148, 16, note, "small", ncol, 255, "r", False)
+            y += 64
+        _button(inner, "open", x0 + P, y, w - 2 * P, 36, tr(strings, "ovl_open_report"), False, hv == "open")
+        y += 36 + P
     if ask:
         if res:
-            inner.add("line", x0 + P, y, x0 + w - P, y, COL["white"], 24, 1.0)
+            inner.add("hgrad", x0 + P, y, (w - 2 * P) / 2.0, 1, 0, COL["white"], 0, COL["white"], 30)
+            inner.add("hgrad", x0 + w / 2.0, y, (w - 2 * P) / 2.0, 1, 0, COL["white"], 30, COL["white"], 0)
             y += 14
         else:
             y += P
-            _close_btn(inner, x0 + w - 12 - 26, y0 + 10, hv == "close")
-        inner.add("text", x0 + P, y, w - 2 * P - 34, 14, "INSTALOCK", "eyebrow", COL["accent"], 255, "l", False)
-        y += 20
+            _brand(inner, x0 + P, y)
+            _close_btn(inner, x0 + w - 12 - 26, y0 + 12, hv == "close")
+            y += 34
+        _eyebrow(inner, m, x0 + P, y, "INSTALOCK", COL["accent"])
+        y += 22
         inner.add("fill", x0 + P, y, 46, 46, 12, COL["tile"], 255)
         if ask.get("img"):
             inner.add("image", x0 + P, y, 46, 46, ask["img"], 12, 255, False)
+        inner.add("stroke", x0 + P, y, 46, 46, 12, COL["accent"], 90, 1.0)
         tx = x0 + P + 58
         tw = x0 + w - P - tx
         name = ask.get("name") or "Agent"
@@ -472,7 +695,7 @@ def layout_card(m, ctx, res, ask, ui):
         inner.hit("skip", x0 + P - 4, y, w - 2 * P + 8, 26)
         bx, by = x0 + P, y + 5
         if on:
-            inner.add("fill", bx, by, 16, 16, 4.5, COL["accent"], 255)
+            inner.add("dgrad", bx, by, 16, 16, 4.5, COL["accent2"], 255, COL["accent3"], 255)
             inner.add("line", bx + 4, by + 8.5, bx + 7, by + 11.5, COL["accent_ink"], 255, 2.0)
             inner.add("line", bx + 7, by + 11.5, bx + 12.5, by + 5, COL["accent_ink"], 255, 2.0)
         else:
@@ -482,15 +705,21 @@ def layout_card(m, ctx, res, ask, ui):
                   COL["text"] if hv == "skip" else COL["text2"], 255, "l", False)
         y += 34
         bw = (w - 2 * P - 10) / 2.0
-        _button(inner, "no", x0 + P, y, bw, 36, tr(strings, "instalock_ask_no"), False, hv == "no")
-        _button(inner, "yes", x0 + P + bw + 10, y, bw, 36, tr(strings, "instalock_ask_yes"), True, hv == "yes")
-        y += 36 + P
+        _button(inner, "no", x0 + P, y, bw, 38, tr(strings, "instalock_ask_no"), False, hv == "no")
+        _button(inner, "yes", x0 + P + bw + 10, y, bw, 38, tr(strings, "instalock_ask_yes"), True, hv == "yes")
+        y += 38 + P
     h = y - y0
     frac = (ui or {}).get("frac")
+    if light_at is not None:
+        light = Ops()
+        light.add("clip", x0, y0, w, 134, 0)
+        _frame_light(light, x0, y0, w, h)
+        light.add("unclip")
+        inner.items[light_at:light_at] = light.items
     _frame(ops, x0, y0, w, h)
     ops.items.extend(inner.items)
     if frac is not None and res and not ask:
-        ops.add("fill", x0 + RADIUS, y0 + h - 3, (w - 2 * RADIUS) * max(0.0, min(1.0, frac)), 2, 1, COL["accent"], 170)
+        ops.add("fill", x0 + RADIUS, y0 + h - 3, (w - 2 * RADIUS) * max(0.0, min(1.0, frac)), 2, 1, COL["accent"], 190)
     ops.hits = inner.hits
     ops.w, ops.h = w + 2 * SH, h + 2 * SH
     return ops
@@ -684,6 +913,10 @@ def _prototypes(user32, gdi32, kernel32, gdip):
             ("GdipCreatePath", [i, P(vp)]),
             ("GdipAddPathArc", [vp, f, f, f, f, f, f]),
             ("GdipAddPathRectangle", [vp, f, f, f, f]),
+            ("GdipAddPathEllipse", [vp, f, f, f, f]),
+            ("GdipCreatePathGradientFromPath", [vp, P(vp)]),
+            ("GdipSetPathGradientCenterColor", [vp, ctypes.c_uint32]),
+            ("GdipSetPathGradientSurroundColorsWithCount", [vp, P(ctypes.c_uint32), P(i)]),
             ("GdipClosePathFigure", [vp]),
             ("GdipDeletePath", [vp]),
             ("GdipFillPath", [vp, vp, vp]),
@@ -765,6 +998,7 @@ class Gdi:
         if self.gdip.GdiplusStartup(ctypes.byref(tok), ctypes.byref(gsi), None) != 0:
             raise OSError("GdiplusStartup fehlgeschlagen")
         self._families, self._fonts, self._fmts, self._images = {}, {}, {}, {}
+        self._mcache = {}
         # Schriften der Website aus fonts/ - nur fuer diesen Prozess, nichts wird installiert
         self._priv = ctypes.c_void_p()
         self.private_fonts = 0
@@ -835,13 +1069,22 @@ class Gdi:
         self._fmts[ck] = fmt
         return fmt
 
-    def measure(self, text, key):
-        if not text:
-            return 0.0
+    def _measure(self, text, font):
         layout, box = _RECTF(0, 0, 4000, 400), _RECTF()
-        self.gdip.GdipMeasureString(self._mg, text, -1, self.font(key, text), ctypes.byref(layout),
+        self.gdip.GdipMeasureString(self._mg, text, -1, font, ctypes.byref(layout),
                                     self.fmt("l", False, True), ctypes.byref(box), None, None)
         return float(box.Width)
+
+    def measure(self, text, key, font=None):
+        if not text:
+            return 0.0
+        ck = (text, key, font.value if font is not None else None)
+        hit = self._mcache.get(ck)
+        if hit is None:
+            if len(self._mcache) > 6000:
+                self._mcache.clear()
+            hit = self._mcache[ck] = self._measure(text, font if font is not None else self.font(key, text))
+        return hit
 
     # ---- Bilder ----
     def image(self, path):
@@ -910,18 +1153,49 @@ class Gdi:
             path = self._rrect(x, y, w, h, r)
             self._fill_path(g, path, _argb(color, alpha))
             gd.GdipDeletePath(path)
-        elif kind in ("vgrad", "hgrad"):
+        elif kind in ("vgrad", "hgrad", "dgrad"):
             _, x, y, w, h, r, c1, a1, c2, a2 = it
             if w <= 0 or h <= 0:
                 return
             p1 = _POINTF(x, y)
-            p2 = _POINTF(x, y + h) if kind == "vgrad" else _POINTF(x + w, y)
+            p2 = {"vgrad": _POINTF(x, y + h), "hgrad": _POINTF(x + w, y)}.get(kind) or _POINTF(x + w, y + h)
             brush = ctypes.c_void_p()
             gd.GdipCreateLineBrush(ctypes.byref(p1), ctypes.byref(p2), _argb(c1, a1), _argb(c2, a2), 3,
                                    ctypes.byref(brush))
             path = self._rrect(x, y, w, h, r)
             gd.GdipFillPath(g, brush, path)
             gd.GdipDeletePath(path)
+            gd.GdipDeleteBrush(brush)
+        elif kind == "glow":
+            # weicher Schimmer: Ellipse, innen Farbe, nach aussen durchsichtig (wie radial-gradient)
+            _, x, y, w, h, color, alpha = it
+            path, brush = ctypes.c_void_p(), ctypes.c_void_p()
+            gd.GdipCreatePath(0, ctypes.byref(path))
+            gd.GdipAddPathEllipse(path, x, y, w, h)
+            if gd.GdipCreatePathGradientFromPath(path, ctypes.byref(brush)) == 0 and brush.value:
+                gd.GdipSetPathGradientCenterColor(brush, _argb(color, alpha))
+                edge = (ctypes.c_uint32 * 1)(_argb(color, 0).value)
+                cnt = ctypes.c_int(1)
+                gd.GdipSetPathGradientSurroundColorsWithCount(brush, edge, ctypes.byref(cnt))
+                gd.GdipFillPath(g, brush, path)
+                gd.GdipDeleteBrush(brush)
+            gd.GdipDeletePath(path)
+        elif kind == "ttext":
+            # Mono-Ueberschrift mit Zeichenabstand (GDI+ kennt kein letter-spacing): Zeichen einzeln
+            _, x, y, h, s, key, color, alpha, track = it
+            if not s:
+                return
+            font = self.font(key, s)
+            brush = ctypes.c_void_p()
+            gd.GdipCreateSolidFill(_argb(color, alpha), ctypes.byref(brush))
+            fmt = self.fmt("l", False, True)
+            cx = float(x)
+            for ch in s:
+                adv = self.measure(ch, key, font)
+                if not ch.isspace():
+                    rect = _RECTF(cx, y, adv + 6, h)
+                    gd.GdipDrawString(g, ch, -1, font, ctypes.byref(rect), fmt, brush)
+                cx += adv + track
             gd.GdipDeleteBrush(brush)
         elif kind == "stroke":
             _, x, y, w, h, r, color, alpha, width = it
@@ -1091,7 +1365,7 @@ class OverlayWindow:
             raise OSError("CreateWindowExW fehlgeschlagen (%s)" % name)
         self.frame, self.ops, self.sig = None, None, None
         self.pos, self.size, self.visible = (0, 0), (0, 0), False
-        self.top_at = 0.0
+        self.top_at, self.scale = 0.0, 1.0
 
     def update(self, ops, scale, x, y):
         frame = self.app.gdi.render(ops, scale)
@@ -1279,12 +1553,17 @@ class App:
 
     def paint(self, name, ops_fn, sig, mon):
         win = self.wins[name]
-        full = (sig, mon["scale"])
+        full = (sig, mon["scale"], mon["work"])
         if win.sig != full:
             ops = ops_fn()
-            w, h = int(math.ceil(ops.w * mon["scale"])), int(math.ceil(ops.h * mon["scale"]))
+            sc = mon["scale"]
+            avail = (mon["work"][3] - mon["work"][1]) - 2 * int(round(6 * sc))
+            if avail > 100 and ops.h * sc > avail:
+                sc = avail / float(ops.h)          # zu hoch fuer den Bildschirm -> etwas kleiner
+            w, h = int(math.ceil(ops.w * sc)), int(math.ceil(ops.h * sc))
             x, y = self._place(name, mon, w, h)
-            win.update(ops, mon["scale"], x, y)
+            win.update(ops, sc, x, y)
+            win.scale = sc
             win.sig = full
         else:
             x, y = self._place(name, mon, win.size[0], win.size[1])
@@ -1354,8 +1633,7 @@ class App:
             return None
         x = ctypes.c_short(lparam & 0xFFFF).value
         y = ctypes.c_short((lparam >> 16) & 0xFFFF).value
-        sc = (win.sig or (None, 1.0))[1] or 1.0
-        return win.ops.hit_test(x / sc, y / sc)
+        return win.ops.hit_test(x / win.scale, y / win.scale)
 
     def click(self, name):
         res, ask = self._card_parts()
@@ -1557,7 +1835,7 @@ def smoke_test(state_path, out_dir):
     app.gdi.screenshot(os.path.join(out_dir, "desktop.png"))
     win = app.wins["card"]
     hits = {h[0]: h for h in (win.ops.hits if win.ops else [])}
-    sc = (win.sig or (None, 1.0))[1] or 1.0
+    sc = win.scale
 
     def lp(name):
         _, x, y, w, h = hits[name]

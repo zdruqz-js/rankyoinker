@@ -695,6 +695,7 @@
     "ovl_hidden": "숨김",
     "ovl_avg": "평균 {rank}",
     "ovl_preview": "미리 보기",
-    "ovl_grade": "등급"
+    "ovl_grade": "등급",
+    "ovl_today": "오늘 {rr} · {w}승 {l}패"
   }
 }

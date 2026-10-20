@@ -694,6 +694,7 @@
     "ovl_hidden": "Oculto",
     "ovl_avg": "Media {rank}",
     "ovl_preview": "VISTA PREVIA",
-    "ovl_grade": "Nota"
+    "ovl_grade": "Nota",
+    "ovl_today": "Hoy {rr} · {w}–{l}"
   }
 }

@@ -695,6 +695,7 @@
     "ovl_hidden": "Ukryty",
     "ovl_avg": "Śr. {rank}",
     "ovl_preview": "PODGLĄD",
-    "ovl_grade": "Ocena"
+    "ovl_grade": "Ocena",
+    "ovl_today": "Dziś {rr} · {w}–{l}"
   }
 }

@@ -34,7 +34,19 @@
   "instalock_ask_no": "Nein",
   "peak_label": "Peak",
   "side_attack": "Angreifer",
-  "side_defense": "Verteidiger"
+  "side_defense": "Verteidiger",
+  "verdict_even": "Ausgeglichen",
+  "verdict_slight_edge": "Leichter Vorteil",
+  "verdict_clear_edge": "Klarer Vorteil",
+  "verdict_strong_edge": "Deutlicher Vorteil",
+  "for_your_team": "für dein Team",
+  "for_the_enemies": "für die Gegner",
+  "ovl_today": "Heute {rr} · {w}–{l}",
+  "report_hl_ace": "Ace in Runde {r}",
+  "report_hl_4k": "4 Kills in Runde {r}",
+  "report_hl_clutch": "1v{vs} Clutch in Runde {r}",
+  "report_hl_flawless": "Flawless-Runde {r}",
+  "report_hl_firstbloods": "{n} First Kills"
  },
  "settings": {
   "on": true,
@@ -62,7 +74,16 @@
     "peak": 19,
     "level": 213,
     "party": 1,
-    "rankImg": "img/rank16.png"
+    "rankImg": "img/rank16.png",
+    "form": [
+     "w",
+     "w",
+     "l",
+     "w",
+     "l"
+    ],
+    "wr": 54,
+    "enc": 0
    },
    {
     "name": "Kaiserschmarrn#4711",
@@ -74,7 +95,16 @@
     "peak": 17,
     "level": 88,
     "party": 1,
-    "rankImg": "img/rank17.png"
+    "rankImg": "img/rank17.png",
+    "form": [
+     "w",
+     "l",
+     "l",
+     "w",
+     "w"
+    ],
+    "wr": 49,
+    "enc": 6
    },
    {
     "name": "ムーンライト#JP1",
@@ -85,7 +115,16 @@
     "rr": 81,
     "peak": 21,
     "level": 340,
-    "rankImg": "img/rank14.png"
+    "rankImg": "img/rank14.png",
+    "form": [
+     "l",
+     "l",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 51,
+    "enc": 0
    },
    {
     "name": "",
@@ -97,17 +136,30 @@
     "rr": 3,
     "peak": 14,
     "level": 41,
-    "rankImg": "img/rank12.png"
+    "rankImg": "img/rank12.png",
+    "form": [
+     "w",
+     "w",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 58,
+    "enc": 2
    },
    {
     "name": "xXx_SuperLongNameHere_xXx#00001",
     "agent": "",
     "tier": 0,
     "peak": 9,
-    "level": 12
+    "level": 12,
+    "form": [],
+    "wr": null,
+    "enc": 0
    }
   ],
-  "enemies": []
+  "enemies": [],
+  "mapImg": "img/ascent.png"
  },
  "board": {
   "id": "m1",
@@ -126,6 +178,15 @@
     "level": 213,
     "party": 1,
     "rankImg": "img/rank16.png",
+    "form": [
+     "w",
+     "w",
+     "l",
+     "w",
+     "l"
+    ],
+    "wr": 54,
+    "enc": 0,
     "kd": 1.12,
     "hs": 24
    },
@@ -140,6 +201,15 @@
     "level": 88,
     "party": 1,
     "rankImg": "img/rank17.png",
+    "form": [
+     "w",
+     "l",
+     "l",
+     "w",
+     "w"
+    ],
+    "wr": 49,
+    "enc": 6,
     "kd": 0.97,
     "hs": 18
    },
@@ -152,6 +222,15 @@
     "peak": 21,
     "level": 340,
     "rankImg": "img/rank14.png",
+    "form": [
+     "l",
+     "l",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 51,
+    "enc": 0,
     "kd": 1.44,
     "hs": 29
    },
@@ -166,6 +245,15 @@
     "peak": 14,
     "level": 41,
     "rankImg": "img/rank12.png",
+    "form": [
+     "w",
+     "w",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 58,
+    "enc": 2,
     "kd": 0.71,
     "hs": 15
    },
@@ -175,6 +263,9 @@
     "tier": 0,
     "peak": 9,
     "level": 12,
+    "form": [],
+    "wr": null,
+    "enc": 0,
     "kd": 0.5,
     "hs": 10
    }
@@ -191,7 +282,10 @@
     "party": 2,
     "rankImg": "img/rank19.png",
     "kd": 1.31,
-    "hs": 27
+    "hs": 27,
+    "form": [],
+    "wr": 61,
+    "enc": 3
    },
    {
     "name": "Sage#heal",
@@ -204,7 +298,16 @@
     "party": 2,
     "rankImg": "img/rank17.png",
     "kd": 0.92,
-    "hs": 19
+    "hs": 19,
+    "form": [
+     "w",
+     "w",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 47,
+    "enc": 0
    },
    {
     "name": "Reyna Diff#KR",
@@ -216,7 +319,16 @@
     "level": 402,
     "rankImg": "img/rank21.png",
     "kd": 1.55,
-    "hs": 31
+    "hs": 31,
+    "form": [
+     "l",
+     "l",
+     "w",
+     "l",
+     "w"
+    ],
+    "wr": 66,
+    "enc": 0
    },
    {
     "name": "phoenix#1",
@@ -228,7 +340,16 @@
     "level": 63,
     "rankImg": "img/rank14.png",
     "kd": 1.02,
-    "hs": 22
+    "hs": 22,
+    "form": [
+     "w",
+     "l",
+     "l",
+     "w",
+     "w"
+    ],
+    "wr": 50,
+    "enc": 0
    },
    {
     "name": "한국인플레이어#KR1",
@@ -240,9 +361,31 @@
     "level": 220,
     "rankImg": "img/rank16.png",
     "kd": 0.88,
-    "hs": 16
+    "hs": 16,
+    "form": [
+     "w",
+     "w",
+     "l",
+     "w",
+     "l"
+    ],
+    "wr": 52,
+    "enc": 2
    }
-  ]
+  ],
+  "mapImg": "img/ascent.png",
+  "cmp": {
+   "ally": {
+    "tier": 15,
+    "rr": 31,
+    "img": "img/rank14.png"
+   },
+   "enemy": {
+    "tier": 17,
+    "rr": 40,
+    "img": "img/rank17.png"
+   }
+  }
  },
  "result": {
   "id": "m1",
@@ -258,30 +401,49 @@
   "grade": "A",
   "perf": "18 % besser als der Lobby-Schnitt",
   "mvp": "team",
-  "stats": [
-   [
-    "K / D / A",
-    "21 / 14 / 6"
-   ],
-   [
-    "ACS",
-    "268"
-   ],
-   [
-    "HS",
-    "24 %"
-   ],
-   [
-    "ADR",
-    "151"
-   ]
+  "place": 2,
+  "of": 10,
+  "highlights": [
+   "1v3 Clutch in Runde 17",
+   "4 Kills in Runde 9"
   ],
+  "stats": [
+   {
+    "label": "K/D/A",
+    "value": "21/14/6"
+   },
+   {
+    "label": "ACS",
+    "value": "268",
+    "delta": "+37",
+    "up": true
+   },
+   {
+    "label": "ADR",
+    "value": "151",
+    "delta": "+12",
+    "up": true
+   },
+   {
+    "label": "HS",
+    "value": "24 %",
+    "delta": "−3",
+    "up": false
+   }
+  ],
+  "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
   "rr": {
    "earned": 18,
    "tier": 16,
    "rr": 47,
    "before": 15,
-   "img": "img/rank16.png"
+   "img": "img/rank16.png",
+   "today": {
+    "rr": 34,
+    "w": 3,
+    "l": 1,
+    "n": 4
+   }
   }
  },
  "ask": {
@@ -327,7 +489,19 @@
     "instalock_ask_no": "아니요",
     "peak_label": "최고 티어",
     "side_attack": "공격",
-    "side_defense": "수비"
+    "side_defense": "수비",
+    "verdict_even": "균형",
+    "verdict_slight_edge": "약간 우세",
+    "verdict_clear_edge": "확실히 우세",
+    "verdict_strong_edge": "압도적 우세",
+    "for_your_team": "우리 팀 기준",
+    "for_the_enemies": "상대 팀 기준",
+    "ovl_today": "오늘 {rr} · {w}승 {l}패",
+    "report_hl_ace": "{r}라운드 에이스",
+    "report_hl_4k": "{r}라운드 4킬",
+    "report_hl_clutch": "{r}라운드 1대{vs} 클러치",
+    "report_hl_flawless": "{r}라운드 무손실 승리",
+    "report_hl_firstbloods": "퍼스트 킬 {n}"
    }
   },
   {
@@ -366,7 +540,19 @@
     "instalock_ask_no": "いいえ",
     "peak_label": "最高",
     "side_attack": "攻撃側",
-    "side_defense": "防衛側"
+    "side_defense": "防衛側",
+    "verdict_even": "互角",
+    "verdict_slight_edge": "やや有利",
+    "verdict_clear_edge": "明確に有利",
+    "verdict_strong_edge": "大きく有利",
+    "for_your_team": "（味方）",
+    "for_the_enemies": "（敵）",
+    "ovl_today": "今日 {rr} · {w}勝{l}敗",
+    "report_hl_ace": "ラウンド{r}でエース",
+    "report_hl_4k": "ラウンド{r}で4キル",
+    "report_hl_clutch": "ラウンド{r}で1v{vs}クラッチ",
+    "report_hl_flawless": "ラウンド{r}をノーダメージ勝利",
+    "report_hl_firstbloods": "ファーストキル{n}"
    }
   },
   {
@@ -405,7 +591,19 @@
     "instalock_ask_no": "Нет",
     "peak_label": "Пик",
     "side_attack": "Атака",
-    "side_defense": "Защита"
+    "side_defense": "Защита",
+    "verdict_even": "Равенство",
+    "verdict_slight_edge": "Лёгкий перевес",
+    "verdict_clear_edge": "Явный перевес",
+    "verdict_strong_edge": "Сильный перевес",
+    "for_your_team": "у твоей команды",
+    "for_the_enemies": "у противников",
+    "ovl_today": "Сегодня {rr} · {w}–{l}",
+    "report_hl_ace": "Эйс в раунде {r}",
+    "report_hl_4k": "4 убийства в раунде {r}",
+    "report_hl_clutch": "Клатч 1v{vs} в раунде {r}",
+    "report_hl_flawless": "Раунд {r} без потерь",
+    "report_hl_firstbloods": "first kills: {n}"
    }
   },
   {
@@ -444,7 +642,19 @@
     "instalock_ask_no": "Nie",
     "peak_label": "Peak",
     "side_attack": "Atakujący",
-    "side_defense": "Obrońca"
+    "side_defense": "Obrońca",
+    "verdict_even": "Wyrównane",
+    "verdict_slight_edge": "Lekka przewaga",
+    "verdict_clear_edge": "Wyraźna przewaga",
+    "verdict_strong_edge": "Znaczna przewaga",
+    "for_your_team": "dla twojej drużyny",
+    "for_the_enemies": "dla przeciwników",
+    "ovl_today": "Dziś {rr} · {w}–{l}",
+    "report_hl_ace": "Ace w rundzie {r}",
+    "report_hl_4k": "4 zabójstwa w rundzie {r}",
+    "report_hl_clutch": "Clutch 1v{vs} w rundzie {r}",
+    "report_hl_flawless": "Flawless w rundzie {r}",
+    "report_hl_firstbloods": "{n} first kills"
    }
   }
  ]

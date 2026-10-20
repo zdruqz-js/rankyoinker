@@ -694,6 +694,7 @@
     "ovl_hidden": "Gizli",
     "ovl_avg": "Ort. {rank}",
     "ovl_preview": "ÖNİZLEME",
-    "ovl_grade": "Not"
+    "ovl_grade": "Not",
+    "ovl_today": "Bugün {rr} · {w}–{l}"
   }
 }

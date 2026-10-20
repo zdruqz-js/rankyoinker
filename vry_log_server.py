@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.5-dev3"
+APP_VERSION = "2.5.5-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4968,7 +4968,10 @@ _OVL_STRING_KEYS = (
     "ovl_hidden", "ovl_avg", "ovl_preview", "ovl_grade", "report_victory", "report_defeat", "report_draw",
     "report_place", "report_perf_above", "report_perf_below", "report_perf_even", "report_mvp",
     "report_team_mvp", "pregame_you", "pregame_hovering", "instalock_ask_title", "instalock_ask_body",
-    "instalock_ask_skip", "instalock_ask_yes", "instalock_ask_no", "peak_label", "side_attack", "side_defense")
+    "instalock_ask_skip", "instalock_ask_yes", "instalock_ask_no", "peak_label", "side_attack", "side_defense",
+    "verdict_even", "verdict_slight_edge", "verdict_clear_edge", "verdict_strong_edge", "for_your_team",
+    "for_the_enemies", "ovl_today", "report_hl_ace", "report_hl_4k", "report_hl_clutch", "report_hl_flawless",
+    "report_hl_firstbloods")
 # Modus-Namen bleiben Englisch (wie im Overlay)
 _OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
                "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
@@ -5182,7 +5185,43 @@ def _ovl_parties(mid):
     return None
 
 
-def _ovl_row(puuid, me, base, hbp, parties):
+_OVL_WR_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)")
+
+
+def _ovl_form(puuid):
+    """"Letzte 5" nur aus dem Cache (Vorladen/Seite) - das Overlay stoesst keine Abfrage an."""
+    with _cache_lock:
+        hit = _stats_cache.get("%s:5" % puuid)
+    if not hit or time.time() - hit[0] > 3 * 3600 or not isinstance(hit[1], dict):
+        return []
+    out = []
+    for mt in (hit[1].get("matches") or [])[:5]:
+        won = mt.get("won")
+        out.append("w" if won is True else "l" if won is False else "d")
+    return out
+
+
+def _ovl_encounters(puuids):
+    """Wie oft schon zusammen im Match (lokale Datei, keine Riot-Anfrage)."""
+    try:
+        players = encounters_for([p for p in puuids if p]).get("players") or {}
+        return {p: int((e or {}).get("games") or 0) for p, e in players.items()}
+    except Exception:
+        return {}
+
+
+def _ovl_team_avg(rows):
+    """Durchschnittsrang wie teamAvg() im Overlay (Rang*100 + RR, ohne Unranked)."""
+    vals = [r["tier"] * 100 + max(0, min(99, r["rr"] if isinstance(r.get("rr"), int) else 0))
+            for r in rows if (r.get("tier") or 0) > 2]
+    if not vals:
+        return None
+    avg = sum(vals) / float(len(vals))
+    tier = int(avg // 100)
+    return {"tier": tier, "rr": int(round(avg % 100)), "n": len(vals), "img": _ovl_rank_img(tier)}
+
+
+def _ovl_row(puuid, me, base, hbp, parties, encs=None):
     hbp = hbp if isinstance(hbp, dict) else {}
     name = hbp.get("name") or base.get("name") or ""
     if not name and puuid:
@@ -5201,6 +5240,10 @@ def _ovl_row(puuid, me, base, hbp, parties):
     aid = _ovl_agent_id(base.get("agent"), hbp.get("agent"))
     agent_name = (_vapi["agents"].get(aid) or {}).get("name") if aid else None
     hidden = _name_hidden(name)
+    wr = base.get("wr")
+    if wr is None:
+        mt = _OVL_WR_RE.match(str(hbp.get("winPercentage") or ""))
+        wr = float(mt.group(1)) if mt else None
     return {"name": None if hidden else name, "hidden": hidden,
             "agent": agent_name or hbp.get("agent") or "", "agentImg": _ovl_agent_img(aid) if aid else None,
             "locked": bool(base.get("locked")), "hover": bool(base.get("hover")), "me": bool(me),
@@ -5208,7 +5251,8 @@ def _ovl_row(puuid, me, base, hbp, parties):
             "level": base.get("level") or hbp.get("level") or None, "party": party if isinstance(party, int) else 0,
             "rankImg": _ovl_rank_img(tier) if tier > 2 else None,
             "kd": hbp.get("kd") if isinstance(hbp.get("kd"), (int, float)) else None,
-            "hs": hbp.get("headshotPercentage") if isinstance(hbp.get("headshotPercentage"), (int, float)) else None}
+            "hs": hbp.get("headshotPercentage") if isinstance(hbp.get("headshotPercentage"), (int, float)) else None,
+            "wr": wr, "form": _ovl_form(puuid) if puuid else [], "enc": (encs or {}).get(puuid, 0)}
 
 
 def _ovl_sort(rows):
@@ -5290,18 +5334,26 @@ def _ovl_pregame(strings):
     hbp = hb.get("players") or {}
     me = _account["puuid"] or hb.get("me")
     parties = _ovl_parties(mid)
+    encs = _ovl_encounters([p.get("puuid") for p in (data.get("players") or []) + (data.get("enemies") or [])
+                            if isinstance(p, dict)])
     allies = [_ovl_row(p.get("puuid"), p.get("puuid") == me,
                        {"agent": p.get("agent"), "name": p.get("name"), "locked": p.get("locked"),
-                        "hover": p.get("hovering"), "level": p.get("level")}, hbp.get(p.get("puuid")), parties)
+                        "hover": p.get("hovering"), "level": p.get("level")}, hbp.get(p.get("puuid")), parties, encs)
               for p in data.get("players") or [] if p.get("puuid")]
     enemies = []
     for p in data.get("enemies") or []:
         if not isinstance(p, dict) or not p.get("puuid"):
             continue
         enemies.append(_ovl_row(p["puuid"], False, {"agent": p.get("agent"), "name": p.get("name"), "locked": True},
-                                {"rank": p.get("rank"), "rr": p.get("rr"), "peakRank": p.get("peakRank")}, parties))
+                                {"rank": p.get("rank"), "rr": p.get("rr"), "peakRank": p.get("peakRank")}, parties, encs))
     side = data.get("side")
-    return {"id": mid, "map": _ovl_map(data.get("map")).get("name") or "",
+    mapinfo = _ovl_map(data.get("map"))
+    cmp = None
+    if enemies:
+        a, e = _ovl_team_avg(allies), _ovl_team_avg(enemies)
+        cmp = {"ally": a, "enemy": e} if a and e else None
+    return {"id": mid, "map": mapinfo.get("name") or "", "cmp": cmp,
+            "mapImg": _ovl_img(mapinfo.get("img")) if mapinfo.get("img") else None,
             "mode": _ovl_queue_name(data.get("queue"), hb.get("mode")) if (data.get("queue") or hb.get("mode")) else "",
             "sideText": _ovl_tr(strings, "side_attack" if side == "attack" else "side_defense") if side else "",
             "il": _ovl_il_chip(strings, mid), "allies": _ovl_sort(allies), "enemies": _ovl_sort(enemies)}
@@ -5316,22 +5368,27 @@ def _ovl_board():
         return None
     me = _account["puuid"] or hb.get("me")
     parties = _ovl_parties(mid)
+    encs = _ovl_encounters([p["puuid"] for p in roster["players"]] if roster else list(hbp))
     allies, enemies = [], []
     if roster:
         for p in roster["players"]:
-            row = _ovl_row(p["puuid"], p["puuid"] == me, {"agent": p.get("agent")}, hbp.get(p["puuid"]), parties)
+            row = _ovl_row(p["puuid"], p["puuid"] == me, {"agent": p.get("agent")}, hbp.get(p["puuid"]), parties, encs)
             (allies if p.get("ally") else enemies).append(row)
         queue, map_path = roster.get("queue"), roster.get("map")
     else:
         my_team = (hbp.get(me) or {}).get("team")
         for pu, p in hbp.items():
-            row = _ovl_row(pu, pu == me, {}, p, parties)
+            row = _ovl_row(pu, pu == me, {}, p, parties, encs)
             (allies if (p.get("team") == my_team and my_team) or pu == me else enemies).append(row)
         queue, map_path = "", None
     ffa = str(queue or "").lower() == "deathmatch" or (len(allies) <= 1 and len(enemies) > 5)
     if ffa:
         allies, enemies = allies + enemies, []
-    return {"id": mid, "map": _ovl_map(map_path).get("name") or "", "ffa": ffa,
+    a, e = _ovl_team_avg(allies), _ovl_team_avg(enemies)
+    mapinfo = _ovl_map(map_path)
+    return {"id": mid, "map": mapinfo.get("name") or "", "ffa": ffa,
+            "cmp": {"ally": a, "enemy": e} if (a and e and not ffa) else None,
+            "mapImg": _ovl_img(mapinfo.get("img")) if mapinfo.get("img") else None,
             "mode": _ovl_queue_name(queue, hb.get("mode")) if (queue or hb.get("mode")) else "",
             "allies": _ovl_sort(allies), "enemies": _ovl_sort(enemies)}
 
@@ -5355,13 +5412,21 @@ def _ovl_rr_get(mid):
     def run():
         try:
             me = get_auth()["puuid"]
-            status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=3"
+            status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=10"
                                        "&queue=competitive" % me)
-            hit = next((x for x in (j or {}).get("Matches") or [] if x.get("MatchID") == mid), None) \
-                if status == 200 and isinstance(j, dict) else None
+            rows = (j or {}).get("Matches") or [] if status == 200 and isinstance(j, dict) else []
+            hit = next((x for x in rows if x.get("MatchID") == mid), None)
             if hit and _ovl_rr["match"] == mid and isinstance(hit.get("TierAfterUpdate"), int):
+                # "Heute": alle Competitive-Matches seit Mitternacht (PC-Uhr) aus derselben Antwort
+                lt = time.localtime()
+                midnight = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1)) * 1000
+                today = [x for x in rows if (x.get("MatchStartTime") or 0) >= midnight
+                         and isinstance(x.get("RankedRatingEarned"), int)]
                 _ovl_rr["data"] = {"earned": hit.get("RankedRatingEarned"), "tier": hit.get("TierAfterUpdate"),
-                                   "rr": hit.get("RankedRatingAfterUpdate"), "before": hit.get("TierBeforeUpdate")}
+                                   "rr": hit.get("RankedRatingAfterUpdate"), "before": hit.get("TierBeforeUpdate"),
+                                   "today": {"rr": sum(x["RankedRatingEarned"] for x in today), "n": len(today),
+                                             "w": sum(1 for x in today if x["RankedRatingEarned"] > 0),
+                                             "l": sum(1 for x in today if x["RankedRatingEarned"] < 0)}}
         except Exception:
             pass
         finally:
@@ -5393,17 +5458,50 @@ def _ovl_result(strings):
     mapline = mapinfo.get("name") or ""
     if isinstance(data.get("durationMs"), (int, float)) and data["durationMs"] > 0:
         mapline = (mapline + "  ·  " if mapline else "") + "%d min" % round(data["durationMs"] / 60000.0)
-    stats = [["K / D / A", "%s / %s / %s" % (me.get("kills", 0), me.get("deaths", 0), me.get("assists", 0))]]
-    if isinstance(me.get("acs"), (int, float)):
-        stats.append(["ACS", "%d" % round(me["acs"])])
-    if isinstance(me.get("hs"), (int, float)):
-        stats.append(["HS", "%d %%" % round(me["hs"])])
-    if isinstance(me.get("adr"), (int, float)):
-        stats.append(["ADR", "%d" % round(me["adr"])])
-    elif isinstance(me.get("kd"), (int, float)):
-        stats.append(["K/D", "%.2f" % me["kd"]])
+    avg = data.get("myAvg") if isinstance(data.get("myAvg"), dict) else {}
+
+    def stat(label, key, fmt, unit=""):
+        v = me.get(key)
+        if not isinstance(v, (int, float)):
+            return None
+        out = {"label": label, "value": (fmt % v) + unit}
+        a = avg.get(key)
+        if isinstance(a, (int, float)):
+            d = v - a
+            if key == "kd":
+                txt = "%.2f" % abs(d)
+            else:
+                txt = "%d" % round(abs(d))
+            if txt.strip("0.") != "":
+                out.update(delta=("+" if d > 0 else "\u2212") + txt, up=d > 0)
+        return out
+
+    stats = [{"label": "K/D/A", "value": "%s/%s/%s" % (me.get("kills", 0), me.get("deaths", 0), me.get("assists", 0))}]
+    stats += [x for x in (stat("ACS", "acs", "%d"), stat("ADR", "adr", "%d"), stat("HS", "hs", "%d", " %")) if x]
+    if len(stats) < 4:
+        x = stat("K/D", "kd", "%.2f")
+        if x:
+            stats.append(x)
+    line = []
+    if isinstance(me.get("kd"), (int, float)) and len(stats) == 4 and stats[-1]["label"] != "K/D":
+        line.append("K/D %.2f" % me["kd"])
+    if isinstance(me.get("kast"), (int, float)):
+        line.append("KAST %d %%" % round(me["kast"]))
+    if me.get("fk"):
+        line.append("First Kills %d" % me["fk"])
+    if isinstance(me.get("econ"), (int, float)):
+        line.append("Econ %d" % me["econ"])
+    rated = [p for p in data.get("players") or [] if isinstance(p.get("rating"), (int, float))]
+    place = (1 + sum(1 for p in rated if p["rating"] > rating)) if isinstance(rating, (int, float)) and rated else None
+    hls = []
+    for h in data.get("highlights") or []:
+        key = {"ace": "report_hl_ace", "4k": "report_hl_4k", "clutch": "report_hl_clutch",
+               "flawless": "report_hl_flawless", "firstbloods": "report_hl_firstbloods"}.get(h.get("type"))
+        if key:
+            hls.append(_ovl_tr(strings, key, r=h.get("round") or "?", vs=h.get("vs") or "?", n=h.get("n") or "?"))
     rr = _ovl_rr_get(mid) if queue == "competitive" else None
     return {"id": mid, "result": data.get("result"), "score": data.get("score") or {},
+            "place": place, "of": len(rated) or None, "highlights": hls[:4], "line": "  \u00b7  ".join(line),
             "map": mapline, "mapImg": _ovl_img(mapinfo.get("img")) if mapinfo.get("img") else None,
             "mode": _ovl_queue_name(queue), "agentImg": _ovl_agent_img(me.get("agent")),
             "grade": _ovl_grade(rating), "perf": perf, "mvp": me.get("mvp"), "stats": stats,
@@ -5455,26 +5553,39 @@ def _ovl_preview_data(step, strings):
         rows.append({"name": name or me_name, "hidden": False, "agent": (_vapi["agents"].get(aid) or {}).get("name") or "",
                      "agentImg": _ovl_agent_img(aid), "locked": i != 2, "hover": i == 2, "me": i == 0, "tier": tier,
                      "rr": rr, "peak": peak, "level": level, "party": party, "rankImg": _ovl_rank_img(tier),
-                     "kd": round(0.8 + (i * 37 % 9) / 10.0, 2), "hs": 14 + (i * 7) % 18})
+                     "kd": round(0.8 + (i * 37 % 9) / 10.0, 2), "hs": 14 + (i * 7) % 18, "wr": 44 + (i * 13) % 23,
+                     "form": ["wlwwl", "wwlwl", "llwlw", "wwwlw", "lwlww"][i % 5], "enc": (0, 4, 0, 2, 0, 3)[i % 6]})
+        rows[-1]["form"] = list(rows[-1]["form"])
     pid = "preview-%d" % int(_ovl["previewAt"])
     ascent = _ovl_map("/game/maps/ascent/ascent")
     if step == "pregame":
         allies = [dict(r, kd=None, hs=None) for r in rows[:5]]
         return {"pregame": {"id": pid, "map": ascent.get("name") or "Ascent", "mode": "Competitive",
-                            "sideText": _ovl_tr(strings, "side_attack"),
+                            "sideText": _ovl_tr(strings, "side_attack"), "cmp": None,
+                            "mapImg": _ovl_img(ascent.get("img")) if ascent.get("img") else None,
                             "il": {"text": _ovl_tr(strings, "ovl_il_in", name=rows[0]["agent"] or "Jett", n=7)},
                             "allies": allies, "enemies": []}}
     if step == "board":
         board = [dict(r, hover=False, locked=True) for r in rows]
+        a, e = _ovl_team_avg(board[:5]), _ovl_team_avg(board[5:])
         return {"board": {"id": pid, "map": ascent.get("name") or "Ascent", "mode": "Competitive", "ffa": False,
+                          "mapImg": _ovl_img(ascent.get("img")) if ascent.get("img") else None,
+                          "cmp": {"ally": a, "enemy": e} if a and e else None,
                           "allies": _ovl_sort(board[:5]), "enemies": _ovl_sort(board[5:])}}
     agent = rows[0]["agent"] or "Jett"
     return {"result": {"id": pid, "result": "win", "score": {"ally": 13, "enemy": 9},
                        "map": (ascent.get("name") or "Ascent") + "  ·  34 min",
                        "mapImg": _ovl_img(ascent.get("img")) if ascent.get("img") else None, "mode": "Competitive",
                        "agentImg": rows[0]["agentImg"], "grade": "A", "perf": _ovl_tr(strings, "report_perf_above", n=18),
-                       "mvp": "team", "stats": [["K / D / A", "21 / 14 / 6"], ["ACS", "268"], ["HS", "24 %"], ["ADR", "151"]],
-                       "rr": {"earned": 18, "tier": 16, "rr": 47, "before": 15, "img": _ovl_rank_img(16)}},
+                       "mvp": "team", "place": 2, "of": 10,
+                       "highlights": [_ovl_tr(strings, "report_hl_clutch", vs=3, r=17), _ovl_tr(strings, "report_hl_4k", r=9)],
+                       "stats": [{"label": "K/D/A", "value": "21/14/6"},
+                                 {"label": "ACS", "value": "268", "delta": "+37", "up": True},
+                                 {"label": "ADR", "value": "151", "delta": "+12", "up": True},
+                                 {"label": "HS", "value": "24 %", "delta": "\u22123", "up": False}],
+                       "line": "K/D 1.50  \u00b7  KAST 76 %  \u00b7  First Kills 4  \u00b7  Econ 71",
+                       "rr": {"earned": 18, "tier": 16, "rr": 47, "before": 15, "img": _ovl_rank_img(16),
+                              "today": {"rr": 34, "n": 4, "w": 3, "l": 1}}},
             "ask": {"id": pid, "name": agent, "img": rows[0]["agentImg"], "skipN": IL_FREE_SKIP}}
 
 
