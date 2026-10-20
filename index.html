@@ -3767,6 +3767,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       }));
       document.getElementById('ovlPreviewBtn').addEventListener('click', () => {
         api('/api/ovl/preview', {}).then(j => {
+          if(j && j.demo && j.url){ window.open(j.url, '_blank', 'noopener'); return; }   // Demo: echte Windows-Bilder
           if(j && j.ok) toast('info', t('ovl_preview_toast'), t('ovl_preview_toast_msg'), {id: 'ovlprev', dur: 7000});
           else toast('error', t('ovl_preview_fail'), (j && j.error) || '', {id: 'ovlprev', dur: 6000});
         }).catch(() => toast('error', t('ovl_preview_fail'), t('err_local_service_port'), {id: 'ovlprev', dur: 6000}));
@@ -3775,7 +3776,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     paintOvl();
   }
   setTimeout(() => {
-    if(ON_PHONE || window.RY_DEMO) return;
+    if(ON_PHONE && !window.RY_DEMO) return;          // Website-Demo zeigt die Einstellungen (Aus-Schalter) mit
     fetch(LOG_URL + '/api/local-config', {cache:'no-store'})
       .then(r => r.json())
       .then(j => { if(j && j.ok && j.gameOverlayAvailable) initOvlSettings(j.gameOverlay); })

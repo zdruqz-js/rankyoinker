@@ -47,7 +47,7 @@ PAD = 14
 ROW_H = 42
 ROW_GAP = 3
 RANK_W = 150
-FORM_W = 44        # "Letzte 5" als Punktreihe
+FORM_W = 50        # "Letzte 5": Punktreihe + Bilanz
 RADIUS = 18
 TRACK = 1.7        # Zeichenabstand der Mono-Ueberschriften (Website: .18em)
 
@@ -363,11 +363,31 @@ def _name_tag(ops, m, x, y, w, h, name, tag, col_name, extra_w=0):
     return end
 
 
-def _form(ops, x, y, form):
-    """"Letzte 5" als Punktreihe: gruen Sieg, rot Niederlage, grau Unentschieden."""
-    for i, r in enumerate((form or [])[:5]):
+def form_label(form):
+    """Bilanz wie im Overlay unter "Letzte 5": "3W · 2L" (Unentschieden nur, wenn es eins gab)."""
+    form = form or []
+    parts = ["%dW" % form.count("w"), "%dL" % form.count("l")]
+    if form.count("d"):
+        parts.append("%dD" % form.count("d"))
+    return " · ".join(parts)
+
+
+def _form(ops, m, x, y, w, form):
+    """"Letzte 5" wie in der App: leuchtende Punkte (gruen Sieg, rot Niederlage, grau Unentschieden),
+    darunter die Bilanz."""
+    form = (form or [])[:5]
+    d, gap = 7.0, 2.4
+    total = len(form) * d + (len(form) - 1) * gap
+    cx = x + (w - total) / 2.0
+    for i, r in enumerate(form):
         col = {"w": COL["win"], "l": COL["loss"]}.get(r, COL["draw"])
-        ops.add("fill", x + i * 8.5, y, 6, 6, 2, col, 230)
+        px = cx + i * (d + gap)
+        ops.add("glow", px - 4, y - 4, d + 8, d + 8, col, 70)
+        ops.add("fill", px, y, d, d, d / 2.0, col, 240)
+        ops.add("fill", px + 1.6, y + 1.2, 2.2, 2.2, 1.1, COL["white"], 90)      # Lichtpunkt
+    label = form_label(form)
+    lw = tracked_width(m, label, "label", 0.6)
+    ops.add("ttext", x + (w - lw) / 2.0, y + 10, 14, label, "label", COL["text3"], 255, 0.6)
 
 
 def _player_row(ops, m, ctx, x, y, w, p, pregame):
@@ -424,7 +444,7 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
             COL["accent"] if me else COL["text3"], 255, "l", False)
     # Letzte 5
     if form:
-        _form(ops, x + w - RANK_W - FORM_W + 2, y + 18, form)
+        _form(ops, m, x + w - RANK_W - FORM_W - 4, y + 10, FORM_W, form)
     # Rang
     rx = x + w - RANK_W
     tier = int(p.get("tier") or 0)
@@ -1786,6 +1806,8 @@ def render_test(state_path, out_dir):
                          ("card", lambda: layout_card(m, ctx2, lst.get("result") or st["result"],
                                                       lst.get("ask") or st["ask"], {"hover": None, "skip": False}))):
             gdi.free(gdi.render(fn(), 1.0, os.path.join(out_dir, "%s-%s.png" % (name, lang))))
+            if lang == "en":                    # fuer englische Schaubilder (README, Website) auch scharf
+                gdi.free(gdi.render(fn(), 1.5, os.path.join(out_dir, "%s-%s@1.5x.png" % (name, lang))))
     return 0
 
 
