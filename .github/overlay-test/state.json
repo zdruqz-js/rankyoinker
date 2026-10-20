@@ -454,156 +454,452 @@
  },
  "extraLangs": [
   {
-   "lang": "ko",
+   "lang": "en",
    "strings": {
-    "ovl_eyebrow_pregame": "요원 선택",
-    "ovl_eyebrow_board": "로비",
-    "ovl_eyebrow_result": "매치 결과",
-    "ovl_team_ally": "아군",
-    "ovl_team_enemy": "적",
-    "ovl_team_all": "플레이어",
-    "ovl_open_report": "분석 열기",
-    "ovl_rank_up": "랭크 상승!",
-    "ovl_rank_down": "랭크 하락",
-    "ovl_il_in": "{n}초 후 {name}",
-    "ovl_il_locked": "{name} 고정됨",
-    "ovl_hidden": "숨김",
-    "ovl_avg": "평균 {rank}",
-    "ovl_preview": "미리 보기",
-    "ovl_grade": "등급",
-    "report_victory": "승리",
-    "report_defeat": "패배",
-    "report_draw": "무승부",
-    "report_place": "{of}명 중 {n}위",
-    "report_perf_above": "로비 평균보다 {n}% 높음",
-    "report_perf_below": "로비 평균보다 {n}% 낮음",
-    "report_perf_even": "로비 평균과 같음",
-    "report_mvp": "매치 MVP",
-    "report_team_mvp": "팀 MVP",
-    "pregame_you": "나",
-    "pregame_hovering": "선택중",
-    "instalock_ask_title": "{name}(으)로 계속할까요?",
-    "instalock_ask_body": "다음 매치에서도 인스타락이 {name}을(를) 고정할까요? 응답이 없으면 일시 중지됩니다.",
-    "instalock_ask_skip": "다음 {n}매치 동안 묻지 않기",
-    "instalock_ask_yes": "예",
-    "instalock_ask_no": "아니요",
-    "peak_label": "최고 티어",
-    "side_attack": "공격",
-    "side_defense": "수비",
-    "verdict_even": "균형",
-    "verdict_slight_edge": "약간 우세",
-    "verdict_clear_edge": "확실히 우세",
-    "verdict_strong_edge": "압도적 우세",
-    "for_your_team": "우리 팀 기준",
-    "for_the_enemies": "상대 팀 기준",
-    "ovl_today": "오늘 {rr} · {w}승 {l}패",
-    "report_hl_ace": "{r}라운드 에이스",
-    "report_hl_4k": "{r}라운드 4킬",
-    "report_hl_clutch": "{r}라운드 1대{vs} 클러치",
-    "report_hl_flawless": "{r}라운드 무손실 승리",
-    "report_hl_firstbloods": "퍼스트 킬 {n}"
-   }
-  },
-  {
-   "lang": "ja",
-   "strings": {
-    "ovl_eyebrow_pregame": "エージェント選択",
-    "ovl_eyebrow_board": "ロビー",
-    "ovl_eyebrow_result": "マッチ結果",
-    "ovl_team_ally": "味方",
-    "ovl_team_enemy": "敵",
-    "ovl_team_all": "プレイヤー",
-    "ovl_open_report": "分析を開く",
-    "ovl_rank_up": "ランクアップ！",
-    "ovl_rank_down": "ランクダウン",
-    "ovl_il_in": "{n}秒後に{name}",
-    "ovl_il_locked": "{name}をロック済み",
-    "ovl_hidden": "非表示",
-    "ovl_avg": "平均 {rank}",
-    "ovl_preview": "プレビュー",
-    "ovl_grade": "評価",
-    "report_victory": "勝利",
-    "report_defeat": "敗北",
-    "report_draw": "引き分け",
-    "report_place": "{of}人中{n}位",
-    "report_perf_above": "ロビー平均より{n}%上",
-    "report_perf_below": "ロビー平均より{n}%下",
-    "report_perf_even": "ロビー平均と同じ",
-    "report_mvp": "マッチMVP",
-    "report_team_mvp": "チームMVP",
-    "pregame_you": "あなた",
-    "pregame_hovering": "選択中",
-    "instalock_ask_title": "{name}で続けますか？",
-    "instalock_ask_body": "次のマッチでもインスタロックで{name}をロックしますか？応答がない場合は一時停止します。",
-    "instalock_ask_skip": "次の{n}マッチは確認しない",
-    "instalock_ask_yes": "はい",
-    "instalock_ask_no": "いいえ",
-    "peak_label": "最高",
-    "side_attack": "攻撃側",
-    "side_defense": "防衛側",
-    "verdict_even": "互角",
-    "verdict_slight_edge": "やや有利",
-    "verdict_clear_edge": "明確に有利",
-    "verdict_strong_edge": "大きく有利",
-    "for_your_team": "（味方）",
-    "for_the_enemies": "（敵）",
-    "ovl_today": "今日 {rr} · {w}勝{l}敗",
-    "report_hl_ace": "ラウンド{r}でエース",
-    "report_hl_4k": "ラウンド{r}で4キル",
-    "report_hl_clutch": "ラウンド{r}で1v{vs}クラッチ",
-    "report_hl_flawless": "ラウンド{r}をノーダメージ勝利",
-    "report_hl_firstbloods": "ファーストキル{n}"
-   }
-  },
-  {
-   "lang": "ru",
-   "strings": {
-    "ovl_eyebrow_pregame": "ВЫБОР АГЕНТА",
-    "ovl_eyebrow_board": "ЛОББИ",
-    "ovl_eyebrow_result": "ИТОГ МАТЧА",
-    "ovl_team_ally": "ТВОЯ КОМАНДА",
-    "ovl_team_enemy": "ПРОТИВНИКИ",
-    "ovl_team_all": "ИГРОКИ",
-    "ovl_open_report": "Открыть анализ",
-    "ovl_rank_up": "Повышение!",
-    "ovl_rank_down": "Понижение",
-    "ovl_il_in": "{name} через {n} с",
-    "ovl_il_locked": "{name} залочен",
-    "ovl_hidden": "Скрыт",
-    "ovl_avg": "Ср. {rank}",
-    "ovl_preview": "ПРЕВЬЮ",
-    "ovl_grade": "Оценка",
-    "report_victory": "Победа",
-    "report_defeat": "Поражение",
-    "report_draw": "Ничья",
-    "report_place": "{n}-е место из {of}",
-    "report_perf_above": "На {n}% лучше среднего по лобби",
-    "report_perf_below": "На {n}% ниже среднего по лобби",
-    "report_perf_even": "Ровно на уровне лобби",
-    "report_mvp": "MVP матча",
-    "report_team_mvp": "MVP команды",
-    "pregame_you": "Ты",
-    "pregame_hovering": "Выбирает",
-    "instalock_ask_title": "Дальше на {name}?",
-    "instalock_ask_body": "Instalock залочит {name} и в следующем матче? Без ответа он встанет на паузу.",
-    "instalock_ask_skip": "Не спрашивать следующие {n} матча",
-    "instalock_ask_yes": "Да",
-    "instalock_ask_no": "Нет",
-    "peak_label": "Пик",
-    "side_attack": "Атака",
-    "side_defense": "Защита",
-    "verdict_even": "Равенство",
-    "verdict_slight_edge": "Лёгкий перевес",
-    "verdict_clear_edge": "Явный перевес",
-    "verdict_strong_edge": "Сильный перевес",
-    "for_your_team": "у твоей команды",
-    "for_the_enemies": "у противников",
-    "ovl_today": "Сегодня {rr} · {w}–{l}",
-    "report_hl_ace": "Эйс в раунде {r}",
-    "report_hl_4k": "4 убийства в раунде {r}",
-    "report_hl_clutch": "Клатч 1v{vs} в раунде {r}",
-    "report_hl_flawless": "Раунд {r} без потерь",
-    "report_hl_firstbloods": "first kills: {n}"
+    "ovl_eyebrow_pregame": "AGENT SELECT",
+    "ovl_eyebrow_board": "LOBBY",
+    "ovl_eyebrow_result": "MATCH RESULT",
+    "ovl_team_ally": "YOUR TEAM",
+    "ovl_team_enemy": "ENEMIES",
+    "ovl_team_all": "PLAYERS",
+    "ovl_open_report": "Open analysis",
+    "ovl_rank_up": "Ranked up!",
+    "ovl_rank_down": "Ranked down",
+    "ovl_il_in": "{name} in {n} s",
+    "ovl_il_locked": "{name} locked",
+    "ovl_hidden": "Hidden",
+    "ovl_avg": "Avg {rank}",
+    "ovl_preview": "PREVIEW",
+    "ovl_grade": "Grade",
+    "report_victory": "Victory",
+    "report_defeat": "Defeat",
+    "report_draw": "Draw",
+    "report_place": "Place {n} of {of}",
+    "report_perf_above": "{n}% better than the lobby average",
+    "report_perf_below": "{n}% below the lobby average",
+    "report_perf_even": "Right at the lobby average",
+    "report_mvp": "Match MVP",
+    "report_team_mvp": "Team MVP",
+    "pregame_you": "You",
+    "pregame_hovering": "Hovering",
+    "instalock_ask_title": "Keep going with {name}?",
+    "instalock_ask_body": "Should Instalock lock {name} in the next match too? No answer pauses it.",
+    "instalock_ask_skip": "Don't ask for the next {n} matches",
+    "instalock_ask_yes": "Yes",
+    "instalock_ask_no": "No",
+    "peak_label": "Peak",
+    "side_attack": "Attacker",
+    "side_defense": "Defender",
+    "verdict_even": "Even",
+    "verdict_slight_edge": "Slight Edge",
+    "verdict_clear_edge": "Clear Edge",
+    "verdict_strong_edge": "Strong Edge",
+    "for_your_team": "for your team",
+    "for_the_enemies": "for the enemies",
+    "ovl_today": "Today {rr} · {w}–{l}",
+    "report_hl_ace": "Ace in round {r}",
+    "report_hl_4k": "4 kills in round {r}",
+    "report_hl_clutch": "1v{vs} clutch in round {r}",
+    "report_hl_flawless": "Flawless round {r}",
+    "report_hl_firstbloods": "{n} first kills"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Attacker",
+    "il": {
+     "text": "Jett in 7 s"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "18% better than the lobby average",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "1v3 clutch in round 17",
+     "4 kills in round 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
    }
   },
   {
@@ -655,6 +951,3547 @@
     "report_hl_clutch": "Clutch 1v{vs} w rundzie {r}",
     "report_hl_flawless": "Flawless w rundzie {r}",
     "report_hl_firstbloods": "{n} first kills"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Atakujący",
+    "il": {
+     "text": "Jett za 7 s"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "18% lepiej niż średnia lobby",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "Clutch 1v3 w rundzie 17",
+     "4 zabójstwa w rundzie 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "fr",
+   "strings": {
+    "ovl_eyebrow_pregame": "SÉLECTION DES AGENTS",
+    "ovl_eyebrow_board": "LOBBY",
+    "ovl_eyebrow_result": "RÉSULTAT DU MATCH",
+    "ovl_team_ally": "TON ÉQUIPE",
+    "ovl_team_enemy": "ADVERSAIRES",
+    "ovl_team_all": "JOUEURS",
+    "ovl_open_report": "Ouvrir l'analyse",
+    "ovl_rank_up": "Promotion !",
+    "ovl_rank_down": "Rétrogradation",
+    "ovl_il_in": "{name} dans {n} s",
+    "ovl_il_locked": "{name} verrouillé",
+    "ovl_hidden": "Masqué",
+    "ovl_avg": "Moy. {rank}",
+    "ovl_preview": "APERÇU",
+    "ovl_grade": "Note",
+    "report_victory": "Victoire",
+    "report_defeat": "Défaite",
+    "report_draw": "Égalité",
+    "report_place": "{n}e place sur {of}",
+    "report_perf_above": "{n} % au-dessus de la moyenne du lobby",
+    "report_perf_below": "{n} % sous la moyenne du lobby",
+    "report_perf_even": "Pile dans la moyenne du lobby",
+    "report_mvp": "MVP du match",
+    "report_team_mvp": "MVP de l'équipe",
+    "pregame_you": "Toi",
+    "pregame_hovering": "Survole",
+    "instalock_ask_title": "Continuer avec {name} ?",
+    "instalock_ask_body": "L'Instalock doit-il aussi verrouiller {name} au prochain match ? Sans réponse, il se met en pause.",
+    "instalock_ask_skip": "Ne plus demander pendant {n} matchs",
+    "instalock_ask_yes": "Oui",
+    "instalock_ask_no": "Non",
+    "peak_label": "Peak",
+    "side_attack": "Attaquant",
+    "side_defense": "Défenseur",
+    "verdict_even": "Équilibré",
+    "verdict_slight_edge": "Léger avantage",
+    "verdict_clear_edge": "Avantage net",
+    "verdict_strong_edge": "Avantage important",
+    "for_your_team": "pour ton équipe",
+    "for_the_enemies": "pour les adversaires",
+    "ovl_today": "Aujourd'hui {rr} · {w}–{l}",
+    "report_hl_ace": "Ace à la manche {r}",
+    "report_hl_4k": "4 éliminations à la manche {r}",
+    "report_hl_clutch": "Clutch 1v{vs} à la manche {r}",
+    "report_hl_flawless": "Manche {r} sans perte",
+    "report_hl_firstbloods": "{n} first kills"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Attaquant",
+    "il": {
+     "text": "Jett dans 7 s"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "18 % au-dessus de la moyenne du lobby",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "Clutch 1v3 à la manche 17",
+     "4 éliminations à la manche 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "es",
+   "strings": {
+    "ovl_eyebrow_pregame": "SELECCIÓN DE AGENTES",
+    "ovl_eyebrow_board": "SALA",
+    "ovl_eyebrow_result": "RESULTADO",
+    "ovl_team_ally": "TU EQUIPO",
+    "ovl_team_enemy": "RIVALES",
+    "ovl_team_all": "JUGADORES",
+    "ovl_open_report": "Abrir análisis",
+    "ovl_rank_up": "¡Has subido de rango!",
+    "ovl_rank_down": "Has bajado de rango",
+    "ovl_il_in": "{name} en {n} s",
+    "ovl_il_locked": "{name} bloqueado",
+    "ovl_hidden": "Oculto",
+    "ovl_avg": "Media {rank}",
+    "ovl_preview": "VISTA PREVIA",
+    "ovl_grade": "Nota",
+    "report_victory": "Victoria",
+    "report_defeat": "Derrota",
+    "report_draw": "Empate",
+    "report_place": "Puesto {n} de {of}",
+    "report_perf_above": "{n} % mejor que la media del lobby",
+    "report_perf_below": "{n} % por debajo de la media del lobby",
+    "report_perf_even": "Justo en la media del lobby",
+    "report_mvp": "MVP de la partida",
+    "report_team_mvp": "MVP del equipo",
+    "pregame_you": "Tú",
+    "pregame_hovering": "En vista previa",
+    "instalock_ask_title": "¿Seguir con {name}?",
+    "instalock_ask_body": "¿Instalock debe bloquear a {name} también en la próxima partida? Sin respuesta, se pausa.",
+    "instalock_ask_skip": "No preguntar en las próximas {n} partidas",
+    "instalock_ask_yes": "Sí",
+    "instalock_ask_no": "No",
+    "peak_label": "Peak",
+    "side_attack": "Atacante",
+    "side_defense": "Defensor",
+    "verdict_even": "Equilibrado",
+    "verdict_slight_edge": "Ligera ventaja",
+    "verdict_clear_edge": "Ventaja clara",
+    "verdict_strong_edge": "Ventaja significativa",
+    "for_your_team": "para tu equipo",
+    "for_the_enemies": "para los rivales",
+    "ovl_today": "Hoy {rr} · {w}–{l}",
+    "report_hl_ace": "Ace en la ronda {r}",
+    "report_hl_4k": "4 bajas en la ronda {r}",
+    "report_hl_clutch": "Clutch 1v{vs} en la ronda {r}",
+    "report_hl_flawless": "Ronda {r} sin bajas",
+    "report_hl_firstbloods": "{n} first kills"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Atacante",
+    "il": {
+     "text": "Jett en 7 s"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "18 % mejor que la media del lobby",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "Clutch 1v3 en la ronda 17",
+     "4 bajas en la ronda 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "tr",
+   "strings": {
+    "ovl_eyebrow_pregame": "AJAN SEÇİMİ",
+    "ovl_eyebrow_board": "LOBİ",
+    "ovl_eyebrow_result": "MAÇ SONUCU",
+    "ovl_team_ally": "TAKIMIN",
+    "ovl_team_enemy": "RAKİPLER",
+    "ovl_team_all": "OYUNCULAR",
+    "ovl_open_report": "Analizi aç",
+    "ovl_rank_up": "Rütbe atladın!",
+    "ovl_rank_down": "Rütbe düştü",
+    "ovl_il_in": "{name} {n} sn içinde",
+    "ovl_il_locked": "{name} kilitlendi",
+    "ovl_hidden": "Gizli",
+    "ovl_avg": "Ort. {rank}",
+    "ovl_preview": "ÖNİZLEME",
+    "ovl_grade": "Not",
+    "report_victory": "Zafer",
+    "report_defeat": "Yenilgi",
+    "report_draw": "Berabere",
+    "report_place": "{of} kişi içinde {n}. sıra",
+    "report_perf_above": "Lobi ortalamasından %{n} daha iyi",
+    "report_perf_below": "Lobi ortalamasının %{n} altında",
+    "report_perf_even": "Tam lobi ortalamasında",
+    "report_mvp": "Maçın MVP'si",
+    "report_team_mvp": "Takım MVP'si",
+    "pregame_you": "Sen",
+    "pregame_hovering": "İnceliyor",
+    "instalock_ask_title": "{name} ile devam mı?",
+    "instalock_ask_body": "Instalock bir sonraki maçta da {name} kilitlesin mi? Cevap verilmezse duraklatılır.",
+    "instalock_ask_skip": "Sonraki {n} maçta sorma",
+    "instalock_ask_yes": "Evet",
+    "instalock_ask_no": "Hayır",
+    "peak_label": "Peak",
+    "side_attack": "Saldıran",
+    "side_defense": "Savunan",
+    "verdict_even": "Dengeli",
+    "verdict_slight_edge": "Hafif üstünlük",
+    "verdict_clear_edge": "Belirgin üstünlük",
+    "verdict_strong_edge": "Güçlü üstünlük",
+    "for_your_team": "senin takımın için",
+    "for_the_enemies": "rakipler için",
+    "ovl_today": "Bugün {rr} · {w}–{l}",
+    "report_hl_ace": "{r}. rauntta Ace",
+    "report_hl_4k": "{r}. rauntta 4 öldürme",
+    "report_hl_clutch": "{r}. rauntta 1v{vs} clutch",
+    "report_hl_flawless": "{r}. rauntta kayıpsız galibiyet",
+    "report_hl_firstbloods": "{n} first kill"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Saldıran",
+    "il": {
+     "text": "Jett 7 sn içinde"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "Lobi ortalamasından %18 daha iyi",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "17. rauntta 1v3 clutch",
+     "9. rauntta 4 öldürme"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "ko",
+   "strings": {
+    "ovl_eyebrow_pregame": "요원 선택",
+    "ovl_eyebrow_board": "로비",
+    "ovl_eyebrow_result": "매치 결과",
+    "ovl_team_ally": "아군",
+    "ovl_team_enemy": "적",
+    "ovl_team_all": "플레이어",
+    "ovl_open_report": "분석 열기",
+    "ovl_rank_up": "랭크 상승!",
+    "ovl_rank_down": "랭크 하락",
+    "ovl_il_in": "{n}초 후 {name}",
+    "ovl_il_locked": "{name} 고정됨",
+    "ovl_hidden": "숨김",
+    "ovl_avg": "평균 {rank}",
+    "ovl_preview": "미리 보기",
+    "ovl_grade": "등급",
+    "report_victory": "승리",
+    "report_defeat": "패배",
+    "report_draw": "무승부",
+    "report_place": "{of}명 중 {n}위",
+    "report_perf_above": "로비 평균보다 {n}% 높음",
+    "report_perf_below": "로비 평균보다 {n}% 낮음",
+    "report_perf_even": "로비 평균과 같음",
+    "report_mvp": "매치 MVP",
+    "report_team_mvp": "팀 MVP",
+    "pregame_you": "나",
+    "pregame_hovering": "선택중",
+    "instalock_ask_title": "{name}(으)로 계속할까요?",
+    "instalock_ask_body": "다음 매치에서도 인스타락이 {name}을(를) 고정할까요? 응답이 없으면 일시 중지됩니다.",
+    "instalock_ask_skip": "다음 {n}매치 동안 묻지 않기",
+    "instalock_ask_yes": "예",
+    "instalock_ask_no": "아니요",
+    "peak_label": "최고 티어",
+    "side_attack": "공격",
+    "side_defense": "수비",
+    "verdict_even": "균형",
+    "verdict_slight_edge": "약간 우세",
+    "verdict_clear_edge": "확실히 우세",
+    "verdict_strong_edge": "압도적 우세",
+    "for_your_team": "우리 팀 기준",
+    "for_the_enemies": "상대 팀 기준",
+    "ovl_today": "오늘 {rr} · {w}승 {l}패",
+    "report_hl_ace": "{r}라운드 에이스",
+    "report_hl_4k": "{r}라운드 4킬",
+    "report_hl_clutch": "{r}라운드 1대{vs} 클러치",
+    "report_hl_flawless": "{r}라운드 무손실 승리",
+    "report_hl_firstbloods": "퍼스트 킬 {n}"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "공격",
+    "il": {
+     "text": "7초 후 Jett"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "로비 평균보다 18% 높음",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "17라운드 1대3 클러치",
+     "9라운드 4킬"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "pt",
+   "strings": {
+    "ovl_eyebrow_pregame": "SELEÇÃO DE AGENTES",
+    "ovl_eyebrow_board": "LOBBY",
+    "ovl_eyebrow_result": "RESULTADO DA PARTIDA",
+    "ovl_team_ally": "SEU TIME",
+    "ovl_team_enemy": "INIMIGOS",
+    "ovl_team_all": "JOGADORES",
+    "ovl_open_report": "Abrir análise",
+    "ovl_rank_up": "Subiu de elo!",
+    "ovl_rank_down": "Caiu de elo",
+    "ovl_il_in": "{name} em {n} s",
+    "ovl_il_locked": "{name} travado",
+    "ovl_hidden": "Oculto",
+    "ovl_avg": "Média {rank}",
+    "ovl_preview": "PRÉVIA",
+    "ovl_grade": "Nota",
+    "report_victory": "Vitória",
+    "report_defeat": "Derrota",
+    "report_draw": "Empate",
+    "report_place": "{n}º lugar de {of}",
+    "report_perf_above": "{n}% melhor que a média do lobby",
+    "report_perf_below": "{n}% abaixo da média do lobby",
+    "report_perf_even": "Bem na média do lobby",
+    "report_mvp": "MVP da partida",
+    "report_team_mvp": "MVP do time",
+    "pregame_you": "Você",
+    "pregame_hovering": "Selecionando",
+    "instalock_ask_title": "Continuar com {name}?",
+    "instalock_ask_body": "O Instalock deve travar {name} também na próxima partida? Sem resposta, ele pausa.",
+    "instalock_ask_skip": "Não perguntar nas próximas {n} partidas",
+    "instalock_ask_yes": "Sim",
+    "instalock_ask_no": "Não",
+    "peak_label": "Pico",
+    "side_attack": "Atacante",
+    "side_defense": "Defensor",
+    "verdict_even": "Equilibrado",
+    "verdict_slight_edge": "Leve vantagem",
+    "verdict_clear_edge": "Vantagem clara",
+    "verdict_strong_edge": "Grande vantagem",
+    "for_your_team": "para o seu time",
+    "for_the_enemies": "para os inimigos",
+    "ovl_today": "Hoje {rr} · {w}–{l}",
+    "report_hl_ace": "Ace na rodada {r}",
+    "report_hl_4k": "4 abates na rodada {r}",
+    "report_hl_clutch": "Clutch 1v{vs} na rodada {r}",
+    "report_hl_flawless": "Rodada {r} perfeita",
+    "report_hl_firstbloods": "{n} first kills"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Atacante",
+    "il": {
+     "text": "Jett em 7 s"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "18% melhor que a média do lobby",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "Clutch 1v3 na rodada 17",
+     "4 abates na rodada 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "ru",
+   "strings": {
+    "ovl_eyebrow_pregame": "ВЫБОР АГЕНТА",
+    "ovl_eyebrow_board": "ЛОББИ",
+    "ovl_eyebrow_result": "ИТОГ МАТЧА",
+    "ovl_team_ally": "ТВОЯ КОМАНДА",
+    "ovl_team_enemy": "ПРОТИВНИКИ",
+    "ovl_team_all": "ИГРОКИ",
+    "ovl_open_report": "Открыть анализ",
+    "ovl_rank_up": "Повышение!",
+    "ovl_rank_down": "Понижение",
+    "ovl_il_in": "{name} через {n} с",
+    "ovl_il_locked": "{name} залочен",
+    "ovl_hidden": "Скрыт",
+    "ovl_avg": "Ср. {rank}",
+    "ovl_preview": "ПРЕВЬЮ",
+    "ovl_grade": "Оценка",
+    "report_victory": "Победа",
+    "report_defeat": "Поражение",
+    "report_draw": "Ничья",
+    "report_place": "{n}-е место из {of}",
+    "report_perf_above": "На {n}% лучше среднего по лобби",
+    "report_perf_below": "На {n}% ниже среднего по лобби",
+    "report_perf_even": "Ровно на уровне лобби",
+    "report_mvp": "MVP матча",
+    "report_team_mvp": "MVP команды",
+    "pregame_you": "Ты",
+    "pregame_hovering": "Выбирает",
+    "instalock_ask_title": "Дальше на {name}?",
+    "instalock_ask_body": "Instalock залочит {name} и в следующем матче? Без ответа он встанет на паузу.",
+    "instalock_ask_skip": "Не спрашивать следующие {n} матча",
+    "instalock_ask_yes": "Да",
+    "instalock_ask_no": "Нет",
+    "peak_label": "Пик",
+    "side_attack": "Атака",
+    "side_defense": "Защита",
+    "verdict_even": "Равенство",
+    "verdict_slight_edge": "Лёгкий перевес",
+    "verdict_clear_edge": "Явный перевес",
+    "verdict_strong_edge": "Сильный перевес",
+    "for_your_team": "у твоей команды",
+    "for_the_enemies": "у противников",
+    "ovl_today": "Сегодня {rr} · {w}–{l}",
+    "report_hl_ace": "Эйс в раунде {r}",
+    "report_hl_4k": "4 убийства в раунде {r}",
+    "report_hl_clutch": "Клатч 1v{vs} в раунде {r}",
+    "report_hl_flawless": "Раунд {r} без потерь",
+    "report_hl_firstbloods": "first kills: {n}"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "Атака",
+    "il": {
+     "text": "Jett через 7 с"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "На 18% лучше среднего по лобби",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "Клатч 1v3 в раунде 17",
+     "4 убийства в раунде 9"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
+   }
+  },
+  {
+   "lang": "ja",
+   "strings": {
+    "ovl_eyebrow_pregame": "エージェント選択",
+    "ovl_eyebrow_board": "ロビー",
+    "ovl_eyebrow_result": "マッチ結果",
+    "ovl_team_ally": "味方",
+    "ovl_team_enemy": "敵",
+    "ovl_team_all": "プレイヤー",
+    "ovl_open_report": "分析を開く",
+    "ovl_rank_up": "ランクアップ！",
+    "ovl_rank_down": "ランクダウン",
+    "ovl_il_in": "{n}秒後に{name}",
+    "ovl_il_locked": "{name}をロック済み",
+    "ovl_hidden": "非表示",
+    "ovl_avg": "平均 {rank}",
+    "ovl_preview": "プレビュー",
+    "ovl_grade": "評価",
+    "report_victory": "勝利",
+    "report_defeat": "敗北",
+    "report_draw": "引き分け",
+    "report_place": "{of}人中{n}位",
+    "report_perf_above": "ロビー平均より{n}%上",
+    "report_perf_below": "ロビー平均より{n}%下",
+    "report_perf_even": "ロビー平均と同じ",
+    "report_mvp": "マッチMVP",
+    "report_team_mvp": "チームMVP",
+    "pregame_you": "あなた",
+    "pregame_hovering": "選択中",
+    "instalock_ask_title": "{name}で続けますか？",
+    "instalock_ask_body": "次のマッチでもインスタロックで{name}をロックしますか？応答がない場合は一時停止します。",
+    "instalock_ask_skip": "次の{n}マッチは確認しない",
+    "instalock_ask_yes": "はい",
+    "instalock_ask_no": "いいえ",
+    "peak_label": "最高",
+    "side_attack": "攻撃側",
+    "side_defense": "防衛側",
+    "verdict_even": "互角",
+    "verdict_slight_edge": "やや有利",
+    "verdict_clear_edge": "明確に有利",
+    "verdict_strong_edge": "大きく有利",
+    "for_your_team": "（味方）",
+    "for_the_enemies": "（敵）",
+    "ovl_today": "今日 {rr} · {w}勝{l}敗",
+    "report_hl_ace": "ラウンド{r}でエース",
+    "report_hl_4k": "ラウンド{r}で4キル",
+    "report_hl_clutch": "ラウンド{r}で1v{vs}クラッチ",
+    "report_hl_flawless": "ラウンド{r}をノーダメージ勝利",
+    "report_hl_firstbloods": "ファーストキル{n}"
+   },
+   "pregame": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "sideText": "攻撃側",
+    "il": {
+     "text": "7秒後にJett"
+    },
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "hover": true,
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0
+     }
+    ],
+    "enemies": [],
+    "mapImg": "img/ascent.png"
+   },
+   "board": {
+    "id": "m1",
+    "map": "Ascent",
+    "mode": "Competitive",
+    "allies": [
+     {
+      "name": "zdruqz#EUW",
+      "agent": "Jett",
+      "agentImg": "img/jett.png",
+      "locked": true,
+      "me": true,
+      "tier": 16,
+      "rr": 47,
+      "peak": 19,
+      "level": 213,
+      "party": 1,
+      "rankImg": "img/rank16.png",
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 54,
+      "enc": 0,
+      "kd": 1.12,
+      "hs": 24
+     },
+     {
+      "name": "Kaiserschmarrn#4711",
+      "agent": "Sova",
+      "agentImg": "img/sova.png",
+      "locked": true,
+      "tier": 17,
+      "rr": 12,
+      "peak": 17,
+      "level": 88,
+      "party": 1,
+      "rankImg": "img/rank17.png",
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 49,
+      "enc": 6,
+      "kd": 0.97,
+      "hs": 18
+     },
+     {
+      "name": "ムーンライト#JP1",
+      "agent": "Omen",
+      "agentImg": "img/omen.png",
+      "tier": 14,
+      "rr": 81,
+      "peak": 21,
+      "level": 340,
+      "rankImg": "img/rank14.png",
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 51,
+      "enc": 0,
+      "kd": 1.44,
+      "hs": 29
+     },
+     {
+      "name": "",
+      "hidden": true,
+      "agent": "Killjoy",
+      "agentImg": "img/killjoy.png",
+      "locked": true,
+      "tier": 12,
+      "rr": 3,
+      "peak": 14,
+      "level": 41,
+      "rankImg": "img/rank12.png",
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 58,
+      "enc": 2,
+      "kd": 0.71,
+      "hs": 15
+     },
+     {
+      "name": "xXx_SuperLongNameHere_xXx#00001",
+      "agent": "",
+      "tier": 0,
+      "peak": 9,
+      "level": 12,
+      "form": [],
+      "wr": null,
+      "enc": 0,
+      "kd": 0.5,
+      "hs": 10
+     }
+    ],
+    "enemies": [
+     {
+      "name": "Raze Main#TR1",
+      "agent": "Raze",
+      "agentImg": "img/raze.png",
+      "tier": 19,
+      "rr": 66,
+      "peak": 21,
+      "level": 156,
+      "party": 2,
+      "rankImg": "img/rank19.png",
+      "kd": 1.31,
+      "hs": 27,
+      "form": [],
+      "wr": 61,
+      "enc": 3
+     },
+     {
+      "name": "Sage#heal",
+      "agent": "Sage",
+      "agentImg": "img/sage.png",
+      "tier": 17,
+      "rr": 90,
+      "peak": 17,
+      "level": 97,
+      "party": 2,
+      "rankImg": "img/rank17.png",
+      "kd": 0.92,
+      "hs": 19,
+      "form": [
+       "w",
+       "w",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 47,
+      "enc": 0
+     },
+     {
+      "name": "Reyna Diff#KR",
+      "agent": "Reyna",
+      "agentImg": "img/reyna.png",
+      "tier": 21,
+      "rr": 15,
+      "peak": 22,
+      "level": 402,
+      "rankImg": "img/rank21.png",
+      "kd": 1.55,
+      "hs": 31,
+      "form": [
+       "l",
+       "l",
+       "w",
+       "l",
+       "w"
+      ],
+      "wr": 66,
+      "enc": 0
+     },
+     {
+      "name": "phoenix#1",
+      "agent": "Phoenix",
+      "agentImg": "img/phoenix.png",
+      "tier": 14,
+      "rr": 50,
+      "peak": 16,
+      "level": 63,
+      "rankImg": "img/rank14.png",
+      "kd": 1.02,
+      "hs": 22,
+      "form": [
+       "w",
+       "l",
+       "l",
+       "w",
+       "w"
+      ],
+      "wr": 50,
+      "enc": 0
+     },
+     {
+      "name": "한국인플레이어#KR1",
+      "agent": "Brimstone",
+      "agentImg": "img/brimstone.png",
+      "tier": 16,
+      "rr": 20,
+      "peak": 16,
+      "level": 220,
+      "rankImg": "img/rank16.png",
+      "kd": 0.88,
+      "hs": 16,
+      "form": [
+       "w",
+       "w",
+       "l",
+       "w",
+       "l"
+      ],
+      "wr": 52,
+      "enc": 2
+     }
+    ],
+    "mapImg": "img/ascent.png",
+    "cmp": {
+     "ally": {
+      "tier": 15,
+      "rr": 31,
+      "img": "img/rank14.png"
+     },
+     "enemy": {
+      "tier": 17,
+      "rr": 40,
+      "img": "img/rank17.png"
+     }
+    }
+   },
+   "result": {
+    "id": "m1",
+    "result": "win",
+    "score": {
+     "ally": 13,
+     "enemy": 9
+    },
+    "map": "Ascent  ·  34 min",
+    "mapImg": "img/ascent.png",
+    "mode": "Competitive",
+    "agentImg": "img/jett.png",
+    "grade": "A",
+    "perf": "ロビー平均より18%上",
+    "mvp": "team",
+    "place": 2,
+    "of": 10,
+    "highlights": [
+     "ラウンド17で1v3クラッチ",
+     "ラウンド9で4キル"
+    ],
+    "stats": [
+     {
+      "label": "K/D/A",
+      "value": "21/14/6"
+     },
+     {
+      "label": "ACS",
+      "value": "268",
+      "delta": "+37",
+      "up": true
+     },
+     {
+      "label": "ADR",
+      "value": "151",
+      "delta": "+12",
+      "up": true
+     },
+     {
+      "label": "HS",
+      "value": "24 %",
+      "delta": "−3",
+      "up": false
+     }
+    ],
+    "line": "K/D 1.50  ·  KAST 76 %  ·  First Kills 4  ·  Econ 71",
+    "rr": {
+     "earned": 18,
+     "tier": 16,
+     "rr": 47,
+     "before": 15,
+     "img": "img/rank16.png",
+     "today": {
+      "rr": 34,
+      "w": 3,
+      "l": 1,
+      "n": 4
+     }
+    }
+   },
+   "ask": {
+    "id": 1,
+    "name": "Jett",
+    "img": "img/jett.png",
+    "skipN": 3
    }
   }
  ]

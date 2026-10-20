@@ -1752,14 +1752,18 @@ def _load_test_state(path):
 
 
 def render_test(state_path, out_dir):
-    """Alle Panels als PNG (echtes GDI+), je in zwei Groessen und mit Hover-Zustaenden."""
+    """Alle Panels als PNG (echtes GDI+): Deutsch in zwei Groessen mit Hover-Zustaenden, Deathmatch,
+    und jedes Panel in jeder weiteren Sprache aus "extraLangs" (mit dort uebersetzten Daten)."""
     os.makedirs(out_dir, exist_ok=True)
     st = _load_test_state(state_path)
     gdi = Gdi(st.get("lang"))
     ctx = {"strings": st.get("strings") or {}, "lang": st.get("lang"), "preview": False}
     m = gdi.measure
+    board = st["board"]
+    ffa = dict(board, ffa=True, cmp=None, mode="Deathmatch", allies=board["allies"] + board["enemies"], enemies=[])
     jobs = [("pregame", lambda: layout_pregame(m, ctx, st["pregame"])),
-            ("board", lambda: layout_board(m, ctx, st["board"])),
+            ("board", lambda: layout_board(m, ctx, board)),
+            ("board-ffa", lambda: layout_board(m, ctx, ffa)),
             ("card", lambda: layout_card(m, ctx, st["result"], st["ask"], {"hover": "yes", "skip": True})),
             ("card-result", lambda: layout_card(m, ctx, st["result"], None, {"hover": "open", "frac": 0.6})),
             ("card-ask", lambda: layout_card(m, ctx, None, st["ask"], {"hover": None, "skip": False}))]
@@ -1767,11 +1771,15 @@ def render_test(state_path, out_dir):
         for scale in (1.0, 1.5):
             ops = fn()
             gdi.free(gdi.render(ops, scale, os.path.join(out_dir, "%s@%sx.png" % (name, scale))))
-    for lang_st in st.get("extraLangs") or []:
-        ctx2 = {"strings": lang_st["strings"], "lang": lang_st["lang"], "preview": False}
-        gdi.lang = lang_st["lang"]
-        ops = layout_card(m, ctx2, st["result"], st["ask"], {"hover": None, "skip": False})
-        gdi.free(gdi.render(ops, 1.0, os.path.join(out_dir, "card-%s.png" % lang_st["lang"])))
+    for lst in st.get("extraLangs") or []:
+        lang = lst["lang"]
+        ctx2 = {"strings": lst["strings"], "lang": lang, "preview": False}
+        gdi.lang = lang
+        for name, fn in (("pregame", lambda: layout_pregame(m, ctx2, lst.get("pregame") or st["pregame"])),
+                         ("board", lambda: layout_board(m, ctx2, lst.get("board") or board)),
+                         ("card", lambda: layout_card(m, ctx2, lst.get("result") or st["result"],
+                                                      lst.get("ask") or st["ask"], {"hover": None, "skip": False}))):
+            gdi.free(gdi.render(fn(), 1.0, os.path.join(out_dir, "%s-%s.png" % (name, lang))))
     return 0
 
 
