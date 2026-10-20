@@ -49,6 +49,8 @@ ROW_GAP = 3
 RANK_W = 150
 FORM_W = 50        # "Letzte 5": Punktreihe + Bilanz
 RADIUS = 18
+GRADE_TILE = 56    # Agent + Notenkachel in der Ergebnis-Karte
+GRADE_LIFT = 0.05  # Grossbuchstaben in GDI+ optisch mittig (Anteil der Schriftgroesse)
 TRACK = 1.7        # Zeichenabstand der Mono-Ueberschriften (Website: .18em)
 
 COL = {
@@ -76,7 +78,7 @@ _RANK_SHORT = {"Platinum": "Plat", "Diamond": "Dia", "Ascendant": "Asc", "Immort
 FONTS = {
     "eyebrow": ("mono", 9.5), "label": ("mono", 8.5), "title": ("display", 16), "name": ("display", 13),
     "tag": ("regular", 11), "sub": ("regular", 11), "rank": ("display", 12.5), "chip": ("semibold", 10.5),
-    "big": ("black", 28), "banner": ("black", 23), "grade": ("black", 26), "value": ("display", 15),
+    "big": ("black", 28), "banner": ("black", 23), "grade": ("black", 34), "value": ("display", 15),
     "delta": ("semibold", 9.5), "body": ("regular", 12), "small": ("regular", 10.5), "btn": ("display", 13),
     "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
 }
@@ -618,28 +620,31 @@ def layout_card(m, ctx, res, ask, ui):
                   COL["text2"], 255, "l", False)
         y = y0 + bh + 6
         # Agent, Note, Leistung
-        inner.add("fill", x0 + P, y, 50, 50, 13, COL["tile"], 255)
+        T = GRADE_TILE
+        inner.add("fill", x0 + P, y, T, T, 14, COL["tile"], 255)
         if res.get("agentImg"):
-            inner.add("image", x0 + P, y, 50, 50, res["agentImg"], 13, 255, False)
-        inner.add("stroke", x0 + P, y, 50, 50, 13, COL["white"], 24, 1.0)
+            inner.add("image", x0 + P, y, T, T, res["agentImg"], 14, 255, False)
+        inner.add("stroke", x0 + P, y, T, T, 14, COL["white"], 24, 1.0)
         g = res.get("grade") or "-"
         c1, c2 = GRADE_COLORS.get(g, ("#3a3a40", "#3a3a40"))
-        gx = x0 + P + 60
-        inner.add("glow", gx - 10, y - 6, 70, 62, c2, 70)
-        inner.add("vgrad", gx, y, 50, 50, 13, c1, 255, c2, 255)
-        inner.add("line", gx + 10, y + 0.8, gx + 40, y + 0.8, COL["white"], 120, 1.0)
-        inner.add("text", gx, y + 1, 50, 50, g, "grade", "#0b0b0c", 255, "c", False)
-        tx = gx + 62
+        gx = x0 + P + T + 10
+        inner.add("glow", gx - 12, y - 8, T + 24, T + 16, c2, 75)
+        inner.add("vgrad", gx, y, T, T, 14, c1, 255, c2, 255)
+        inner.add("line", gx + 12, y + 0.8, gx + T - 12, y + 0.8, COL["white"], 120, 1.0)
+        # GDI+ mittelt die ganze Zeilenhoehe (mit Unterlaenge) - Grossbuchstaben saessen sonst
+        # sichtbar zu tief (im Windows-Test 2,3 px); GRADE_LIFT gleicht das aus
+        inner.add("text", gx, y - FONTS["grade"][1] * GRADE_LIFT, T, T, g, "grade", "#0b0b0c", 255, "c", False)
+        tx = gx + T + 12
         tw = x0 + w - P - tx
         head = tr(strings, "ovl_grade") + " " + g
         hw = min(m(head, "title") + 2, tw)
-        inner.add("text", tx, y + 4, hw, 22, head, "title", COL["text"], 255, "l", False)
+        inner.add("text", tx, y + 6, hw, 22, head, "title", COL["text"], 255, "l", False)
         if res.get("mvp"):
             label = tr(strings, "report_team_mvp" if res["mvp"] == "team" else "report_mvp")
             if hw + 8 + m(label, "chip") + 16 <= tw:
-                _chip(inner, m, tx + hw + 8, y + 5, label, COL["accent"])
-        inner.add("text", tx, y + 28, tw, 18, res.get("perf") or "", "body", COL["text2"], 255, "l", False)
-        y += 62
+                _chip(inner, m, tx + hw + 8, y + 7, label, COL["accent"])
+        inner.add("text", tx, y + 31, tw, 18, res.get("perf") or "", "body", COL["text2"], 255, "l", False)
+        y += T + 12
         # Highlights
         hls = res.get("highlights") or []
         if hls:
