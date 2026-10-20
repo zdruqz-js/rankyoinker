@@ -195,8 +195,8 @@ def _delete_key_tree(root, path):
 
 def step1_remove_old_buttons():
     """Bis 2.5.4 wurden die Browser-Protokolle vry-start:// und vry-stop:// fuer Start/Stop-Knoepfe
-    auf der Seite registriert. Die Knoepfe gibt es lange nicht mehr - die Protokolle waren nur noch
-    eine Hintertuer (jede Webseite haette RankYoinker per Link beenden koennen). Beim Update weg damit."""
+    auf der Seite registriert. Die Knoepfe gibt es lange nicht mehr - die Protokolle konnte nur noch
+    eine fremde Webseite per Link anstossen (der Browser fragt dabei nur nach). Beim Update weg damit."""
     log("Schritt 1/4: alte Browser-Protokolle (vry-start/vry-stop) entfernen")
     for name in ("vry-start", "vry-stop"):
         try:
