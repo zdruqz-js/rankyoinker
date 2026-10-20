@@ -7,7 +7,7 @@ und unruhiger aus als auf der Website. game_overlay.py setzt die Zeichen deshalb
 
     python make_overlay_metrics.py ../fonts            (nach make_overlay_fonts.py laufen lassen)
 
-Schreibt fonts/metrics.json: je Schriftfamilie (Name wie in der Datei, z. B. "RY Inter")
+Schreibt fonts/metrics.json: je Schriftfamilie (Name wie in der Datei, z. B. "RY Inter Medium")
   upm   - Einheiten pro em
   adv   - Zeichenbreite je Unicode-Zeichen (Dezimalzahl als Schluessel)
   kern  - die PairPos-Untertabellen des Merkmals 'kern' in Originalreihenfolge, nur fuer Zeichen

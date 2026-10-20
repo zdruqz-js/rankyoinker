@@ -25,12 +25,14 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 # (Quelle, Achsen, Familienname, Dateiname, Gewicht)
+# Seit 2.5.6 je eine Stufe kraeftiger als auf der Website (Text 500 statt 400, Namen/Zahlen 750, Mono 600):
+# GDI+ zeichnet in Graustufen ohne die Verstaerkung von DirectWrite/Chrome, gleiche Gewichte wirkten duenn.
 FONTS = (
-    ("inter.ttf", {"wght": 400, "opsz": 14}, "RY Inter", "RYInter-Regular.ttf", 400),
+    ("inter.ttf", {"wght": 500, "opsz": 14}, "RY Inter Medium", "RYInter-Medium.ttf", 500),
     ("inter.ttf", {"wght": 600, "opsz": 14}, "RY Inter SemiBold", "RYInter-SemiBold.ttf", 600),
-    ("intertight.ttf", {"wght": 700}, "RY Inter Tight Bold", "RYInterTight-Bold.ttf", 700),
+    ("intertight.ttf", {"wght": 750}, "RY Inter Tight Display", "RYInterTight-Display.ttf", 750),
     ("intertight.ttf", {"wght": 900}, "RY Inter Tight Black", "RYInterTight-Black.ttf", 900),
-    ("geistmono.ttf", {"wght": 500}, "RY Geist Mono Medium", "RYGeistMono-Medium.ttf", 500),
+    ("geistmono.ttf", {"wght": 600}, "RY Geist Mono SemiBold", "RYGeistMono-SemiBold.ttf", 600),
 )
 UNICODES = [*range(0x20, 0x250), *range(0x2B0, 0x370), *range(0x370, 0x400), *range(0x400, 0x530),
             *range(0x1E00, 0x1F00), *range(0x2000, 0x2070), *range(0x2070, 0x20D0), *range(0x2100, 0x2200),

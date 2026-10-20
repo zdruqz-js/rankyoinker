@@ -856,11 +856,12 @@ _PNG_CLSID = (0x557CF406, 0x1A04, 0x11D3, (0x9A, 0x73, 0x00, 0x00, 0xF8, 0x1E, 0
 # der Website (fonts/, erzeugt mit setup/make_overlay_fonts.py), sonst Windows-Schriften.
 # Stil 1 = fett, falls es den Schnitt nicht gibt.
 _FAMILIES = {
-    "regular": (("RY Inter", 0, True), ("Segoe UI", 0, False)),
+    # seit 2.5.6 eine Stufe kraeftiger als die Website (siehe setup/make_overlay_fonts.py): "regular" = Inter 500
+    "regular": (("RY Inter Medium", 0, True), ("Segoe UI Semibold", 0, False), ("Segoe UI", 0, False)),
     "semibold": (("RY Inter SemiBold", 0, True), ("Segoe UI Semibold", 0, False), ("Segoe UI", 1, False)),
-    "display": (("RY Inter Tight Bold", 0, True), ("Segoe UI", 1, False)),
+    "display": (("RY Inter Tight Display", 0, True), ("Segoe UI", 1, False)),
     "black": (("RY Inter Tight Black", 0, True), ("Segoe UI Black", 0, False), ("Segoe UI", 1, False)),
-    "mono": (("RY Geist Mono Medium", 0, True), ("Cascadia Mono", 0, False), ("Consolas", 0, False)),
+    "mono": (("RY Geist Mono SemiBold", 0, True), ("Cascadia Mono", 0, False), ("Consolas", 0, False)),
 }
 _SCRIPT_FAMILIES = {"ko": ("Malgun Gothic", "Gulim"), "ja": ("Yu Gothic UI", "Meiryo UI", "MS UI Gothic"),
                     "zh": ("Microsoft YaHei UI", "Microsoft YaHei", "SimSun"), "th": ("Leelawadee UI", "Tahoma")}
