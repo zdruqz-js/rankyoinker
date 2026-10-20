@@ -929,6 +929,27 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .il-status .il-on{display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 14px; border-radius:999px;
   color:var(--win); background:rgba(61,220,132,.1); border:1px solid rgba(61,220,132,.35); font-size:13px;}
 .il-status .il-on b{color:var(--text);}
+.il-status .il-on.il-paused{color:var(--text-2); background:rgba(255,255,255,.04); border-color:var(--line-3);}
+/* Frage nach dem Match (2.5.5): schwebt unten rechts über allen Tabs */
+.il-ask-card{position:fixed; right:18px; bottom:18px; z-index:880; width:min(380px, calc(100vw - 32px)); padding:16px;
+  border-radius:20px; border:1px solid var(--accent-line);
+  background:linear-gradient(180deg, rgba(28,28,33,.95), rgba(17,17,20,.97));
+  -webkit-backdrop-filter:blur(18px) saturate(150%); backdrop-filter:blur(18px) saturate(150%);
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.95), 0 0 0 1px rgba(216,184,124,.08), inset 0 1px 0 rgba(255,255,255,.06);
+  animation:toastIn .6s var(--spring-soft) both;}
+.il-ask-top{display:flex; gap:14px; align-items:flex-start;}
+.il-ask-ic{width:52px; height:52px; flex-shrink:0; border-radius:14px; overflow:hidden; display:grid; place-items:center;
+  color:var(--accent); background:var(--surface-2); border:1px solid var(--line-2);}
+.il-ask-ic img{width:100%; height:100%; object-fit:cover;}
+.il-ask-txt{min-width:0; flex:1;}
+.il-ask-txt .eyebrow{display:block; margin-bottom:2px;}
+.il-ask-txt b{display:block; font-family:var(--font-display); font-weight:750; font-size:16px; line-height:1.3;}
+.il-ask-txt p{margin:4px 0 0; font-size:12.5px; line-height:1.45; color:var(--text-2);}
+.il-ask-skip{margin-top:14px; padding:10px 12px;}
+.il-ask-skip .consent-txt{font-size:13px;}
+.il-ask-btns{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;}
+.il-ask-btns .pbtn{justify-content:center;}
+@media (max-width:560px){ .il-ask-card{left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); width:auto;} }
 .agentpick.lolpick .agent-grid{max-height:350px; overflow-y:auto; padding:3px 6px 3px 3px; margin:-3px;}
 .lol-champ-filter{
   display:block; width:100%; max-width:360px; height:44px; margin:0 auto 16px; padding:0 16px 0 42px; border-radius:12px;
@@ -2616,6 +2637,7 @@ html.perf .toast .tprog{animation-duration:var(--tdur, 4500ms) !important;}
 :where(html.perf) .sidebar-overlay{background:rgba(4,4,6,.72);}
 :where(html.perf) .status-card{background:linear-gradient(180deg, #17171b, #0e0e10);}
 :where(html.perf) .toast{background:#18181c;}
+:where(html.perf) .il-ask-card{background:#18181c;}
 :where(html.perf) #modalWrap, :where(html.perf) #askWrap, :where(html.perf) #probWrap, :where(html.perf) #shareWrap,
 :where(html.perf) .ry-upd-wrap{background:rgba(4,4,6,.9);}
 :where(html.perf) .tcmp, :where(html.perf) .lh-search, :where(html.perf) .lh-turn, :where(html.perf) .pr-rank,
@@ -6588,11 +6610,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   // ================= INSTALOCK =================
   // Wartet auf den Beginn der Agentenauswahl und sperrt dann nach einer
-  // zufälligen Verzögerung den gewählten Agenten. Muss vor jedem Match neu
-  // aktiviert werden — der Schalter geht nach dem Auslösen wieder aus.
+  // zufälligen Verzögerung den gewählten Agenten. Seit 2.5.5 bleibt er danach an:
+  // Nach dem Match fragt der Dienst (Fenster über VALORANT + Karte hier), ob es mit
+  // dem Agenten weitergeht; ohne Antwort bis zur nächsten Auswahl pausiert er.
   let instalockOn = false;
   let instalockAgent = localStorage.getItem('vry_instalock_agent') || null;
   let ilPollTimer = null, ilGen = -1;   // Anzeige-Poll; die Logik liegt im Log-Server
+  let ilLast = null, ilAskSkip = false;  // letzter Stand vom Dienst, Haken "nicht fragen"
 
   // Einmalige Risiko-Bestätigung, bevor Instalock ueberhaupt scharf geschaltet
   // werden kann - siehe showInstalockRiskModal() weiter unten.
@@ -6625,15 +6649,18 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         </div>`;
     };
     const chosen = instalockAgent ? (agentById[sel] || '—') : null;
+    const paused = !instalockOn && ilLast && ilLast.status === 'paused';
     return `
       <div class="agentpick instalock ${instalockOn ? 'armed' : ''}" id="instalockBox">
         <div class="il-head">
           <div class="il-ic">${svgIcon('zap', 19)}</div>
           <div><span class="eyebrow">VALORANT</span><h3>Instalock</h3></div>
         </div>
-        <p class="ap-sub">${t('instalock_desc')}</p>
+        <p class="ap-sub">${t('instalock_desc')} ${t('instalock_desc_keep')}</p>
         ${instalockOn ? `<div class="il-status">
-          <span class="il-on" id="ilStatusLine">${svgIcon('check', 12)} ${t('instalock_enabled_html', {name: esc(chosen)})}</span>
+          <span class="il-on" id="ilStatusLine">${ilLast && ilLast.on ? ilLineHtml(ilLast) : `${svgIcon('check', 12)} ${t('instalock_enabled_html', {name: esc(chosen)})}`}</span>
+        </div>` : paused ? `<div class="il-status">
+          <span class="il-on il-paused">${svgIcon('alert', 12)} ${t('instalock_paused_html')}</span>
         </div>` : ''}
         ${favs.length ? `<div class="fav-label">${t('favorites_label')}</div>
         <div class="fav-row">${favs.map(cell).join('')}</div>
@@ -6769,6 +6796,62 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     });
   }
 
+  // Statuszeile im Instalock-Kasten (wird jede Sekunde direkt geschrieben, siehe syncInstalock)
+  function ilLineHtml(j){
+    const name = esc(j.name || agentById[String(j.agent || instalockAgent || '').toLowerCase()] || '—');
+    if(j.status === 'waiting') return `${svgIcon('loader', 12, 'spin')} ${t('instalock_locking_html', {name, s: (j.remaining || 0).toFixed(1)})}`;
+    if(j.status === 'locked') return `${svgIcon('check', 12)} ${t('instalock_locked_html', {name})}`;
+    if(j.status === 'ingame') return `${svgIcon('check', 12)} ${t('instalock_ingame_html', {name})}`;
+    if(j.status === 'ask') return `${svgIcon('clock', 12)} ${t('instalock_ask_open_html', {name})}`;
+    if(j.free > 1) return `${svgIcon('check', 12)} ${t('instalock_enabled_free_html', {name, n: j.free})}`;
+    return `${svgIcon('check', 12)} ${t('instalock_enabled_html', {name})}`;
+  }
+
+  // Frage nach dem Match als schwebende Karte über allen Tabs - der Instalock-Kasten
+  // steht in der Lobby, nach dem Match ist meist die Match-Analyse zu sehen.
+  function ilAskCardHtml(j){
+    const raw = j.name || agentById[String(j.agent || '').toLowerCase()] || '—';
+    const name = esc(raw);
+    const info = agentMap[String(raw).toLowerCase()];
+    return `<div class="il-ask-card" id="ilAskCard" role="dialog" aria-live="polite">
+      <div class="il-ask-top">
+        <div class="il-ask-ic">${info && info.icon ? `<img src="${esc(info.icon)}" alt="">` : svgIcon('zap', 20)}</div>
+        <div class="il-ask-txt"><span class="eyebrow">Instalock</span><b>${t('instalock_ask_title', {name})}</b><p>${t('instalock_ask_body', {name})}</p></div>
+      </div>
+      <label class="consent il-ask-skip">
+        <input type="checkbox" class="consent-input" id="ilAskSkip" ${ilAskSkip ? 'checked' : ''}>
+        <span class="consent-box"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+        <span class="consent-txt">${t('instalock_ask_skip', {n: j.skipN || 3})}</span>
+      </label>
+      <div class="il-ask-btns">
+        <button class="pbtn" type="button" data-il-ans="no">${t('instalock_ask_no')}</button>
+        <button class="pbtn go" type="button" data-il-ans="yes">${svgIcon('check', 12)}${t('instalock_ask_yes')}</button>
+      </div>
+    </div>`;
+  }
+  function syncIlAskCard(){
+    const want = !!(ilLast && ilLast.on && ilLast.status === 'ask');
+    const el = document.getElementById('ilAskCard');
+    if(!want){ if(el) el.remove(); return; }
+    if(el) return;
+    document.body.insertAdjacentHTML('beforeend', ilAskCardHtml(ilLast));
+    const card = document.getElementById('ilAskCard');
+    card.querySelector('#ilAskSkip').addEventListener('change', e => { ilAskSkip = e.target.checked; });
+    card.querySelectorAll('[data-il-ans]').forEach(b => b.addEventListener('click', () => {
+      const yes = b.getAttribute('data-il-ans') === 'yes';
+      card.querySelectorAll('[data-il-ans]').forEach(x => { x.disabled = true; });
+      answerInstalock(yes ? (ilAskSkip ? 'yes3' : 'yes') : 'no');
+    }));
+  }
+  function answerInstalock(answer){
+    return api('/api/instalock/answer', {answer}).catch(apiFail).then(j => {
+      if(j && j.ok === false && j.error && !j.status){
+        toast('error', t('toast_instalock_failed'), j.error, {id:'il', dur:6000});
+      }
+      return syncInstalock();
+    });
+  }
+
   // Holt den Stand aus dem Dienst — der ist die einzige Wahrheit. Läuft der Tab
   // im Hintergrund, kommt dieser Poll verspätet; das verzögert nur die Anzeige,
   // nicht das Sperren selbst.
@@ -6778,7 +6861,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       const first = ilGen === -1;
       const changed = j.gen !== ilGen;
       const wasOn = instalockOn;
+      const prev = ilLast;
       ilGen = j.gen;
+      ilLast = j;
       instalockOn = !!j.on;
       // Auf einer anderen Seite/einem anderen Tab scharf geschaltet? Übernehmen.
       if(j.on && j.agent && j.agent !== instalockAgent){
@@ -6786,8 +6871,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         localStorage.setItem('vry_instalock_agent', instalockAgent);
       }
       if(changed && !first){
+        const wasAsk = prev && prev.status === 'ask';
         if(j.status === 'waiting'){
-          toast('busy', t('toast_instalock_running'), j.message || t('toast_instalock_running_msg', {name: j.name || '', s: (j.planned || 0).toFixed(1)}),
+          toast('busy', t('toast_instalock_running'), t('toast_instalock_running_msg', {name: j.name || '', s: (j.planned || 0).toFixed(1)}),
             {id:'il', dur:0});
         } else if(j.status === 'locked'){
           // Gesperrt, aber der Instalock bleibt scharf — wird das Match noch
@@ -6795,6 +6881,16 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
           pickSelected = j.agent; pickLocked = true;
           toast('success', t('toast_instalock_success'), j.name || '', {id:'il'});
           applyPregameToDom();
+        } else if(j.status === 'ask'){
+          ilAskSkip = false;                 // neue Frage: Haken wieder aus
+        } else if(j.status === 'paused'){
+          toast('info', t('toast_instalock_paused'), t('toast_instalock_paused_msg'), {id:'il', dur:7000});
+        } else if(j.status === 'armed' && wasAsk){
+          toast('success', t('toast_instalock_enabled'), j.free > 1
+            ? t('toast_instalock_continue_free_msg', {name: j.name || '', n: j.free})
+            : t('toast_instalock_continue_msg', {name: j.name || ''}), {id:'il', dur:5000});
+        } else if(j.status === 'off' && wasAsk){
+          toast('info', t('toast_instalock_off'), '', {id:'il', dur:2500});
         } else if(j.status === 'done'){
           toast('info', t('toast_instalock_stopped'), j.message || '', {id:'il', dur:3000});
         } else if(j.status === 'error'){
@@ -6803,17 +6899,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       }
       if(!j.on) stopInstalockWatch();
       if(changed || wasOn !== instalockOn) repaintInstalock();
+      syncIlAskCard();
 
       // Restzeit direkt in die vorhandene Zeile schreiben — ein voller Repaint
       // pro Sekunde würde den Agenten-Grid-Scroll jedes Mal zurücksetzen.
       const line = document.getElementById('ilStatusLine');
-      if(line && j.on){
-        line.innerHTML = j.status === 'waiting'
-          ? `${svgIcon('loader', 12, 'spin')} ${t('instalock_locking_html', {name: esc(j.name || ''), s: j.remaining.toFixed(1)})}`
-          : j.status === 'locked'
-          ? `${svgIcon('check', 12)} ${t('instalock_locked_html', {name: esc(j.name || '')})}`
-          : `${svgIcon('check', 12)} ${t('instalock_enabled_html', {name: esc(j.name || agentById[String(instalockAgent).toLowerCase()] || '—')})}`;
-      }
+      if(line && j.on) line.innerHTML = ilLineHtml(j);
     });
   }
 
@@ -10835,7 +10926,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.4";
+const CURRENT_VERSION = "2.5.5-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

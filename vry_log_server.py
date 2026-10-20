@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.4"
+APP_VERSION = "2.5.5-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4448,6 +4448,11 @@ _il = {
     "message": "",
     "at": 0.0,            # wann zuletzt gefeuert wurde
     "lockedAt": 0.0,       # wann zuletzt gesperrt wurde (fuer den Timeout in Phase 3)
+    "free": 1,            # so viele Matches noch ohne Nachfrage, das naechste eingeschlossen
+    "ingameMatch": None,  # Match, in dem zuletzt gesperrt wurde (Phase 4)
+    "ingameAt": 0.0,
+    "askAt": 0.0,         # seit wann die Frage nach dem Match offen ist (Phase 5)
+    "asked": False,       # Fenster ueber VALORANT fuer diese Frage schon gestartet?
     "gen": 0,             # zaehlt jede Zustandsaenderung (fuer die Oberflaeche)
 }
 _il_poll = {"ts": 0.0}
@@ -4457,6 +4462,18 @@ _il_poll = {"ts": 0.0}
 # bleibt der Instalock nach dem Sperren scharf und feuert im Dodge-Fall erneut.
 # Sicherheitsnetz, falls das echte Spiel nie erkannt wird (API-Aussetzer o.ä.):
 IL_LOCKED_TIMEOUT = 180.0
+
+# ---- Instalock bleibt aktiv (2.5.5, Nutzerwunsch) ----
+# Nach einem Match, in dem er gesperrt hat, bleibt der Instalock an und fragt: ein
+# kleines Fenster ueber VALORANT (il_popup.py, eigener Prozess) und dieselbe Frage im
+# Overlay - "Weiter mit Jett?" Ja / Nein, dazu "die naechsten 3 Matches nicht fragen".
+# Ohne Antwort bis zur naechsten Agentenauswahl pausiert er (Wunsch des Nutzers):
+# gesperrt wird dann nicht, im Overlay wieder einschalten.
+IL_FREE_YES = 1               # "Ja": das naechste Match
+IL_FREE_SKIP = 3              # "Ja" + Haken: die naechsten 3 Matches ohne Nachfrage
+IL_INGAME_MAX = 3 * 3600      # Sicherheitsnetz, falls das Matchende nie erkannt wird
+IL_ASK_MAX = 15 * 60          # so lange bleibt die Frage hoechstens offen, dann Pause
+IL_POPUP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "il_popup.py")
 
 # Der Instalock lag bisher nur im Arbeitsspeicher: Wird der Dienst beendet
 # (Absturz, Update, Neustart), war das Scharfschalten still weg — man merkt es
@@ -4472,6 +4489,8 @@ def _il_save():
         _save_json(INSTALOCK_FILE, {
             "on": bool(_il["on"]), "agent": _il["agent"], "name": _il["name"],
             "delay": _il["delay"], "jitter": _il["jitter"], "savedAt": time.time(),
+            "status": _il["status"], "free": _il["free"], "ingameMatch": _il["ingameMatch"],
+            "ingameAt": _il["ingameAt"], "askAt": _il["askAt"],
         })
     except Exception:
         pass
@@ -4488,19 +4507,29 @@ def _il_restore():
     data = _load_json(INSTALOCK_FILE)
     if not isinstance(data, dict) or not data.get("agent"):
         return
-    fresh = (time.time() - float(data.get("savedAt") or 0)) < IL_RESUME_MAX
-    resume = bool(data.get("on")) and fresh
+    now = time.time()
+    on, st = bool(data.get("on")), data.get("status")
+    upd = {
+        "agent": data.get("agent"), "name": data.get("name") or "",
+        "delay": IL_DELAY,
+        "jitter": IL_JITTER,
+        "on": False, "status": "off", "message": "",
+        "match": None, "fireAt": 0.0, "planned": 0.0,
+        "free": max(1, int(data.get("free") or 1)), "ingameMatch": None, "ingameAt": 0.0,
+        "askAt": 0.0, "asked": False,
+    }
+    ingame_at, ask_at = float(data.get("ingameAt") or 0), float(data.get("askAt") or 0)
+    if on and st == "ingame" and data.get("ingameMatch") and now - ingame_at < IL_INGAME_MAX:
+        # Neustart mitten im Match (z.B. Update): nach dem Match trotzdem fragen
+        upd.update({"on": True, "status": "ingame", "ingameMatch": data["ingameMatch"], "ingameAt": ingame_at})
+    elif on and st == "ask" and now - ask_at < IL_ASK_MAX:
+        upd.update({"on": True, "status": "ask", "askAt": ask_at})     # Fenster kommt im naechsten Takt wieder
+    elif on and now - float(data.get("savedAt") or 0) < IL_RESUME_MAX:
+        upd.update({"on": True, "status": "armed", "message": "Dienst neu gestartet — Instalock wieder scharf."})
+    elif st == "paused":
+        upd.update({"status": "paused", "message": "Instalock pausiert."})
     with _il_lock:
-        _il.update({
-            "agent": data.get("agent"), "name": data.get("name") or "",
-            "delay": IL_DELAY,
-            "jitter": IL_JITTER,
-            "on": resume,
-            "status": "armed" if resume else "off",
-            "message": ("Dienst neu gestartet — Instalock wieder scharf."
-                        if resume else ""),
-            "match": None, "fireAt": 0.0, "planned": 0.0,
-        })
+        _il.update(upd)
 
 
 def _pregame_id_fresh():
@@ -4528,6 +4557,9 @@ def instalock_state():
             "status": _il["status"], "message": _il["message"],
             "matchId": _il["match"], "remaining": round(remaining, 1),
             "planned": round(_il["planned"], 1), "at": int(_il["at"]),
+            "free": _il["free"], "skipN": IL_FREE_SKIP,
+            "askLeft": (int(max(0, _il["askAt"] + IL_ASK_MAX - time.time()))
+                        if _il["status"] == "ask" else 0),
             "gen": _il["gen"],
         }
 
@@ -4547,11 +4579,13 @@ def instalock_arm(body):
             "delay": IL_DELAY,
             "jitter": IL_JITTER,
             "match": None, "fireAt": 0.0, "planned": 0.0, "status": "armed",
-            "lockedAt": 0.0,
+            "lockedAt": 0.0, "free": IL_FREE_YES, "ingameMatch": None, "ingameAt": 0.0,
+            "askAt": 0.0, "asked": False,
             "message": "Wartet auf die naechste Agentenauswahl.",
             "gen": _il["gen"] + 1,
         })
         _il_save()
+    _il_popup_close()
     _il_poll["ts"] = 0.0        # sofort nachsehen, nicht erst im naechsten Takt
     record_feature("instalock_armed")
     return instalock_state()
@@ -4560,9 +4594,154 @@ def instalock_arm(body):
 def instalock_disarm():
     with _il_lock:
         _il.update({"on": False, "status": "off", "message": "", "match": None,
-                    "fireAt": 0.0, "planned": 0.0, "gen": _il["gen"] + 1})
+                    "fireAt": 0.0, "planned": 0.0, "ingameMatch": None, "askAt": 0.0,
+                    "asked": False, "gen": _il["gen"] + 1})
         _il_save()
+    _il_popup_close()
     return instalock_state()
+
+
+def _il_pause(message):
+    """Keine Antwort (oder Matchende nicht erkennbar): nicht sperren, bis man im
+    Overlay wieder einschaltet. Agent bleibt gewaehlt."""
+    with _il_lock:
+        _il.update({"on": False, "status": "paused", "message": message, "match": None,
+                    "fireAt": 0.0, "planned": 0.0, "ingameMatch": None, "askAt": 0.0,
+                    "asked": False, "at": time.time(), "gen": _il["gen"] + 1})
+        _il_save()
+    _il_popup_close()
+
+
+def instalock_answer(answer):
+    """Antwort auf "Weiter mit <Agent>?" - aus dem Fenster ueber VALORANT oder dem Overlay.
+    yes = naechstes Match, yes3 = die naechsten IL_FREE_SKIP Matches ohne Nachfrage, no = aus."""
+    if answer not in ("yes", "yes3", "no"):
+        return {"ok": False, "error": "Unbekannte Antwort."}
+    with _il_lock:
+        open_q = bool(_il["on"]) and _il["status"] == "ask"
+        if open_q:
+            if answer == "no":
+                _il.update({"on": False, "status": "off", "message": "", "askAt": 0.0,
+                            "asked": False, "gen": _il["gen"] + 1})
+            else:
+                _il.update({"status": "armed", "free": IL_FREE_SKIP if answer == "yes3" else IL_FREE_YES,
+                            "match": None, "fireAt": 0.0, "planned": 0.0, "lockedAt": 0.0,
+                            "askAt": 0.0, "asked": False,
+                            "message": "Wartet auf die naechste Agentenauswahl.",
+                            "gen": _il["gen"] + 1})
+            _il_save()
+    _il_popup_close()
+    if not open_q:
+        return dict(instalock_state(), ok=False, error="Gerade keine Frage offen.")
+    _il_poll["ts"] = 0.0
+    record_feature("instalock_keep_" + answer)
+    return instalock_state()
+
+
+# ---- Fenster ueber VALORANT (il_popup.py) ----
+# Eigener Prozess: ein Fehler in den Win32-Aufrufen dort reisst den Dienst nicht mit.
+# Antwort kommt als Exit-Code zurueck (siehe EXIT_* in il_popup.py). Klappt das Fenster
+# nicht (exklusives Vollbild, Fehler), bleibt die Frage im Overlay - und ohne Antwort
+# pausiert der Instalock ohnehin.
+IL_POPUP_CFG = os.path.join(DATA_DIR, "il-popup.json")
+IL_POPUP_ERR = os.path.join(DATA_DIR, "il-popup-error.txt")
+_IL_POPUP_EXIT = {10: "yes", 13: "yes3", 20: "no", 30: None}
+_il_popup = {"proc": None}
+_il_popup_lock = threading.Lock()
+
+_IL_POPUP_STRINGS = {
+    "de": {"title": "Weiter mit {agent}?", "body": "Soll Instalock {agent} auch im nächsten Match locken? Ohne Antwort pausiert er.",
+           "skip": "Die nächsten {n} Matches nicht fragen", "yes": "Ja", "no": "Nein"},
+    "en": {"title": "Keep going with {agent}?", "body": "Should Instalock lock {agent} in the next match too? No answer pauses it.",
+           "skip": "Don't ask for the next {n} matches", "yes": "Yes", "no": "No"},
+    "pl": {"title": "Dalej {agent}?", "body": "Czy Instalock ma zablokować {agent} także w następnym meczu? Bez odpowiedzi zostanie wstrzymany.",
+           "skip": "Nie pytaj przez następne {n} mecze", "yes": "Tak", "no": "Nie"},
+    "fr": {"title": "Continuer avec {agent} ?", "body": "L'Instalock doit-il aussi verrouiller {agent} au prochain match ? Sans réponse, il se met en pause.",
+           "skip": "Ne plus demander pendant {n} matchs", "yes": "Oui", "no": "Non"},
+    "es": {"title": "¿Seguir con {agent}?", "body": "¿Instalock debe bloquear a {agent} también en la próxima partida? Sin respuesta, se pausa.",
+           "skip": "No preguntar en las próximas {n} partidas", "yes": "Sí", "no": "No"},
+    "tr": {"title": "{agent} ile devam mı?", "body": "Instalock bir sonraki maçta da {agent} kilitlesin mi? Cevap verilmezse duraklatılır.",
+           "skip": "Sonraki {n} maçta sorma", "yes": "Evet", "no": "Hayır"},
+    "ko": {"title": "{agent}(으)로 계속할까요?", "body": "다음 매치에서도 인스타락이 {agent}을(를) 고정할까요? 응답이 없으면 일시 중지됩니다.",
+           "skip": "다음 {n}매치 동안 묻지 않기", "yes": "예", "no": "아니요"},
+    "pt": {"title": "Continuar com {agent}?", "body": "O Instalock deve travar {agent} também na próxima partida? Sem resposta, ele pausa.",
+           "skip": "Não perguntar nas próximas {n} partidas", "yes": "Sim", "no": "Não"},
+    "ru": {"title": "Дальше на {agent}?", "body": "Instalock залочит {agent} и в следующем матче? Без ответа он встанет на паузу.",
+           "skip": "Не спрашивать следующие {n} матча", "yes": "Да", "no": "Нет"},
+    "ja": {"title": "{agent}で続けますか？", "body": "次のマッチでもインスタロックで{agent}をロックしますか？応答がない場合は一時停止します。",
+           "skip": "次の{n}マッチは確認しない", "yes": "はい", "no": "いいえ"},
+}
+_IL_POPUP_FONTS = {"ko": "Malgun Gothic", "ja": "Yu Gothic UI"}
+
+
+def _il_popup_open(agent_id, name, ask_at):
+    """Fenster starten (nur Windows). Laeuft im eigenen Thread - das Agentenbild kann
+    beim ersten Mal ein paar Sekunden laden."""
+    try:
+        if os.name != "nt" or not os.path.exists(IL_POPUP_FILE):
+            return
+        lang = _heartbeat_lang()
+        strings = _IL_POPUP_STRINGS.get(lang) or _IL_POPUP_STRINGS["en"]
+        agent = name or "Agent"
+        icon = None
+        if agent_id and UUID_RE.fullmatch(str(agent_id)):
+            url = "https://media.valorant-api.com/agents/%s/displayicon.png" % str(agent_id).lower()
+            if img_get(url):
+                path = os.path.join(IMG_CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest())
+                icon = path if os.path.exists(path) else None
+        cfg = {"eyebrow": "INSTALOCK", "title": strings["title"].format(agent=agent),
+               "body": strings["body"].format(agent=agent), "skip": strings["skip"].format(n=IL_FREE_SKIP),
+               "yes": strings["yes"], "no": strings["no"], "icon": icon, "font": _IL_POPUP_FONTS.get(lang),
+               "parentPid": os.getpid(), "timeout": max(30, IL_ASK_MAX - (time.time() - ask_at)) + 30,
+               "errFile": IL_POPUP_ERR}
+        _save_json(IL_POPUP_CFG, cfg)
+        exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+        if not os.path.exists(exe):
+            exe = sys.executable
+        with _il_popup_lock:
+            with _il_lock:
+                still = _il["status"] == "ask" and _il["askAt"] == ask_at
+            old = _il_popup["proc"]
+            if not still or (old and old.poll() is None):
+                return
+            _il_popup["proc"] = subprocess.Popen([exe, IL_POPUP_FILE, IL_POPUP_CFG], cwd=os.path.dirname(IL_POPUP_FILE),
+                                                 creationflags=CREATE_NO_WINDOW)
+    except Exception as e:
+        report_error("il-popup", e)
+
+
+def _il_popup_poll():
+    """Antwort aus dem Fenster abholen. None = noch offen, geschlossen oder Fehler."""
+    with _il_popup_lock:
+        proc = _il_popup["proc"]
+        if not proc:
+            return None
+        code = proc.poll()
+        if code is None:
+            return None
+        _il_popup["proc"] = None
+    if code in _IL_POPUP_EXIT:
+        return _IL_POPUP_EXIT[code]
+    tail = ""
+    try:
+        with open(IL_POPUP_ERR, encoding="utf-8", errors="replace") as fh:
+            tail = fh.read()[-400:]
+        os.remove(IL_POPUP_ERR)
+    except OSError:
+        pass
+    report_error("il-popup", RuntimeError("Fenster beendet mit Code %s %s" % (code, tail.strip())))
+    return None
+
+
+def _il_popup_close():
+    """Fenster weg (Antwort kam aus dem Overlay, Pause, neue Auswahl, ...)."""
+    with _il_popup_lock:
+        proc, _il_popup["proc"] = _il_popup["proc"], None
+    if proc and proc.poll() is None:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
 
 
 def _il_finish(ok, message):
@@ -4581,6 +4760,8 @@ def _instalock_tick():
         mid, fire_at = _il["match"], _il["fireAt"]
         delay, jitter = _il["delay"], _il["jitter"]
         locked_at = _il["lockedAt"]
+        free, ingame_mid, ingame_at = _il["free"], _il["ingameMatch"], _il["ingameAt"]
+        ask_at, asked = _il["askAt"], _il["asked"]
 
     # --- Phase 1: auf eine Agentenauswahl warten ---
     if status == "armed":
@@ -4655,7 +4836,14 @@ def _instalock_tick():
         except Exception:
             cg_status, cg = None, None
         if cg_status == 200 and cg and cg.get("MatchID"):
-            _il_finish(True, "%s gesperrt — im Spiel." % (name or "Agent"))
+            # Im Spiel: Instalock bleibt an, nach dem Match kommt die Frage (Phase 4/5)
+            with _il_lock:
+                if not _il["on"] or _il["status"] != "locked":
+                    return
+                _il.update({"status": "ingame", "ingameMatch": cg["MatchID"], "ingameAt": time.time(),
+                            "message": "%s gesperrt — im Spiel." % (name or "Agent"),
+                            "gen": _il["gen"] + 1})
+                _il_save()
             return
         try:
             found = _pregame_id_fresh()
@@ -4672,6 +4860,69 @@ def _instalock_tick():
                             "message": "Match gedodged — neue Auswahl erkannt, %s wird in %.1f s gesperrt."
                                        % (name or "Agent", wait),
                             "gen": _il["gen"] + 1})
+        return
+
+    # --- Phase 4: im Match, auf das Ende warten (Stand vom _game_watcher) ---
+    if status == "ingame":
+        now = time.time()
+        if now - ingame_at > IL_INGAME_MAX:
+            _il_pause("Matchende nicht erkannt — Instalock pausiert.")
+            return
+        st, gmid, since = _game["state"], _game["matchId"], _game["since"]
+        # Erst ein Wechsel NACH dem Spielstart zaehlt - der Waechter tickt nur alle 5 s
+        # und kann kurz noch PREGAME zeigen.
+        if st == "unknown" or since <= ingame_at or (st == "INGAME" and gmid == ingame_mid):
+            return
+        if st == "offline":
+            _il_pause("VALORANT geschlossen — Instalock pausiert.")
+            return
+        left = free - 1
+        with _il_lock:
+            if not _il["on"] or _il["status"] != "ingame":
+                return
+            if left > 0:
+                _il.update({"status": "armed", "free": left, "match": None, "fireAt": 0.0,
+                            "planned": 0.0, "lockedAt": 0.0, "ingameMatch": None,
+                            "message": "Noch %d Match(es) ohne Nachfrage." % left,
+                            "gen": _il["gen"] + 1})
+            else:
+                _il.update({"status": "ask", "free": 0, "askAt": now, "asked": False,
+                            "ingameMatch": None, "message": "Weiter mit %s?" % (name or "Agent"),
+                            "gen": _il["gen"] + 1})
+            _il_save()
+        _il_poll["ts"] = 0.0
+        return
+
+    # --- Phase 5: nach dem Match fragen ("Weiter mit Jett?") ---
+    if status == "ask":
+        now = time.time()
+        ans = _il_popup_poll()
+        if ans:
+            instalock_answer(ans)
+            return
+        if not asked:
+            with _il_lock:
+                if _il["status"] != "ask" or _il["asked"]:
+                    return
+                _il["asked"] = True
+            threading.Thread(target=_il_popup_open, args=(agent, name, ask_at), daemon=True).start()
+            return
+        if now - ask_at > IL_ASK_MAX:
+            _il_pause("Keine Antwort — Instalock pausiert.")
+            return
+        if not game_ready() or (_game["state"] in ("INGAME", "offline") and _game["since"] > ask_at):
+            _il_pause("Keine Antwort — Instalock pausiert.")
+            return
+        if now - _il_poll["ts"] < IL_POLL:
+            return
+        _il_poll["ts"] = now
+        try:
+            found = _pregame_id_fresh()
+        except Exception:
+            return
+        if found:
+            # Ohne Antwort bis zur naechsten Agentenauswahl: nicht sperren (Wunsch des Nutzers)
+            _il_pause("Keine Antwort vor der Agentenauswahl — Instalock pausiert.")
         return
 
 
@@ -9081,6 +9332,8 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: instalock_arm(body))
         elif path == "/api/instalock/disarm":
             self._safe(instalock_disarm)
+        elif path == "/api/instalock/answer":
+            self._safe(lambda: instalock_answer(str(body.get("answer") or "")))
 
         elif path == "/api/lol/queue/setQueue":
             self._safe(lambda: lol_queue_action("setQueue", body))
