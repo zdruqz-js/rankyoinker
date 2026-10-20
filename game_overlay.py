@@ -1481,6 +1481,9 @@ class Gdi:
         # Grund wurde damit fast 20 % hell (im ersten Windows-Test gesehen)
         gd.GdipSetCompositingQuality(g, 1)          # HighSpeed = normale Mischung
         gd.GdipSetTextRenderingHint(g, 4)           # AntiAlias (ClearType passt nicht auf Alpha)
+        # Kontrast 0 statt 4: helle Schrift auf Dunkel wird voller, wie im Browser (im Windows-Test
+        # verglichen, 2.5.6-dev1) - mit 4 wirkte kleiner grauer Text duenn und blass
+        gd.GdipSetTextContrast(g, 0)
         gd.GdipScaleWorldTransform(g, ctypes.c_float(scale), ctypes.c_float(scale), 0)
         clips = []
         for it in ops.items:
@@ -2023,7 +2026,7 @@ def text_test(gdi, m, ctx, board, out_dir):
         for li, (key, text) in enumerate(lines):
             col = COL["text"] if key in ("name",) else (COL["teal"] if key == "rank" else COL["text2"])
             ops.add("text", cx, 40 + li * lh, cw - 10, lh, text, key, col, 255, "l", False)
-    ops.add("texthint", 4, 4)
+    ops.add("texthint", 4, 0)
     gdi.free(gdi.render(ops, 1.0, os.path.join(out_dir, "text-contrast@1.0x.png")))
     gdi.set_text_mode(native=True)
     gdi.free(gdi.render(layout_board(m, ctx, board), 1.5, os.path.join(out_dir, "board-old@1.5x.png")))
