@@ -365,8 +365,10 @@ def _compare(ops, m, ctx, x, y, w, cmp):
 
 def _name_tag(ops, m, x, y, w, h, name, tag, col_name, extra_w=0):
     tw = m(tag, "tag") if tag else 0
-    nw = min(m(name, "name") + 1, max(24, w - tw - 4 - extra_w))
-    ops.add("text", x, y, nw + 2, h, name, "name", col_name, 255, "l", False)
+    full = m(name, "name") + 1
+    nw = min(full, max(24, w - tw - 4 - extra_w))
+    # gekuerzter Name: "…" endet sonst direkt am Tag (eigener Satz fuellt die Breite genauer als GDI+)
+    ops.add("text", x, y, nw + 2 if nw >= full else nw - 1, h, name, "name", col_name, 255, "l", False)
     end = x + nw
     if tag and nw + 4 + tw + extra_w <= w + 1:
         ops.add("text", x + nw + 4, y + 1, tw + 2, h, tag, "tag", COL["text3"], 255, "l", False)
