@@ -2611,6 +2611,19 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .set-toggle small{font-size:12px; line-height:1.45; color:var(--text-3);}
 .set-toggle small.st-rec{color:var(--accent); font-weight:600;}
 
+/* ================= Spiel-Overlay in den Einstellungen (2.5.5) ================= */
+.ovl-opts{display:flex; flex-direction:column; gap:8px;}
+.ovl-opts.off{opacity:.45; pointer-events:none;}
+.ovl-opts .set-toggle{padding:11px 14px;}
+.ovl-opts .set-toggle .lbl{font-size:13.5px;}
+.ovl-fields{display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; margin:2px 0 2px;}
+.ovl-fields .ovl-key{grid-column:1 / -1;}
+.ovl-fields .field{display:flex; flex-direction:column; gap:6px; position:relative; min-width:0;}
+.ovl-fields .field:has(.cdrop.open){z-index:40;}
+.ovl-fields label{display:block; font-family:var(--font-mono); font-size:10px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3);}
+#ovlPreviewBtn{height:44px;}
+
 /* ================= Performance-Modus (2.5.4) =================
    Für PCs ohne Hardwarebeschleunigung oder mit schwacher Grafik (Schalter in den
    Einstellungen, Klasse "perf" auf <html>). Dort zeichnet der Prozessor jedes Bild
@@ -2748,6 +2761,37 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <small class="st-rec" id="perfRec" data-i18n="perf_mode_recommended" hidden>Für dieses Gerät empfohlen</small>
       </span>
     </button>
+  </div>
+
+  <div class="sidebar-section" id="ovlSection" hidden>
+    <label data-i18n="settings_overlay_label">Spiel-Overlay</label>
+    <button type="button" class="lol-toggle set-toggle" id="ovlToggle" role="switch" aria-checked="false">
+      <span class="sw"></span>
+      <span class="st-txt">
+        <span class="lbl" data-i18n="ovl_master">Fenster über dem Spiel</span>
+        <small data-i18n="ovl_master_hint">Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.</small>
+      </span>
+    </button>
+    <div class="ovl-opts" id="ovlOpts">
+      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="pregame" role="switch" aria-checked="false">
+        <span class="sw"></span>
+        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_pregame">Agentenauswahl</span><small data-i18n="ovl_opt_pregame_hint">Ränge, Peak und Partys schon vor dem Match</small></span>
+      </button>
+      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="board" role="switch" aria-checked="false">
+        <span class="sw"></span>
+        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_board">Spielertabelle</span><small data-i18n="ovl_opt_board_hint">Alle Spieler mit Rang, solange du die Taste hältst – wie das Scoreboard.</small></span>
+      </button>
+      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="result" role="switch" aria-checked="false">
+        <span class="sw"></span>
+        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_result">Ergebnis nach dem Match</span><small data-i18n="ovl_opt_result_hint">Note, K/D/A und RR direkt nach dem Spiel</small></span>
+      </button>
+      <div class="ovl-fields">
+        <div class="field ovl-key"><label data-i18n="ovl_key_label">Taste für die Tabelle</label><div class="cdrop" id="ovlKeyDrop"></div></div>
+        <div class="field"><label data-i18n="ovl_side_label">Position</label><div class="cdrop" id="ovlSideDrop"></div></div>
+        <div class="field"><label data-i18n="ovl_size_label">Größe</label><div class="cdrop" id="ovlSizeDrop"></div></div>
+      </div>
+      <button type="button" class="sidebar-btn" id="ovlPreviewBtn"><span data-i18n="ovl_preview_btn">Vorschau zeigen</span></button>
+    </div>
   </div>
 
   <div class="sidebar-section">
@@ -3667,6 +3711,75 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(perfNoGpu()) show();
     else perfSampleFps(fps => { if(fps < 24) show(); });
   }, 6000);
+
+  // ================= SPIEL-OVERLAY (2.5.5) =================
+  // Fenster direkt über VALORANT (game_overlay.py, startet der Dienst): Agentenauswahl,
+  // Spielertabelle per Taste und Ergebnis nach dem Match. Nur am PC unter Windows - die
+  // Einstellungen liegen im Dienst (config.json "gameOverlay"), nicht im localStorage.
+  const OVL_KEYS = ['tab', 'capslock', 'f1', 'f2', 'f3', 'f4', 'x1', 'x2'];
+  let ovlCfg = null, ovlDrops = null;
+  function ovlKeyLabel(k){
+    return {tab: 'Tab', capslock: 'Caps Lock', x1: t('ovl_key_mouse4'), x2: t('ovl_key_mouse5')}[k] || k.toUpperCase();
+  }
+  function paintOvl(){
+    if(!ovlCfg) return;
+    const master = document.getElementById('ovlToggle');
+    master.classList.toggle('on', !!ovlCfg.on);
+    master.setAttribute('aria-checked', ovlCfg.on ? 'true' : 'false');
+    document.getElementById('ovlOpts').classList.toggle('off', !ovlCfg.on);
+    document.querySelectorAll('#ovlOpts [data-ovl]').forEach(b => {
+      const on = !!ovlCfg[b.getAttribute('data-ovl')];
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    document.querySelector('.ovl-key').style.opacity = ovlCfg.board ? '' : '.5';
+    if(ovlDrops){
+      ovlDrops.key.value = ovlCfg.key; ovlDrops.side.value = ovlCfg.side; ovlDrops.size.value = ovlCfg.size;
+    }
+  }
+  function setOvl(patch){
+    if(!ovlCfg) return;
+    Object.assign(ovlCfg, patch);
+    paintOvl();
+    api('/api/ovl/settings', patch).then(j => {
+      if(j && j.ok && j.settings){ ovlCfg = j.settings; paintOvl(); }
+    }).catch(() => {});
+  }
+  function initOvlSettings(cfg){
+    ovlCfg = Object.assign({on: true, pregame: true, board: true, result: true, key: 'tab', side: 'right', size: 'm'}, cfg || {});
+    document.getElementById('ovlSection').hidden = false;
+    if(!ovlDrops){
+      ovlDrops = {
+        key: makeDropdown(document.getElementById('ovlKeyDrop'), OVL_KEYS.map(k => ({value: k, label: ovlKeyLabel(k)})),
+          ovlCfg.key, v => setOvl({key: v})),
+        side: makeDropdown(document.getElementById('ovlSideDrop'),
+          [{value: 'right', label: t('ovl_side_right')}, {value: 'left', label: t('ovl_side_left')}],
+          ovlCfg.side, v => setOvl({side: v})),
+        size: makeDropdown(document.getElementById('ovlSizeDrop'),
+          [{value: 's', label: t('ovl_size_s')}, {value: 'm', label: t('ovl_size_m')}, {value: 'l', label: t('ovl_size_l')}],
+          ovlCfg.size, v => setOvl({size: v})),
+      };
+      document.getElementById('ovlToggle').addEventListener('click', () => setOvl({on: !ovlCfg.on}));
+      document.querySelectorAll('#ovlOpts [data-ovl]').forEach(b => b.addEventListener('click', () => {
+        const k = b.getAttribute('data-ovl');
+        setOvl({[k]: !ovlCfg[k]});
+      }));
+      document.getElementById('ovlPreviewBtn').addEventListener('click', () => {
+        api('/api/ovl/preview', {}).then(j => {
+          if(j && j.ok) toast('info', t('ovl_preview_toast'), t('ovl_preview_toast_msg'), {id: 'ovlprev', dur: 7000});
+          else toast('error', t('ovl_preview_fail'), (j && j.error) || '', {id: 'ovlprev', dur: 6000});
+        }).catch(() => toast('error', t('ovl_preview_fail'), t('err_local_service_port'), {id: 'ovlprev', dur: 6000}));
+      });
+    }
+    paintOvl();
+  }
+  setTimeout(() => {
+    if(ON_PHONE || window.RY_DEMO) return;
+    fetch(LOG_URL + '/api/local-config', {cache:'no-store'})
+      .then(r => r.json())
+      .then(j => { if(j && j.ok && j.gameOverlayAvailable) initOvlSettings(j.gameOverlay); })
+      .catch(() => {});
+  }, 0);
 
   // ---------- static game data ----------
   let agentMap = {};
@@ -10926,7 +11039,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.5-dev1";
+const CURRENT_VERSION = "2.5.5-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

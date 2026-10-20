@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev1"
+#define MyAppVersion "2.5.5-dev2"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -184,6 +184,8 @@ Source: "..\vry.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\vry_log_server.py"; DestDir: "{app}"; Flags: ignoreversion
 ; Fenster ueber VALORANT fuer "Weiter mit <Agent>?" (Instalock, ab 2.5.5) - startet der Dienst
 Source: "..\il_popup.py"; DestDir: "{app}"; Flags: ignoreversion
+; Spiel-Overlay ueber VALORANT (2.5.5-dev2): Agentenauswahl, Tabelle per Taste, Ergebnis
+Source: "..\game_overlay.py"; DestDir: "{app}"; Flags: ignoreversion
 ; Eingebettetes Python 3.10.11 (offizielle "embeddable" Distribution von
 ; python.org) fuer den Log-Server (vry_log_server.py) - damit braucht
 ; RankYoinker keine systemweite Python-Installation mehr. "lib" (weiter

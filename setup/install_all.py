@@ -162,7 +162,8 @@ def kill_old_processes():
         "powershell", "-NoProfile", "-Command",
         "Get-CimInstance Win32_Process | Where-Object { "
         "($_.Name -eq 'pythonw.exe' -or $_.Name -eq 'python.exe') -and "
-        "$_.CommandLine -like '*vry_log_server.py*' } | ForEach-Object { "
+        "($_.CommandLine -like '*vry_log_server.py*' -or $_.CommandLine -like '*game_overlay.py*' -or "
+        "$_.CommandLine -like '*il_popup.py*') } | ForEach-Object { "
         "Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
     ])
     run(["taskkill", "/F", "/IM", "vry.exe", "/T"])

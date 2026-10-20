@@ -1,0 +1,67 @@
+name: Spiel-Overlay unter Windows zeichnen
+
+# Zeichnet die Fenster aus game_overlay.py auf einem echten Windows-Runner (GDI+,
+# eingebettetes Python 3.10.11 wie im Installer) und legt PNGs + ein Bildschirmfoto
+# der echten Fenster als Artefakt ab. Start: Tag otest-<name> pushen oder von Hand.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'otest-*'
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.10.11 (embeddable, wie im Installer)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip" -OutFile py.zip
+          Expand-Archive -Path py.zip -DestinationPath py -Force
+
+      - name: Testbilder holen (valorant-api.com)
+        shell: pwsh
+        run: |
+          $d = ".github/overlay-test/img"
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          $agents = @{
+            jett = "add6443a-41bd-e414-f6ad-e58d267f4e95"; sova = "320b2a48-4d9b-a075-30f1-1f93a9b638fa"
+            omen = "8e253930-4c05-31dd-1b6c-968525494517"; killjoy = "1e58de9c-4950-5125-93e9-a0aee9f98746"
+            raze = "f94c3b30-42be-e959-889c-5aa313dba261"; sage = "569fdd95-4d10-43ab-ca70-79becc718b46"
+            reyna = "a3bfb853-43b2-7238-a4f1-ad90e9e46bcc"; phoenix = "eb93336a-449b-9c1b-0a54-a891f7921d69"
+            brimstone = "9f0d8ba9-4140-b941-57d3-a7ad57c6b417"
+          }
+          foreach ($k in $agents.Keys) {
+            Invoke-WebRequest "https://media.valorant-api.com/agents/$($agents[$k])/displayicon.png" -OutFile "$d/$k.png"
+          }
+          $tiers = "03621f52-342b-cf4e-4f86-9350a49c6d04"
+          foreach ($t in 12, 14, 16, 17, 19, 21) {
+            Invoke-WebRequest "https://media.valorant-api.com/competitivetiers/$tiers/$t/smallicon.png" -OutFile "$d/rank$t.png"
+          }
+          Invoke-WebRequest "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/listviewicon.png" -OutFile "$d/ascent.png"
+
+      - name: Panels als PNG zeichnen
+        shell: pwsh
+        run: |
+          py\python.exe game_overlay.py --render-test .github/overlay-test/state.json out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem out | Format-Table Name, Length
+
+      - name: Echte Fenster zeigen + Bildschirmfoto
+        shell: pwsh
+        run: |
+          py\python.exe game_overlay.py --smoke .github/overlay-test/state.json out
+          $code = $LASTEXITCODE
+          if (Test-Path out/errors.txt) { Get-Content out/errors.txt }
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: overlay-render
+          path: out

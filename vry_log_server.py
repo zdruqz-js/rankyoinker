@@ -525,7 +525,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.5-dev1"
+APP_VERSION = "2.5.5-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4900,7 +4900,10 @@ def _instalock_tick():
         if ans:
             instalock_answer(ans)
             return
-        if not asked:
+        # Laeuft das Spiel-Overlay (2.5.5-dev2), fragt es selbst (Karte unten rechts).
+        # il_popup.py nur noch, wenn es nicht antwortet - und nie, wenn "Fenster ueber dem
+        # Spiel" aus ist. Die Frage im Overlay im Browser gibt es immer.
+        if not asked and not _ovl_alive() and ovl_settings()["on"]:
             with _il_lock:
                 if _il["status"] != "ask" or _il["asked"]:
                     return
@@ -4933,6 +4936,696 @@ def _instalock_watcher():
             _instalock_tick()
         except Exception as e:
             _il_finish(False, "%s: %s" % (type(e).__name__, e))
+
+
+# ============================ Spiel-Overlay (2.5.5-dev2) ============================
+# Kleine Fenster direkt ueber VALORANT (game_overlay.py, eigener Prozess wie il_popup.py):
+# Agentenauswahl mit Raengen und Partys, Spielertabelle per Taste (Standard Tab, wie das
+# Scoreboard im Spiel), Ergebnis nach dem Match und die Instalock-Frage. Der Dienst startet
+# den Prozess, solange VALORANT laeuft, und liefert unter /api/ovl/state alles fertig
+# aufbereitet (Texte in der eingestellten Sprache, Bildpfade aus dem Bildspeicher).
+# Riot fragt dafuer fast nichts zusaetzlich: Raenge und Namen kommen aus dem Heartbeat von
+# vry.exe (live.json) und den Caches hier. Neu sind nur die Agentenauswahl selbst (glz, so
+# oft wie die Seite) und nach einem Competitive-Match EINE competitiveupdates-Abfrage fuer
+# die eigene RR-Aenderung.
+OVL_FILE = os.path.join(BASE, "game_overlay.py")
+OVL_CFG = os.path.join(DATA_DIR, "game-overlay.json")
+OVL_ERR = os.path.join(DATA_DIR, "game-overlay-error.txt")
+OVL_DEFAULTS = {"on": True, "pregame": True, "board": True, "result": True,
+                "key": "tab", "side": "right", "size": "m"}
+OVL_BOOLS = ("on", "pregame", "board", "result")
+OVL_CHOICES = {"key": ("tab", "capslock", "f1", "f2", "f3", "f4", "x1", "x2"),
+               "side": ("right", "left"), "size": ("s", "m", "l")}
+OVL_ALIVE = 5.0             # so frisch muss die letzte Abfrage des Overlays sein
+OVL_STOP_GRACE = 8.0        # ein tasklist-Aussetzer beendet das Overlay nicht gleich
+OVL_CRASHES = 3             # Abstuerze je 10 Minuten, danach kein neuer Start
+OVL_RESULT_MAX_AGE = 600    # Analyse aelter als 10 min -> keine Ergebnis-Karte mehr
+OVL_PREVIEW = (("pregame", 6.0), ("board", 6.0), ("card", 10.0))
+VAPI_TTL = 12 * 3600
+_OVL_STRING_KEYS = (
+    "ovl_eyebrow_pregame", "ovl_eyebrow_board", "ovl_eyebrow_result", "ovl_team_ally", "ovl_team_enemy",
+    "ovl_team_all", "ovl_open_report", "ovl_rank_up", "ovl_rank_down", "ovl_il_in", "ovl_il_locked",
+    "ovl_hidden", "ovl_avg", "ovl_preview", "ovl_grade", "report_victory", "report_defeat", "report_draw",
+    "report_place", "report_perf_above", "report_perf_below", "report_perf_even", "report_mvp",
+    "report_team_mvp", "pregame_you", "pregame_hovering", "instalock_ask_title", "instalock_ask_body",
+    "instalock_ask_skip", "instalock_ask_yes", "instalock_ask_no", "peak_label", "side_attack", "side_defense")
+# Modus-Namen bleiben Englisch (wie im Overlay)
+_OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
+               "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
+               "hurm": "Team Deathmatch", "premier": "Premier", "onefa": "Replication",
+               "snowball": "Snowball Fight", "newmap": "New Map", "": "Custom"}
+
+_ovl = {"proc": None, "token": secrets.token_urlsafe(24), "seen": 0.0, "crashes": [], "stopAt": 0.0,
+        "stopping": False, "previewAt": 0.0, "dismissed": None, "askHidden": None}
+_ovl_wake = threading.Event()
+_ovl_cfg_cache = {"mtime": None, "data": dict(OVL_DEFAULTS)}
+_ovl_str_cache = {}
+_ovl_live_cache = {"mtime": None, "data": {}}
+_ovl_pg = {"ts": 0.0, "data": None}
+_ovl_pg_lock = threading.Lock()
+_ovl_rr = {"match": None, "data": None, "tries": 0, "next": 0.0, "busy": False}
+_ovl_img_pending = set()
+_ovl_img_lock = threading.Lock()
+_vapi = {"agents": {}, "byName": {}, "tiers": {}, "maps": {}, "at": 0.0, "busy": False, "fail": 0.0}
+
+
+def _ovl_settings_from(data):
+    raw = data.get("gameOverlay") if isinstance(data, dict) else None
+    raw = raw if isinstance(raw, dict) else {}
+    out = dict(OVL_DEFAULTS)
+    for k in OVL_BOOLS:
+        if isinstance(raw.get(k), bool):
+            out[k] = raw[k]
+    for k, allowed in OVL_CHOICES.items():
+        if raw.get(k) in allowed:
+            out[k] = raw[k]
+    return out
+
+
+def ovl_settings():
+    """Einstellungen aus config.json ("gameOverlay"), nur bei geaenderter Datei neu gelesen."""
+    try:
+        mtime = os.path.getmtime(CONFIG_JSON_FILE)
+    except OSError:
+        mtime = None
+    if mtime != _ovl_cfg_cache["mtime"]:
+        _ovl_cfg_cache.update(mtime=mtime, data=_ovl_settings_from(_load_json(CONFIG_JSON_FILE)))
+    return dict(_ovl_cfg_cache["data"])
+
+
+def set_ovl_settings(body, local=True):
+    if not local:
+        return {"ok": False, "error": "Nur am PC selbst möglich."}
+    body = body if isinstance(body, dict) else {}
+    with _config_lock:
+        data = _load_json(CONFIG_JSON_FILE)
+        cur = _ovl_settings_from(data)
+        was_on = cur["on"]
+        for k in OVL_BOOLS:
+            if isinstance(body.get(k), bool):
+                cur[k] = body[k]
+        for k, allowed in OVL_CHOICES.items():
+            if body.get(k) in allowed:
+                cur[k] = body[k]
+        data["gameOverlay"] = cur
+        _save_json(CONFIG_JSON_FILE, data)
+    _ovl_cfg_cache["mtime"] = None
+    if was_on and not cur["on"]:
+        record_feature("game_overlay_off")
+    _ovl_wake.set()
+    return {"ok": True, "settings": cur}
+
+
+def ovl_available():
+    return os.name == "nt" and os.path.exists(OVL_FILE)
+
+
+def _ovl_tr(strings, key, **kw):
+    s = strings.get(key) or key
+    for k, v in kw.items():
+        s = s.replace("{" + k + "}", str(v))
+    return s
+
+
+def _ovl_strings(lang):
+    hit = _ovl_str_cache.get(lang)
+    if hit and time.time() - hit[0] < 60:
+        return hit[1]
+    out = {}
+    for code in ("en", lang):
+        try:
+            with open(os.path.join(LANG_DIR, code + ".json"), "r", encoding="utf-8") as fh:
+                s = (json.load(fh) or {}).get("strings") or {}
+            out.update({k: s[k] for k in _OVL_STRING_KEYS if isinstance(s.get(k), str)})
+        except Exception:
+            pass
+    _ovl_str_cache[lang] = (time.time(), out)
+    return out
+
+
+# ---- Agenten-, Rang- und Kartenbilder (valorant-api.com, wie die Seite) ----
+def _vapi_ensure():
+    now = time.time()
+    if _vapi["busy"] or (_vapi["at"] and now - _vapi["at"] < VAPI_TTL) or now - _vapi["fail"] < 60:
+        return
+    _vapi["busy"] = True
+
+    def run():
+        try:
+            _, a = _http("https://valorant-api.com/v1/agents?isPlayableCharacter=true")
+            _, t = _http("https://valorant-api.com/v1/competitivetiers")
+            _, m = _http("https://valorant-api.com/v1/maps")
+            agents = {}
+            for x in (a or {}).get("data") or []:
+                if isinstance(x, dict) and x.get("uuid"):
+                    agents[x["uuid"].lower()] = {"name": x.get("displayName") or "", "icon": x.get("displayIcon")}
+            if not agents:
+                raise ValueError("keine Agentenliste")
+            sets = (t or {}).get("data") or []
+            tiers = {}
+            for x in (sets[-1].get("tiers") or []) if sets else []:
+                if isinstance(x.get("tier"), int):
+                    tiers[x["tier"]] = x.get("smallIcon") or x.get("largeIcon")
+            maps = {}
+            for x in (m or {}).get("data") or []:
+                if isinstance(x, dict) and x.get("mapUrl"):
+                    maps[x["mapUrl"].lower()] = {"name": x.get("displayName") or "",
+                                                 "img": x.get("listViewIcon") or x.get("splash")}
+            _vapi.update(agents=agents, tiers=tiers, maps=maps, at=time.time(),
+                         byName={v["name"].lower(): k for k, v in agents.items() if v["name"]})
+        except Exception:
+            _vapi["fail"] = time.time()
+        finally:
+            _vapi["busy"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def _ovl_img(url):
+    """Pfad im Bildspeicher - fehlt das Bild, wird es im Hintergrund geholt (naechste Abfrage)."""
+    if not url or not _img_allowed(url):
+        return None
+    path = os.path.join(IMG_CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest())
+    if os.path.exists(path):
+        return path
+    with _ovl_img_lock:
+        if url in _ovl_img_pending:
+            return None
+        _ovl_img_pending.add(url)
+
+    def run():
+        try:
+            img_get(url)
+        finally:
+            with _ovl_img_lock:
+                _ovl_img_pending.discard(url)
+
+    threading.Thread(target=run, daemon=True).start()
+    return None
+
+
+def _ovl_agent_id(agent_id=None, name=None):
+    aid = str(agent_id or "").lower()
+    if aid and UUID_RE.fullmatch(aid):
+        return aid
+    return _vapi["byName"].get(str(name or "").lower())
+
+
+def _ovl_agent_img(agent_id=None, name=None):
+    aid = _ovl_agent_id(agent_id, name)
+    if not aid:
+        return None
+    url = (_vapi["agents"].get(aid) or {}).get("icon") or "https://media.valorant-api.com/agents/%s/displayicon.png" % aid
+    return _ovl_img(url)
+
+
+def _ovl_rank_img(tier):
+    try:
+        url = _vapi["tiers"].get(int(tier or 0))
+    except (TypeError, ValueError):
+        url = None
+    return _ovl_img(url) if url else None
+
+
+def _ovl_map(path):
+    return _vapi["maps"].get(str(path or "").lower()) or {}
+
+
+# ---- Spielerzeilen ----
+def _ovl_live():
+    """Letzter Heartbeat von vry.exe (live.json) - nur neu gelesen, wenn die Datei sich aendert."""
+    try:
+        mtime = os.path.getmtime(LIVE_FILE)
+    except OSError:
+        return {}
+    if mtime != _ovl_live_cache["mtime"]:
+        _ovl_live_cache.update(mtime=mtime, data=_load_json(LIVE_FILE) or {})
+    return _ovl_live_cache["data"]
+
+
+def _ovl_heartbeat(state):
+    d = _ovl_live()
+    hb = d.get("heartbeat") if isinstance(d.get("heartbeat"), dict) else None
+    if not hb or hb.get("state") != state:
+        return {}
+    players = hb.get("players") if isinstance(hb.get("players"), dict) else {}
+    return {"me": hb.get("puuid"), "mode": hb.get("mode"), "players": players}
+
+
+def _ovl_parties(mid):
+    """Partys aus der Party-Erkennung des Dienstes (nur gecacht), sonst None -> vry.exe."""
+    with _cache_lock:
+        hit = _premade_cache
+        key, data = hit.get("match") or "", hit.get("data")
+    if mid and key.startswith(mid + "|") and isinstance(data, dict) and isinstance(data.get("parties"), dict):
+        return data["parties"]
+    return None
+
+
+def _ovl_row(puuid, me, base, hbp, parties):
+    hbp = hbp if isinstance(hbp, dict) else {}
+    name = hbp.get("name") or base.get("name") or ""
+    if not name and puuid:
+        name = _names_cached([puuid], time.time())[0].get(puuid) or ""
+    tier, rr, peak = hbp.get("rank"), hbp.get("rr"), hbp.get("peakRank")
+    if not isinstance(tier, int) and puuid:
+        with _cache_lock:
+            hit = _mmr_cache.get(puuid)
+        mm = hit[1] if hit and isinstance(hit[1], dict) else {}
+        tier, rr, peak = mm.get("rank"), mm.get("rr"), mm.get("peakRank")
+    tier = tier if isinstance(tier, int) else 0
+    if parties is not None:
+        party = parties.get(puuid) or 0
+    else:
+        party = hbp.get("partyNumber") or 0
+    aid = _ovl_agent_id(base.get("agent"), hbp.get("agent"))
+    agent_name = (_vapi["agents"].get(aid) or {}).get("name") if aid else None
+    hidden = _name_hidden(name)
+    return {"name": None if hidden else name, "hidden": hidden,
+            "agent": agent_name or hbp.get("agent") or "", "agentImg": _ovl_agent_img(aid) if aid else None,
+            "locked": bool(base.get("locked")), "hover": bool(base.get("hover")), "me": bool(me),
+            "tier": tier, "rr": rr if isinstance(rr, int) else None, "peak": peak if isinstance(peak, int) else 0,
+            "level": base.get("level") or hbp.get("level") or None, "party": party if isinstance(party, int) else 0,
+            "rankImg": _ovl_rank_img(tier) if tier > 2 else None,
+            "kd": hbp.get("kd") if isinstance(hbp.get("kd"), (int, float)) else None,
+            "hs": hbp.get("headshotPercentage") if isinstance(hbp.get("headshotPercentage"), (int, float)) else None}
+
+
+def _ovl_sort(rows):
+    """Nach Rang, Partys zusammen (wie groupByParty im Overlay)."""
+    rows = sorted(rows, key=lambda r: (-(r["tier"] or 0), -(r["level"] or 0)))
+    out, done = [], set()
+    for i, r in enumerate(rows):
+        if i in done:
+            continue
+        group = [i] + ([j for j, q in enumerate(rows) if j not in done and j != i and r["party"]
+                        and q["party"] == r["party"]])
+        for j in group:
+            done.add(j)
+            out.append(rows[j])
+    return out
+
+
+def _ovl_queue_name(queue, hb_mode=None):
+    q = str(queue or "").lower()
+    return hb_mode or _OVL_QUEUES.get(q) or q.title()
+
+
+def _ovl_pregame_raw():
+    """Agentenauswahl: fragt die Seite gerade (/api/pregame), deren Stand samt Gegnern -
+    sonst selbst eine schlanke Abfrage (ohne Gegner-Raenge/-Historie, die laufen nur mit Seite)."""
+    c = _pregame_cache
+    if c["data"] and c["data"].get("ok") and time.time() - c["ts"] < 2.5:
+        return c["data"]
+    with _ovl_pg_lock:
+        now = time.time()
+        if _ovl_pg["data"] and now - _ovl_pg["ts"] < 0.9:
+            return _ovl_pg["data"]
+        mid = pregame_match_id()
+        if not mid:
+            _ovl_pg.update(ts=now, data=None)
+            return None
+        status, m = riot_get("glz", "/pregame/v1/matches/%s" % mid)
+        if status != 200 or not m:
+            return None
+        raw = (m.get("AllyTeam") or {}).get("Players") or []
+        ids = [p.get("Subject") for p in raw if p.get("Subject")]
+        names = names_for_nonblocking(ids)
+        players = []
+        for p in raw:
+            if not p.get("Subject"):
+                continue
+            sel = p.get("CharacterSelectionState") or ""
+            players.append({"puuid": p["Subject"], "name": names.get(p["Subject"]),
+                            "level": (p.get("PlayerIdentity") or {}).get("AccountLevel"),
+                            "agent": p.get("CharacterID") or None, "locked": sel == "locked",
+                            "hovering": sel == "selected"})
+        team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
+        data = {"ok": True, "matchId": mid, "players": players, "enemies": [],
+                "side": {"red": "attack", "blue": "defense"}.get(team.lower()),
+                "map": (m.get("MapID") or "").lower() or None, "queue": m.get("QueueID") or ""}
+        _ovl_pg.update(ts=time.time(), data=data)
+        return data
+
+
+def _ovl_il_chip(strings, mid):
+    with _il_lock:
+        on, st, name, fire_at, match = _il["on"], _il["status"], _il["name"], _il["fireAt"], _il["match"]
+    if not on or not mid or match != mid:
+        return None
+    if st == "waiting":
+        n = max(0, int(math.ceil(fire_at - time.time())))
+        return {"text": _ovl_tr(strings, "ovl_il_in", name=name or "Agent", n=n)}
+    if st in ("locked", "ingame"):
+        return {"text": _ovl_tr(strings, "ovl_il_locked", name=name or "Agent")}
+    return None
+
+
+def _ovl_pregame(strings):
+    data = _ovl_pregame_raw()
+    if not data or not data.get("ok"):
+        return None
+    mid = data.get("matchId")
+    hb = _ovl_heartbeat("PREGAME")
+    hbp = hb.get("players") or {}
+    me = _account["puuid"] or hb.get("me")
+    parties = _ovl_parties(mid)
+    allies = [_ovl_row(p.get("puuid"), p.get("puuid") == me,
+                       {"agent": p.get("agent"), "name": p.get("name"), "locked": p.get("locked"),
+                        "hover": p.get("hovering"), "level": p.get("level")}, hbp.get(p.get("puuid")), parties)
+              for p in data.get("players") or [] if p.get("puuid")]
+    enemies = []
+    for p in data.get("enemies") or []:
+        if not isinstance(p, dict) or not p.get("puuid"):
+            continue
+        enemies.append(_ovl_row(p["puuid"], False, {"agent": p.get("agent"), "name": p.get("name"), "locked": True},
+                                {"rank": p.get("rank"), "rr": p.get("rr"), "peakRank": p.get("peakRank")}, parties))
+    side = data.get("side")
+    return {"id": mid, "map": _ovl_map(data.get("map")).get("name") or "",
+            "mode": _ovl_queue_name(data.get("queue"), hb.get("mode")) if (data.get("queue") or hb.get("mode")) else "",
+            "sideText": _ovl_tr(strings, "side_attack" if side == "attack" else "side_defense") if side else "",
+            "il": _ovl_il_chip(strings, mid), "allies": _ovl_sort(allies), "enemies": _ovl_sort(enemies)}
+
+
+def _ovl_board():
+    mid = _game["matchId"]
+    hb = _ovl_heartbeat("INGAME")
+    hbp = hb.get("players") or {}
+    roster = _game_roster if (mid and _game_roster["match"] == mid and _game_roster["players"]) else None
+    if not roster and not hbp:
+        return None
+    me = _account["puuid"] or hb.get("me")
+    parties = _ovl_parties(mid)
+    allies, enemies = [], []
+    if roster:
+        for p in roster["players"]:
+            row = _ovl_row(p["puuid"], p["puuid"] == me, {"agent": p.get("agent")}, hbp.get(p["puuid"]), parties)
+            (allies if p.get("ally") else enemies).append(row)
+        queue, map_path = roster.get("queue"), roster.get("map")
+    else:
+        my_team = (hbp.get(me) or {}).get("team")
+        for pu, p in hbp.items():
+            row = _ovl_row(pu, pu == me, {}, p, parties)
+            (allies if (p.get("team") == my_team and my_team) or pu == me else enemies).append(row)
+        queue, map_path = "", None
+    ffa = str(queue or "").lower() == "deathmatch" or (len(allies) <= 1 and len(enemies) > 5)
+    if ffa:
+        allies, enemies = allies + enemies, []
+    return {"id": mid, "map": _ovl_map(map_path).get("name") or "", "ffa": ffa,
+            "mode": _ovl_queue_name(queue, hb.get("mode")) if (queue or hb.get("mode")) else "",
+            "allies": _ovl_sort(allies), "enemies": _ovl_sort(enemies)}
+
+
+def _ovl_grade(r):
+    if not isinstance(r, (int, float)):
+        return None
+    return "S" if r >= 1.30 else "A" if r >= 1.12 else "B" if r >= 0.95 else "C" if r >= 0.80 else "D"
+
+
+def _ovl_rr_get(mid):
+    """Eigene RR-Aenderung des Matches (einmal competitiveupdates, ein paar Versuche -
+    Riot traegt das Match dort erst kurz nach dem Ende ein)."""
+    st = _ovl_rr
+    if st["match"] != mid:
+        st.update(match=mid, data=None, tries=0, next=0.0, busy=False)
+    if st["data"] is not None or st["busy"] or st["tries"] >= 4 or time.time() < st["next"]:
+        return st["data"]
+    st["busy"] = True
+
+    def run():
+        try:
+            me = get_auth()["puuid"]
+            status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=3"
+                                       "&queue=competitive" % me)
+            hit = next((x for x in (j or {}).get("Matches") or [] if x.get("MatchID") == mid), None) \
+                if status == 200 and isinstance(j, dict) else None
+            if hit and _ovl_rr["match"] == mid and isinstance(hit.get("TierAfterUpdate"), int):
+                _ovl_rr["data"] = {"earned": hit.get("RankedRatingEarned"), "tier": hit.get("TierAfterUpdate"),
+                                   "rr": hit.get("RankedRatingAfterUpdate"), "before": hit.get("TierBeforeUpdate")}
+        except Exception:
+            pass
+        finally:
+            _ovl_rr.update(tries=_ovl_rr["tries"] + 1, next=time.time() + 20.0, busy=False)
+
+    threading.Thread(target=run, daemon=True).start()
+    return None
+
+
+def _ovl_result(strings):
+    if _game["state"] in ("PREGAME", "INGAME"):
+        return None
+    data = _report_current()
+    if not data or not data.get("matchId") or data["matchId"] == _ovl["dismissed"]:
+        return None
+    if time.time() - float(data.get("createdAt") or 0) > OVL_RESULT_MAX_AGE:
+        return None
+    me = next((p for p in data.get("players") or [] if p.get("me")), None)
+    if not me:
+        return None
+    mid, queue = data["matchId"], str(data.get("queue") or "")
+    rating = me.get("rating")
+    perf = ""
+    if isinstance(rating, (int, float)):
+        pct = int(round((rating - 1) * 100))
+        perf = (_ovl_tr(strings, "report_perf_above", n=pct) if pct >= 2 else
+                _ovl_tr(strings, "report_perf_below", n=-pct) if pct <= -2 else _ovl_tr(strings, "report_perf_even"))
+    mapinfo = _ovl_map(data.get("map"))
+    mapline = mapinfo.get("name") or ""
+    if isinstance(data.get("durationMs"), (int, float)) and data["durationMs"] > 0:
+        mapline = (mapline + "  ·  " if mapline else "") + "%d min" % round(data["durationMs"] / 60000.0)
+    stats = [["K / D / A", "%s / %s / %s" % (me.get("kills", 0), me.get("deaths", 0), me.get("assists", 0))]]
+    if isinstance(me.get("acs"), (int, float)):
+        stats.append(["ACS", "%d" % round(me["acs"])])
+    if isinstance(me.get("hs"), (int, float)):
+        stats.append(["HS", "%d %%" % round(me["hs"])])
+    if isinstance(me.get("adr"), (int, float)):
+        stats.append(["ADR", "%d" % round(me["adr"])])
+    elif isinstance(me.get("kd"), (int, float)):
+        stats.append(["K/D", "%.2f" % me["kd"]])
+    rr = _ovl_rr_get(mid) if queue == "competitive" else None
+    return {"id": mid, "result": data.get("result"), "score": data.get("score") or {},
+            "map": mapline, "mapImg": _ovl_img(mapinfo.get("img")) if mapinfo.get("img") else None,
+            "mode": _ovl_queue_name(queue), "agentImg": _ovl_agent_img(me.get("agent")),
+            "grade": _ovl_grade(rating), "perf": perf, "mvp": me.get("mvp"), "stats": stats,
+            "rr": dict(rr, img=_ovl_rank_img(rr.get("tier"))) if rr else None}
+
+
+def _ovl_ask():
+    with _il_lock:
+        if not (_il["on"] and _il["status"] == "ask"):
+            return None
+        ask_at, agent, name = _il["askAt"], _il["agent"], _il["name"]
+    with _il_popup_lock:
+        popup = _il_popup["proc"]
+    if ask_at == _ovl["askHidden"] or (popup and popup.poll() is None):
+        return None             # weggeklickt bzw. das alte Fenster (il_popup.py) fragt schon
+    return {"id": ask_at, "name": name or "Agent", "img": _ovl_agent_img(agent), "skipN": IL_FREE_SKIP}
+
+
+# ---- Vorschau (Einstellungen -> "Vorschau zeigen") ----
+_OVL_SAMPLE = (  # Agent, Name, Rang, RR, Peak, Level, Party
+    ("add6443a-41bd-e414-f6ad-e58d267f4e95", None, 16, 47, 19, 213, 1),
+    ("320b2a48-4d9b-a075-30f1-1f93a9b638fa", "Nova#1337", 17, 12, 17, 88, 1),
+    ("8e253930-4c05-31dd-1b6c-968525494517", "Atlas#777", 14, 81, 21, 340, 0),
+    ("1e58de9c-4950-5125-93e9-a0aee9f98746", "Mango#GG", 12, 3, 14, 41, 0),
+    ("569fdd95-4d10-43ab-ca70-79becc718b46", "Echo#404", 15, 66, 15, 152, 0),
+    ("f94c3b30-42be-e959-889c-5aa313dba261", "Raze Main#TR1", 19, 66, 21, 156, 2),
+    ("a3bfb853-43b2-7238-a4f1-ad90e9e46bcc", "Reyna Diff#KR", 21, 15, 22, 402, 0),
+    ("9f0d8ba9-4140-b941-57d3-a7ad57c6b417", "Brim#smoke", 16, 20, 16, 220, 2),
+    ("eb93336a-449b-9c1b-0a54-a891f7921d69", "phoenix#1", 14, 50, 16, 63, 0),
+    ("117ed9e3-49f3-6512-3ccf-0cada7e3823b", "Cypher#cam", 17, 90, 18, 97, 0),
+)
+
+
+def _ovl_preview_step(now):
+    t = now - _ovl["previewAt"]
+    if t < 0:
+        return None
+    for name, dur in OVL_PREVIEW:
+        if t < dur:
+            return name
+        t -= dur
+    return None
+
+
+def _ovl_preview_data(step, strings):
+    me_name = _self_name.get("name") or "RankYoinker#DEMO"
+    rows = []
+    for i, (aid, name, tier, rr, peak, level, party) in enumerate(_OVL_SAMPLE):
+        rows.append({"name": name or me_name, "hidden": False, "agent": (_vapi["agents"].get(aid) or {}).get("name") or "",
+                     "agentImg": _ovl_agent_img(aid), "locked": i != 2, "hover": i == 2, "me": i == 0, "tier": tier,
+                     "rr": rr, "peak": peak, "level": level, "party": party, "rankImg": _ovl_rank_img(tier),
+                     "kd": round(0.8 + (i * 37 % 9) / 10.0, 2), "hs": 14 + (i * 7) % 18})
+    pid = "preview-%d" % int(_ovl["previewAt"])
+    ascent = _ovl_map("/game/maps/ascent/ascent")
+    if step == "pregame":
+        allies = [dict(r, kd=None, hs=None) for r in rows[:5]]
+        return {"pregame": {"id": pid, "map": ascent.get("name") or "Ascent", "mode": "Competitive",
+                            "sideText": _ovl_tr(strings, "side_attack"),
+                            "il": {"text": _ovl_tr(strings, "ovl_il_in", name=rows[0]["agent"] or "Jett", n=7)},
+                            "allies": allies, "enemies": []}}
+    if step == "board":
+        board = [dict(r, hover=False, locked=True) for r in rows]
+        return {"board": {"id": pid, "map": ascent.get("name") or "Ascent", "mode": "Competitive", "ffa": False,
+                          "allies": _ovl_sort(board[:5]), "enemies": _ovl_sort(board[5:])}}
+    agent = rows[0]["agent"] or "Jett"
+    return {"result": {"id": pid, "result": "win", "score": {"ally": 13, "enemy": 9},
+                       "map": (ascent.get("name") or "Ascent") + "  ·  34 min",
+                       "mapImg": _ovl_img(ascent.get("img")) if ascent.get("img") else None, "mode": "Competitive",
+                       "agentImg": rows[0]["agentImg"], "grade": "A", "perf": _ovl_tr(strings, "report_perf_above", n=18),
+                       "mvp": "team", "stats": [["K / D / A", "21 / 14 / 6"], ["ACS", "268"], ["HS", "24 %"], ["ADR", "151"]],
+                       "rr": {"earned": 18, "tier": 16, "rr": 47, "before": 15, "img": _ovl_rank_img(16)}},
+            "ask": {"id": pid, "name": agent, "img": rows[0]["agentImg"], "skipN": IL_FREE_SKIP}}
+
+
+def ovl_preview(local=True):
+    if not local:
+        return {"ok": False, "error": "Nur am PC selbst möglich."}
+    if not ovl_available():
+        return {"ok": False, "error": "unavailable"}
+    _vapi_ensure()
+    _ovl["previewAt"] = time.time()
+    _ovl["crashes"] = []                    # bewusst ausprobiert -> wieder starten duerfen
+    _ovl_wake.set()
+    record_feature("game_overlay_preview")
+    return {"ok": True, "seconds": int(sum(d for _, d in OVL_PREVIEW))}
+
+
+# ---- Was das Overlay abfragt / meldet ----
+def ovl_state():
+    now = time.time()
+    _ovl["seen"] = now
+    s = ovl_settings()
+    lang = _heartbeat_lang()
+    strings = _ovl_strings(lang)
+    _vapi_ensure()
+    out = {"ok": True, "v": 1, "settings": s, "lang": lang, "strings": strings, "phase": _game["state"],
+           "preview": None, "pregame": None, "board": None, "result": None, "ask": None}
+    step = _ovl_preview_step(now)
+    if step:
+        out["preview"] = step
+        out.update(_ovl_preview_data(step, strings))
+        return out
+    if not s["on"]:
+        return out
+    for key, want, fn in (("pregame", s["pregame"] and _game["state"] == "PREGAME", lambda: _ovl_pregame(strings)),
+                          ("board", s["board"] and _game["state"] == "INGAME", _ovl_board),
+                          ("result", s["result"], lambda: _ovl_result(strings)),
+                          ("ask", True, _ovl_ask)):
+        if not want:
+            continue
+        try:
+            out[key] = fn()
+        except RiotError:
+            pass
+        except Exception as e:
+            report_error("game-overlay", e)
+    return out
+
+
+def ovl_action(body):
+    body = body if isinstance(body, dict) else {}
+    act = body.get("action")
+    if act == "il":
+        with _il_lock:
+            cur = _il["askAt"]
+        if body.get("id") is not None and body.get("id") != cur:
+            return {"ok": False, "error": "stale"}     # Vorschau oder schon eine neue Frage
+        return instalock_answer(str(body.get("answer") or ""))
+    if act == "dismiss":
+        if body.get("kind") == "result":
+            _ovl["dismissed"] = str(body.get("id") or "")
+        elif body.get("kind") == "ask":
+            _ovl["askHidden"] = body.get("id")
+        return {"ok": True}
+    if act == "open":
+        _ovl["dismissed"] = str(body.get("id") or "")
+        threading.Thread(target=open_overlay_in_browser, daemon=True).start()
+        record_feature("game_overlay_open_report")
+        return {"ok": True}
+    return {"ok": False, "error": "Unbekannte Aktion."}
+
+
+def _ovl_alive():
+    proc = _ovl["proc"]
+    return bool(proc and proc.poll() is None and time.time() - _ovl["seen"] < OVL_ALIVE)
+
+
+# ---- Prozess ----
+def _ovl_err_tail():
+    tail = ""
+    try:
+        with open(OVL_ERR, encoding="utf-8", errors="replace") as fh:
+            tail = fh.read()[-600:]
+        os.remove(OVL_ERR)
+    except OSError:
+        pass
+    return tail.strip()
+
+
+def _ovl_should_run(now):
+    if now - _ovl["previewAt"] < sum(d for _, d in OVL_PREVIEW) + 2:
+        return True
+    # Zustand vom _game_watcher (alle 5 s, prueft game_ready) - hier kein eigenes tasklist
+    return ovl_settings()["on"] and _game["state"] in ("MENUS", "PREGAME", "INGAME")
+
+
+def _ovl_start(now):
+    try:
+        _save_json(OVL_CFG, {"port": PORT, "token": _ovl["token"], "parentPid": os.getpid(), "errFile": OVL_ERR})
+        exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+        if not os.path.exists(exe):
+            exe = sys.executable
+        _ovl.update(stopping=False, seen=0.0, stopAt=0.0)
+        _ovl["proc"] = subprocess.Popen([exe, OVL_FILE, OVL_CFG], cwd=BASE, creationflags=CREATE_NO_WINDOW)
+    except Exception as e:
+        _ovl["crashes"].append(now)
+        report_error("game-overlay", e)
+
+
+def _ovl_stop():
+    proc = _ovl["proc"]
+    _ovl["stopping"] = True
+    if proc and proc.poll() is None:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+
+
+def _ovl_tick(now):
+    if not ovl_available():
+        return
+    proc = _ovl["proc"]
+    if proc and proc.poll() is not None:
+        code = proc.returncode
+        _ovl["proc"] = proc = None
+        tail = _ovl_err_tail()
+        if not _ovl["stopping"] and (code != 0 or tail):
+            if code != 0:
+                _ovl["crashes"].append(now)
+            report_error("game-overlay", RuntimeError("Overlay beendet mit Code %s %s" % (code, tail)))
+    if _ovl_should_run(now):
+        _ovl["stopAt"] = 0.0
+        if not proc:
+            _ovl["crashes"] = [t for t in _ovl["crashes"] if now - t < 600]
+            if len(_ovl["crashes"]) < OVL_CRASHES:
+                _ovl_start(now)
+    elif proc:
+        if not _ovl["stopAt"]:
+            _ovl["stopAt"] = now + OVL_STOP_GRACE
+        elif now >= _ovl["stopAt"]:
+            _ovl_stop()
+
+
+def _ovl_watcher():
+    while True:
+        _ovl_wake.wait(2.0)
+        _ovl_wake.clear()
+        try:
+            _ovl_tick(time.time())
+        except Exception as e:
+            report_error("game-overlay", e)
 
 
 # ============================ Account-Wechsel erkennen ============================
@@ -9193,6 +9886,15 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": False, "error": "Anfrage nicht von dieser Seite - abgelehnt."}, 403)
         return False
 
+    def _ovl_check(self):
+        """Nur das Spiel-Overlay (game_overlay.py): vom PC selbst und mit dem Token, das der
+        Dienst ihm beim Start in DATA_DIR/game-overlay.json mitgibt."""
+        token = self.headers.get("X-RY-Ovl") or ""
+        if _is_local(self._client_ip()) and token and hmac.compare_digest(token, _ovl["token"]):
+            return True
+        self._json({"ok": False, "error": "forbidden"}, 403)
+        return False
+
     def _local_only(self):
         """Kopplung verwalten und sicherheitskritische PC-Aktionen (Self-
         Update!) duerfen nur vom PC selbst UND von unserer eigenen Seite aus
@@ -9334,6 +10036,15 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(instalock_disarm)
         elif path == "/api/instalock/answer":
             self._safe(lambda: instalock_answer(str(body.get("answer") or "")))
+        elif path == "/api/ovl/action":
+            if self._ovl_check():
+                self._safe(lambda: ovl_action(body))
+        elif path == "/api/ovl/settings":
+            if self._local_only():
+                self._safe(lambda: set_ovl_settings(body))
+        elif path == "/api/ovl/preview":
+            if self._local_only():
+                self._safe(ovl_preview)
 
         elif path == "/api/lol/queue/setQueue":
             self._safe(lambda: lol_queue_action("setQueue", body))
@@ -9592,7 +10303,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 channel, perf = "stable", None
             self._json({"ok": True, "updateChannel": channel if channel == "dev" else "stable",
-                        "perfMode": perf if isinstance(perf, bool) else None})
+                        "perfMode": perf if isinstance(perf, bool) else None,
+                        # Spiel-Overlay (2.5.5-dev2): Fenster ueber VALORANT, nur unter Windows
+                        "gameOverlay": ovl_settings(), "gameOverlayAvailable": ovl_available()})
 
         elif path == "/api/session":
             try:
@@ -9666,6 +10379,10 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/instalock":
             self._json(instalock_state())
+
+        elif path == "/api/ovl/state":
+            if self._ovl_check():
+                self._safe(ovl_state)
 
         elif path == "/api/gamestate":
             # Was Riot sagt — unabhängig davon, was vry.exe gerade anzeigt
@@ -10153,6 +10870,8 @@ if __name__ == "__main__":
     # einen Neustart des Dienstes.
     _il_restore()
     threading.Thread(target=_instalock_watcher, daemon=True).start()
+    # Spiel-Overlay (game_overlay.py): laeuft, solange VALORANT offen ist
+    threading.Thread(target=_ovl_watcher, daemon=True).start()
     # League of Legends: automatisches Annehmen der Spielfindung, unabhängig
     # vom VALORANT-Zweig oben — gleiches Prinzip wie der Instalock.
     _lol_cfg_restore()

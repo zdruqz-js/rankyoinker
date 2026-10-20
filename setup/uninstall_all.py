@@ -267,7 +267,8 @@ def main():
         "powershell", "-NoProfile", "-Command",
         "Get-CimInstance Win32_Process | Where-Object { "
         "($_.Name -eq 'pythonw.exe' -or $_.Name -eq 'python.exe') -and "
-        "$_.CommandLine -like '*vry_log_server*' } | ForEach-Object { "
+        "($_.CommandLine -like '*vry_log_server*' -or $_.CommandLine -like '*game_overlay.py*' -or "
+        "$_.CommandLine -like '*il_popup.py*') } | ForEach-Object { "
         "Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
     ])
     print("      erledigt.")
