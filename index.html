@@ -3932,19 +3932,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     }
   }
 
-  // Der Status-Chip ("Offline"/"Online") in der Sidebar ist entfernt worden -
-  // refreshStatusChip() bleibt als No-Op stehen, weil setConnState() und der
-  // League-Abschnitt weiter unten es an mehreren Stellen aufrufen.
-  // Der Status-Chip ("Offline"/"Online") ist entfernt worden - refreshStatusChip()
-  // bleibt als No-Op stehen, weil setConnState() und der League-Abschnitt weiter
-  // unten es an mehreren Stellen aufrufen.
-  function refreshStatusChip(){}
-
   let connStateInit = false, connToastTimer = null, connDropShown = false, powerChanges = 0;
   function setConnState(state){
     const prev = connState;
     connState = state;
-    refreshStatusChip();
     // Nur echte Wechsel melden (ws.onclose feuert im Offline-Betrieb im Sekundentakt).
     // Wird RankYoinker gestartet oder beendet, meldet das schon der Start/Stopp-
     // Hinweis - "Verbindung getrennt"/"Verbunden" kam dann jedes Mal doppelt.
@@ -8932,7 +8923,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const shown = gameOverride || activeGame;
     document.body.classList.toggle('lol-mode', shown === 'league');
     requestAnimationFrame(() => { movePill(); moveLolPill(); });
-    refreshStatusChip();
     if(shown === 'league') startLolPoll(); else stopLolPoll();
   }
   document.querySelectorAll('.gsw-btn').forEach(btn => {
@@ -9009,7 +8999,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     try{ gs = await api('/api/lol/gamestate'); }catch(e){ gs = {state:'OFFLINE'}; gsFailed = true; }
     const state = gs.state || 'OFFLINE';
     lolLastState = state;
-    refreshStatusChip();
     // Erst alles anzeigen, sobald der League-Client wirklich läuft - bis dahin
     // ein eigenes Overlay, genau wie bei Valorant über #statusOverlay.
     document.getElementById('lolStatusOverlay').classList.toggle('open', state === 'OFFLINE');
@@ -11047,7 +11036,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.5-dev9";
+const CURRENT_VERSION = "2.5.5-dev10";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {

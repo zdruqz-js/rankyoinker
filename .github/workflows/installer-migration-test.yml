@@ -73,6 +73,9 @@ jobs:
           # --- 1. alte Version ---
           Install (Get-ChildItem old\*.exe)[0].FullName
           DumpKeys "alt"
+          # Bis 2.5.4 registriert die Einrichtung die Browser-Protokolle vry-start:// / vry-stop://
+          $proto = "HKCU:\Software\Classes\vry-start", "HKCU:\Software\Classes\vry-stop"
+          Write-Host "alte Version: Browser-Protokolle registriert = $((Test-Path $proto) -join ',')"
           # Ab 2.4.2 liegt schon die alte Version in Program Files - dann ist es ein
           # normales Update (z. B. 2.4.9 -> 2.5.0) ohne Umzug aus ProgramData.
           $pfOld = (Test-Path "$new\vry_log_server.py") -and -not (Test-Path "$old\vry_log_server.py")
@@ -94,6 +97,8 @@ jobs:
           Check (Test-Path "$new\pythonw.exe") "pythonw.exe in Program Files"
           if (Test-Path "$new\README.txt") {
             Check (-not (Test-Path "$new\LIESMICH.txt")) "alte deutsche LIESMICH.txt entfernt (seit 2.5.5 README.txt)"
+            Check (-not ((Test-Path "$new\start_vry_hidden.vbs") -or (Test-Path "$new\stop_vry_hidden.vbs"))) "alte start/stop_vry_hidden.vbs entfernt"
+            Check (-not ((Test-Path $proto) -contains $true)) "alte Browser-Protokolle vry-start/vry-stop entfernt"
           }
           if (-not $pfOld) {
             Check (-not (Test-Path "$old\vry_log_server.py")) "Programmdateien aus ProgramData entfernt"
@@ -166,6 +171,9 @@ jobs:
           Check (-not (Test-Path $old)) "frische Installation legt nichts in ProgramData an"
           if (Test-Path "$new\open_app.vbs") {
             Check ((Test-Path $one) -and -not (Test-Path $sm)) "frische Installation: genau eine Startmenue-Verknuepfung"
+          }
+          if (Test-Path "$new\README.txt") {
+            Check (-not ((Test-Path $proto) -contains $true)) "frische Installation registriert keine Browser-Protokolle"
           }
 
           if ($fail) { throw "$fail Pruefung(en) fehlgeschlagen" }

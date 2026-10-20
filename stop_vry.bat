@@ -4,7 +4,7 @@ rem Overlay-Seite ausliefert). Danach ist http://vry bzw.
 rem http://localhost:1101 nicht mehr erreichbar und auch die Automatik
 rem "VALORANT an -> vRY an" ist aus, bis wieder start_vry.vbs laeuft.
 rem
-rem Nur vRY beenden und die Seite erreichbar lassen: stop_vry_hidden.vbs
+rem Normal beendet man RankYoinker ueber das Tray-Symbol ("Programm schliessen").
 
 echo Beende vRY und den Log-Server...
 

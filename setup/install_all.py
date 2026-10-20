@@ -11,8 +11,8 @@ mehr fuer netsh/reg) und echten Exceptions vermeidet diese ganze Klasse von
 Fehlern. Das eingebettete Python (python.exe direkt neben diesem Skript)
 macht das ohne zusaetzliche Laufzeit-Abhaengigkeit moeglich.
 
-Macht dasselbe wie vorher:
-  1. Start/Stop-Buttons der Website        (Registry HKCU, kein Admin)
+Schritte:
+  1. Alte Browser-Protokolle vry-start/vry-stop entfernen (Registry HKCU, kein Admin)
   2. Autostart des Log-Servers              (Startordner, kein Admin)
   3. Kurze Adressen http://vry und http://rankyoinker + Firewall-Freigabe fuers Handy
                                              (hosts-Datei/Firewall, braucht Admin)
@@ -181,28 +181,29 @@ def step0_check_python():
     return ok
 
 
-def step1_registry_buttons():
-    log("Schritt 1/4: Registry-Buttons startet")
-    wscript = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "wscript.exe")
-    start_vbs = os.path.join(APPDIR, "start_vry_hidden.vbs")
-    stop_vbs = os.path.join(APPDIR, "stop_vry_hidden.vbs")
+def _delete_key_tree(root, path):
+    """Registry-Schluessel samt Unterschluesseln loeschen (winreg kann nur leere Schluessel)."""
+    with winreg.OpenKey(root, path, 0, winreg.KEY_ALL_ACCESS) as k:
+        while True:
+            try:
+                sub = winreg.EnumKey(k, 0)
+            except OSError:
+                break
+            _delete_key_tree(root, path + "\\" + sub)
+    winreg.DeleteKey(root, path)
 
-    def register(protocol, target_vbs):
-        key_path = r"Software\Classes\%s" % protocol
-        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as k:
-            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "URL:vRY Protokoll (%s)" % protocol)
-            winreg.SetValueEx(k, "URL Protocol", 0, winreg.REG_SZ, "")
-        cmd_path = key_path + r"\shell\open\command"
-        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_path) as k:
-            command = '"%s" //B "%s"' % (wscript, target_vbs)
-            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, command)
 
-    try:
-        register("vry-start", start_vbs)
-        register("vry-stop", stop_vbs)
-        log("  Registry-Buttons erledigt.")
-    except OSError as e:
-        log("  FEHLER bei Registry-Buttons: %s" % e)
+def step1_remove_old_buttons():
+    """Bis 2.5.4 wurden die Browser-Protokolle vry-start:// und vry-stop:// fuer Start/Stop-Knoepfe
+    auf der Seite registriert. Die Knoepfe gibt es lange nicht mehr - die Protokolle waren nur noch
+    eine Hintertuer (jede Webseite haette RankYoinker per Link beenden koennen). Beim Update weg damit."""
+    log("Schritt 1/4: alte Browser-Protokolle (vry-start/vry-stop) entfernen")
+    for name in ("vry-start", "vry-stop"):
+        try:
+            _delete_key_tree(winreg.HKEY_CURRENT_USER, r"Software\Classes\%s" % name)
+            log("  %s entfernt" % name)
+        except OSError:
+            pass
     log("Schritt 1/4: fertig")
 
 
@@ -435,7 +436,7 @@ def main():
         print()
 
         no_py = not step0_check_python()
-        step1_registry_buttons()
+        step1_remove_old_buttons()
         lnk = step2_autostart()
         no_admin, no_fw = step3_hosts_and_firewall()
         step4_start_server(lnk, no_py)
@@ -452,8 +453,8 @@ def main():
             print("  Handy im selben WLAN: NICHT eingerichtet (Firewall fehlt).")
         else:
             print("  Handy im selben WLAN: Handy-Symbol auf der Seite -> QR-Code scannen.")
-        print("  vRY selbst startest du ueber den Button auf der Seite")
-        print("  oder mit start_vry.vbs im Hauptordner.")
+        print("  RankYoinker startet mit Windows von selbst - oeffnen ueber die")
+        print("  Verknuepfung \"RankYoinker\", beenden ueber das Tray-Symbol.")
         print()
 
         log("=== install_all.py fertig, exit 0 ===")

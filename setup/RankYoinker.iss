@@ -10,8 +10,8 @@
 ;   1. alle Programmdateien nach C:\Program Files\RankYoinker kopiert
 ;      (bis 2.4.1 ProgramData, siehe DefaultDirName unten; Laufzeitdaten
 ;      liegen seit 2.3.14 ohnehin in %LOCALAPPDATA%\RankYoinker),
-;   2. danach automatisch setup\install_all.py ausführt (Start/Stop-
-;      Buttons, Autostart des Log-Servers, http://vry + Firewall-
+;   2. danach automatisch setup\install_all.py ausführt (Autostart
+;      des Log-Servers, http://vry + Firewall-
 ;      Freigabe fürs Handy - siehe setup\README.txt),
 ;   3. beim Deinstallieren setup\uninstall_all.py ausführt, damit
 ;      nichts (Autostart, Firewall-Regeln, hosts-Eintrag) zurückbleibt.
@@ -22,10 +22,9 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev9"
+#define MyAppVersion "2.5.5-dev10"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
-#define MyAppExeName "start_vry.vbs"
 
 [Setup]
 AppId={{8F1E9C3A-2B44-4E1A-9C7D-RANKYOINKER1}}
@@ -194,9 +193,7 @@ Source: "..\lang\*"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs 
 Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start_vry.vbs"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\start_vry_hidden.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\stop_vry.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\stop_vry_hidden.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "rankyoinker.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "install_all.py"; DestDir: "{app}\setup"; Flags: ignoreversion
@@ -215,6 +212,9 @@ Source: "VRY-LICENSE.txt"; DestDir: "{app}"; DestName: "LICENSE-vRY.txt"; Flags:
 Type: filesandordirs; Name: "{group}"
 ; Deutsche Kurzanleitung bis 2.5.4 - seit 2.5.5 README.txt (Englisch, das Programm ist international)
 Type: files; Name: "{app}\LIESMICH.txt"
+; Skripte der alten Browser-Protokolle vry-start:// / vry-stop:// (bis 2.5.4, siehe install_all.py)
+Type: files; Name: "{app}\start_vry_hidden.vbs"
+Type: files; Name: "{app}\stop_vry_hidden.vbs"
 
 [Icons]
 ; Seit 2.5.5 nur EINE Verknuepfung "RankYoinker" (Startmenue und optional Desktop): oeffnet die Seite im
@@ -224,8 +224,8 @@ Name: "{autoprograms}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: "
 Name: "{autodesktop}\RankYoinker"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\open_app.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\rankyoinker.ico"; Tasks: desktopicon
 
 [Run]
-; Führt die vorhandene, bereits erprobte Einrichtung aus: Start/Stop-
-; Buttons, Autostart, http://vry + Firewall (fragt bei Bedarf selbst
+; Führt die vorhandene, bereits erprobte Einrichtung aus: Autostart,
+; http://vry + Firewall (fragt bei Bedarf selbst
 ; nach Adminrechten, siehe install_all.py). Das Skript wartet nirgends
 ; auf einen Tastendruck - es läuft komplett durch und beendet sich von
 ; selbst, daher "runhidden": kein aufblitzendes Konsolenfenster mehr

@@ -4,7 +4,7 @@ Siehe install_all.py fuer die Begruendung des Wechsels von Batch auf Python.
 
 Macht rueckgaengig, was install_all.py eingerichtet hat:
   1. beendet vry.exe und den Log-Server
-  2. entfernt die Start/Stop-Buttons (Registry, HKCU)
+  2. entfernt die alten Browser-Protokolle vry-start/vry-stop (Registry, HKCU)
   3. entfernt den Autostart                (Startordner)
   4. entfernt die hosts-Eintraege "vry"/"rankyoinker" und die Firewall-Freigaben (braucht Admin)
 Die Programmdateien selbst bleiben liegen.
@@ -151,7 +151,7 @@ def adminstep():
 
 
 def remove_registry_buttons():
-    print("[2/4] Entferne die Start/Stop-Buttons...")
+    print("[2/4] Entferne alte Browser-Protokolle (vry-start/vry-stop)...")
     rest = False
     for name in ("vry-start", "vry-stop"):
         try:

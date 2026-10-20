@@ -3,8 +3,7 @@
 Liefert an index.html:
   /log      Konsolen-Log von vry.exe + Ladefortschritt
   /status   laeuft vry.exe? + Ladefortschritt
-  /start    startet vry.exe unsichtbar
-  /stop     beendet ALLES (vry.exe, andere Log-Server, sich selbst)
+  /shutdown beendet ALLES (vry.exe, andere Log-Server, sich selbst; POST, fuer stop_vry.bat)
   /api/session          Auth-Status, eigene puuid, Region
   /api/kda?puuids=...   K/D/A aus dem letzten Match je Spieler
   /api/player?puuid=..  ausfuehrliche Statistik ueber die letzten Matches
@@ -446,14 +445,10 @@ def _kill_other_servers():
 
 
 def stop_vry_only():
-    """Beendet vry.exe samt Kindprozessen und doppelte Log-Server.
+    """Beendet vry.exe samt Kindprozessen und doppelte Log-Server (Teil von
+    stop_everything(); der Prozess selbst beendet sich erst danach).
 
-    Dieser Prozess laeuft bewusst WEITER: Er liefert die Seite aus
-    (http://localhost:1101 bzw. http://vry). Wuerde er sich mitbeenden,
-    waere die Seite danach nicht mehr erreichbar und der Start-Button
-    damit unbenutzbar.
-
-    Mehrfaches Klicken ist harmlos: Der Stopp-Wunsch wird gemerkt, der
+    Mehrfacher Aufruf ist harmlos: Der Stopp-Wunsch wird gemerkt, der
     Watchdog startet danach nichts mehr von selbst.
     """
     with _proc_lock:
@@ -525,7 +520,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.5-dev9"
+APP_VERSION = "2.5.5-dev10"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -10211,11 +10206,8 @@ class Handler(BaseHTTPRequestHandler):
         # Als POST verschickt kein Browser das Cookie mehr cross-site (Lax
         # deckt nur Top-Level-GET-Navigationen ab), was genau diese Luecke
         # schliesst (Community-Sicherheitsbericht, 2026-09-29).
-        elif path == "/start":
-            res = start_vry()
-            res.setdefault("ok", True)
-            res["running"] = vry_running() or res.get("running", False)
-            self._json(res)
+        # /start und /stop gehoerten zu den alten Start/Stop-Knoepfen der Seite und
+        # wurden seit deren Entfernung von nichts mehr aufgerufen - mit 2.5.5 raus.
         elif path == "/shutdown":
             # Alles beenden, auch dieser Dienst (nur über stop_vry.bat)
             self._json({"ok": True, "running": False, "shuttingDown": True})
@@ -10224,11 +10216,6 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             stop_everything()
-        elif path == "/stop":
-            res = stop_vry_only() or {}
-            res.setdefault("ok", True)
-            res["running"] = vry_running()
-            self._json(res)
 
         else:
             self._json({"ok": False, "error": "unbekannter Endpunkt"}, 404)
