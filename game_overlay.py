@@ -83,6 +83,13 @@ FONTS = {
     "rr": ("black", 19), "mark": ("black", 13), "brand": ("display", 13.5), "vs": ("black", 11),
 }
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+# Laufweite wie auf der Website (letter-spacing in em, negativ = enger). GDI+ kennt weder Laufweite
+# noch das Kerning der Schriften (das steht nur in GPOS) - der Text wirkte darum lockerer und unruhiger
+# als im Browser. Seit 2.5.6-dev1 setzt Gdi die Zeichen mit den mitgelieferten Schriften selbst
+# (Breiten + Kerning aus fonts/metrics.json, erzeugt mit setup/make_overlay_metrics.py).
+LETTER_SPACING = {"banner": -0.035, "big": -0.03, "grade": -0.02, "rr": -0.025, "mark": -0.02, "title": -0.025,
+                  "name": -0.02, "rank": -0.015, "value": -0.02, "btn": -0.01, "brand": -0.03, "chip": -0.005}
+METRICS_FILE = os.path.join(FONT_DIR, "metrics.json")
 # Logo (seit 2.5.5-dev5, erzeugt mit setup/make_logo_assets.py)
 LOGO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo-mark.png")
 
@@ -977,6 +984,9 @@ def _prototypes(user32, gdi32, kernel32, gdip):
             ("GdipDeleteStringFormat", [vp]),
             ("GdipDrawString", [vp, ctypes.c_wchar_p, i, vp, P(_RECTF), vp, vp]),
             ("GdipMeasureString", [vp, ctypes.c_wchar_p, i, vp, P(_RECTF), vp, P(_RECTF), vp, vp]),
+            ("GdipDrawDriverString", [vp, P(ctypes.c_uint16), i, vp, vp, P(_POINTF), i, vp]),
+            ("GdipGetCellAscent", [vp, i, P(ctypes.c_uint16)]),
+            ("GdipGetEmHeight", [vp, i, P(ctypes.c_uint16)]),
             ("GdipSaveImageToFile", [vp, ctypes.c_wchar_p, P(_GUID), vp]),
     ):
         fn = getattr(gdip, name)
@@ -1030,6 +1040,18 @@ class Gdi:
             raise OSError("GdiplusStartup fehlgeschlagen")
         self._families, self._fonts, self._fmts, self._images = {}, {}, {}, {}
         self._mcache = {}
+        # Zeichensatz selbst setzen (siehe LETTER_SPACING): Schrift-Handle -> (Familie, Groesse, Stil, Familien-Handle)
+        self._finfo, self._kcache, self._runs, self._vm = {}, {}, {}, {}
+        self.kerning, self.spacing, self.native_text = True, True, False    # Testschalter (text_test)
+        self._metrics = {}
+        try:
+            with open(METRICS_FILE, "r", encoding="utf-8") as fh:
+                self._metrics = json.load(fh)
+            for fm in self._metrics.values():
+                for st in fm.get("kern", ()):
+                    st["_cov"] = set(map(str, st["cov"]))
+        except (OSError, ValueError):
+            self._metrics = {}
         # Schriften der Website aus fonts/ - nur fuer diesen Prozess, nichts wird installiert
         self._priv = ctypes.c_void_p()
         self.private_fonts = 0
@@ -1074,6 +1096,7 @@ class Gdi:
             f = ctypes.c_void_p()
             if self.gdip.GdipCreateFont(fam, ctypes.c_float(size), style, 2, ctypes.byref(f)) == 0 and f.value:
                 font = f
+                self._finfo[f.value] = (name if private else None, float(size), style, fam)
                 break
         if font is None:
             raise OSError("Keine Schrift gefunden")
@@ -1114,8 +1137,108 @@ class Gdi:
         if hit is None:
             if len(self._mcache) > 6000:
                 self._mcache.clear()
-            hit = self._mcache[ck] = self._measure(text, font if font is not None else self.font(key, text))
+            run = self._glyph_run(key, text) if font is None else None
+            hit = self._mcache[ck] = run[1] if run else self._measure(text, font if font is not None else self.font(key, text))
         return hit
+
+    # ---- Zeichen selbst setzen (Kerning + Laufweite, siehe LETTER_SPACING) ----
+    def _kern(self, fam, m, a, b):
+        """Kerning des Paars a+b in Schrifteinheiten - Auswertung wie OpenType (erste passende Untertabelle)."""
+        ck = (fam, a, b)
+        v = self._kcache.get(ck)
+        if v is None:
+            v, sa, sb = 0, str(ord(a)), str(ord(b))
+            for st in m.get("kern", ()):
+                if sa not in st["_cov"]:
+                    continue
+                if st["t"] == 1:
+                    row = st["p"].get(sa)
+                    if row is not None and sb in row:
+                        v = row[sb]
+                        break
+                    continue
+                v = st["m"].get("%d,%d" % (st["c1"].get(sa, 0), st["c2"].get(sb, 0)), 0)
+                break
+            if len(self._kcache) > 30000:
+                self._kcache.clear()
+            self._kcache[ck] = v
+        return v
+
+    def _glyph_run(self, key, text, track_px=None):
+        """(x je Zeichen ab 0, Breite) mit Kerning und Laufweite - nur fuer die mitgelieferten Schriften
+        und nur, wenn jedes Zeichen darin steht. Sonst None (dann GDI+ wie bisher)."""
+        if not text or not self._metrics or self.native_text:
+            return None
+        font = self.font(key, text)
+        info = self._finfo.get(font.value)
+        m = self._metrics.get(info[0]) if info and info[0] else None
+        if not m:
+            return None
+        ck = (font.value, text, track_px)
+        hit = self._runs.get(ck)
+        if hit is not None:
+            return hit or None
+        adv, size = m["adv"], info[1]
+        k = size / float(m["upm"])
+        if track_px is None:
+            track_px = LETTER_SPACING.get(key, 0.0) * size if self.spacing else 0.0
+        xs, x, prev = [], 0.0, None
+        for ch in text:
+            a = adv.get(str(ord(ch)))
+            if a is None:
+                xs = None
+                break
+            if prev is not None:
+                x += track_px + (self._kern(info[0], m, prev, ch) * k if self.kerning else 0.0)
+            xs.append(x)
+            x += a * k
+            prev = ch
+        out = (xs, x) if xs is not None else False
+        if len(self._runs) > 4000:
+            self._runs.clear()
+        self._runs[ck] = out
+        return out or None
+
+    def _fit_run(self, key, text, w):
+        """Wie _glyph_run, passt aber in die Breite w (sonst mit "…" gekuerzt wie bisher GDI+)."""
+        run = self._glyph_run(key, text)
+        if run is None:
+            return None
+        if run[1] <= w + 0.5:
+            return text, run[0], run[1]
+        s = text
+        while s:
+            s = s[:-1].rstrip()
+            r = self._glyph_run(key, s + "\u2026")
+            if r is None:
+                return None
+            if r[1] <= w + 0.5:
+                return s + "\u2026", r[0], r[1]
+        return None
+
+    def _baseline(self, font):
+        """(Oberlaenge, Zeilenhoehe) in Pixeln, so wie GDI+ eine einzeilige Zeile setzt."""
+        hit = self._vm.get(font.value)
+        if hit is None:
+            _, size, style, fam = self._finfo[font.value]
+            em, asc = ctypes.c_uint16(), ctypes.c_uint16()
+            self.gdip.GdipGetEmHeight(fam, style, ctypes.byref(em))
+            self.gdip.GdipGetCellAscent(fam, style, ctypes.byref(asc))
+            layout, box = _RECTF(0, 0, 4000, 400), _RECTF()
+            self.gdip.GdipMeasureString(self._mg, "Hg", -1, font, ctypes.byref(layout),
+                                        self.fmt("l", False, True), ctypes.byref(box), None, None)
+            hit = self._vm[font.value] = (asc.value * size / float(em.value or 1), float(box.Height))
+        return hit
+
+    def _draw_run(self, g, key, text, xs, x0, y, h, brush):
+        """Zeichen an festen Positionen (DriverString): Grundlinie wie GDI+ bei mittiger Zeile."""
+        font = self.font(key, text)
+        asc, lh = self._baseline(font)
+        base = y + (h - lh) / 2.0 + asc
+        n = len(text)
+        buf = (ctypes.c_uint16 * n)(*[ord(c) for c in text])
+        pts = (_POINTF * n)(*[_POINTF(x0 + px, base) for px in xs])
+        return self.gdip.GdipDrawDriverString(g, buf, n, font, brush, pts, 1, None) == 0    # 1 = CmapLookup
 
     # ---- Bilder ----
     def image(self, path):
@@ -1174,9 +1297,18 @@ class Gdi:
         self.gdip.GdipFillPath(g, brush, path)
         self.gdip.GdipDeleteBrush(brush)
 
+    def set_text_mode(self, native=False, kerning=True, spacing=True):
+        """Nur fuer text_test: alter GDI+-Satz bzw. eigener Satz ohne Kerning/Laufweite."""
+        self.native_text, self.kerning, self.spacing = native, kerning, spacing
+        self._runs.clear()
+        self._mcache.clear()
+
     def _op(self, g, it, clips):
         gd = self.gdip
         kind = it[0]
+        if kind == "textmode":
+            self.set_text_mode(*it[1:])
+            return
         if kind == "fill":
             _, x, y, w, h, r, color, alpha = it
             if w <= 0 or h <= 0:
@@ -1219,6 +1351,10 @@ class Gdi:
             font = self.font(key, s)
             brush = ctypes.c_void_p()
             gd.GdipCreateSolidFill(_argb(color, alpha), ctypes.byref(brush))
+            run = self._glyph_run(key, s, float(track))
+            if run and self._draw_run(g, key, s, run[0], float(x), y, h, brush):
+                gd.GdipDeleteBrush(brush)
+                return
             fmt = self.fmt("l", False, True)
             cx = float(x)
             for ch in s:
@@ -1260,8 +1396,15 @@ class Gdi:
                 return
             brush = ctypes.c_void_p()
             gd.GdipCreateSolidFill(_argb(color, alpha), ctypes.byref(brush))
-            rect = _RECTF(x, y, w, h)
-            gd.GdipDrawString(g, s, -1, self.font(key, s), ctypes.byref(rect), self.fmt(align, wrap), brush)
+            fit = None if wrap else self._fit_run(key, s, w)
+            drawn = False
+            if fit:
+                s2, xs, tw = fit
+                x0 = x if align == "l" else (x + (w - tw) / 2.0 if align == "c" else x + w - tw)
+                drawn = self._draw_run(g, key, s2, xs, x0, y, h, brush)
+            if not drawn:
+                rect = _RECTF(x, y, w, h)
+                gd.GdipDrawString(g, s, -1, self.font(key, s), ctypes.byref(rect), self.fmt(align, wrap), brush)
             gd.GdipDeleteBrush(brush)
         elif kind == "image":
             _, x, y, w, h, path_, r, alpha, cover = it
@@ -1802,6 +1945,7 @@ def render_test(state_path, out_dir):
         for scale in (1.0, 1.5):
             ops = fn()
             gdi.free(gdi.render(ops, scale, os.path.join(out_dir, "%s@%sx.png" % (name, scale))))
+    text_test(gdi, m, ctx, board, out_dir)
     for lst in st.get("extraLangs") or []:
         lang = lst["lang"]
         ctx2 = {"strings": lst["strings"], "lang": lang, "preview": False}
@@ -1814,6 +1958,53 @@ def render_test(state_path, out_dir):
             if lang == "en":                    # fuer englische Schaubilder (README, Website) auch scharf
                 gdi.free(gdi.render(fn(), 1.5, os.path.join(out_dir, "%s-%s@1.5x.png" % (name, lang))))
     return 0
+
+
+def text_test(gdi, m, ctx, board, out_dir):
+    """Schriftsatz pruefen (2.5.6-dev1): text-align = alter GDI+-Satz (rot) unter dem eigenen Satz ohne
+    Kerning/Laufweite (cyan) - deckungsgleich heisst: Grundlinie und Breiten stimmen. text-look = alt
+    neben neu (Kerning + Laufweite). Dazu die Tab-Tabelle noch einmal im alten Satz (board-old)."""
+    samples = [("banner", "ASCENT", "l"), ("banner", "Lotus · Haven", "l"), ("big", "VICTORY 13:9", "l"),
+               ("title", "Keep going with Jett?", "l"), ("name", "zdruqz", "l"), ("name", "Kaiserschmarrn", "l"),
+               ("name", "AVATAR Tyrone", "l"), ("rank", "Platinum 2", "l"), ("rank", "Ascendant 1", "l"),
+               ("sub", "WR 54 % · K/D 1.12", "l"), ("sub", "47 RR · Peak Dia 2", "l"),
+               ("body", "Deutlicher Vorteil für die Gegner", "c"), ("value", "21 / 14 / 6", "l"),
+               ("rr", "+18 RR", "r"), ("btn", "Open analysis", "c"), ("chip", "Team MVP", "c"),
+               ("tag", "#EUW", "l"), ("grade", "A", "c"), ("eyebrow", "DEIN TEAM", "l"), ("label", "3W · 2L", "l")]
+    rh, bw = 40, 470
+
+    def row(ops, x, y, key, text, align, color, alpha):
+        if key in ("eyebrow", "label"):
+            ops.add("ttext", x, y, rh, text, key, color, alpha, TRACK if key == "eyebrow" else 1.2)
+        else:
+            ops.add("text", x, y, bw, rh, text, key, color, alpha, align, False)
+
+    ops = Ops(bw + 40, rh * len(samples) + 40)
+    ops.add("fill", 0, 0, ops.w, ops.h, 0, COL["bg"], 255)
+    for i, (key, text, align) in enumerate(samples):
+        y = 20 + i * rh
+        ops.add("textmode", True, True, True)
+        row(ops, 20, y, key, text, align, "#ff3b3b", 255)
+        ops.add("textmode", False, False, False)
+        row(ops, 20, y, key, text, align, "#22e6ff", 170)
+    ops.add("textmode", False, True, True)
+    for scale in (1.0, 1.5):
+        gdi.free(gdi.render(ops, scale, os.path.join(out_dir, "text-align@%sx.png" % scale)))
+    ops = Ops(2 * bw + 60, rh * len(samples) + 70)
+    ops.add("fill", 0, 0, ops.w, ops.h, 0, COL["bg"], 255)
+    ops.add("ttext", 20, 12, 20, "GDI+ (BIS 2.5.5)", "eyebrow", COL["text3"], 255, TRACK)
+    ops.add("ttext", 40 + bw, 12, 20, "NEU: KERNING + LAUFWEITE", "eyebrow", COL["accent"], 255, TRACK)
+    for i, (key, text, align) in enumerate(samples):
+        y = 46 + i * rh
+        ops.add("textmode", True, True, True)
+        row(ops, 20, y, key, text, align, COL["text"], 255)
+        ops.add("textmode", False, True, True)
+        row(ops, 40 + bw, y, key, text, align, COL["text"], 255)
+    for scale in (1.0, 1.5):
+        gdi.free(gdi.render(ops, scale, os.path.join(out_dir, "text-look@%sx.png" % scale)))
+    gdi.set_text_mode(native=True)
+    gdi.free(gdi.render(layout_board(m, ctx, board), 1.5, os.path.join(out_dir, "board-old@1.5x.png")))
+    gdi.set_text_mode()
 
 
 def smoke_test(state_path, out_dir):

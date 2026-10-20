@@ -15,6 +15,7 @@ Benutzung (fontTools noetig):
     curl -L -o intertight.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/intertight/InterTight%5Bwght%5D.ttf"
     curl -L -o geistmono.ttf  "https://raw.githubusercontent.com/google/fonts/main/ofl/geistmono/GeistMono%5Bwght%5D.ttf"
     python make_overlay_fonts.py <ordner mit den drei Dateien> ../fonts
+    python make_overlay_metrics.py ../fonts      (danach: Breiten + Kerning fuer den eigenen Satz)
 """
 import os
 import sys
