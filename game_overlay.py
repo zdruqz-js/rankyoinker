@@ -66,13 +66,15 @@ RANK_NAMES = ["Unranked", "Unranked", "Unranked", "Iron 1", "Iron 2", "Iron 3", 
               "Ascendant 3", "Immortal 1", "Immortal 2", "Immortal 3", "Radiant"]
 _RANK_SHORT = {"Platinum": "Plat", "Diamond": "Dia", "Ascendant": "Asc", "Immortal": "Imm"}
 
-# Schriftrollen: (Gewicht, Groesse in logischen Pixeln)
+# Schriftrollen: (Schnitt, Groesse in logischen Pixeln) - Schnitte wie auf der Website:
+# Inter fuer Text, Inter Tight fuer Namen/Raenge/Zahlen, Geist Mono fuer kleine Ueberschriften
 FONTS = {
-    "eyebrow": ("semibold", 10), "title": ("semibold", 15.5), "name": ("semibold", 13),
-    "tag": ("regular", 11), "sub": ("regular", 11), "rank": ("semibold", 12), "chip": ("semibold", 10.5),
-    "big": ("black", 26), "grade": ("black", 25), "value": ("semibold", 14.5), "label": ("semibold", 9),
-    "body": ("regular", 12), "btn": ("semibold", 13), "rr": ("black", 17),
+    "eyebrow": ("mono", 10), "title": ("display", 16), "name": ("display", 13),
+    "tag": ("regular", 11), "sub": ("regular", 11), "rank": ("display", 12.5), "chip": ("semibold", 10.5),
+    "big": ("black", 27), "grade": ("black", 26), "value": ("display", 15), "label": ("mono", 8.5),
+    "body": ("regular", 12), "btn": ("display", 13), "rr": ("black", 18),
 }
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 
 # Tasten fuer die Spielertabelle (virtuelle Tastencodes)
 KEYS = {"tab": 0x09, "capslock": 0x14, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "x1": 0x05, "x2": 0x06}
@@ -293,9 +295,9 @@ def _panel(m, ctx, data, pregame):
     iw = w - 2 * PAD
     eyebrow = tr(strings, "ovl_eyebrow_pregame" if pregame else "ovl_eyebrow_board")
     if data.get("mode"):
-        eyebrow += "  ·  " + upper(str(data["mode"]), lang)
+        eyebrow += " · " + upper(str(data["mode"]), lang)
     if ctx.get("preview"):
-        eyebrow = tr(strings, "ovl_preview") + "  ·  " + eyebrow
+        eyebrow = tr(strings, "ovl_preview") + " · " + eyebrow
     inner.add("text", x, y, iw - 90, 14, eyebrow, "eyebrow", COL["text3"], 255, "l", False)
     inner.add("text", x, y, iw, 14, "RANKYOINKER", "eyebrow", COL["accent"], 210, "r", False)
     title = data.get("map") or ""
@@ -375,9 +377,9 @@ def layout_card(m, ctx, res, ask, ui):
         tcol = {"win": COL["win"], "loss": COL["loss"]}.get(kind, COL["draw"])
         eyebrow = tr(strings, "ovl_eyebrow_result")
         if res.get("mode"):
-            eyebrow += "  ·  " + upper(str(res["mode"]), lang)
+            eyebrow += " · " + upper(str(res["mode"]), lang)
         if ctx.get("preview"):
-            eyebrow = tr(strings, "ovl_preview") + "  ·  " + eyebrow
+            eyebrow = tr(strings, "ovl_preview") + " · " + eyebrow
         inner.add("text", x0 + P, y0 + 14, w - 2 * P - 34, 14, eyebrow, "eyebrow", COL["text2"], 255, "l", False)
         title = upper(tr(strings, {"win": "report_victory", "loss": "report_defeat"}.get(kind, "report_draw")), lang)
         score = res.get("score") or {}
@@ -575,9 +577,16 @@ PARGB = 0x000E200B         # PixelFormat32bppPARGB
 RGB32 = 0x00022009         # PixelFormat32bppRGB
 _PNG_CLSID = (0x557CF406, 0x1A04, 0x11D3, (0x9A, 0x73, 0x00, 0x00, 0xF8, 0x1E, 0xF3, 0x2E))
 
-# Schriftfamilien je Gewicht: (Name, Stil) - Stil 1 = fett, falls es den Schnitt nicht gibt
-_FAMILIES = {"regular": (("Segoe UI", 0),), "semibold": (("Segoe UI Semibold", 0), ("Segoe UI", 1)),
-             "black": (("Segoe UI Black", 0), ("Segoe UI", 1))}
+# Schriftfamilien je Schnitt: (Name, Stil, aus fonts/?) - zuerst die mitgelieferten Schriften
+# der Website (fonts/, erzeugt mit setup/make_overlay_fonts.py), sonst Windows-Schriften.
+# Stil 1 = fett, falls es den Schnitt nicht gibt.
+_FAMILIES = {
+    "regular": (("RY Inter", 0, True), ("Segoe UI", 0, False)),
+    "semibold": (("RY Inter SemiBold", 0, True), ("Segoe UI Semibold", 0, False), ("Segoe UI", 1, False)),
+    "display": (("RY Inter Tight Bold", 0, True), ("Segoe UI", 1, False)),
+    "black": (("RY Inter Tight Black", 0, True), ("Segoe UI Black", 0, False), ("Segoe UI", 1, False)),
+    "mono": (("RY Geist Mono Medium", 0, True), ("Cascadia Mono", 0, False), ("Consolas", 0, False)),
+}
 _SCRIPT_FAMILIES = {"ko": ("Malgun Gothic", "Gulim"), "ja": ("Yu Gothic UI", "Meiryo UI", "MS UI Gothic"),
                     "zh": ("Microsoft YaHei UI", "Microsoft YaHei", "SimSun"), "th": ("Leelawadee UI", "Tahoma")}
 
@@ -690,6 +699,8 @@ def _prototypes(user32, gdi32, kernel32, gdip):
             ("GdipSetImageAttributesColorMatrix", [vp, i, wintypes.BOOL, P(_COLORMATRIX), vp, i]),
             ("GdipDisposeImageAttributes", [vp]),
             ("GdipCreateFontFamilyFromName", [ctypes.c_wchar_p, vp, P(vp)]),
+            ("GdipNewPrivateFontCollection", [P(vp)]),
+            ("GdipPrivateAddFontFile", [vp, ctypes.c_wchar_p]),
             ("GdipDeleteFontFamily", [vp]),
             ("GdipCreateFont", [vp, f, i, i, P(vp)]),
             ("GdipDeleteFont", [vp]),
@@ -754,18 +765,29 @@ class Gdi:
         if self.gdip.GdiplusStartup(ctypes.byref(tok), ctypes.byref(gsi), None) != 0:
             raise OSError("GdiplusStartup fehlgeschlagen")
         self._families, self._fonts, self._fmts, self._images = {}, {}, {}, {}
+        # Schriften der Website aus fonts/ - nur fuer diesen Prozess, nichts wird installiert
+        self._priv = ctypes.c_void_p()
+        self.private_fonts = 0
+        if self.gdip.GdipNewPrivateFontCollection(ctypes.byref(self._priv)) == 0 and os.path.isdir(FONT_DIR):
+            for fn in sorted(os.listdir(FONT_DIR)):
+                if fn.lower().endswith(".ttf") and \
+                        self.gdip.GdipPrivateAddFontFile(self._priv, os.path.join(FONT_DIR, fn)) == 0:
+                    self.private_fonts += 1
         self._mbmp, self._mg = ctypes.c_void_p(), ctypes.c_void_p()
         self.gdip.GdipCreateBitmapFromScan0(8, 8, 0, PARGB, None, ctypes.byref(self._mbmp))
         self.gdip.GdipGetImageGraphicsContext(self._mbmp, ctypes.byref(self._mg))
         self.gdip.GdipSetTextRenderingHint(self._mg, 4)
 
     # ---- Schriften ----
-    def _family(self, name):
-        if name not in self._families:
+    def _family(self, name, private=False):
+        ck = (name, private)
+        if ck not in self._families:
             fam = ctypes.c_void_p()
-            ok = self.gdip.GdipCreateFontFamilyFromName(name, None, ctypes.byref(fam)) == 0 and fam.value
-            self._families[name] = fam if ok else None
-        return self._families[name]
+            coll = self._priv if private and self._priv.value else None
+            ok = (not private or coll) and \
+                self.gdip.GdipCreateFontFamilyFromName(name, coll, ctypes.byref(fam)) == 0 and fam.value
+            self._families[ck] = fam if ok else None
+        return self._families[ck]
 
     def font(self, key, text=""):
         weight, size = FONTS.get(key, ("regular", 12))
@@ -777,11 +799,11 @@ class Gdi:
         cands = []
         if script:
             style = 0 if weight == "regular" else 1
-            cands += [(n, style) for n in _SCRIPT_FAMILIES[script]]
-        cands += list(_FAMILIES[weight]) + [("Segoe UI", 0), ("Arial", 0), ("Tahoma", 0)]
+            cands += [(n, style, False) for n in _SCRIPT_FAMILIES[script]]
+        cands += list(_FAMILIES[weight]) + [("Segoe UI", 0, False), ("Arial", 0, False), ("Tahoma", 0, False)]
         font = None
-        for name, style in cands:
-            fam = self._family(name)
+        for name, style, private in cands:
+            fam = self._family(name, private)
             if not fam:
                 continue
             f = ctypes.c_void_p()

@@ -22,7 +22,7 @@
 ; ------------------------------------------------------------------
 
 #define MyAppName "RankYoinker"
-#define MyAppVersion "2.5.5-dev2"
+#define MyAppVersion "2.5.5-dev3"
 #define MyAppPublisher "RankYoinker"
 #define MyAppURL "https://rankyoinker.de"
 #define MyAppExeName "start_vry.vbs"
@@ -186,6 +186,9 @@ Source: "..\vry_log_server.py"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\il_popup.py"; DestDir: "{app}"; Flags: ignoreversion
 ; Spiel-Overlay ueber VALORANT (2.5.5-dev2): Agentenauswahl, Tabelle per Taste, Ergebnis
 Source: "..\game_overlay.py"; DestDir: "{app}"; Flags: ignoreversion
+; Schriften der Website fuer das Spiel-Overlay (Inter, Inter Tight, Geist Mono - SIL OFL 1.1,
+; erzeugt mit setup\make_overlay_fonts.py; nur fuer das Overlay geladen, nichts wird installiert)
+Source: "..\fonts\*"; DestDir: "{app}\fonts"; Flags: ignoreversion
 ; Eingebettetes Python 3.10.11 (offizielle "embeddable" Distribution von
 ; python.org) fuer den Log-Server (vry_log_server.py) - damit braucht
 ; RankYoinker keine systemweite Python-Installation mehr. "lib" (weiter
