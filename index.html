@@ -104,7 +104,7 @@ body{
 }
 h1,h2,h3,h4{margin:0; font-family:var(--font-display); letter-spacing:-.02em;}
 img{max-width:100%; display:block;}
-/* hidden-Attribut gilt immer: Klassen mit eigenem display (z. B. .sidebar-btn) hoben es
+/* hidden-Attribut gilt immer: Klassen mit eigenem display (z. B. .set-row) hoben es
    sonst auf (so stand ein versteckter Knopf in den Einstellungen doch da). */
 [hidden]{display:none !important;}
 ::selection{background:rgba(216,184,124,.35); color:#fff;}
@@ -247,59 +247,200 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
 #sidebarToggle svg{transition:transform .6s var(--spring);}
 #sidebarToggle:hover svg{transform:rotate(75deg);}
 
-/* ================= Einstellungen (rechte Seitenleiste) ================= */
+/* ================= Einstellungen (2.5.8: Dialog mit Navigation) =================
+   Bis 2.5.7 eine Seitenleiste rechts mit großen Schalter-Karten untereinander. Jetzt ein Dialog
+   in der Mitte: links Logo + Navigation (Pille gleitet zum Bereich), rechts gruppierte Zeilen
+   (Symbol, Titel, Kurztext, Schalter rechts). Am Handy ein Sheet von unten, Bereiche als Chips. */
 .sidebar{
-  position:fixed; top:10px; right:10px; bottom:10px; z-index:300; width:360px; max-width:calc(100vw - 20px);
-  display:flex; flex-direction:column; gap:24px; padding:20px 20px 18px; overflow-y:auto;
-  border-radius:24px; border:1px solid var(--line-2);
-  background:linear-gradient(180deg, rgba(22,22,26,.92), rgba(12,12,14,.94));
+  position:fixed; inset:0; margin:auto; z-index:300; width:min(880px, calc(100vw - 48px)); height:min(610px, calc(100vh - 48px));
+  display:grid; grid-template-columns:236px minmax(0, 1fr); overflow:hidden;
+  border-radius:28px; border:1px solid var(--line-2);
+  background:linear-gradient(180deg, rgba(24,24,28,.94), rgba(11,11,13,.96));
   -webkit-backdrop-filter:blur(26px) saturate(150%); backdrop-filter:blur(26px) saturate(150%);
-  box-shadow:var(--shadow-pop);
-  transform:translateX(calc(100% + 30px)) scale(.98); opacity:.4;
-  transition:transform .55s var(--ease), opacity .4s ease; visibility:hidden;
+  box-shadow:var(--shadow-pop), 0 0 0 1px rgba(216,184,124,.05);
+  transform:translateY(18px) scale(.965); opacity:0; visibility:hidden;
+  transition:transform .55s var(--spring-soft), opacity .3s ease, visibility 0s linear .55s;
 }
-.sidebar.open{transform:none; opacity:1; visibility:visible;}
+.sidebar::before{content:""; position:absolute; inset:0 0 auto; height:1px; z-index:2; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(216,184,124,.65), transparent);}
+.sidebar::after{content:""; position:absolute; left:-120px; top:-140px; width:420px; height:340px; pointer-events:none;
+  background:radial-gradient(closest-side, rgba(216,184,124,.10), transparent); }
+.sidebar.open{transform:none; opacity:1; visibility:visible; transition:transform .55s var(--spring-soft), opacity .3s ease, visibility 0s;}
 .sidebar-overlay{
-  position:fixed; inset:0; z-index:290; background:rgba(4,4,6,.5);
-  -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+  position:fixed; inset:0; z-index:290; background:rgba(4,4,6,.62);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
   opacity:0; pointer-events:none; transition:opacity .4s ease;
 }
 .sidebar-overlay.open{opacity:1; pointer-events:auto;}
-.sidebar-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
-.sh-title h3{font-size:22px; font-weight:750; margin-top:4px;}
-.sidebar-section{display:flex; flex-direction:column; gap:10px;}
-.sidebar-section > label, .settings-pop label{
-  display:block; font-family:var(--font-mono); font-size:10.5px; font-weight:500; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--text-3);
-}
-.settings-pop{gap:18px;}
-.settings-pop .field{display:flex; flex-direction:column; gap:8px;}
-.sidebar.open .sidebar-section, .sidebar.open .sidebar-foot{animation:sheetItem .6s var(--ease) backwards;}
-/* Offenes Dropdown liegt immer über den folgenden Abschnitten */
-.sidebar-section, .settings-pop .field, .lc-field, .llb-field{position:relative;}
-.sidebar-section:has(.cdrop.open), .settings-pop .field:has(.cdrop.open), .lc-field:has(.cdrop.open), .llb-field:has(.cdrop.open), .lol-lobbybar:has(.cdrop.open){z-index:40;}
-.sidebar.open .sidebar-section:nth-of-type(2){animation-delay:.05s;}
-.sidebar.open .sidebar-section:nth-of-type(3){animation-delay:.1s;}
-.sidebar.open .sidebar-section:nth-of-type(4){animation-delay:.15s;}
-.sidebar.open .sidebar-foot{animation-delay:.2s;}
-@keyframes sheetItem{from{opacity:0; transform:translateX(22px);}}
-.sidebar-btn{
-  display:flex; align-items:center; gap:12px; width:100%; height:48px; padding:0 16px;
-  border-radius:14px; border:1px solid var(--line); background:var(--surface-2); color:var(--text);
-  font-family:var(--font-display); font-weight:600; font-size:14px; letter-spacing:-.01em;
-  cursor:pointer; text-decoration:none; transition:background .2s ease, border-color .2s ease, transform .3s var(--spring);
-}
-.sidebar-btn svg{color:var(--text-2);}
-.sidebar-btn::after{
-  content:""; margin-left:auto; width:7px; height:7px; border-right:1.6px solid var(--text-3); border-top:1.6px solid var(--text-3);
-  transform:rotate(45deg); transition:transform .3s var(--spring), border-color .2s ease;
-}
-.sidebar-btn:hover{background:var(--surface-3); border-color:var(--line-2);}
-.sidebar-btn:hover::after{transform:translateX(3px) rotate(45deg); border-color:var(--text);}
-.sidebar-btn.discord:hover svg{color:#8b9bff;}
-.sidebar-foot{margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding:14px 14px 14px 16px; border-radius:14px; background:var(--surface); border:1px solid var(--line);}
+.set-close{position:absolute; top:16px; right:16px; z-index:6;}
+/* Offenes Dropdown liegt immer über den folgenden Feldern (League-Lobby/Champ Select) */
+.lc-field, .llb-field{position:relative;}
+.lc-field:has(.cdrop.open), .llb-field:has(.cdrop.open), .lol-lobbybar:has(.cdrop.open){z-index:40;}
+
+/* ---- Navigation links ---- */
+.set-rail{position:relative; z-index:1; display:flex; flex-direction:column; gap:22px; padding:22px 14px 18px; min-height:0;
+  border-right:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.008));}
+.set-brand{display:flex; align-items:center; gap:12px; padding:0 6px;}
+.set-logo, .set-about-logo{flex:none; background:#0b0b0d var(--ry-logo) center/cover no-repeat;}
+.set-logo{width:40px; height:40px; border-radius:12px; box-shadow:0 0 0 1px var(--line-2), 0 10px 24px -10px rgba(0,0,0,.9);}
+.set-brand-t{min-width:0;}
+.set-brand h3{font-size:18px; font-weight:750; letter-spacing:-.025em; margin-top:2px;}
+.set-nav{position:relative; display:flex; flex-direction:column; gap:3px;}
+.set-nav-pill{position:absolute; left:0; top:0; width:100%; height:44px; border-radius:13px; pointer-events:none;
+  background:linear-gradient(90deg, rgba(216,184,124,.12), rgba(255,255,255,.04)); border:1px solid rgba(216,184,124,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05); opacity:0;
+  transition:transform .5s var(--spring), width .4s var(--ease), height .4s var(--ease), opacity .3s;}
+.set-nav-pill.ready{opacity:1;}
+.set-nav-btn{position:relative; z-index:1; display:flex; align-items:center; gap:11px; height:44px; padding:0 10px; border:0; border-radius:13px;
+  background:none; color:var(--text-2); font:600 13.5px var(--font-display); letter-spacing:-.005em; text-align:left; cursor:pointer;
+  white-space:nowrap; transition:color .2s ease;}
+.set-nav-btn:hover{color:var(--text);}
+.set-nav-btn.active{color:var(--text);}
+.set-nav-btn .sn-ic{flex:none; width:28px; height:28px; border-radius:9px; display:grid; place-items:center; color:var(--text-3);
+  background:rgba(255,255,255,.045); border:1px solid var(--line); transition:color .25s ease, background .35s ease, box-shadow .35s ease, border-color .35s ease;}
+.set-nav-btn:hover .sn-ic{color:var(--text-2);}
+.set-nav-btn.active .sn-ic{color:var(--accent-ink); background:var(--grad-accent); border-color:transparent; box-shadow:0 6px 16px -6px rgba(216,184,124,.75);}
+.set-nav-btn:focus-visible{outline:2px solid var(--accent-line); outline-offset:-2px;}
+.set-rail-foot{margin-top:auto; padding:0 8px; font:500 10.5px var(--font-mono); letter-spacing:.08em; color:var(--text-4);}
+
+/* ---- Inhalt rechts ---- */
+.set-main{position:relative; z-index:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:26px 30px 30px; scrollbar-width:thin;}
+.set-sec{display:none;}
+.set-sec.active{display:block;}
+.set-sec.active .set-head{animation:setIn .45s var(--ease) both;}
+.set-sec.active > :not(.set-head){animation:setIn .5s var(--ease) both; animation-delay:.05s;}
+.set-sec.active > :nth-child(3){animation-delay:.09s;}
+.set-sec.active > :nth-child(4){animation-delay:.13s;}
+@keyframes setIn{from{opacity:0; transform:translateY(10px);}}
+.set-head{margin:0 48px 20px 2px;}
+.set-head h4{font-size:24px; font-weight:750; letter-spacing:-.03em;}
+.set-head p{margin:5px 0 0; font-size:13.5px; line-height:1.5; color:var(--text-2);}
+.set-glabel{display:flex; align-items:center; gap:8px; margin:22px 4px 9px; font:600 10px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-3);}
+.set-glabel::before{content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px rgba(216,184,124,.8);}
+.set-group{position:relative; border-radius:18px; background:rgba(255,255,255,.022); border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.set-group.set-gap{margin-top:12px;}
+.set-group:has(.cdrop.open){z-index:40;}
+.set-row{position:relative; display:flex; align-items:center; gap:14px; width:100%; min-height:66px; padding:12px 16px; margin:0;
+  border:0; background:transparent; color:var(--text); font:inherit; text-align:left; text-decoration:none;
+  transition:background .2s ease;}
+.set-group > .set-row:first-child{border-top-left-radius:17px; border-top-right-radius:17px;}
+.set-group > .set-row:last-child{border-bottom-left-radius:17px; border-bottom-right-radius:17px;}
+.set-group > .set-row + .set-row::before{content:""; position:absolute; left:66px; right:16px; top:0; height:1px; background:var(--line);}
+.set-row:has(.cdrop.open){z-index:40;}
+/* Ausgeblendete Zeile (Kopplung am Handy): keine Trennlinie über der nächsten, Ecken bleiben rund */
+.set-group > [hidden] + .set-row::before{display:none;}
+.set-group > [hidden]:first-child + .set-row{border-top-left-radius:17px; border-top-right-radius:17px;}
+button.set-row, a.set-row{cursor:pointer;}
+button.set-row:hover, a.set-row:hover{background:rgba(255,255,255,.03);}
+button.set-row:focus-visible, a.set-row:focus-visible{outline:2px solid var(--accent-line); outline-offset:-2px;}
+.set-ic{flex:none; width:36px; height:36px; border-radius:11px; display:grid; place-items:center; color:var(--accent);
+  background:linear-gradient(145deg, rgba(216,184,124,.14), rgba(216,184,124,.04)); border:1px solid rgba(216,184,124,.18);
+  transition:background .35s ease, color .35s ease, box-shadow .35s ease, border-color .35s ease;}
+.set-row .st-txt{flex:1; display:flex; flex-direction:column; gap:3px; min-width:0;}
+.set-row .lbl{font-family:var(--font-display); font-weight:600; font-size:14px; letter-spacing:-.01em; color:var(--text);}
+.set-row small{font-size:12px; line-height:1.45; color:var(--text-3);}
+.set-row small.st-rec, .look-tile small.st-rec{color:var(--accent); font-weight:600;}
+.set-field .cdrop{flex:none; width:200px;}
+.set-field .cdrop-btn{height:40px;}
+/* Schalter als Zeile: Schalter rechts, die Zeile selbst ist der Knopf */
+.set-group .lol-toggle.set-toggle{min-height:66px; padding:12px 16px; border:0; border-radius:0; background:transparent; align-items:center;}
+.set-group > .lol-toggle.set-toggle:first-child{border-top-left-radius:17px; border-top-right-radius:17px;}
+.set-group > .lol-toggle.set-toggle:last-child{border-bottom-left-radius:17px; border-bottom-right-radius:17px;}
+.set-group .lol-toggle.set-toggle:hover{background:rgba(255,255,255,.03);}
+.set-group .lol-toggle.set-toggle .sw{margin-left:auto;}
+.set-group .lol-toggle.set-toggle:not(.on) .set-ic{color:var(--text-3); background:rgba(255,255,255,.04); border-color:var(--line);}
+.set-group .lol-toggle.set-toggle.on .set-ic{box-shadow:0 0 18px -4px rgba(216,184,124,.55);}
+/* Link-Zeilen: Pfeil rechts */
+.set-link::after{content:""; flex:none; margin:0 4px 0 auto; width:7px; height:7px; border-right:1.6px solid var(--text-3); border-top:1.6px solid var(--text-3);
+  transform:rotate(45deg); transition:transform .3s var(--spring), border-color .2s ease;}
+.set-link:hover::after{transform:translateX(3px) rotate(45deg); border-color:var(--text);}
+.set-link.discord .set-ic{color:#fff; background:linear-gradient(145deg, #7984ff, #5865f2); border-color:transparent; box-shadow:0 8px 18px -8px rgba(88,101,242,.8);}
+#checkUpdateBtn:disabled{opacity:1; cursor:progress;}
+#checkUpdateBtn:disabled .set-ic svg{animation:spin .9s linear infinite;}
+.set-note{margin:14px 4px 0; font-size:12.5px; line-height:1.55; color:var(--text-3);}
+
+/* ---- Darstellung: Auswahl mit Mini-Vorschau statt Schalter ---- */
+.set-look{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.look-tile{position:relative; display:flex; flex-direction:column; gap:12px; padding:10px 10px 14px; border-radius:18px; cursor:pointer; text-align:left;
+  background:rgba(255,255,255,.022); border:1px solid var(--line); color:inherit; font:inherit;
+  transition:border-color .25s ease, background .25s ease, transform .35s var(--spring), box-shadow .3s ease;}
+.look-tile:hover{border-color:var(--line-3); transform:translateY(-2px);}
+.look-tile.on{border-color:var(--accent-line); background:linear-gradient(180deg, rgba(216,184,124,.09), rgba(216,184,124,.02));
+  box-shadow:0 0 0 3px rgba(216,184,124,.1), 0 18px 40px -22px rgba(216,184,124,.55);}
+.look-tile::after{content:""; position:absolute; top:18px; right:18px; width:20px; height:20px; border-radius:50%; z-index:2;
+  border:1.5px solid rgba(255,255,255,.25); background:rgba(10,10,12,.55); transition:all .3s var(--spring);}
+.look-tile.on::after{border-color:transparent; background:var(--grad-accent) no-repeat;
+  -webkit-mask:radial-gradient(circle, #000 0 9.5px, transparent 10px); box-shadow:none;}
+.look-tile.on::before{content:""; position:absolute; top:24px; right:24.5px; width:4px; height:7px; z-index:3; border-right:2px solid var(--accent-ink);
+  border-bottom:2px solid var(--accent-ink); transform:rotate(45deg); animation:popIn .3s var(--spring-soft);}
+.look-txt{display:flex; flex-direction:column; gap:3px; padding:0 6px;}
+.look-txt .lbl{font-family:var(--font-display); font-weight:650; font-size:14px; color:var(--text);}
+.look-txt small{font-size:12px; color:var(--text-3); line-height:1.4;}
+.look-prev{position:relative; display:block; height:118px; border-radius:12px; overflow:hidden; border:1px solid var(--line);}
+.look-prev .lp-card{position:absolute; left:18%; right:18%; top:26%; bottom:-10%; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:7px;}
+.look-prev .lp-card b{display:block; width:46%; height:8px; border-radius:4px;}
+.look-prev .lp-card em{display:block; height:6px; border-radius:3px; width:80%;}
+.look-prev .lp-card em + em{width:58%;}
+.look-prev.full{background:radial-gradient(120% 90% at 20% 0%, rgba(216,184,124,.28), transparent 55%), radial-gradient(90% 80% at 100% 100%, rgba(255,77,94,.18), transparent 60%), #0d0d10;}
+.look-prev.full .lp-card{background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 14px 30px -10px rgba(0,0,0,.8), 0 0 30px -6px rgba(216,184,124,.35); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  animation:lpFloat 4s ease-in-out infinite;}
+.look-prev.full .lp-card b{background:var(--grad-accent); box-shadow:0 0 12px rgba(216,184,124,.7);}
+.look-prev.full .lp-card em{background:rgba(255,255,255,.22);}
+.look-prev.full .lp-star{position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; box-shadow:0 0 6px 1px rgba(255,255,255,.8); animation:lpTwinkle 2.6s ease-in-out infinite;}
+.look-prev.full .lp-star:nth-child(1){left:12%; top:18%;}
+.look-prev.full .lp-star:nth-child(2){left:84%; top:14%; animation-delay:.9s;}
+.look-prev.full .lp-star:nth-child(3){left:72%; top:62%; animation-delay:1.7s;}
+.look-prev.lite{background:#141417;}
+.look-prev.lite .lp-card{background:#1d1d21; border:1px solid rgba(255,255,255,.08);}
+.look-prev.lite .lp-card b{background:#b59a67;}
+.look-prev.lite .lp-card em{background:rgba(255,255,255,.14);}
+@keyframes lpFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);}}
+@keyframes lpTwinkle{0%,100%{opacity:.25; transform:scale(.7);} 50%{opacity:1; transform:scale(1.2);}}
+
+/* ---- Info ---- */
+.set-about{position:relative; display:flex; align-items:center; gap:16px; margin-bottom:14px; padding:18px; border-radius:20px; overflow:hidden;
+  background:radial-gradient(120% 140% at 0% 0%, rgba(216,184,124,.16), transparent 55%), rgba(255,255,255,.022); border:1px solid rgba(216,184,124,.18);}
+.set-about-logo{width:58px; height:58px; border-radius:17px; box-shadow:0 0 0 1px var(--line-2), 0 14px 30px -12px rgba(0,0,0,.95), 0 0 34px -10px rgba(216,184,124,.5);}
+.set-about-t b{display:block; font:750 19px var(--font-display); letter-spacing:-.025em;}
+.set-about-ver{display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap;}
 .app-version{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.06em; color:var(--text-2);}
+.set-chan{padding:2px 8px; border-radius:999px; font:600 10px var(--font-mono); letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line);}
+.set-chan.dev{color:#8fd3ff; background:rgba(98,180,255,.1); border-color:rgba(98,180,255,.32);}
+
+/* ---- Handy: Sheet von unten, Bereiche als Chips ---- */
+@media (max-width:860px){
+  .sidebar{inset:auto 0 0 0; margin:0; width:auto; height:min(90dvh, 780px); grid-template-columns:minmax(0, 1fr); grid-template-rows:auto minmax(0, 1fr);
+    border-radius:26px 26px 0 0; border-bottom:0; transform:translateY(105%); opacity:1;
+    transition:transform .5s var(--ease), visibility 0s linear .5s;}
+  .sidebar.open{transition:transform .5s var(--ease), visibility 0s;}
+  .sidebar::before{left:50%; right:auto; top:8px; width:38px; height:4px; margin-left:-19px; border-radius:4px; background:rgba(255,255,255,.2);}
+  .set-close{top:14px; right:14px;}
+  .set-rail{gap:14px; padding:24px 16px 12px; border-right:0; border-bottom:1px solid var(--line);}
+  .set-brand{padding:0 52px 0 2px;}
+  .set-logo{width:34px; height:34px; border-radius:10px;}
+  .set-nav{flex-direction:row; gap:4px; margin:0 -16px; padding:2px 16px 2px; overflow-x:auto; scrollbar-width:none;}
+  .set-nav::-webkit-scrollbar{display:none;}
+  .set-nav-btn{flex:none; height:40px; padding:0 13px 0 6px; border-radius:999px;}
+  .set-nav-btn .sn-ic{width:28px; height:28px; border-radius:50%;}
+  .set-nav-pill{top:2px; height:40px; border-radius:999px;}
+  .set-rail-foot{display:none;}
+  .set-main{padding:20px 16px calc(28px + env(safe-area-inset-bottom));}
+  .set-head{margin:0 0 16px 2px;}
+  .set-head h4{font-size:21px;}
+  .set-row, .set-group .lol-toggle.set-toggle{gap:12px; padding:12px 14px;}
+  .set-group > .set-row + .set-row::before{left:62px; right:14px;}
+  .set-field{flex-wrap:wrap;}
+  .set-field .cdrop{width:calc(100% - 48px); margin-left:48px;}
+  .set-look{gap:10px;}
+  .look-prev{height:96px;}
+}
+@media (max-width:860px) and (min-width:520px){
+  .set-field{flex-wrap:nowrap;}
+  .set-field .cdrop{width:190px; margin-left:0;}
+}
 .lang-reviewed{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:8px;
   border-radius:50%; background:rgba(61,220,132,.16); color:var(--win); flex-shrink:0;}
 
@@ -2194,7 +2335,6 @@ ul.ry-upd-notes li:nth-child(4){animation-delay:.15s;} ul.ry-upd-notes li:nth-ch
   .brand-word{display:none;}
   #app, #appLeague{padding:22px 14px 190px;}
   #toastWrap{left:12px; right:12px; width:auto;}
-  .sidebar{top:auto; left:8px; right:8px; bottom:8px; width:auto; max-height:86vh; transform:translateY(calc(100% + 30px));}
 }
 @media (max-width:640px){
   :root{--max-cols:2;}
@@ -2277,11 +2417,6 @@ ul.ry-upd-notes li:nth-child(4){animation-delay:.15s;} ul.ry-upd-notes li:nth-ch
 .shop-grid{grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));}
 .bundle-items{grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));}
 .modal-hero .card-bg{opacity:.7;}
-.sidebar{bottom:auto; max-height:calc(100vh - 20px);}
-.sidebar-foot{margin-top:4px;}
-#toastWrap{transition:transform .5s var(--ease);}
-body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
-@media (max-width:860px){ body:has(.sidebar.open) #toastWrap{transform:none;} }
 .tcmp{width:min(640px, 100%);}
 .tside .val{font-size:17px;}
 
@@ -2326,9 +2461,6 @@ body:has(.sidebar.open) #toastWrap{transform:translateX(-382px);}
   .mh-title{font-size:44px;}
   .mh-inner{min-height:0;}
   .match-hero{min-height:0;}
-}
-@media (max-width:860px){
-  .sidebar{top:auto; bottom:8px; max-height:86vh; border-radius:26px;}
 }
 
 /* Nachgeladene Kennzahlen bzw. Skins nach einer Aktion: kein erneuter Einflug */
@@ -2679,24 +2811,11 @@ body.lol-mode #reportView, body.lol-mode #reportReopen{display:none !important;}
 .toast .tact:hover{background:color-mix(in srgb, var(--tc) 28%, transparent);}
 
 /* ================= Schalter in den Einstellungen ================= */
-.lol-toggle.set-toggle{width:100%; align-items:flex-start; padding:13px 14px; min-height:0;}
-.set-toggle .sw{margin-top:1px;}
-.set-toggle .st-txt{display:flex; flex-direction:column; gap:3px; min-width:0;}
-.set-toggle small{font-size:12px; line-height:1.45; color:var(--text-3);}
-.set-toggle small.st-rec{color:var(--accent); font-weight:600;}
+.lol-toggle.set-toggle{width:100%;}
 
 /* ================= Spiel-Overlay in den Einstellungen (2.5.5) ================= */
-.ovl-opts{display:flex; flex-direction:column; gap:8px;}
+.ovl-opts{transition:opacity .3s ease;}
 .ovl-opts.off{opacity:.45; pointer-events:none;}
-.ovl-opts .set-toggle{padding:11px 14px;}
-.ovl-opts .set-toggle .lbl{font-size:13.5px;}
-.ovl-fields{display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; margin:2px 0 2px;}
-.ovl-fields .ovl-key{grid-column:1 / -1;}
-.ovl-fields .field{display:flex; flex-direction:column; gap:6px; position:relative; min-width:0;}
-.ovl-fields .field:has(.cdrop.open){z-index:40;}
-.ovl-fields label{display:block; font-family:var(--font-mono); font-size:10px; font-weight:500; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--text-3);}
-#ovlPreviewBtn{height:44px;}
 
 /* ================= Performance-Modus (2.5.4) =================
    Für PCs ohne Hardwarebeschleunigung oder mit schwacher Grafik (Schalter in den
@@ -2807,81 +2926,155 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 </header>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
-<aside class="sidebar" id="sidebar" aria-label="Einstellungen">
-  <div class="sidebar-head">
-    <div class="sh-title">
-      <span class="eyebrow">RankYoinker</span>
-      <h3 data-i18n="settings">Einstellungen</h3>
-    </div>
-    <button class="icon-btn" id="sidebarClose" data-i18n-title="close" data-tip="Schließen">✕</button>
-  </div>
-
-  <div class="sidebar-section settings-pop" id="settingsPop">
-    <div class="field">
-      <label data-i18n="primary_weapon_preview">Primäre Waffe (Vorschau)</label>
-      <div class="cdrop" id="weaponDrop"></div>
-    </div>
-    <div class="field">
-      <label data-i18n="language">Sprache</label>
-      <div class="cdrop" id="langDrop"></div>
-    </div>
-  </div>
-
-  <div class="sidebar-section">
-    <label data-i18n="settings_display_label">Darstellung</label>
-    <button type="button" class="lol-toggle set-toggle" id="perfToggle" role="switch" aria-checked="false">
-      <span class="sw"></span>
-      <span class="st-txt">
-        <span class="lbl" data-i18n="perf_mode">Performance-Modus</span>
-        <small data-i18n="perf_mode_hint">Weniger Effekte, dafür flüssig – für schwächere PCs oder ohne Hardwarebeschleunigung.</small>
-        <small class="st-rec" id="perfRec" data-i18n="perf_mode_recommended" hidden>Für dieses Gerät empfohlen</small>
-      </span>
-    </button>
-  </div>
-
-  <div class="sidebar-section" id="ovlSection" hidden>
-    <label data-i18n="settings_overlay_label">Spiel-Overlay</label>
-    <button type="button" class="lol-toggle set-toggle" id="ovlToggle" role="switch" aria-checked="false">
-      <span class="sw"></span>
-      <span class="st-txt">
-        <span class="lbl" data-i18n="ovl_master">Fenster über dem Spiel</span>
-        <small data-i18n="ovl_master_hint">Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.</small>
-      </span>
-    </button>
-    <div class="ovl-opts" id="ovlOpts">
-      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="pregame" role="switch" aria-checked="false">
-        <span class="sw"></span>
-        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_pregame">Agentenauswahl</span><small data-i18n="ovl_opt_pregame_hint">Ränge, Peak und Partys schon vor dem Match</small></span>
-      </button>
-      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="board" role="switch" aria-checked="false">
-        <span class="sw"></span>
-        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_board">Spielertabelle</span><small data-i18n="ovl_opt_board_hint">Alle Spieler mit Rang, solange du die Taste hältst – wie das Scoreboard.</small></span>
-      </button>
-      <button type="button" class="lol-toggle set-toggle ovl-sub" data-ovl="result" role="switch" aria-checked="false">
-        <span class="sw"></span>
-        <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_result">Ergebnis nach dem Match</span><small data-i18n="ovl_opt_result_hint">Note, K/D/A und RR direkt nach dem Spiel</small></span>
-      </button>
-      <div class="ovl-fields">
-        <div class="field ovl-key"><label data-i18n="ovl_key_label">Taste für die Tabelle</label><div class="cdrop" id="ovlKeyDrop"></div></div>
-        <div class="field"><label data-i18n="ovl_side_label">Position</label><div class="cdrop" id="ovlSideDrop"></div></div>
-        <div class="field"><label data-i18n="ovl_size_label">Größe</label><div class="cdrop" id="ovlSizeDrop"></div></div>
+<!-- Einstellungen (2.5.8): Dialog mit Navigation links (am Handy: Sheet mit Chips oben). Die ids der
+     Bedienelemente sind dieselben wie in der alten Seitenleiste - die Logik dahinter blieb gleich. -->
+<aside class="sidebar" id="sidebar" role="dialog" aria-modal="true" aria-label="Einstellungen">
+  <button class="icon-btn set-close" id="sidebarClose" data-i18n-title="close" data-tip="Schließen">✕</button>
+  <nav class="set-rail">
+    <div class="set-brand">
+      <span class="set-logo" aria-hidden="true"></span>
+      <div class="set-brand-t">
+        <span class="eyebrow">RankYoinker</span>
+        <h3 data-i18n="settings">Einstellungen</h3>
       </div>
-      <button type="button" class="sidebar-btn" id="ovlPreviewBtn"><span data-i18n="ovl_preview_btn">Vorschau zeigen</span></button>
     </div>
-  </div>
-
-  <div class="sidebar-section">
-    <label data-i18n="settings_connect_label">Verbinden</label>
-    <button class="sidebar-btn" id="pairBtn" data-i18n-title="pair_phone" data-tip="Handy verbinden">▢</button>
-    <a class="sidebar-btn discord" id="discordBtn" href="https://rankyoinker.de/discord" target="_blank" rel="noopener noreferrer" data-i18n-title="join_discord" data-tip="Discord beitreten"></a>
-  </div>
-
-  <div class="sidebar-foot">
-    <div class="app-version" id="settingsVersion"></div>
-    <div class="sf-btns">
-      <button class="icon-btn sm" id="problemBtn" type="button" data-i18n-title="problem_report" data-tip="Problem melden"></button>
-      <button class="icon-btn sm" id="checkUpdateBtn" type="button" data-i18n-title="check_for_updates" data-tip="Nach Updates suchen"></button>
+    <div class="set-nav" id="setNav" role="tablist">
+      <span class="set-nav-pill" id="setNavPill" aria-hidden="true"></span>
+      <button type="button" class="set-nav-btn" data-sec="general" role="tab"><span class="sn-ic" data-ic="gear"></span><span data-i18n="set_nav_general">Allgemein</span></button>
+      <button type="button" class="set-nav-btn" data-sec="display" role="tab"><span class="sn-ic" data-ic="sparkles"></span><span data-i18n="settings_display_label">Darstellung</span></button>
+      <button type="button" class="set-nav-btn" data-sec="overlay" role="tab" id="setNavOverlay" hidden><span class="sn-ic" data-ic="layers"></span><span data-i18n="settings_overlay_label">Spiel-Overlay</span></button>
+      <button type="button" class="set-nav-btn" data-sec="connect" role="tab"><span class="sn-ic" data-ic="link"></span><span data-i18n="settings_connect_label">Verbinden</span></button>
+      <button type="button" class="set-nav-btn" data-sec="about" role="tab"><span class="sn-ic" data-ic="info"></span><span data-i18n="set_nav_about">Info</span></button>
     </div>
+    <div class="set-rail-foot" id="setRailVer"></div>
+  </nav>
+
+  <div class="set-main" id="setMain">
+    <section class="set-sec" data-sec="general">
+      <header class="set-head"><h4 data-i18n="set_nav_general">Allgemein</h4><p data-i18n="set_general_desc">Sprache und wie die Spielerkarten aussehen.</p></header>
+      <div class="set-group">
+        <div class="set-row set-field">
+          <span class="set-ic" data-ic="globe"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="language">Sprache</span><small data-i18n="set_lang_hint">Gilt für die ganze App</small></span>
+          <div class="cdrop" id="langDrop"></div>
+        </div>
+        <div class="set-row set-field">
+          <span class="set-ic" data-ic="crosshair"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="primary_weapon_preview">Primäre Waffe (Vorschau)</span><small data-i18n="set_weapon_hint">Deren Skin zeigen die Spielerkarten</small></span>
+          <div class="cdrop" id="weaponDrop"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="set-sec" data-sec="display">
+      <header class="set-head"><h4 data-i18n="settings_display_label">Darstellung</h4><p data-i18n="set_display_desc">Wie aufwendig RankYoinker aussehen soll.</p></header>
+      <div class="set-look" id="perfLook" role="radiogroup">
+        <button type="button" class="look-tile" data-perf="0" role="radio" aria-checked="true">
+          <span class="look-prev full" aria-hidden="true"><i class="lp-star"></i><i class="lp-star"></i><i class="lp-star"></i><span class="lp-card"><b></b><em></em><em></em></span></span>
+          <span class="look-txt"><span class="lbl" data-i18n="set_look_full">Volle Effekte</span><small data-i18n="set_look_full_hint">Glas, Leuchten, Animationen</small></span>
+        </button>
+        <button type="button" class="look-tile" data-perf="1" role="radio" aria-checked="false">
+          <span class="look-prev lite" aria-hidden="true"><span class="lp-card"><b></b><em></em><em></em></span></span>
+          <span class="look-txt"><span class="lbl" data-i18n="perf_mode">Performance-Modus</span><small data-i18n="set_look_perf_hint">Schlicht und flüssig</small>
+            <small class="st-rec" id="perfRec" data-i18n="perf_mode_recommended" hidden>Für dieses Gerät empfohlen</small></span>
+        </button>
+      </div>
+      <p class="set-note" data-i18n="perf_mode_hint">Weniger Effekte, dafür flüssig – für schwächere PCs oder ohne Hardwarebeschleunigung.</p>
+    </section>
+
+    <section class="set-sec" data-sec="overlay" id="ovlSection" hidden>
+      <header class="set-head"><h4 data-i18n="settings_overlay_label">Spiel-Overlay</h4><p data-i18n="set_overlay_desc">Ränge, Tabelle und Ergebnis direkt im Spiel.</p></header>
+      <div class="set-group">
+        <button type="button" class="lol-toggle set-toggle set-row" id="ovlToggle" role="switch" aria-checked="false">
+          <span class="set-ic" data-ic="layers"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="ovl_master">Fenster über dem Spiel</span><small data-i18n="ovl_master_hint">Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.</small></span>
+          <span class="sw"></span>
+        </button>
+      </div>
+      <div class="ovl-opts" id="ovlOpts">
+        <div class="set-glabel" data-i18n="set_ovl_show">Was angezeigt wird</div>
+        <div class="set-group">
+          <button type="button" class="lol-toggle set-toggle set-row ovl-sub" data-ovl="pregame" role="switch" aria-checked="false">
+            <span class="set-ic" data-ic="users"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_pregame">Agentenauswahl</span><small data-i18n="ovl_opt_pregame_hint">Ränge, Peak und Partys schon vor dem Match</small></span>
+            <span class="sw"></span>
+          </button>
+          <button type="button" class="lol-toggle set-toggle set-row ovl-sub" data-ovl="board" role="switch" aria-checked="false">
+            <span class="set-ic" data-ic="chart"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_board">Spielertabelle</span><small data-i18n="ovl_opt_board_hint">Alle Spieler mit Rang, solange du die Taste hältst – wie das Scoreboard.</small></span>
+            <span class="sw"></span>
+          </button>
+          <button type="button" class="lol-toggle set-toggle set-row ovl-sub" data-ovl="result" role="switch" aria-checked="false">
+            <span class="set-ic" data-ic="crown"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_opt_result">Ergebnis nach dem Match</span><small data-i18n="ovl_opt_result_hint">Note, K/D/A und RR direkt nach dem Spiel</small></span>
+            <span class="sw"></span>
+          </button>
+        </div>
+        <div class="set-glabel" data-i18n="set_ovl_controls">Steuerung</div>
+        <div class="set-group">
+          <div class="set-row set-field ovl-key">
+            <span class="set-ic" data-ic="keyboard"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_key_label">Taste für die Tabelle</span></span>
+            <div class="cdrop" id="ovlKeyDrop"></div>
+          </div>
+          <div class="set-row set-field">
+            <span class="set-ic" data-ic="panel"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_side_label">Position</span></span>
+            <div class="cdrop" id="ovlSideDrop"></div>
+          </div>
+          <div class="set-row set-field">
+            <span class="set-ic" data-ic="maximize"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_size_label">Größe</span></span>
+            <div class="cdrop" id="ovlSizeDrop"></div>
+          </div>
+        </div>
+        <div class="set-group set-gap">
+          <button type="button" class="set-row set-link" id="ovlPreviewBtn">
+            <span class="set-ic" data-ic="eye"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="ovl_preview_btn">Vorschau zeigen</span></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="set-sec" data-sec="connect">
+      <header class="set-head"><h4 data-i18n="settings_connect_label">Verbinden</h4><p data-i18n="set_connect_desc">Handy koppeln und der Community beitreten.</p></header>
+      <div class="set-group">
+        <button type="button" class="set-row set-link" id="pairBtn">
+          <span class="set-ic" data-ic="phone"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="pair_phone">Handy verbinden</span><small data-i18n="set_pair_hint">QR-Code scannen, dann läuft RankYoinker auch am Handy</small></span>
+        </button>
+        <a class="set-row set-link discord" id="discordBtn" href="https://rankyoinker.de/discord" target="_blank" rel="noopener noreferrer">
+          <span class="set-ic"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="join_discord">Discord beitreten</span><small data-i18n="set_discord_hint">Hilfe, Neuigkeiten und Community</small></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="set-sec" data-sec="about">
+      <header class="set-head"><h4 data-i18n="set_nav_about">Info</h4><p data-i18n="set_about_desc">Version, Updates und Hilfe.</p></header>
+      <div class="set-about">
+        <span class="set-about-logo" aria-hidden="true"></span>
+        <div class="set-about-t">
+          <b>RankYoinker</b>
+          <div class="set-about-ver"><span class="app-version" id="settingsVersion"></span><span class="set-chan" id="setChannel" hidden></span></div>
+        </div>
+      </div>
+      <div class="set-group">
+        <button type="button" class="set-row set-link" id="checkUpdateBtn">
+          <span class="set-ic" data-ic="refresh"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="check_for_updates">Nach Updates suchen</span><small data-i18n="set_update_hint">Sucht nach einer neuen Version</small></span>
+        </button>
+        <button type="button" class="set-row set-link" id="problemBtn">
+          <span class="set-ic" data-ic="bug"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="problem_report">Problem melden</span><small data-i18n="set_problem_hint">Fehler beschreiben und Diagnose mitschicken</small></span>
+        </button>
+        <a class="set-row set-link" href="https://rankyoinker.de" target="_blank" rel="noopener noreferrer">
+          <span class="set-ic" data-ic="external"></span>
+          <span class="st-txt"><span class="lbl">rankyoinker.de</span><small data-i18n="set_website_hint">Download, Demo und Neuigkeiten</small></span>
+        </a>
+      </div>
+    </section>
   </div>
 </aside>
 
@@ -3279,6 +3472,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     play: '<path d="M7 4.7v14.6a1 1 0 0 0 1.53.85l11.7-7.3a1 1 0 0 0 0-1.7L8.53 3.85A1 1 0 0 0 7 4.7z" fill="currentColor" stroke="none"/>',
     stop: '<rect x="5.5" y="5.5" width="13" height="13" rx="3.5" fill="currentColor" stroke="none"/>',
     loader: '<path d="M21 12a9 9 0 1 1-6.2-8.56"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>',
+    keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9"/>',
+    panel: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/>',
+    maximize: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/>',
     terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
     code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
@@ -3485,7 +3683,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       highlight(hi < 0 ? 0 : hi);
       // Unten zu wenig Platz (Fensterrand oder ein Dialog mit overflow:hidden) -> nach oben
       const r = listEl.getBoundingClientRect(), b = btn.getBoundingClientRect();
-      const box = el.closest('.modal');
+      const box = el.closest('.modal, .set-main');
       const limit = Math.min(window.innerHeight, box ? box.getBoundingClientRect().bottom : Infinity) - 8;
       const top = Math.max(0, box ? box.getBoundingClientRect().top : 0) + 8;
       if(r.bottom > limit && b.top - top > limit - b.bottom) el.classList.add('up');
@@ -3530,21 +3728,65 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     }
   );
 
-  // Sidebar (ersetzt die frühere Kopfzeile mit Umschalter/Status/Kopplung/
-  // Einstellungen) - reiner Overlay-Drawer, auf jeder Bildschirmgröße gleich.
+  // Einstellungen (2.5.8): Dialog mit Navigation links, am Handy ein Sheet mit Chips. Die Ids
+  // (#sidebar, #sidebarOverlay, #sidebarClose) sind geblieben, andere Stellen rufen closeSidebar().
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const SET_SEC_KEY = 'ry_set_sec';
+  sidebar.querySelectorAll('[data-ic]').forEach(el => {
+    el.innerHTML = svgIcon(el.getAttribute('data-ic'), el.classList.contains('sn-ic') ? 15 : 17);
+  });
+  let setSec = 'general';
+  try{ setSec = localStorage.getItem(SET_SEC_KEY) || 'general'; }catch(e){}
+  // Pille unter den aktiven Bereich schieben (senkrecht am PC, waagerecht am Handy)
+  function moveSetPill(){
+    const btn = sidebar.querySelector(`.set-nav-btn[data-sec="${setSec}"]`);
+    const pill = document.getElementById('setNavPill');
+    if(!btn || !pill || !btn.offsetWidth) return;
+    const row = getComputedStyle(btn.parentElement).flexDirection === 'row';
+    pill.style.width = row ? btn.offsetWidth + 'px' : '';
+    pill.style.transform = row ? `translateX(${btn.offsetLeft}px)` : `translateY(${btn.offsetTop}px)`;
+    if(!pill.classList.contains('ready')) requestAnimationFrame(() => pill.classList.add('ready'));
+    if(row){
+      const nav = btn.parentElement, l = btn.offsetLeft - 16, r = btn.offsetLeft + btn.offsetWidth + 16;
+      if(l < nav.scrollLeft || r > nav.scrollLeft + nav.clientWidth) nav.scrollTo({left: Math.max(0, l), behavior: 'smooth'});
+    }
+  }
+  function showSetSec(name, fromClick){
+    const btn = sidebar.querySelector(`.set-nav-btn[data-sec="${name}"]`);
+    if(!btn || btn.hidden) name = 'general';
+    const changed = name !== setSec || !sidebar.querySelector('.set-sec.active');
+    setSec = name;
+    sidebar.querySelectorAll('.set-nav-btn').forEach(b => {
+      const on = b.getAttribute('data-sec') === name;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    if(changed){
+      sidebar.querySelectorAll('.set-sec').forEach(sec => sec.classList.toggle('active', sec.getAttribute('data-sec') === name));
+      document.getElementById('setMain').scrollTop = 0;
+    }
+    if(fromClick){ try{ localStorage.setItem(SET_SEC_KEY, name); }catch(e){} }
+    moveSetPill();
+  }
+  sidebar.querySelectorAll('.set-nav-btn').forEach(b => b.addEventListener('click', () => showSetSec(b.getAttribute('data-sec'), true)));
   function openSidebar(){
     sidebar.classList.add('open'); sidebarOverlay.classList.add('open');
-    // offsetLeft/offsetWidth der Umschalter-Buttons sind 0, solange die
-    // Sidebar per transform ausgeblendet war - Pille erst jetzt positionieren.
+    showSetSec(setSec);
     moveGswPill();
   }
-  function closeSidebar(){ sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); }
+  function closeSidebar(){
+    sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open');
+    document.querySelectorAll('#sidebar .cdrop.open').forEach(d => d.classList.remove('open'));
+  }
   document.getElementById('sidebarToggle').addEventListener('click', () =>
     sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
   document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
   sidebarOverlay.addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && sidebar.classList.contains('open') && !document.querySelector('#sidebar .cdrop.open')) closeSidebar();
+  });
+  window.addEventListener('resize', () => { if(sidebar.classList.contains('open')) moveSetPill(); });
 
   // Sprachen-Dropdown - eigener, schlanker Aufbau statt makeDropdown() weiter
   // unten: der hier braucht HTML-Labels (grüner "geprüft"-Haken samt Tooltip),
@@ -3598,7 +3840,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   (function initProblemReport(){
     const btn = document.getElementById('problemBtn'), wrap = document.getElementById('probWrap');
     if(!btn || !wrap) return;
-    btn.innerHTML = svgIcon('bug', 13);
     const $ = id => document.getElementById(id);
     const hint = (txt, good) => { $('probHint').textContent = txt || ''; $('probHint').classList.toggle('prob-hint-ok', !!good); };
     function open(){
@@ -3650,7 +3891,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   (function initCheckUpdateBtn(){
     const btn = document.getElementById('checkUpdateBtn');
     if(!btn) return;
-    btn.innerHTML = svgIcon('refresh', 13);
     btn.addEventListener('click', () => {
       btn.disabled = true;
       fetch(LOG_URL + '/api/local-config', {cache:'no-store'})
@@ -3688,12 +3928,16 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // Adresse (http://rankyoinker/ und localhost:1101 getrennt) und ist nach dem
   // Leeren der Browserdaten weg. Das Handy hat seinen eigenen Schalter.
   const PERF_KEY = 'ry_perf', PERF_HINT_KEY = 'ry_perf_hint';
-  const perfToggle = document.getElementById('perfToggle');
+  // Seit 2.5.8 zwei Kacheln mit Mini-Vorschau ("Volle Effekte" / "Performance-Modus") statt eines Schalters
+  const perfTiles = document.querySelectorAll('#perfLook .look-tile');
   function perfOn(){ return document.documentElement.classList.contains('perf'); }
   function applyPerf(on){
     document.documentElement.classList.toggle('perf', on);
-    perfToggle.classList.toggle('on', on);
-    perfToggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    perfTiles.forEach(b => {
+      const sel = (b.getAttribute('data-perf') === '1') === on;
+      b.classList.toggle('on', sel);
+      b.setAttribute('aria-checked', sel ? 'true' : 'false');
+    });
     if(on){ const s = document.getElementById('stars'); if(s) s.textContent = ''; }
     else makeStars();
   }
@@ -3703,7 +3947,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(!ON_PHONE) api('/api/set-perf', {on}).catch(() => {});
   }
   applyPerf(perfOn());
-  perfToggle.addEventListener('click', () => setPerf(!perfOn()));
+  perfTiles.forEach(b => b.addEventListener('click', () => {
+    const want = b.getAttribute('data-perf') === '1';
+    if(want !== perfOn()) setPerf(want);
+  }));
   try{ if(localStorage.getItem(PERF_HINT_KEY) === '1') document.getElementById('perfRec').hidden = false; }catch(e){}
 
   // Am PC gilt config.json (eine Quelle für beide Adressen). Kennt der Dienst
@@ -3809,6 +4056,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function initOvlSettings(cfg){
     ovlCfg = Object.assign({on: true, pregame: true, board: true, result: true, key: 'tab', side: 'right', size: 'm'}, cfg || {});
     document.getElementById('ovlSection').hidden = false;
+    document.getElementById('setNavOverlay').hidden = false;
+    if(sidebar.classList.contains('open')) showSetSec(setSec);
     if(!ovlDrops){
       ovlDrops = {
         key: makeDropdown(document.getElementById('ovlKeyDrop'), OVL_KEYS.map(k => ({value: k, label: ovlKeyLabel(k)})),
@@ -3944,8 +4193,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // SVG-Icons in die statischen Buttons setzen
   document.getElementById('sidebarToggle').innerHTML = svgIcon('gear', 17);
   document.getElementById('sidebarClose').innerHTML = svgIcon('x', 15);
-  document.getElementById('pairBtn').innerHTML = svgIcon('phone', 15) + t('pair_phone');
-  document.getElementById('discordBtn').innerHTML = discordBrandIcon(15) + t('join_discord');
+  document.querySelector('#discordBtn .set-ic').innerHTML = discordBrandIcon(17);
   // Gleiches Icon+Kreis wie Valorants "Programm läuft nicht" (setStatusIcon('zap'))
   // statt des frueheren ⚡-Emojis, das den Kreis nicht in --red einfaerbte und
   // dessen 6px-Schwebeanimation neben der eigenen bunten Grafik kaum auffiel.
@@ -3954,7 +4202,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   document.getElementById('gswValorant').innerHTML = valBrandIcon(13) + '<span>VAL</span>';
   document.getElementById('gswLeague').innerHTML = lolBrandIcon(13) + '<span>LOL</span>';
   // Die Kopplung verwaltet nur der PC — auf dem Handy hat der Knopf nichts zu tun
-  if(ON_PHONE) document.getElementById('pairBtn').style.display = 'none';
+  if(ON_PHONE) document.getElementById('pairBtn').hidden = true;
   // "Als App installieren" (PWA) gab es von 2.5.0-dev2 bis dev14 - auf Wunsch wieder
   // entfernt. Einen damals registrierten Service Worker abmelden, sonst bliebe er aktiv.
   if('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations){
@@ -11145,8 +11393,15 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev10";
+const CURRENT_VERSION = "2.5.8-dev11";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
+document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
+(function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
+  const ch = document.getElementById("setChannel"), dev = /-dev/.test(CURRENT_VERSION);
+  ch.textContent = dev ? "Dev" : "Stable";
+  ch.classList.toggle("dev", dev);
+  ch.hidden = false;
+})();
 
 (function () {
   let pending = null; // {version, notes, downloadUrl, sha256}
