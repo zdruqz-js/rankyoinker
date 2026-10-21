@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.9"
+APP_VERSION = "2.5.10"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -3166,7 +3166,10 @@ def set_rpc_lang(lang, auto=False, local=True):
     if lang not in RPC_LANGS:
         return {"ok": False, "error": "Unbekannte Sprache."}
     with _config_lock:
-        data = _load_json(CONFIG_JSON_FILE)
+        try:
+            data = _load_json(CONFIG_JSON_FILE, for_update=True)
+        except _FileBusy:
+            return _config_busy()
         if auto and (not local or data.get("langExplicit")):
             return {"ok": True, "ignored": True}
         if data.get("lang") == lang and (auto or data.get("langExplicit")):
@@ -3187,7 +3190,10 @@ def set_perf_mode(on, local=True):
         return {"ok": True, "ignored": True}
     on = on is True
     with _config_lock:
-        data = _load_json(CONFIG_JSON_FILE)
+        try:
+            data = _load_json(CONFIG_JSON_FILE, for_update=True)
+        except _FileBusy:
+            return _config_busy()
         if data.get("perfMode") is on:
             return {"ok": True}
         data["perfMode"] = on
@@ -3195,27 +3201,55 @@ def set_perf_mode(on, local=True):
     return {"ok": True}
 
 
-def _load_json(path):
-    """utf-8-sig, damit auch eine von Hand gespeicherte Datei mit BOM lesbar ist."""
-    try:
-        with open(path, "r", encoding="utf-8-sig") as fh:
-            data = json.load(fh)
-        return data if isinstance(data, dict) else {}
-    except FileNotFoundError:
-        return {}
-    except Exception:
+class _FileBusy(Exception):
+    """Datei gerade gesperrt (Virenscanner, vry.exe liest sie) - NICHT kaputt."""
+
+
+def _load_json(path, for_update=False):
+    """utf-8-sig, damit auch eine von Hand gespeicherte Datei mit BOM lesbar ist.
+    Bis 2.5.9 galt JEDER Lesefehler als kaputte Datei: war config.json nur kurz gesperrt, wurde sie
+    als .broken weggeraeumt und der Aufrufer schrieb nur seinen eigenen Schluessel zurueck - alle
+    vry.exe-Einstellungen weg (und vry.exe stuerzte danach wegen src/config.py bei jedem Start ab).
+    Jetzt: gesperrt -> kurz erneut versuchen, nie wegraeumen; nur echtes kaputtes JSON wird .broken.
+    for_update=True (vor dem Zurueckschreiben): bleibt die Datei gesperrt -> _FileBusy statt {}."""
+    for attempt in range(4):
         try:
-            os.replace(path, path + ".broken")   # kaputte Datei nicht ueberschreiben
-        except Exception:
-            pass
-        return {}
+            with open(path, "r", encoding="utf-8-sig") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, dict) else {}
+        except FileNotFoundError:
+            return {}
+        except ValueError:      # JSONDecodeError, UnicodeDecodeError: wirklich kaputt
+            try:
+                os.replace(path, path + ".broken")   # kaputte Datei nicht ueberschreiben
+            except Exception:
+                pass
+            return {}
+        except OSError:
+            time.sleep(0.1)
+    if for_update:
+        raise _FileBusy(path)
+    return {}
 
 
 def _save_json(path, data):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    # Windows verweigert das Ersetzen, solange ein anderer Prozess die Datei offen hat (vry.exe liest
+    # config.json beim Start, Virenscanner) - kurz warten statt gleich zu scheitern
+    for attempt in range(5):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.1)
+
+
+def _config_busy():
+    return {"ok": False, "error": "config.json ist gerade gesperrt - bitte gleich noch einmal versuchen."}
 
 
 # ---------------------------- Begegnungen ----------------------------
@@ -5209,7 +5243,10 @@ def set_ovl_settings(body, local=True):
         return {"ok": False, "error": "Nur am PC selbst möglich."}
     body = body if isinstance(body, dict) else {}
     with _config_lock:
-        data = _load_json(CONFIG_JSON_FILE)
+        try:
+            data = _load_json(CONFIG_JSON_FILE, for_update=True)
+        except _FileBusy:
+            return _config_busy()
         cur = _ovl_settings_from(data)
         was_on = cur["on"]
         for k in OVL_BOOLS:

@@ -3,6 +3,7 @@ from io import TextIOWrapper
 from json import JSONDecodeError
 import requests
 import os
+import time
 
 from src.constants import DEFAULT_CONFIG
 from src.paths import config_path
@@ -26,8 +27,11 @@ class Config:
 
         if not os.path.exists(cfg_path):
             self.log("config.json not found, creating new one")
-            with open(cfg_path, "w") as file:
-                config = self.config_dialog(file)
+            try:
+                with open(cfg_path, "w") as file:
+                    config = self.config_dialog(file)
+            except OSError as e:
+                self.log(f"could not create config.json ({e}) - using defaults for this run")
 
         config = {}
         try:
@@ -37,27 +41,27 @@ class Config:
             with open(cfg_path, "r", encoding="utf-8-sig") as file:
                 self.log("config opened")
                 config = json.load(file)
+            if not isinstance(config, dict):
+                raise ValueError("config.json is not an object")
 
-                keys = [k for k in config.keys()] # getting the keys in the file
-                default_keys = [k for k in DEFAULT_CONFIG.keys()] # getting the keys in the self.default
-                missingkeys = list(filter(lambda x: x not in keys, default_keys)) # comparing the keys in the file to the keys in the default and returning the missing keys
+            keys = [k for k in config.keys()] # getting the keys in the file
+            default_keys = [k for k in DEFAULT_CONFIG.keys()] # getting the keys in the self.default
+            missingkeys = list(filter(lambda x: x not in keys, default_keys)) # comparing the keys in the file to the keys in the default and returning the missing keys
 
-                if len(missingkeys) > 0:
-                    self.log("config.json is missing keys")
-                    self.log(f"missing keys: " + str(missingkeys))
-                    for key in missingkeys:
-                        config[key] = DEFAULT_CONFIG[key]
-                    # ueber eine Zwischendatei: der Dienst liest config.json gleichzeitig und haette eine
-                    # halb geschriebene Datei als kaputt beiseitegelegt
-                    tmp = cfg_path + ".tmp"
-                    with open(tmp, 'w', encoding="utf-8") as w:
-                        json.dump(config, w, indent=4)
-                    os.replace(tmp, cfg_path)
-                    self.log("Succesfully added missing keys")
+            if len(missingkeys) > 0:
+                self.log("config.json is missing keys")
+                self.log(f"missing keys: " + str(missingkeys))
+                for key in missingkeys:
+                    config[key] = DEFAULT_CONFIG[key]
+                self._save_missing(cfg_path, config)
 
         except ValueError:      # JSONDecodeError, UnicodeDecodeError
             # Nicht mehr ueberschreiben - nur fuer diesen Lauf mit Standardwerten arbeiten
             self.log("invalid file - using defaults for this run, config.json left untouched")
+            config = {}
+        except OSError as e:
+            # z. B. von einem Virenscanner gesperrt - lieber ohne gespeicherte Einstellungen starten als gar nicht
+            self.log(f"could not read config.json ({e}) - using defaults for this run")
             config = {}
         finally:
             config = DEFAULT_CONFIG | config
@@ -73,6 +77,35 @@ class Config:
             else:   
                 self.weapon = config["weapon"]
             
+    def _save_missing(self, cfg_path, config):
+        """Fehlende Schluessel nachtragen - darf den Start NIE verhindern (die Standardwerte gelten
+        fuer diesen Lauf ohnehin). Bis 2.5.9 stand os.replace noch INNERHALB des with-open zum Lesen:
+        Windows verweigert das Ersetzen einer Datei, die (ohne FILE_SHARE_DELETE) offen ist -
+        PermissionError [WinError 5], vry.exe stuerzte bei jedem Start ab. Betraf jede config.json,
+        die der Dienst zuerst angelegt hatte (nur Sprache/Kanal/Overlay - typisch bei neuen Installationen)."""
+        # ueber eine Zwischendatei: der Dienst liest config.json gleichzeitig und haette eine
+        # halb geschriebene Datei als kaputt beiseitegelegt
+        tmp = cfg_path + ".tmp"
+        try:
+            with open(tmp, 'w', encoding="utf-8") as w:
+                json.dump(config, w, indent=4)
+            for attempt in range(5):
+                try:
+                    os.replace(tmp, cfg_path)
+                    self.log("Succesfully added missing keys")
+                    return
+                except PermissionError:
+                    # liest gerade der Dienst oder ein Virenscanner die Datei? kurz warten
+                    time.sleep(0.2)
+            self.log("config.json is locked - missing keys not saved, using defaults for this run")
+        except OSError as e:
+            self.log(f"could not save missing keys ({e}) - using defaults for this run")
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
+
     def get_feature_flag(self,key):
         return self.__dict__.get("flags",DEFAULT_CONFIG["flags"]).get(key,DEFAULT_CONFIG["flags"][key])
 
