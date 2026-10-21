@@ -102,6 +102,10 @@ KEYS = {"tab": 0x09, "capslock": 0x14, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4":
 SIZES = {"s": 0.9, "m": 1.0, "l": 1.15}
 
 RESULT_SHOW = 45.0     # so lange bleibt die Ergebnis-Karte sichtbar (Sekunden, nur sichtbare Zeit)
+# Die Tab-Tabelle wird unsichtbar vorgezeichnet, sobald sich ihre Daten aendern (hoechstens alle
+# BOARD_PREPAINT Sekunden) - Tab blendet dann nur noch ein. Bis 2.5.6 wurde genau beim Druecken
+# gezeichnet (beim ersten Mal pro Match inklusive Bilder laden), das kostete im Spiel kurz Bilder/s.
+BOARD_PREPAINT = 2.0
 
 FALLBACK = {
     "ovl_eyebrow_pregame": "AGENT SELECT", "ovl_eyebrow_board": "LOBBY", "ovl_eyebrow_result": "MATCH RESULT",
@@ -1630,6 +1634,9 @@ class App:
         self.dismissed = set()          # ("result"|"ask", id) - hier schon weggeklickt
         self.fg = {"hwnd": None, "valorant": False}
         self.forced = False             # Test: Fenster ohne VALORANT zeigen
+        self.force_board = True         # Test: bei forced die Tabelle auch ohne Taste zeigen
+        self.key_sim = None             # Test: Tabellen-Taste (None = echte Tastatur)
+        self._board_pre = 0.0           # letztes unsichtbares Vorzeichnen der Tabelle
         self.errors = 0
         self.stop = False
         self.last_tick = time.time()
@@ -1792,12 +1799,19 @@ class App:
                 self.paint("pregame", lambda: layout_pregame(m, ctx, pre), sigs.get("pregame"), mon)
             board = st.get("board")
             if board:
-                vk = KEYS.get(settings.get("key") or "tab", 0x09)
-                down = bool(self.gdi.user32.GetAsyncKeyState(vk) & 0x8000)
-                if vk == 0x09 and self.gdi.user32.GetAsyncKeyState(0x12) & 0x8000:
-                    down = False                                       # Alt+Tab
-                if down or preview or self.forced:
+                if self.key_sim is not None:
+                    down = self.key_sim
+                else:
+                    vk = KEYS.get(settings.get("key") or "tab", 0x09)
+                    down = bool(self.gdi.user32.GetAsyncKeyState(vk) & 0x8000)
+                    if vk == 0x09 and self.gdi.user32.GetAsyncKeyState(0x12) & 0x8000:
+                        down = False                                       # Alt+Tab
+                if down or preview or (self.forced and self.force_board):
                     want["board"] = True
+                    self.paint("board", lambda: layout_board(m, ctx, board), sigs.get("board"), mon)
+                elif time.time() - self._board_pre >= BOARD_PREPAINT:
+                    # unsichtbar vorzeichnen (nur wenn sich etwas geaendert hat, sonst nur Position pruefen)
+                    self._board_pre = time.time()
                     self.paint("board", lambda: layout_board(m, ctx, board), sigs.get("board"), mon)
             res, ask = self._card_parts()
             if res or ask:
@@ -2123,6 +2137,33 @@ def smoke_test(state_path, out_dir):
             app._wndproc(app.main, 0x0202, 0, lp(name))
             report["hover_" + name] = hover
     pump(1.0)
+    # Tab-Tabelle: unsichtbar vorgezeichnet, Tab blendet nur ein (2.5.7) - Zeiten messen
+    bwin = app.wins["board"]
+    app.force_board, app.key_sim = False, False
+    pump(0.3)
+    hidden_ok = not bwin.visible
+    b2 = json.loads(body.decode("utf-8"))
+    b2["board"]["allies"][0]["rank"] = "Diamond 1"           # andere Daten -> neue Signatur
+    app.set_state(b2, json.dumps(b2).encode("utf-8"))
+    pump(BOARD_PREPAINT + 0.5)
+    prepainted = bwin.sig is not None and bwin.sig[0] == app.sigs.get("board") and not bwin.visible
+    app.key_sim = True
+    t1 = time.perf_counter()
+    app.refresh()
+    show_ms = (time.perf_counter() - t1) * 1000
+    shown_on_key = bwin.visible
+    app.key_sim = False
+    app.refresh()
+    gdi2 = Gdi(st.get("lang"))                               # frisch: Bilder noch nicht geladen
+    ctx2 = {"strings": st.get("strings") or {}, "lang": st.get("lang"), "preview": False}
+    times = {}
+    for label in ("cold", "warm"):
+        t1 = time.perf_counter()
+        gdi2.free(gdi2.render(layout_board(gdi2.measure, ctx2, st["board"]), max(1.0, bwin.scale)))
+        times[label] = round((time.perf_counter() - t1) * 1000, 1)
+    report["boardTab"] = {"hiddenAfterRelease": hidden_ok, "prepainted": prepainted, "shownOnKey": shown_on_key,
+                          "hiddenAgain": not bwin.visible, "showMs": round(show_ms, 1),
+                          "renderMsCold": times["cold"], "renderMsWarm": times["warm"]}
     report.update({"shown": shown, "sizes": {n: w.size for n, w in app.wins.items()},
                    "pos": {n: w.pos for n, w in app.wins.items()}, "scale": sc, "cardHits": sorted(hits),
                    "skipAfterClick": app.ui["skip"], "actions": actions, "errors": app.errors})
@@ -2132,10 +2173,24 @@ def smoke_test(state_path, out_dir):
         json.dump(report, fh, indent=2)
     print(json.dumps(report))
     want_action = {"action": "il", "answer": "yes3", "id": (st.get("ask") or {}).get("id")}
+    bt = report["boardTab"]
     ok = (report["httpState"] and all(shown.values()) and app.errors == 0
           and {"yes", "no", "skip", "close", "open"} <= set(hits) and report.get("hover_yes") == "yes"
-          and want_action in actions)
+          and want_action in actions
+          and bt["hiddenAfterRelease"] and bt["prepainted"] and bt["shownOnKey"] and bt["hiddenAgain"])
     return 0 if ok else 2
+
+
+def _below_normal():
+    """Overlay-Prozess unter normale Prioritaet: Zeichnen soll VALORANT nie Rechenzeit wegnehmen
+    (das Einblenden selbst ist nur noch ShowWindow, siehe BOARD_PREPAINT)."""
+    try:
+        k = ctypes.windll.kernel32
+        k.GetCurrentProcess.restype = ctypes.c_void_p
+        k.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        k.SetPriorityClass(k.GetCurrentProcess(), 0x00004000)       # BELOW_NORMAL_PRIORITY_CLASS
+    except Exception:
+        pass
 
 
 def main(argv):
@@ -2151,6 +2206,7 @@ def main(argv):
         with open(argv[1], encoding="utf-8") as fh:
             cfg = json.load(fh)
         _dpi_aware(ctypes.windll.user32)
+        _below_normal()
         return App(cfg).run()
     except Exception:
         _log_error(cfg)
