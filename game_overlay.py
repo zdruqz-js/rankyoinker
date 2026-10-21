@@ -959,6 +959,8 @@ def _prototypes(user32, gdi32, kernel32, gdip):
             ("GdipSetTextContrast", [vp, ui]),
             ("GdipSetCompositingQuality", [vp, i]),
             ("GdipScaleWorldTransform", [vp, f, f, i]),
+            ("GdipTranslateWorldTransform", [vp, f, f, i]),
+            ("GdipResetWorldTransform", [vp]),
             ("GdipSaveGraphics", [vp, P(ui)]),
             ("GdipRestoreGraphics", [vp, ui]),
             ("GdipCreateSolidFill", [ctypes.c_uint32, P(vp)]),
@@ -1060,6 +1062,7 @@ class Gdi:
             raise OSError("GdiplusStartup fehlgeschlagen")
         self._families, self._fonts, self._fmts, self._images = {}, {}, {}, {}
         self._scaled = {}               # Bilder schon in Zielgroesse (Pfad, Pixel, Ausschnitt) -> Bitmap
+        self._shadows = {}              # weicher Schatten je Panelgroesse + Massstab -> (Bitmap, x, y, w, h)
         self._scale = 1.0               # Massstab des laufenden render()
         self.prof = None                # Test: {Art: Sekunden} je Zeichenbefehl
         self._mcache = {}
@@ -1302,6 +1305,53 @@ class Gdi:
             self._images[path] = out            # fehlt die Datei noch (Download laeuft), spaeter erneut
         return out
 
+    def _shadow_rings(self, g, x, y, w, h, r, spread, alpha):
+        n = max(1, int(spread))
+        dy = spread * 0.3
+        for i in range(n, 0, -1):
+            a = alpha * ((n - i + 1) / float(n)) ** 2 / n * 2.4
+            path = self._rrect(x - i, y - i + dy, w + 2 * i, h + 2 * i, r + i)
+            self._fill_path(g, path, _argb(COL["black"], a))
+            self.gdip.GdipDeletePath(path)
+
+    def _shadow(self, g, x, y, w, h, r, spread, alpha):
+        """Weicher Schatten (viele grosse Flaechen, war der teuerste Teil jedes Zeichnens): einmal je
+        Groesse in eine eigene Bitmap, danach nur noch 1:1 aufs Pixelraster kopieren."""
+        gd, sc = self.gdip, self._scale
+        n = max(1, int(spread))
+        dy = spread * 0.3
+        x0, y0 = int(math.floor((x - n) * sc)) - 1, int(math.floor((y - n + dy) * sc)) - 1
+        x1, y1 = int(math.ceil((x + w + n) * sc)) + 1, int(math.ceil((y + h + n + dy) * sc)) + 1
+        key = (round(x, 2), round(y, 2), round(w, 2), round(h, 2), r, spread, alpha, round(sc, 4))
+        hit = self._shadows.get(key)
+        if hit is None:
+            pw, ph = x1 - x0, y1 - y0
+            bmp, g2 = ctypes.c_void_p(), ctypes.c_void_p()
+            if gd.GdipCreateBitmapFromScan0(pw, ph, 0, PARGB, None, ctypes.byref(bmp)) != 0:
+                return self._shadow_rings(g, x, y, w, h, r, spread, alpha)
+            gd.GdipGetImageGraphicsContext(bmp, ctypes.byref(g2))
+            gd.GdipGraphicsClear(g2, ctypes.c_uint32(0))
+            gd.GdipSetSmoothingMode(g2, 4)
+            gd.GdipSetPixelOffsetMode(g2, 4)
+            gd.GdipSetCompositingQuality(g2, 1)
+            gd.GdipScaleWorldTransform(g2, ctypes.c_float(sc), ctypes.c_float(sc), 0)
+            # erst verschieben, dann skalieren: Pixel (0,0) der Bitmap = Pixel (x0,y0) des Panels
+            gd.GdipTranslateWorldTransform(g2, ctypes.c_float(-x0 / sc), ctypes.c_float(-y0 / sc), 0)
+            self._shadow_rings(g2, x, y, w, h, r, spread, alpha)
+            gd.GdipDeleteGraphics(g2)
+            if len(self._shadows) > 12:
+                for k in list(self._shadows)[:6]:
+                    gd.GdipDisposeImage(self._shadows.pop(k)[0])
+            hit = self._shadows[key] = (bmp, x0, y0, pw, ph)
+        bmp, x0, y0, pw, ph = hit
+        state = ctypes.c_uint()
+        gd.GdipSaveGraphics(g, ctypes.byref(state))
+        gd.GdipResetWorldTransform(g)
+        gd.GdipSetInterpolationMode(g, 5)               # NearestNeighbor: genau 1:1
+        gd.GdipSetPixelOffsetMode(g, 4)
+        gd.GdipDrawImageRectI(g, bmp, x0, y0, pw, ph)
+        gd.GdipRestoreGraphics(g, state)
+
     def _fit_image(self, path, img, w, h, sx, sy, sw, sh):
         """Ausschnitt einmal hochwertig auf die Pixelgroesse am Bildschirm bringen und merken. Vorher wurde
         jedes Bild bei jedem Zeichnen neu von bis zu 640 px verkleinert (HighQualityBicubic) - das war ein
@@ -1431,14 +1481,7 @@ class Gdi:
             gd.GdipDeletePath(path)
             gd.GdipDeletePen(pen)
         elif kind == "shadow":
-            _, x, y, w, h, r, spread, alpha = it
-            n = max(1, int(spread))
-            dy = spread * 0.3
-            for i in range(n, 0, -1):
-                a = alpha * ((n - i + 1) / float(n)) ** 2 / n * 2.4
-                path = self._rrect(x - i, y - i + dy, w + 2 * i, h + 2 * i, r + i)
-                self._fill_path(g, path, _argb(COL["black"], a))
-                gd.GdipDeletePath(path)
+            self._shadow(g, *it[1:])
         elif kind == "line":
             _, x1, y1, x2, y2, color, alpha, width = it
             pen = ctypes.c_void_p()
