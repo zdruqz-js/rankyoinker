@@ -4112,6 +4112,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     </section>`;
   }
   function dodgeBtnHtml(full){
+    if(pregameEnded()) return `<div class="mh-actions"><span class="side-slot">${sideBadgeHtml()}</span></div>`;
     return `<div class="mh-actions"><span class="side-slot">${sideBadgeHtml()}</span>
       <button class="dodge-btn" id="dodgeBtn" data-tip="${t(full ? 'dodge_agent_select_title_full' : 'dodge_agent_select_title')}">${svgIcon('exit', 13)}<span>${t('match_dodge_btn')}</span></button></div>`;
   }
@@ -4190,7 +4191,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const loadedSet = new Set(pr.puuids || []);
     // Nur was die Ansicht wirklich ändert — der Auswahlstand wird über
     // applyPregameToDom() nachgezogen, ohne die Ansicht neu aufzubauen.
-    const key = [pr.state, pr.phase, loaded, total, pregameLive ? pregameLive.length : 0, isPre ? pregameMap : '',
+    const key = [pr.state, pr.phase, loaded, total, pregameLive ? pregameLive.length : 0, isPre ? pregameMap : '', pregameEnded() ? 'E' : '',
       roster ? roster.map + roster.players.length : '', Array.from(loadedSet).join(','), pause].join('|');
     if(key === lastLoadKey) return;
     const fresh = lastLoadKey === '';
@@ -4251,6 +4252,14 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // oder im Match, merkt es einen Dodge erst danach. Der Dienst sieht den Wechsel nach
   // 1-2 s (eigene Presence, game.since). Ein Heartbeat aus PREGAME/INGAME, der davor
   // gebaut wurde, ist ueberholt: Die Seite zeigt dann die Lobby (Mitglieder aus /api/lobby).
+  // Agentenauswahl vorbei: der Dienst sieht das Match schon (Presence, game.since), vry.exe schickt den
+  // INGAME-Heartbeat aber erst nach dem Laden - bis dahin stand das Raster samt Dodge noch da (2.5.8)
+  function pregameEnded(){
+    const g = procStatus && procStatus.game;
+    const since = g && g.state === 'INGAME' ? Number(g.since) || 0 : 0;
+    return !!(since && latestData && latestData.state === 'PREGAME' && (Number(latestData.time) || 0) < since);
+  }
+  let lastPregameEnded = false;
   function outdatedHeartbeat(d){
     const g = procStatus && procStatus.game;
     const since = g && g.state === 'MENUS' ? Number(g.since) || 0 : 0;
@@ -4484,6 +4493,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     }catch(e){ procStatus = null; }
 
     if(procStatus){
+      // Seite vor VALORANT geöffnet: /api/session schlug fehl, ownPuuid blieb die ganze Sitzung leer
+      // (eigener Platz in der Agentenauswahl nie markiert, Auswahl-Stand der letzten Runde blieb)
+      if(!ownPuuid && procStatus.puuid) ownPuuid = procStatus.puuid;
+      const pe = pregameEnded();
+      if(pe !== lastPregameEnded){ lastPregameEnded = pe; if(latestData){ lastFullSig = ''; render(); } }
       const running = !!procStatus.running;
       // vry.exe geht mit VALORANT an und aus — nur der Wechsel wird gemeldet
       if(procKnown && running !== lastProcRunning){
@@ -4653,8 +4667,17 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(!ids.length) return;
     api('/api/encounters?puuids=' + encodeURIComponent(ids.join(','))).catch(apiFail).then(j => {
       if(!j.ok) return;
-      ids.forEach(id => { encCache[id] = (j.players && j.players[id]) || null; });
+      let changed = false;
+      ids.forEach(id => {
+        const v = (j.players && j.players[id]) || null;
+        const old = encCache[id];
+        if(old !== undefined && ((old && old.games) || 0) !== ((v && v.games) || 0)) changed = true;
+        encCache[id] = v;
+      });
       paintEncounters();
+      // Schon gezeichnete Karten haben keinen Platzhalter mehr - bei neuer Zahl (z. B. Matchstart zählt
+      // die Begegnung mit) neu zeichnen, sonst fehlte "2×" im Match bzw. stand eins zu wenig da
+      if(changed){ lastFullSig = ''; render(); }
     });
   }
   function paintEncounters(){
@@ -4673,7 +4696,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   //   history = aus der gemeinsamen Match-Historie geschätzt
   let premadeParties = {};   // puuid -> Party-Nummer
   let premadeGroups = [];    // [{party, members, size, source, proof}]
-  let premadeSig = '', premadeBusy = false, premadeNext = 0;
+  let premadeSig = '', premadeBusy = false, premadeNext = 0, premadePending = null, premadeRetryTimer = null;
   let premadeRepaint = null, lastSceneAt = 0;
 
   function premadeRosterSig(roster){
@@ -4739,16 +4762,31 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const sig = premadeRosterSig(roster);
     // Der Heartbeat rendert im Sekundentakt neu — ein Fehlschlag darf daraus
     // keine Dauerabfrage machen.
-    if(sig === premadeSig || premadeBusy || Date.now() < premadeNext) return;
+    if(sig === premadeSig) return;
+    // Laeuft noch eine Abfrage (z. B. die aus der Agentenauswahl), den neuen Kader danach holen -
+    // bis 2.5.7 fiel er unter den Tisch, die Party-Leisten fehlten dann das ganze Match
+    if(premadeBusy){ premadePending = roster; return; }
+    if(Date.now() < premadeNext) return;
     premadeBusy = true;
     api('/api/premades').catch(apiFail).then(j => {
       premadeBusy = false;
-      if(!j || !j.ok){ premadeNext = Date.now() + 8000; return; }   // Match noch nicht lesbar
+      const pending = premadePending; premadePending = null;
+      if(!j || !j.ok){
+        // Match noch nicht lesbar / Riot-Sperre: selbst erneut versuchen (bis 2.5.7 nur beim naechsten
+        // render(), den es im Match ohne neuen Heartbeat nie gab)
+        premadeNext = Date.now() + 8000;
+        clearTimeout(premadeRetryTimer);
+        premadeRetryTimer = setTimeout(() => {
+          if(latestData && latestData.state !== 'MENUS') loadPremades(pending || roster);
+        }, 8200);
+        return;
+      }
       premadeSig = sig;
       premadeParties = j.parties || {};
       premadeGroups = j.groups || [];
       paintPremades();
       matchViewSave();
+      if(pending && latestData && latestData.state !== 'MENUS') loadPremades(pending);
     });
   }
   // Ergebnis einzeichnen: Party-Leisten und die Reihenfolge der Karten kommen
@@ -4793,6 +4831,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const mid = currentMatchId();
     if(!mid){
       if(procStatus && procStatus.game && procStatus.game.state === 'MENUS'){
+        if(matchViewId) kdaRefreshAfterMatch();      // gerade aus einem Match zurück
         matchViewId = null;
         try{ localStorage.removeItem(MATCH_VIEW_KEY); }catch(e){}
       }
@@ -4818,6 +4857,35 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     }
     if(kda) paintKda();
     if(party) paintPremades();
+  }
+
+  // Nach dem Match: "Letzte 5" der Lobby (du + Party) nachziehen. Bis 2.5.7 blieb der Stand von vor
+  // dem Match stehen, bis F5 - kdaCache wird nur bei Kontowechsel geleert. Der Dienst holt die Werte
+  // dieser Spieler nach Matchende frisch (Riot führt das Match oft erst nach ein paar Sekunden), darum
+  // mehrmals; ersetzt wird nur, was sich geändert hat (kein Neuladen-Flackern).
+  let kdaRefreshTimers = [];
+  function kdaRefreshAfterMatch(){
+    kdaRefreshTimers.forEach(clearTimeout);
+    kdaRefreshTimers = [6000, 40000, 120000].map(ms => setTimeout(kdaRefreshNow, ms));
+  }
+  async function kdaRefreshNow(){
+    const g = procStatus && procStatus.game;
+    if(!g || g.state !== 'MENUS') return;
+    const ids = new Set(Object.values((latestData && latestData.state === 'MENUS' && latestData.players) || {})
+      .map(p => p && p.puuid).filter(Boolean));
+    (lobbyMembers || []).forEach(m => { if(m.puuid) ids.add(m.puuid); });
+    let changed = false;
+    for(const id of ids){
+      if(kdaCache[id] === undefined) continue;       // noch nie geladen -> macht loadKda selbst
+      try{
+        const r = await fetch(LOG_URL + '/api/kda?puuids=' + encodeURIComponent(id), {cache:'no-store'});
+        const j = await r.json();
+        const row = j && j.ok && j.players ? j.players[id] : null;
+        if(!row || row.error) continue;
+        if(JSON.stringify(row) !== JSON.stringify(kdaCache[id])){ kdaCache[id] = row; changed = true; }
+      }catch(e){}
+    }
+    if(changed){ lastFullSig = ''; render(); }
   }
 
   // Ergebnis-Punkte der letzten 5 Matches — links der jüngste.
@@ -5104,9 +5172,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     pregameTimer = setInterval(syncPregame, 1000);   // nahezu live; Server cacht 0,7 s
     syncPregame();
   }
-  function stopPregamePoll(){   // Seite, Schutzzeit und Gegner gelten nur für diese eine Auswahl
+  function stopPregamePoll(){   // Seite, Schutzzeit, Gegner und eigene Wahl gelten nur für diese eine Auswahl
     clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; pickLockAt = 0;
     pregameEnemies = []; pregameEnemiesSig = '';
+    // bis 2.5.7 blieben eigene Wahl/Sperre stehen: in der nächsten Auswahl stand der alte Agent kurz
+    // als gesperrt da und Klicks aufs Raster taten nichts, bis der erste Poll durch war
+    pickSelected = null; pickLocked = false; pickTaken = {}; pickPending = null;
+    pregameLive = null; pregameSig = '';
   }
 
   // variant 'peak' = kompakte Zeile (Peak bzw. Flex), sonst die große Kachel mit RR-Balken
@@ -5418,9 +5490,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // RR-Bereich: entweder die Kurve, ein Hinweis oder ein Fehler mit „Neu laden".
   // Früher verschwand der Abschnitt bei einem API-Aussetzer einfach komplett —
   // das wirkte wie ein Zufallsgenerator.
+  // Späte Antworten nur ins Fenster DIESES Spielers (bis 2.5.7: A öffnen, schließen, B öffnen ->
+  // A's Matches/RR-Kurve landeten in B's Fenster, "5 weitere laden" lud dann A's Matches)
+  function modalIs(puuid){ return !!puuid && openModalPlayerKey === puuid && modalWrap.classList.contains('open'); }
   function paintRr(puuid, rr){
     const box = document.getElementById('rrBox');
-    if(!box) return;
+    if(!box || !modalIs(puuid)) return;
     const curve = (rr && rr.ok) ? rrCurveHtml(rr.points) : '';
     if(curve){ box.innerHTML = `<div class="sec-title">${t('rr_history_title')}</div>${curve}`; return; }
     const msg = (rr && rr.ok)
@@ -5439,6 +5514,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     box.innerHTML = `<div class="sec-title">${t('rr_history_title')}</div>
       <div class="rr-wrap rr-empty"><span>${svgIcon('loader', 13, 'spin')} ${t('rr_loading')}</span></div>`;
     api('/api/rrhistory?puuid=' + encodeURIComponent(puuid) + '&n=15').catch(apiFail).then(rr => {
+      if(!modalIs(puuid)) return;
       // Ein Fehlversuch bedeutet meist nur, dass Riot gerade zickt -> einmal nachfassen
       if(!rr.ok && !manual){
         setTimeout(() => api('/api/rrhistory?puuid=' + encodeURIComponent(puuid) + '&n=15')
@@ -5495,6 +5571,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     api('/api/encounters?puuids=' + encodeURIComponent(puuid)).catch(apiFail).then(e => {
       const entry = (e.ok && e.players && e.players[puuid]) || {};
       encCache[puuid] = entry.games ? entry : encCache[puuid];
+      if(!modalIs(puuid)) return;
       const games = entry.games || 0;
       // Bei der eigenen Karte ergibt „Begegnungen" keinen Sinn
       const isSelf = puuid === ownPuuid || (latestData && puuid === latestData.puuid);
@@ -5578,6 +5655,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     fetch(LOG_URL + '/api/player?puuid=' + encodeURIComponent(puuid) + '&n=' + count, {cache:'no-store'})
       .then(r => r.json())
       .then(j => {
+        if(!modalIs(puuid)) return;
         if(j.error){ box.innerHTML = `<div class="loadout-empty">${t('stats_load_error')}<br>${esc(j.error)}</div>`; return; }
         const tot = j.totals;
         if(!tot){ box.innerHTML = `<div class="loadout-empty">${t('stats_no_completed_matches')}</div>`; return; }
@@ -5641,6 +5719,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         if(moreBtn) moreBtn.addEventListener('click', () => loadModalStats(puuid, count + MODAL_STATS_STEP));
       })
       .catch(() => {
+        if(!modalIs(puuid)) return;
         box.innerHTML = `<div class="loadout-empty">${t('err_local_service_port')}<br>${t('stats_load_failed_hint')}</div>`;
       });
   }
@@ -6663,6 +6742,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
 
   function agentPickHtml(){
+    // Auswahl vorbei, Match lädt (vry.exe meldet INGAME erst nach dem Laden): Raster ausblenden statt
+    // Klicks ins Leere laufen zu lassen
+    if(pregameEnded()) return `<div class="loadout-empty">${t('match_running')}</div>`;
     const list = Object.entries(agentById)
       .map(([uuid, name]) => ({uuid, name, info: agentMap[String(name).toLowerCase()]}))
       .filter(a => a.info)
@@ -8192,7 +8274,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     // Nur in der Agentenauswahl: bis 2.5.7 blieben sie danach stehen und überdeckten im
     // Match die echten Spieler - ein Klick auf einen Gegner zeigte den Stand aus der
     // Auswahl ohne Loadout ("kommt noch nach"), erst F5 half.
-    if(state === 'PREGAME') pregameEnemies.forEach(p => {
+    if(state === 'PREGAME') pregameEnemies.forEach(raw => {
+      // Agent kommt vom Dienst als rohe UUID - fürs Fenster wie auf der Karte in den Namen
+      // auflösen (bis 2.5.7 stand im Untertitel die lange ID, ohne Agentenbild)
+      const p = Object.assign({}, raw, {
+        agent: raw.agent ? (agentById[String(raw.agent).toLowerCase()] || null) : null,
+        mostPlayedAgent: raw.mostPlayedAgent ? (agentById[String(raw.mostPlayedAgent).toLowerCase()] || null) : null});
       if(p.puuid) playersByKey[p.puuid] = p;
       if(p.name) playersByKey[p.name] = p;
     });
@@ -8872,7 +8959,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   let lolChampCatalog = null;             // [{id,name}], einmal geladen
   let lolCsPickerSig = '';                // steuert NUR den Picker-Neuaufbau (Klick/Scroll bleiben stabil)
   let lolPickLocalId = null;              // optimistisch: gerade angeklickter Champion
-  let lolChampFilterText = '';
+  let lolChampFilterText = '', lolChampFilterAction = null;
   let lolPresets = null;                  // {autoBan, autoPick, ban, picks}, vom Dienst
 
   // Spielbegriffe (Lanes, Ränge, Warteschlangen) bleiben in jeder Sprache englisch
@@ -8993,7 +9080,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   function loadLolSelf(){
     api('/api/lol/session').then(j => {
-      if(j && j.ok){ lolSelfPuuid = j.puuid; lolSelfName = (j.name || '') + (j.tagLine ? '#' + j.tagLine : ''); lolSelfInfo = {level: j.level, iconId: j.iconId}; }
+      if(j && j.ok){
+        const fresh = !lolSelfPuuid;
+        lolSelfPuuid = j.puuid; lolSelfName = (j.name || '') + (j.tagLine ? '#' + j.tagLine : ''); lolSelfInfo = {level: j.level, iconId: j.iconId};
+        if(fresh && lolTab === 'history') renderLolHistory();    // Verlauf des (neuen) Kontos
+      }
     }).catch(() => {});
   }
 
@@ -9040,7 +9131,14 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       const html = statusPillsHtml('League of Legends', !gsFailed);
       if(pl.innerHTML !== html) pl.innerHTML = html;
     }
-    if(!lolSelfPuuid) loadLolSelf();
+    if(state === 'OFFLINE' && lolSelfPuuid){
+      // Client zu: beim nächsten Start kann ein anderes Konto eingeloggt sein. Bis 2.5.7 blieben
+      // Name, Rang und Verlauf des alten Kontos stehen (und dessen Match-Analyse galt als fremd).
+      lolSelfPuuid = null; lolSelfName = null; lolSelfInfo = null;
+      const hist = document.getElementById('lolPanelHistory');
+      if(hist) hist.innerHTML = `<div class="panel-empty">${t('lol_waiting_client')}</div>`;
+    }
+    if(!lolSelfPuuid && state !== 'OFFLINE') loadLolSelf();
     syncLolReport(gs, state);
     // Stände für die Schnellschalter in der Kopfleiste
     if(state !== 'OFFLINE'){
@@ -10369,12 +10467,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     filterInput.addEventListener('input', () => {
       const q = filterInput.value.toLowerCase();
       document.querySelectorAll('#lolPresetGrid .agent-cell').forEach(cell => {
-        const name = (cell.getAttribute('title') || '').toLowerCase();
+        const name = (cell.dataset.tip || '').toLowerCase();   // Name steht in data-tip (bis 2.5.7: title, leer)
         cell.style.display = !q || name.includes(q) ? '' : 'none';
       });
     });
     document.getElementById('lolPresetGrid').querySelectorAll('.agent-cell').forEach(cell => {
-      cell.addEventListener('click', () => finish(Number(cell.getAttribute('data-champ')), cell.getAttribute('title')));
+      cell.addEventListener('click', () => finish(Number(cell.getAttribute('data-champ')), cell.dataset.tip || ''));
     });
     const clearBtn = document.getElementById('lolPresetClear');
     if(clearBtn) clearBtn.addEventListener('click', () => finish(null, ''));
@@ -10406,6 +10504,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(!action || action.completed) return '';
     const champs = await loadLolChampions();
     const isBan = action.type === 'ban';
+    // Neuer eigener Zug (Bann -> Pick): Suche aus dem vorigen Zug leeren
+    if(action.id !== lolChampFilterAction){ lolChampFilterAction = action.id; lolChampFilterText = ''; }
     const ids = new Set(isBan ? (cs.bannable || []) : (cs.pickable || []));
     const list = champs.filter(c => ids.has(c.id));
     const curId = lolPickLocalId || action.championId;
@@ -10447,7 +10547,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const useLane = lane !== 'ALL' && Object.keys(roles).length > 0;
     let shown = 0;
     box.querySelectorAll('.agent-cell').forEach(cell => {
-      const name = (cell.getAttribute('title') || '').toLowerCase();
+      const name = (cell.dataset.tip || '').toLowerCase();   // bis 2.5.7: title (leer) -> jede Suche fand nichts
       const ok = (!q || name.includes(q)) && (!useLane || ((roles[cell.getAttribute('data-champ')] || {})[lane] || 0) >= 0.07);
       cell.style.display = ok ? '' : 'none';
       if(ok) shown++;
@@ -10743,7 +10843,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return `<div class="lh-bans"><div class="lab">${t('lol_bans')}</div>${row(ally, 'ally')}${row(enemy, 'enemy')}</div>`;
   }
 
+  let lolCsSeq = 0;
   async function renderLolChampSelect(state){
+    // Läufe überholen sich sonst (alle 1,5 s gestartet, eine langsame Antwort kam nach einer neueren
+    // an): kurz wieder das Raster mit aktivem Knopf nach dem Lock, oder "nicht lesbar" beim Spielstart
+    const seq = ++lolCsSeq;
     // Champion-Katalog vorher laden: die Zeilen zeigen im Champ Select den
     // Namen daraus (der Dienst liefert dort nur die ID).
     const [cs, presetsForDebug, autoBuild, roles] = await Promise.all([
@@ -10752,6 +10856,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       api('/api/lol/autobuild').catch(() => null),
       lolRoles(),
     ]);
+    if(seq !== lolCsSeq || lolLastState !== 'CHAMPSELECT') return;
     if(autoBuild && autoBuild.ok) lolAutoBuild = autoBuild;
     if(presetsForDebug && presetsForDebug.ok) lolPresets = presetsForDebug;
     if(roles && Object.keys(roles).length) lolRolesCache = roles;
@@ -10797,6 +10902,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
     // ---- Gerüst (einmal je Champ Select), danach nur gezielt aktualisieren ----
     if(!document.getElementById('lolDraft')){
+      lolChampFilterText = '';      // neue Champion-Auswahl: Suche aus dem letzten Spiel nicht mitnehmen
       body.innerHTML = `<div id="lolAutoAlertBox"></div>
         <div class="draft" id="lolDraft">
           <div class="draft-col ally" id="lolDraftAlly"></div>
