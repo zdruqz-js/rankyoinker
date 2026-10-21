@@ -1848,6 +1848,11 @@ class App:
             ops = ops_fn()
             sc = mon["scale"]
             avail = (mon["work"][3] - mon["work"][1]) - 2 * int(round(6 * sc))
+            if name == "pregame":
+                # sitzt bei 11 % der Hoehe - mit Gegnern (seit 2.5.8 zuverlaessig da) ragte es bei
+                # 150 % Skalierung unten aus dem Bild
+                left, top, right, bottom = mon["mon"]
+                avail = min(avail, (bottom - top) - int((bottom - top) * 0.11) - int(round(6 * sc)))
             if avail > 100 and ops.h * sc > avail:
                 sc = avail / float(ops.h)          # zu hoch fuer den Bildschirm -> etwas kleiner
             w, h = int(math.ceil(ops.w * sc)), int(math.ceil(ops.h * sc))
@@ -1862,6 +1867,11 @@ class App:
     def _card_parts(self):
         st = self.state
         res, ask = st.get("result"), st.get("ask")
+        ask_id = (ask or {}).get("id")
+        if ask_id != self.ui.get("askId"):
+            # neue Instalock-Frage: Haken leer (bis 2.5.7 blieb er von der letzten Frage gesetzt -
+            # ein "Ja" galt dann wieder fuer 3 Matches)
+            self.ui.update(askId=ask_id, skip=False)
         if res and (("result", res.get("id")) in self.dismissed or self.shown.get(res.get("id"), 0) >= RESULT_SHOW):
             res = None
         if ask and ("ask", ask.get("id")) in self.dismissed:
@@ -1940,6 +1950,7 @@ class App:
             answer = "no" if name == "no" else ("yes3" if self.ui["skip"] else "yes")
             self.dismissed.add(("ask", ask.get("id")))
             self.action({"action": "il", "answer": answer, "id": ask.get("id")})
+            self.ui["skip"] = False
         elif name == "open" and res:
             self.dismissed.add(("result", res.get("id")))
             self.action({"action": "open", "id": res.get("id")})
