@@ -520,7 +520,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.7-dev1"
+APP_VERSION = "2.5.7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2044,7 +2044,7 @@ ITEM_TYPES = {
 # DATA_DIR/account-cache.json (gilt auch nach einem Neustart), und schlaegt eine
 # Abfrage fehl, kommt der letzte Stand (stale) statt eines Fehlers.
 ACCOUNT_CACHE_FILE = os.path.join(DATA_DIR, "account-cache.json")
-ACCOUNT_CACHE_MAX = 6           # so viele Accounts merken
+ACCOUNT_CACHE_MAX = 20          # so viele Accounts merken (bis 2.5.6: 6)
 ENT_TTL = 600                   # Besitz: so lange ohne neue Abfrage
 WARM_ENT_MAX_AGE = 1800         # Vorladen: Besitz nur holen, wenn aelter
 _acct = {"data": None}
