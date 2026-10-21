@@ -166,6 +166,8 @@
     "version_label": "Sürüm",
     "update_new_version_generic": "Yeni bir RankYoinker sürümü mevcut.",
     "install_now": "Şimdi yükle",
+    "update_later": "Sonra",
+    "update_whats_new": "Yenilikler",
     "installing": "Yükleniyor...",
     "update_deferred_match": "Şu anda bir maç sürüyor. Güncelleme lobiye döndüğünde otomatik olarak başlayacak.",
     "install_now_anyway": "Yine de şimdi yükle",

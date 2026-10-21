@@ -167,6 +167,8 @@
     "version_label": "Version",
     "update_new_version_generic": "A new RankYoinker version is available.",
     "install_now": "Install now",
+    "update_later": "Later",
+    "update_whats_new": "What's new",
     "installing": "Installing...",
     "update_deferred_match": "A match is running. The update will start automatically once you're back in the lobby.",
     "install_now_anyway": "Install now anyway",

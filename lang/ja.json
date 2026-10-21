@@ -166,6 +166,8 @@
     "version_label": "バージョン",
     "update_new_version_generic": "RankYoinkerの新しいバージョンがあります。",
     "install_now": "今すぐインストール",
+    "update_later": "後で",
+    "update_whats_new": "新機能",
     "installing": "インストール中...",
     "update_deferred_match": "マッチ中です。ロビーに戻ると自動でアップデートが始まります。",
     "install_now_anyway": "それでも今すぐインストール",

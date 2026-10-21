@@ -2080,87 +2080,115 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .ry-upd-wrap.open{display:flex; animation:wrapFade .3s ease;}
 /* Hoehe begrenzt: ein langer Changelog schob "Jetzt installieren" sonst unter den
    Bildschirmrand. Die Liste scrollt selbst, im Notfall auch das ganze Fenster. */
-.ry-upd-box{position:relative; width:100%; max-width:400px; max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; border-radius:28px; background:linear-gradient(180deg, #1a1a1e, #0f0f12); border:1px solid var(--line-2); box-shadow:var(--shadow-pop); animation:modalIn .55s var(--spring-soft);}
+.ry-upd-box{position:relative; width:100%; max-width:400px; max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; border-radius:26px; background:linear-gradient(180deg, #19191d, #0f0f12); border:1px solid var(--line-2); box-shadow:var(--shadow-pop); animation:modalIn .55s var(--spring-soft);}
 .ry-upd-box::before{content:""; position:absolute; inset:0 0 auto; height:1px; pointer-events:none; background:linear-gradient(90deg, transparent, rgba(216,184,124,.7), transparent);}
-.ry-upd-body{position:relative; padding:40px 30px 28px; text-align:center;}
-.ry-upd-badge{width:60px; height:60px; margin:0 auto 18px; border-radius:20px; display:grid; place-items:center; color:var(--accent-ink); background:var(--grad-accent); box-shadow:0 14px 34px -10px rgba(216,184,124,.8);}
-.ry-upd-body h2{font-size:22px; font-weight:800; letter-spacing:-.03em; margin:0 0 10px;}
-.ry-upd-ver{display:inline-block; margin:0 0 18px; padding:4px 11px; border-radius:999px; font-family:var(--font-mono); font-size:11px; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line);}
-.ry-upd-notes{margin:0 0 24px; color:var(--text-2); font-size:13.5px; line-height:1.6;}
-ul.ry-upd-notes{padding:0 4px 0 0; list-style:none; text-align:left; max-height:min(38vh, 300px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin;}
-ul.ry-upd-notes.more{-webkit-mask-image:linear-gradient(#000 calc(100% - 34px), transparent); mask-image:linear-gradient(#000 calc(100% - 34px), transparent);}
-@media (max-height:560px){
-  .ry-upd-body{padding:22px 24px 16px;}
-  .ry-upd-badge{width:44px; height:44px; margin-bottom:10px; border-radius:15px;}
-  .ry-upd-ver{margin-bottom:12px;}
-  ul.ry-upd-notes{max-height:28vh; margin-bottom:16px;}
-}
-ul.ry-upd-notes li{position:relative; padding-left:18px; margin-bottom:6px;}
-ul.ry-upd-notes li::before{content:""; position:absolute; left:2px; top:8px; width:6px; height:6px; border-radius:50%; background:var(--accent);}
-.ry-upd-status{margin-top:14px; font-size:12.5px; color:var(--text-2); min-height:16px;}
-/* Update-Fenster: Abzeichen schwebt leicht, Neuerungen rollen nacheinander ein (2.5.8) */
-.ry-upd-badge{animation:iconFloat 3.4s ease-in-out infinite;}
+.ry-upd-body{position:relative; padding:34px 28px 22px; text-align:center;}
+.ry-upd-body h2{font-size:21px; font-weight:800; letter-spacing:-.03em; margin:0 0 9px;}
+.ry-upd-ver{display:inline-flex; align-items:center; gap:7px; margin:0 0 20px; padding:4px 11px; border-radius:999px; font-family:var(--font-mono); font-size:11px; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line);}
+.ry-upd-ver .from{color:var(--text-3);}
+.ry-upd-ver svg{flex:none; opacity:.55;}
+/* "Neu in dieser Version": ruhige Karte mit Mono-Überschrift wie auf der Website (2.5.8) */
+.upd-new{margin:0 0 18px; padding:13px 15px 12px; border-radius:16px; text-align:left; background:rgba(255,255,255,.025); border:1px solid var(--line);}
+.upd-new-h{display:flex; align-items:center; gap:8px; margin:0 0 9px; font-family:var(--font-mono); font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);}
+.upd-new-h::before{content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 9px rgba(216,184,124,.9);}
+.ry-upd-notes{margin:0 0 20px; color:var(--text-2); font-size:13.5px; line-height:1.6;}
+.upd-new .ry-upd-notes{margin:0;}
+ul.ry-upd-notes{padding:0 4px 0 0; list-style:none; text-align:left; max-height:min(34vh, 270px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin;}
+ul.ry-upd-notes.more{-webkit-mask-image:linear-gradient(#000 calc(100% - 30px), transparent); mask-image:linear-gradient(#000 calc(100% - 30px), transparent);}
+ul.ry-upd-notes li{position:relative; padding-left:17px; margin-bottom:7px; font-size:13px; line-height:1.55;}
+ul.ry-upd-notes li:last-child{margin-bottom:0;}
+ul.ry-upd-notes li::before{content:""; position:absolute; left:3px; top:8px; width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px rgba(216,184,124,.12);}
 ul.ry-upd-notes li{animation:rise .45s var(--ease) both;}
-ul.ry-upd-notes li:nth-child(2){animation-delay:.06s;} ul.ry-upd-notes li:nth-child(3){animation-delay:.12s;}
-ul.ry-upd-notes li:nth-child(4){animation-delay:.18s;} ul.ry-upd-notes li:nth-child(n+5){animation-delay:.24s;}
-/* ---- Update läuft (2.5.8): Fortschrittsring + vier Schritte ---- */
-.upd-run{animation:rise .35s var(--ease);}
-.upd-ring{position:relative; width:96px; height:96px; margin:0 auto 18px;}
+ul.ry-upd-notes li:nth-child(2){animation-delay:.05s;} ul.ry-upd-notes li:nth-child(3){animation-delay:.1s;}
+ul.ry-upd-notes li:nth-child(4){animation-delay:.15s;} ul.ry-upd-notes li:nth-child(n+5){animation-delay:.2s;}
+.upd-actions{display:grid; gap:4px;}
+.upd-later{height:36px; border:0; border-radius:11px; background:none; cursor:pointer; font:inherit; font-size:13px; font-weight:600; color:var(--text-3);
+  transition:color .2s ease, background .2s ease;}
+.upd-later:hover{color:var(--text); background:rgba(255,255,255,.045);}
+.ry-upd-status{margin-top:10px; font-size:12.5px; color:var(--text-2); min-height:16px;}
+.ry-upd-status:empty{min-height:0; margin-top:0;}
+/* ---- Ring (2.5.8): im Popup ruhig, beim Update echter Download-Fortschritt in Prozent,
+   danach ein Komet, der um die Spur läuft. Bis dev5 lief ein zweiter Bogen ÜBER dem
+   Fortschrittsbalken (zwei Bögen übereinander) und das SVG-Drehen lief über den Haupt-
+   Thread – der Komet ist ein eigenes div mit transform und läuft auf dem Compositor. ---- */
+.upd-ring{position:relative; width:92px; height:92px; margin:0 auto 18px;}
+.upd-ring .ur-glow{position:absolute; inset:-14px; border-radius:50%; pointer-events:none;
+  background:radial-gradient(closest-side, rgba(216,184,124,.22), transparent); animation:ringPulse 2.8s ease-in-out infinite;}
 .upd-ring svg.ur{position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible;}
-.upd-ring .ur-track{fill:none; stroke:rgba(255,255,255,.07); stroke-width:5;}
-.upd-ring .ur-bar{fill:none; stroke:url(#updGrad); stroke-width:5; stroke-linecap:round; stroke-dasharray:226.2; stroke-dashoffset:226.2;
-  transition:stroke-dashoffset .6s var(--ease), stroke .4s; filter:drop-shadow(0 0 6px rgba(216,184,124,.55));}
-.upd-ring .ur-spin{fill:none; stroke:rgba(243,223,176,.85); stroke-width:5; stroke-linecap:round; stroke-dasharray:34 192.2; opacity:0;
-  transform-origin:40px 40px; transition:opacity .3s;}
-.upd-ring.busy .ur-spin{opacity:1; animation:spin 1.15s linear infinite;}
-.upd-ring .ur-glow{position:absolute; inset:-12px; border-radius:50%; pointer-events:none;
-  background:radial-gradient(closest-side, rgba(216,184,124,.26), transparent); animation:ringPulse 2.4s ease-in-out infinite;}
-.upd-ring .ur-core{position:absolute; inset:15px; border-radius:50%; display:grid; place-items:center; color:var(--accent-ink);
-  background:var(--grad-accent); box-shadow:0 14px 34px -10px rgba(216,184,124,.8), inset 0 1px 0 rgba(255,255,255,.4);
-  transition:background .45s, box-shadow .45s, transform .55s var(--spring-soft);}
-.upd-ring .ur-core svg{animation:popIn .4s var(--spring-soft);}
-.upd-ring.done .ur-core{background:linear-gradient(135deg,#8ff3bb,#3ddc84 55%,#1fa865); box-shadow:0 16px 40px -10px rgba(61,220,132,.8); transform:scale(1.07);}
-.upd-ring.done .ur-bar{stroke:#3ddc84; filter:drop-shadow(0 0 8px rgba(61,220,132,.6));}
-.upd-ring.done .ur-glow{background:radial-gradient(closest-side, rgba(61,220,132,.3), transparent);}
-.upd-ring.err .ur-core{background:linear-gradient(135deg,#ff8e98,#ff4d5e); box-shadow:0 14px 34px -10px rgba(255,77,94,.7); animation:updShake .45s;}
-.upd-ring.err .ur-bar{stroke:#ff4d5e; filter:none;}
-.upd-ring.err .ur-glow{background:radial-gradient(closest-side, rgba(255,77,94,.22), transparent);}
+.upd-ring .ur-track{fill:none; stroke:rgba(255,255,255,.07); stroke-width:4; transition:stroke .4s;}
+.upd-ring.idle .ur-track{stroke:rgba(216,184,124,.2);}
+.upd-ring .ur-bar{fill:none; stroke:url(#updGrad); stroke-width:4; stroke-linecap:round; stroke-dasharray:270.18; stroke-dashoffset:270.18; opacity:0;
+  transition:stroke-dashoffset .5s var(--ease), opacity .35s, stroke .35s;}
+.upd-ring.det .ur-bar{opacity:1; filter:drop-shadow(0 0 5px rgba(216,184,124,.45));}
+.upd-ring.done .ur-bar, .upd-ring.err .ur-bar{opacity:1; transition:stroke-dashoffset .8s var(--ease), opacity .2s, stroke .35s;}
+.upd-ring .ur-orbit{position:absolute; inset:1px; border-radius:50%; opacity:0; pointer-events:none; will-change:transform; transition:opacity .35s;
+  background:conic-gradient(rgba(216,184,124,0) 0deg, rgba(216,184,124,0) 130deg, rgba(216,184,124,.5) 285deg, #f6e5bd 360deg);
+  -webkit-mask:radial-gradient(farthest-side, transparent 90.5%, #000 91.5%); mask:radial-gradient(farthest-side, transparent 90.5%, #000 91.5%);}
+.upd-ring .ur-orbit::after{content:""; position:absolute; top:0; left:50%; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:#fff4d8;}
+.upd-ring.busy .ur-orbit{opacity:1; animation:spin 1.1s linear infinite;}
+.upd-ring .ur-core{position:absolute; inset:11px; border-radius:50%; display:grid; place-items:center; color:var(--accent);
+  background:radial-gradient(120% 120% at 30% 18%, #2b261d, #141316 72%); border:1px solid rgba(216,184,124,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 14px 32px -14px rgba(0,0,0,.95);
+  transition:background .45s, border-color .45s, color .3s, box-shadow .45s, transform .55s var(--spring-soft);}
+.upd-ring .ur-core > *{grid-area:1/1; animation:popIn .4s var(--spring-soft);}
+.upd-ring .ur-core > .still{animation:none;}
+.upd-ring .ur-pct{font-family:var(--font-display); font-size:20px; font-weight:800; letter-spacing:-.03em; color:var(--text); font-variant-numeric:tabular-nums;}
+.upd-ring .ur-pct small{margin-left:1px; font-size:11px; font-weight:700; color:var(--text-3);}
+.upd-ring.done .ur-core{background:linear-gradient(135deg,#8ff3bb,#3ddc84 55%,#1fa865); border-color:transparent; color:#062a12;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 16px 40px -10px rgba(61,220,132,.75); transform:scale(1.06);}
+.upd-ring.done .ur-bar{stroke:#3ddc84; filter:drop-shadow(0 0 6px rgba(61,220,132,.55));}
+.upd-ring.done .ur-glow{background:radial-gradient(closest-side, rgba(61,220,132,.28), transparent);}
+.upd-ring.err .ur-core{background:radial-gradient(120% 120% at 30% 18%, #3a1c21, #1a1012 72%); border-color:rgba(255,77,94,.45); color:#ff6b78; animation:updShake .45s;}
+.upd-ring.err .ur-bar{stroke:#ff4d5e; opacity:.8;}
+.upd-ring.err .ur-glow{background:radial-gradient(closest-side, rgba(255,77,94,.2), transparent);}
 @keyframes updShake{20%,60%{transform:translateX(-5px);} 40%,80%{transform:translateX(5px);}}
 .upd-burst{position:absolute; inset:0; pointer-events:none;}
 .upd-burst i{position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:#8ff3bb; opacity:0;}
 .upd-burst i:nth-child(even){background:var(--accent); width:4px; height:4px; margin:-2px;}
 .upd-ring.done .upd-burst i{animation:updBurst .95s var(--ease) forwards;}
-@keyframes updBurst{0%{opacity:1; transform:rotate(var(--a)) translateY(-30px) scale(1);} 100%{opacity:0; transform:rotate(var(--a)) translateY(-76px) scale(.3);}}
-.upd-steps{list-style:none; margin:2px 0 14px; padding:0; text-align:left; display:grid; gap:6px;}
-.upd-steps li{position:relative; display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:14px; color:var(--text-3);
-  border:1px solid transparent; transition:background .35s, color .35s, border-color .35s;}
-.upd-steps li + li::before{content:""; position:absolute; left:24px; top:-9px; width:2px; height:12px; border-radius:2px;
-  background:rgba(255,255,255,.08); transition:background .4s;}
-.upd-steps li.done + li::before{background:linear-gradient(var(--accent), rgba(216,184,124,.35));}
-.upd-steps .us-ic{position:relative; width:26px; height:26px; flex:0 0 26px; border-radius:50%; display:grid; place-items:center;
-  font-family:var(--font-mono); font-size:11px; font-weight:600; border:1.5px solid rgba(255,255,255,.14); transition:all .35s var(--ease);}
+@keyframes updBurst{0%{opacity:1; transform:rotate(var(--a)) translateY(-30px) scale(1);} 100%{opacity:0; transform:rotate(var(--a)) translateY(-74px) scale(.3);}}
+@media (max-height:560px){
+  .ry-upd-body{padding:22px 24px 16px;}
+  .upd-ring{width:72px; height:72px; margin-bottom:10px;}
+  .upd-ring .ur-core{inset:9px;}
+  .upd-ring .ur-pct{font-size:16px;}
+  .ry-upd-ver{margin-bottom:12px;}
+  ul.ry-upd-notes{max-height:26vh;}
+}
+/* ---- Update läuft (2.5.8): vier Schritte ---- */
+.upd-steps{list-style:none; margin:2px 0 12px; padding:0; text-align:left; display:grid; gap:4px;}
+.upd-steps li{position:relative; display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:13px; color:var(--text-3);
+  border:1px solid transparent; transition:background .35s, color .35s, border-color .35s; animation:rise .4s var(--ease) both;}
+.upd-steps li:nth-child(2){animation-delay:.04s;} .upd-steps li:nth-child(3){animation-delay:.08s;} .upd-steps li:nth-child(4){animation-delay:.12s;}
+.upd-steps li + li::before{content:""; position:absolute; left:23.25px; top:-12px; width:1.5px; height:18px; border-radius:2px;
+  background:rgba(255,255,255,.07); transition:background .4s;}
+.upd-steps li.done + li::before{background:linear-gradient(var(--accent), rgba(216,184,124,.3));}
+.upd-steps .us-ic{position:relative; width:24px; height:24px; flex:0 0 24px; border-radius:50%; display:grid; place-items:center;
+  font-family:var(--font-mono); font-size:10.5px; font-weight:600; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.13);
+  transition:background .35s, box-shadow .35s, color .35s;}
+.upd-steps .us-ic > *{grid-area:1/1;}
 .upd-steps .us-ic svg{display:none;}
-.upd-steps .us-ic::after{content:""; display:none; width:12px; height:12px; border-radius:50%; border:2px solid currentColor;
-  border-right-color:transparent; animation:spin .8s linear infinite;}
-.upd-steps li.active{color:var(--text); background:rgba(255,255,255,.045); border-color:rgba(216,184,124,.22);}
-.upd-steps li.active .us-ic{color:var(--accent); border-color:var(--accent); animation:usPulse 1.6s ease-in-out infinite;}
-.upd-steps li.active .us-ic b{display:none;}
-.upd-steps li.active .us-ic::after{display:block;}
+/* Aktiver Schritt: EIN Ring, der sich dreht, mit Punkt in der Mitte (vorher Kreis im Kreis) */
+.upd-steps .us-ic::after{content:""; position:absolute; inset:0; border-radius:50%; border:2px solid transparent;
+  border-top-color:var(--accent); border-right-color:rgba(216,184,124,.4); opacity:0; will-change:transform;}
+.upd-steps li.active{color:var(--text); background:linear-gradient(90deg, rgba(216,184,124,.075), rgba(255,255,255,.015)); border-color:rgba(216,184,124,.2);}
+.upd-steps li.active .us-ic{color:var(--accent); box-shadow:inset 0 0 0 2px rgba(216,184,124,.14);}
+.upd-steps li.active .us-ic b{width:6px; height:6px; border-radius:50%; font-size:0; background:var(--accent); box-shadow:0 0 8px rgba(216,184,124,.9); animation:usDot 1.4s ease-in-out infinite;}
+.upd-steps li.active .us-ic::after{opacity:1; animation:spin .85s linear infinite;}
+@keyframes usDot{0%,100%{transform:scale(.7); opacity:.65;} 50%{transform:scale(1); opacity:1;}}
 .upd-steps li.done{color:var(--text-2);}
-.upd-steps li.done .us-ic{border-color:transparent; background:var(--grad-accent); color:var(--accent-ink); animation:popIn .35s var(--spring-soft);}
+.upd-steps li.done .us-ic{background:var(--grad-accent); color:var(--accent-ink); box-shadow:none; animation:popIn .35s var(--spring-soft);}
 .upd-steps li.done .us-ic b{display:none;}
 .upd-steps li.done .us-ic svg{display:block;}
 .upd-steps li.done .us-ic svg path{stroke-dasharray:24; stroke-dashoffset:24; animation:drawLine .45s var(--ease) .08s forwards;}
 .upd-steps li.err{color:#ff8e98; background:rgba(255,77,94,.07); border-color:rgba(255,77,94,.28);}
-.upd-steps li.err .us-ic{color:#ff4d5e; border-color:#ff4d5e; animation:none;}
-.upd-steps li.err .us-ic::after{display:none;}
+.upd-steps li.err .us-ic{color:#ff4d5e; box-shadow:inset 0 0 0 1.5px #ff4d5e;}
 .upd-steps .us-label{font-weight:650; font-size:13.5px;}
 .upd-steps .us-meta{margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .upd-steps li.active .us-meta{color:var(--accent);}
-@keyframes usPulse{0%,100%{box-shadow:0 0 0 0 rgba(216,184,124,.35);} 60%{box-shadow:0 0 0 7px rgba(216,184,124,0);}}
-.upd-hint{margin:0 0 6px; padding:10px 12px; border-radius:12px; font-size:12.5px; line-height:1.5; text-align:left; color:var(--text-2);
-  background:rgba(216,184,124,.08); border:1px solid rgba(216,184,124,.24); animation:rise .4s var(--ease);}
-.upd-run .ry-upd-status{margin-top:8px;}
+.upd-hint{display:flex; gap:10px; align-items:flex-start; margin:0 0 4px; padding:10px 12px; border-radius:12px; font-size:12.5px; line-height:1.5; text-align:left; color:var(--text-2);
+  background:rgba(216,184,124,.07); border:1px solid rgba(216,184,124,.22); animation:rise .4s var(--ease);}
+.upd-hint svg{flex:none; margin-top:1px; color:var(--accent);}
 .upd-run .ry-upd-status.err{color:#ff8e98;}
 .upd-run .btn-gold{margin-top:12px;}
 
@@ -2707,9 +2735,9 @@ html.perf *, html.perf *::before, html.perf *::after{
   transition-duration:0s !important; transition-delay:0s !important;
 }
 html.perf .spin, html.perf .ls-spin, html.perf .status-icon .loader, html.perf .searching svg,
-html.perf .status-icon.brand::before, html.perf .upd-ring.busy .ur-spin,
+html.perf .status-icon.brand::before, html.perf .upd-ring.busy .ur-orbit,
 html.perf .upd-steps li.active .us-ic::after{animation-duration:1s !important; animation-iteration-count:infinite !important;}
-html.perf .upd-ring .ur-bar{filter:none;}
+html.perf .upd-ring .ur-bar{filter:none !important;}
 html.perf .toast .tprog{animation-duration:var(--tdur, 4500ms) !important;}
 /* Ohne Blur dahinter scheint sonst der Inhalt durch. :where() zählt nicht zur
    Spezifität - Zustände wie .lb-chip.on oder :hover behalten ihre Farbe. */
@@ -11242,7 +11270,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev5";
+const CURRENT_VERSION = "2.5.8-dev6";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -11391,9 +11419,10 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
   // Herunterladen (echter Fortschritt vom Dienst: /api/rankyoinker/self-update/progress) ->
   // Prüfen (Hash) -> Installieren (Dienst weg, Windows-Abfrage) -> Neustart (neue Version antwortet).
   // Bis 2.5.7 stand hier nur "Download läuft…" bzw. "Installation läuft…" unter dem Knopf.
+  // Ring: beim Herunterladen der echte Fortschritt in Prozent (Klasse det), danach läuft ein
+  // Komet um die Spur (busy). Nie beides gleichzeitig - bis dev5 drehte ein zweiter Bogen über dem Balken.
   const UPD_STEPS = ['download', 'verify', 'install', 'restart'];
-  const UPD_C = 2 * Math.PI * 36;                 // Umfang des Rings (r = 36)
-  const UPD_FRAC = {download: .06, verify: .62, install: .74, restart: .9, done: 1};
+  const UPD_C = 2 * Math.PI * 43;                 // Umfang des Rings (r = 43, viewBox 92)
   const UPD_ICON = {
     download: '<path d="M12 4v11"/><path d="m7 10.5 5 5 5-5"/><path d="M5 20h14"/>',
     verify: '<path d="M12 3 5 6v5c0 4.4 3 8.2 7 9.5 4-1.3 7-5.1 7-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
@@ -11403,36 +11432,69 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     error: '<path d="M7 7l10 10"/><path d="M17 7 7 17"/>',
   };
   let updPollTimer = null, updStep = null, updShownIcon = null;
-  function updIconSvg(name){
-    return '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + UPD_ICON[name] + '</svg>';
+  function updIconSvg(name, cls){
+    return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + UPD_ICON[name] + '</svg>';
+  }
+  // Popup und Update-Fenster teilen sich denselben Ring an derselben Stelle -> der Wechsel
+  // nach "Jetzt installieren" sieht aus, als liefe der Ring einfach los.
+  function updRingHtml(cls){
+    return '<div class="upd-ring ' + cls + '" id="updRing"><div class="ur-glow"></div>' +
+      '<svg class="ur" viewBox="0 0 92 92" aria-hidden="true"><defs><linearGradient id="updGrad" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#f3dfb0"/><stop offset=".5" stop-color="#d8b87c"/><stop offset="1" stop-color="#a9864c"/></linearGradient></defs>' +
+      '<circle class="ur-track" cx="46" cy="46" r="43"/><circle class="ur-bar" id="updBar" cx="46" cy="46" r="43"/></svg>' +
+      '<div class="ur-orbit"></div>' +
+      '<div class="ur-core" id="updCore">' + updIconSvg('download', 'still') + '</div>' +
+      '<div class="upd-burst">' + Array.from({length: 12}, (_, i) => '<i style="--a:' + (i * 30) + 'deg"></i>').join('') + '</div></div>';
+  }
+  function updVerHtml(v){
+    const arrow = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+    return '<span class="ry-upd-ver">' + (v && v !== CURRENT_VERSION
+      ? '<span class="from">' + escText(CURRENT_VERSION) + '</span>' + arrow + '<span>' + escText(v) + '</span>'
+      : window.ryT('version_label') + ' ' + escText(v)) + '</span>';
+  }
+  // Änderung im Fenster und die Höhe weich mitziehen statt springen zu lassen (das Fenster ist
+  // mittig, sonst hüpft z. B. der Ring, wenn der Windows-Hinweis erscheint)
+  function updResize(change){
+    const box = document.getElementById('ryUpdBox');
+    if (!box) { change(); return; }
+    const h0 = box.offsetHeight;
+    change();
+    const h1 = box.offsetHeight;
+    if (!h0 || Math.abs(h1 - h0) < 2 || !box.animate || document.documentElement.classList.contains('perf')) return;
+    box.style.overflowY = 'hidden';
+    const a = box.animate([{height: h0 + 'px'}, {height: h1 + 'px'}], {duration: 420, easing: 'cubic-bezier(.22,1,.36,1)'});
+    a.onfinish = a.oncancel = () => { box.style.overflowY = ''; };
+  }
+  function updMorph(box, html){ updResize(() => { box.innerHTML = html; }); }
+  function updTitle(text){
+    const t = document.getElementById('updTitle');
+    if (!t || t.textContent === text) return;
+    t.textContent = text;
+    if (t.animate && !document.documentElement.classList.contains('perf'))
+      t.animate([{opacity: 0, transform: 'translateY(6px)'}, {opacity: 1, transform: 'none'}], {duration: 350, easing: 'cubic-bezier(.22,1,.36,1)'});
   }
   function updStart(){
     const box = document.getElementById("ryUpdBox");
     if (!box) return;
     const ver = pending && pending.version ? pending.version : '';
     const check = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-    box.innerHTML =
+    const shield = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 9.5 4-1.3 7-5.1 7-9.5V6z"/><path d="M12 8v4"/><path d="M12 15.5h.01"/></svg>';
+    updMorph(box,
       '<button class="modal-close" id="ryUpdClose" aria-label="' + window.ryT('close') + '">✕</button>' +
       '<div class="ry-upd-body upd-run">' +
-      '<div class="upd-ring busy" id="updRing"><div class="ur-glow"></div>' +
-      '<svg class="ur" viewBox="0 0 80 80" aria-hidden="true"><defs><linearGradient id="updGrad" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0" stop-color="#f3dfb0"/><stop offset=".5" stop-color="#d8b87c"/><stop offset="1" stop-color="#a9864c"/></linearGradient></defs>' +
-      '<circle class="ur-track" cx="40" cy="40" r="36"/><circle class="ur-bar" id="updBar" cx="40" cy="40" r="36"/>' +
-      '<circle class="ur-spin" cx="40" cy="40" r="36"/></svg>' +
-      '<div class="ur-core" id="updCore"></div>' +
-      '<div class="upd-burst">' + Array.from({length: 12}, (_, i) => '<i style="--a:' + (i * 30) + 'deg"></i>').join('') + '</div></div>' +
+      updRingHtml('busy') +
       '<h2 id="updTitle">' + escText(window.ryT('update_running')) + '</h2>' +
-      '<span class="ry-upd-ver">' + window.ryT('version_label') + ' ' + escText(ver) + '</span>' +
+      updVerHtml(ver) +
       '<ol class="upd-steps" id="updSteps">' + UPD_STEPS.map((st, i) =>
         '<li data-s="' + st + '"><span class="us-ic"><b>' + (i + 1) + '</b>' + check + '</span>' +
         '<span class="us-label">' + escText(window.ryT('update_step_' + st)) + '</span><span class="us-meta"></span></li>').join('') + '</ol>' +
-      '<p class="upd-hint" id="updHint" hidden>' + escText(window.ryT('update_uac_hint')) + '</p>' +
+      '<p class="upd-hint" id="updHint" hidden>' + shield + '<span>' + escText(window.ryT('update_uac_hint')) + '</span></p>' +
       '<div class="ry-upd-status" id="ryUpdStatus"></div>' +
       '<button class="btn-gold" id="ryUpdRetry" hidden>' + window.ryT('try_again') + '</button>' +
-      '</div>';
+      '</div>');
     document.getElementById("ryUpdClose").addEventListener("click", closeUpdatePopup);
     document.getElementById("ryUpdRetry").addEventListener("click", () => runInstall(null, null, true));
-    updStep = null; updShownIcon = null;
+    updStep = null; updShownIcon = 'download';
     updSet('download');
     updStopPoll();
     updPollTimer = setInterval(updPoll, 350);
@@ -11444,11 +11506,12 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       .then(p => {
         if (!p || !p.ok || !updPollTimer) return;
         if (p.phase === 'download') {
-          updSet('download');
+          if (updStep !== 'download') return;
           const li = document.querySelector('#updSteps li[data-s="download"] .us-meta');
           if (p.total > 0) {
             const f = Math.max(0, Math.min(1, p.done / p.total));
-            updRing(UPD_FRAC.download + f * (UPD_FRAC.verify - UPD_FRAC.download - .04), false);
+            updRing(f, false);
+            updCorePct(f);
             if (li) li.textContent = window.ryT('update_mb', {done: (p.done / 1048576).toFixed(1), total: (p.total / 1048576).toFixed(1)});
           } else if (li && p.done > 0) li.textContent = (p.done / 1048576).toFixed(1) + ' MB';
         } else if (p.phase === 'verify' || p.phase === 'install') {
@@ -11457,21 +11520,29 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       })
       .catch(() => {});
   }
+  // frac = Anteil für den Balken (null = unverändert), busy = Komet statt Balken
   function updRing(frac, busy){
     const bar = document.getElementById('updBar'), ring = document.getElementById('updRing');
-    if (bar) bar.style.strokeDashoffset = String(UPD_C * (1 - Math.max(0, Math.min(1, frac))));
-    if (ring) ring.classList.toggle('busy', !!busy);
+    if (bar && frac != null) bar.style.strokeDashoffset = String(UPD_C * (1 - Math.max(0, Math.min(1, frac))));
+    if (ring) { ring.classList.toggle('busy', !!busy); ring.classList.toggle('det', !busy); }
   }
   function updCoreIcon(name){
     const core = document.getElementById('updCore');
     if (core && updShownIcon !== name) { core.innerHTML = updIconSvg(name); updShownIcon = name; }
   }
+  // Prozentzahl in der Mitte: nur den Text tauschen, sonst springt das Einblenden alle 350 ms neu an
+  function updCorePct(f){
+    const core = document.getElementById('updCore');
+    if (!core) return;
+    if (updShownIcon !== 'pct') { core.innerHTML = '<span class="ur-pct" id="updPct"></span>'; updShownIcon = 'pct'; }
+    const el = document.getElementById('updPct');
+    if (el) el.innerHTML = Math.round(f * 100) + '<small>%</small>';
+  }
   function updSet(step){
     const steps = document.getElementById('updSteps');
     if (!steps) return;
     const order = UPD_STEPS.concat(['done']);
-    if (updStep && order.indexOf(step) < order.indexOf(updStep)) return;     // nie rückwärts (späte Fortschritts-Antwort)
-    if (step === updStep && step !== 'download') return;
+    if (updStep && order.indexOf(step) <= order.indexOf(updStep)) return;     // nie rückwärts (späte Fortschritts-Antwort)
     updStep = step;
     const idx = order.indexOf(step);
     steps.querySelectorAll('li').forEach((li, i) => {
@@ -11481,20 +11552,27 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       if (i < idx && li.dataset.s === 'download') li.querySelector('.us-meta').textContent = '';
     });
     const hint = document.getElementById('updHint');
-    if (hint) hint.hidden = step !== 'install';
+    if (hint && hint.hidden !== (step !== 'install')) updResize(() => { hint.hidden = step !== 'install'; });
+    const ring = document.getElementById('updRing');
     if (step === 'done') {
-      updRing(1, false);
+      // Ring läuft einmal grün voll
+      const bar = document.getElementById('updBar');
+      if (bar) {
+        bar.style.transition = 'none';
+        bar.style.strokeDashoffset = String(UPD_C);
+        void getComputedStyle(bar).strokeDashoffset;
+        bar.style.transition = '';
+      }
+      if (ring) { ring.classList.remove('busy', 'det'); ring.classList.add('done'); }
+      if (bar) requestAnimationFrame(() => { bar.style.strokeDashoffset = '0'; });
       updCoreIcon('done');
-      document.getElementById('updRing').classList.add('done');
-      const title = document.getElementById('updTitle');
-      if (title) title.textContent = window.ryT('update_done_title');
+      updTitle(window.ryT('update_done_title'));
       const st = document.getElementById('ryUpdStatus');
-      if (st) st.textContent = window.ryT('update_done_text', {version: pending && pending.version ? pending.version : ''});
+      if (st) updResize(() => { st.textContent = window.ryT('update_done_text', {version: pending && pending.version ? pending.version : ''}); });
       return;
     }
     updCoreIcon(step);
-    if (step !== 'download') updRing(UPD_FRAC[step], true);
-    else updRing(UPD_FRAC.download, true);
+    updRing(null, true);
   }
   function updFail(msg){
     updStopPoll();
@@ -11503,17 +11581,19 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       const act = steps.querySelector('li.active') || steps.querySelector('li:not(.done)');
       if (act) { act.classList.remove('active'); act.classList.add('err'); }
     }
-    const ring = document.getElementById('updRing');
-    if (ring) { ring.classList.remove('busy'); ring.classList.add('err'); }
+    const ring = document.getElementById('updRing'), bar = document.getElementById('updBar');
+    if (ring) { ring.classList.remove('busy', 'det'); ring.classList.add('err'); }
+    if (bar) bar.style.strokeDashoffset = '0';
     updCoreIcon('error');
-    const hint = document.getElementById('updHint');
-    if (hint) hint.hidden = true;
-    const title = document.getElementById('updTitle');
-    if (title) title.textContent = window.ryT('update_failed_title');
-    const st = document.getElementById('ryUpdStatus');
-    if (st) { st.textContent = msg; st.classList.add('err'); }
-    const retry = document.getElementById('ryUpdRetry');
-    if (retry) retry.hidden = false;
+    updTitle(window.ryT('update_failed_title'));
+    updResize(() => {
+      const hint = document.getElementById('updHint');
+      if (hint) hint.hidden = true;
+      const st = document.getElementById('ryUpdStatus');
+      if (st) { st.textContent = msg; st.classList.add('err'); }
+      const retry = document.getElementById('ryUpdRetry');
+      if (retry) retry.hidden = false;
+    });
     updStep = null;
   }
   // Der Dienst beendet sich für die Installation und kommt mit der NEUEN Version zurück
@@ -11527,7 +11607,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       if (el > 90000 && !slow) {
         slow = true;
         const st = document.getElementById('ryUpdStatus');
-        if (st) st.textContent = window.ryT('update_slow');
+        if (st) updResize(() => { st.textContent = window.ryT('update_slow'); });
       }
       if (el > 240000) { location.reload(); return; }
       setTimeout(tick, 1500);
@@ -11564,33 +11644,39 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     const box = document.getElementById("ryUpdBox");
     popupShown = true;
 
-    box.innerHTML =
+    const points = notesForCurrentLang(pending.notes);
+    const dl = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10.5 5 5 5-5"/><path d="M5 20h14"/></svg>';
+    updMorph(box,
       '<button class="modal-close" id="ryUpdClose" aria-label="' + window.ryT('close') + '">✕</button>' +
       '<div class="ry-upd-body">' +
-      '<div class="ry-upd-badge">' +
-      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>' +
-      "</div>" +
-      '<h2>' + window.ryT('update_available') + '</h2>' +
-      '<span class="ry-upd-ver">' + window.ryT('version_label') + ' ' + escText(pending.version) + "</span>" +
-      (function () {
-        const points = notesForCurrentLang(pending.notes);
-        return points.length
-          ? '<ul class="ry-upd-notes">' + points.map(p => "<li>" + escText(p) + "</li>").join("") + "</ul>"
-          : '<p class="ry-upd-notes">' + escText(window.ryT('update_new_version_generic')) + "</p>";
-      })() +
-      '<button class="btn-gold" id="ryUpdInstall">' + window.ryT('install_now') + '</button>' +
+      updRingHtml('idle') +
+      '<h2 id="updTitle">' + window.ryT('update_available') + '</h2>' +
+      updVerHtml(pending.version) +
+      (points.length
+        ? '<div class="upd-new"><div class="upd-new-h">' + escText(window.ryT('update_whats_new')) + '</div>' +
+          '<ul class="ry-upd-notes">' + points.map(p => "<li>" + escText(p) + "</li>").join("") + "</ul></div>"
+        : '<p class="ry-upd-notes">' + escText(window.ryT('update_new_version_generic')) + "</p>") +
+      '<div class="upd-actions">' +
+      '<button class="btn-gold" id="ryUpdInstall">' + dl + '<span>' + window.ryT('install_now') + '</span></button>' +
+      '<button class="upd-later" id="ryUpdLater">' + escText(window.ryT('update_later')) + '</button>' +
+      '</div>' +
       '<div class="ry-upd-status" id="ryUpdStatus"></div>' +
-      "</div>";
+      "</div>");
     wrap.classList.add("open");
-    // Unten ausblenden, solange in der Liste noch etwas kommt
+    // Unten ausblenden, solange in der Liste noch etwas kommt. Erst nach dem Einrollen der Punkte
+    // messen: verschobene Punkte zählen mit zur Scrollhöhe - bis dev5 war der letzte Punkt darum
+    // immer halb ausgeblendet, auch wenn alles hineinpasste.
     const notesEl = box.querySelector("ul.ry-upd-notes");
     if (notesEl) {
       const fade = () => notesEl.classList.toggle("more", notesEl.scrollTop + notesEl.clientHeight < notesEl.scrollHeight - 4);
       notesEl.addEventListener("scroll", fade, {passive: true});
+      notesEl.addEventListener("animationend", fade);
       requestAnimationFrame(fade);
+      setTimeout(fade, 750);
     }
 
     document.getElementById("ryUpdClose").addEventListener("click", closeUpdatePopup);
+    document.getElementById("ryUpdLater").addEventListener("click", closeUpdatePopup);
 
     const status = document.getElementById("ryUpdStatus");
     document.getElementById("ryUpdInstall").addEventListener("click", () => {

@@ -166,6 +166,8 @@
     "version_label": "Версия",
     "update_new_version_generic": "Доступна новая версия RankYoinker.",
     "install_now": "Установить сейчас",
+    "update_later": "Позже",
+    "update_whats_new": "Что нового",
     "installing": "Установка...",
     "update_deferred_match": "Идёт матч. Обновление начнётся автоматически, когда ты вернёшься в лобби.",
     "install_now_anyway": "Всё равно установить сейчас",
