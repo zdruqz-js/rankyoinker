@@ -652,7 +652,7 @@
     "perf_on_msg": "Du kannst ihn jederzeit in den Einstellungen unter „Darstellung“ ausschalten.",
     "toast_loadout_not_updated": "Loadout nicht aktualisiert – letzter Stand",
     "settings_overlay_label": "Spiel-Overlay",
-    "ovl_master": "Fenster über dem Spiel",
+    "ovl_master": "Overlay aktivieren",
     "ovl_master_hint": "Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.",
     "ovl_opt_pregame": "Agentenauswahl",
     "ovl_opt_pregame_hint": "Ränge, Peak und Partys schon vor dem Match",

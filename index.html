@@ -2987,7 +2987,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       <div class="set-group">
         <button type="button" class="lol-toggle set-toggle set-row" id="ovlToggle" role="switch" aria-checked="false">
           <span class="set-ic" data-ic="layers"></span>
-          <span class="st-txt"><span class="lbl" data-i18n="ovl_master">Fenster über dem Spiel</span><small data-i18n="ovl_master_hint">Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.</small></span>
+          <span class="st-txt"><span class="lbl" data-i18n="ovl_master">Overlay aktivieren</span><small data-i18n="ovl_master_hint">Kleine Fenster direkt über VALORANT. Nur im randlosen Vollbild oder Fenstermodus sichtbar.</small></span>
           <span class="sw"></span>
         </button>
       </div>
@@ -9081,13 +9081,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const allBtn = modalBox.querySelector('#pairAll');
     if(allBtn) allBtn.addEventListener('click', () => {
       api('/api/pair/revoke', {all:true}).then(j => {
-        pairState = j; pairKnown = 0; renderPair();
+        pairAfterRevoke(j);
         toast('success', t('toast_all_devices_unpaired'), t('toast_need_new_qr'));
       }).catch(() => toast('error', t('toast_unpair_failed'), t('err_local_service')));
     });
     modalBox.querySelectorAll('[data-unpair]').forEach(b => b.addEventListener('click', () => {
       api('/api/pair/revoke', {id: b.getAttribute('data-unpair')}).then(j => {
-        pairState = j; pairKnown = (j.devices || []).length; renderPair();
+        pairAfterRevoke(j);
         toast('success', t('toast_device_unpaired'), t('toast_access_blocked'));
       }).catch(() => toast('error', t('toast_unpair_failed'), t('err_local_service')));
     }));
@@ -9110,14 +9110,23 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     el.textContent = t('pair_valid_for', {time: fmtRest(rest)});
   }
 
-  function pairNew(host){
+  // repaint: bei einem Fehler trotzdem neu zeichnen (der alte Code gilt dann schon nicht mehr)
+  function pairNew(host, repaint){
     pairHost = host || null;
     api('/api/pair/start', host ? {host} : {}).then(j => {
-      if(!j.ok){ toast('error', t('toast_pairing_failed'), j.error || t('unknown_error')); return; }
+      if(!j.ok){ toast('error', t('toast_pairing_failed'), j.error || t('unknown_error')); if(repaint) renderPair(); return; }
       pairState = j;
       pairKnown = (j.devices || []).length;
       renderPair();
-    }).catch(() => toast('error', t('toast_pairing_failed'), t('err_local_service_port')));
+    }).catch(() => { toast('error', t('toast_pairing_failed'), t('err_local_service_port')); if(repaint) renderPair(); });
+  }
+  // Der Dienst verwirft beim Entkoppeln den offenen Code (ein evtl. mitgesehener Code soll nicht weiter
+  // gelten). Bis 2.5.8-dev11 war der QR-Code danach einfach weg - jetzt steht sofort ein frischer da.
+  function pairAfterRevoke(j){
+    pairState = j;
+    pairKnown = (j.devices || []).length;
+    if(j.pending && j.url) renderPair();
+    else pairNew(pairHost, true);
   }
 
   function openPairModal(){
@@ -11393,7 +11402,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev11";
+const CURRENT_VERSION = "2.5.8";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

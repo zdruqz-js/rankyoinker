@@ -652,7 +652,7 @@
     "perf_on_msg": "설정의 “화면”에서 언제든지 끌 수 있습니다.",
     "toast_loadout_not_updated": "로드아웃 업데이트 안 됨 – 마지막 상태",
     "settings_overlay_label": "게임 오버레이",
-    "ovl_master": "게임 위에 창 표시",
+    "ovl_master": "오버레이 사용",
     "ovl_master_hint": "VALORANT 바로 위에 작은 창이 표시됩니다. 테두리 없는 전체 화면 또는 창 모드에서만 보입니다.",
     "ovl_opt_pregame": "요원 선택",
     "ovl_opt_pregame_hint": "매치 시작 전 랭크, 최고 랭크, 파티",

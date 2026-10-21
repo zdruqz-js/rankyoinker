@@ -651,7 +651,7 @@
     "perf_on_msg": "İstediğin zaman Ayarlar'da “Görünüm” altından kapatabilirsin.",
     "toast_loadout_not_updated": "Teçhizat güncellenmedi – son durum",
     "settings_overlay_label": "Oyun içi katman",
-    "ovl_master": "Oyunun üzerinde pencereler",
+    "ovl_master": "Overlay'i etkinleştir",
     "ovl_master_hint": "VALORANT'ın hemen üzerinde küçük pencereler. Yalnızca kenarlıksız tam ekran veya pencere modunda görünür.",
     "ovl_opt_pregame": "Ajan seçimi",
     "ovl_opt_pregame_hint": "Rütbeler, en yüksek rütbeler ve partiler maçtan önce",

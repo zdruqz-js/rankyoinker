@@ -652,7 +652,7 @@
     "perf_on_msg": "Możesz go w każdej chwili wyłączyć w ustawieniach w sekcji „Wygląd”.",
     "toast_loadout_not_updated": "Loadout nie zaktualizowany – ostatni stan",
     "settings_overlay_label": "Nakładka w grze",
-    "ovl_master": "Okna nad grą",
+    "ovl_master": "Włącz nakładkę",
     "ovl_master_hint": "Małe okna bezpośrednio nad VALORANT. Widoczne tylko w trybie pełnoekranowym bez ramek lub w oknie.",
     "ovl_opt_pregame": "Wybór agenta",
     "ovl_opt_pregame_hint": "Rangi, najwyższe rangi i party jeszcze przed meczem",

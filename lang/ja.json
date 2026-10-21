@@ -651,7 +651,7 @@
     "perf_on_msg": "設定の「表示」からいつでもオフにできます。",
     "toast_loadout_not_updated": "ロードアウトを更新できませんでした（前回の状態）",
     "settings_overlay_label": "ゲーム内オーバーレイ",
-    "ovl_master": "ゲームの上にウィンドウを表示",
+    "ovl_master": "オーバーレイを有効にする",
     "ovl_master_hint": "VALORANTのすぐ上に小さなウィンドウを表示します。ボーダーレス全画面またはウィンドウモードでのみ表示されます。",
     "ovl_opt_pregame": "エージェント選択",
     "ovl_opt_pregame_hint": "マッチ前にランク、最高ランク、パーティーを表示",

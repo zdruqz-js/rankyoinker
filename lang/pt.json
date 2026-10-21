@@ -651,7 +651,7 @@
     "perf_on_msg": "Você pode desativar quando quiser em Configurações, em “Aparência”.",
     "toast_loadout_not_updated": "Loadout não atualizado – último estado",
     "settings_overlay_label": "Overlay no jogo",
-    "ovl_master": "Janelas sobre o jogo",
+    "ovl_master": "Ativar overlay",
     "ovl_master_hint": "Janelas pequenas diretamente sobre o VALORANT. Visíveis apenas em tela cheia sem bordas ou no modo janela.",
     "ovl_opt_pregame": "Seleção de agentes",
     "ovl_opt_pregame_hint": "Elos, picos e grupos antes da partida",

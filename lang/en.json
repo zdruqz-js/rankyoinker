@@ -652,7 +652,7 @@
     "perf_on_msg": "You can turn it off anytime in Settings under “Display”.",
     "toast_loadout_not_updated": "Loadout not updated – showing last state",
     "settings_overlay_label": "Game overlay",
-    "ovl_master": "Windows over the game",
+    "ovl_master": "Enable overlay",
     "ovl_master_hint": "Small windows right on top of VALORANT. Only visible in borderless fullscreen or windowed mode.",
     "ovl_opt_pregame": "Agent select",
     "ovl_opt_pregame_hint": "Ranks, peaks and parties before the match starts",

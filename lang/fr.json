@@ -651,7 +651,7 @@
     "perf_on_msg": "Tu peux le désactiver à tout moment dans les paramètres, rubrique « Affichage ».",
     "toast_loadout_not_updated": "Loadout non actualisé – dernier état",
     "settings_overlay_label": "Overlay en jeu",
-    "ovl_master": "Fenêtres par-dessus le jeu",
+    "ovl_master": "Activer l'overlay",
     "ovl_master_hint": "Petites fenêtres directement par-dessus VALORANT. Visibles uniquement en plein écran fenêtré ou en mode fenêtré.",
     "ovl_opt_pregame": "Sélection des agents",
     "ovl_opt_pregame_hint": "Rangs, meilleurs rangs et groupes avant le match",
