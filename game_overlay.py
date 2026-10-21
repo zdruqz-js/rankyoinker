@@ -1059,6 +1059,9 @@ class Gdi:
         if self.gdip.GdiplusStartup(ctypes.byref(tok), ctypes.byref(gsi), None) != 0:
             raise OSError("GdiplusStartup fehlgeschlagen")
         self._families, self._fonts, self._fmts, self._images = {}, {}, {}, {}
+        self._scaled = {}               # Bilder schon in Zielgroesse (Pfad, Pixel, Ausschnitt) -> Bitmap
+        self._scale = 1.0               # Massstab des laufenden render()
+        self.prof = None                # Test: {Art: Sekunden} je Zeichenbefehl
         self._mcache = {}
         # Zeichensatz selbst setzen (siehe LETTER_SPACING): Schrift-Handle -> (Familie, Groesse, Stil, Familien-Handle)
         self._finfo, self._kcache, self._runs, self._vm = {}, {}, {}, {}
@@ -1287,13 +1290,43 @@ class Gdi:
                     out = (bmp, cw, ch)
             self.gdip.GdipDisposeImage(img)
         if len(self._images) > 80:
+            gone = set()
             for p, v in list(self._images.items())[:40]:
                 if v:
                     self.gdip.GdipDisposeImage(v[0])
                 del self._images[p]
+                gone.add(p)
+            for k in [k for k in self._scaled if k[0] in gone]:
+                self.gdip.GdipDisposeImage(self._scaled.pop(k)[0])
         if out or os.path.isfile(path):
             self._images[path] = out            # fehlt die Datei noch (Download laeuft), spaeter erneut
         return out
+
+    def _fit_image(self, path, img, w, h, sx, sy, sw, sh):
+        """Ausschnitt einmal hochwertig auf die Pixelgroesse am Bildschirm bringen und merken. Vorher wurde
+        jedes Bild bei jedem Zeichnen neu von bis zu 640 px verkleinert (HighQualityBicubic) - das war ein
+        grosser Teil der Zeichenzeit."""
+        pw, ph = int(round(w * self._scale)), int(round(h * self._scale))
+        if pw < 1 or ph < 1 or (pw >= sw and ph >= sh):
+            return None                     # nicht kleiner als die Quelle -> direkt zeichnen
+        key = (path, pw, ph, round(sx, 1), round(sy, 1), round(sw, 1), round(sh, 1))
+        hit = self._scaled.get(key)
+        if hit is not None:
+            return hit
+        bmp, g = ctypes.c_void_p(), ctypes.c_void_p()
+        if self.gdip.GdipCreateBitmapFromScan0(pw, ph, 0, PARGB, None, ctypes.byref(bmp)) != 0:
+            return None
+        self.gdip.GdipGetImageGraphicsContext(bmp, ctypes.byref(g))
+        self.gdip.GdipSetInterpolationMode(g, 7)              # HighQualityBicubic
+        self.gdip.GdipSetPixelOffsetMode(g, 4)
+        self.gdip.GdipDrawImageRectRect(g, img[0], 0.0, 0.0, float(pw), float(ph), sx, sy, sw, sh, 2,
+                                        None, None, None)
+        self.gdip.GdipDeleteGraphics(g)
+        if len(self._scaled) > 160:
+            for k in list(self._scaled)[:80]:
+                self.gdip.GdipDisposeImage(self._scaled.pop(k)[0])
+        hit = self._scaled[key] = (bmp, pw, ph)
+        return hit
 
     # ---- Formen ----
     def _rrect(self, x, y, w, h, r):
@@ -1441,6 +1474,9 @@ class Gdi:
                 k = max(w / float(iw), h / float(ih))
                 sw, sh = w / k, h / k
                 sx, sy = (iw - sw) / 2.0, (ih - sh) / 2.0
+            small = self._fit_image(path_, img, w, h, sx, sy, sw, sh)
+            if small:
+                bmp, (sx, sy, sw, sh) = small[0], (0.0, 0.0, float(small[1]), float(small[2]))
             state = ctypes.c_uint()
             gd.GdipSaveGraphics(g, ctypes.byref(state))
             if r > 0:
@@ -1503,9 +1539,16 @@ class Gdi:
         # verglichen, 2.5.6-dev1) - mit 4 wirkte kleiner grauer Text duenn und blass
         gd.GdipSetTextContrast(g, 0)
         gd.GdipScaleWorldTransform(g, ctypes.c_float(scale), ctypes.c_float(scale), 0)
+        self._scale = scale
         clips = []
+        prof = self.prof
         for it in ops.items:
-            self._op(g, it, clips)
+            if prof is None:
+                self._op(g, it, clips)
+            else:
+                t0 = time.perf_counter()
+                self._op(g, it, clips)
+                prof[it[0]] = prof.get(it[0], 0.0) + time.perf_counter() - t0
         gd.GdipDeleteGraphics(g)
         if save_png:
             clsid = _GUID(_PNG_CLSID[0], _PNG_CLSID[1], _PNG_CLSID[2], (ctypes.c_ubyte * 8)(*_PNG_CLSID[3]))
@@ -2157,10 +2200,18 @@ def smoke_test(state_path, out_dir):
     gdi2 = Gdi(st.get("lang"))                               # frisch: Bilder noch nicht geladen
     ctx2 = {"strings": st.get("strings") or {}, "lang": st.get("lang"), "preview": False}
     times = {}
-    for label in ("cold", "warm"):
+    for label in ("cold", "warm", "warm2"):
+        if label == "warm2":
+            gdi2.prof = {}
         t1 = time.perf_counter()
         gdi2.free(gdi2.render(layout_board(gdi2.measure, ctx2, st["board"]), max(1.0, bwin.scale)))
         times[label] = round((time.perf_counter() - t1) * 1000, 1)
+    report["renderProfileMs"] = {k: round(v * 1000, 2) for k, v in sorted(gdi2.prof.items(), key=lambda kv: -kv[1])}
+    gdi2.prof = None
+    t1 = time.perf_counter()
+    gdi2.free(gdi2.render(layout_board(gdi2.measure, ctx2, st["board"]), 1.5))
+    times["warm15first"] = round((time.perf_counter() - t1) * 1000, 1)
+    report["renderMs"] = times
     report["boardTab"] = {"hiddenAfterRelease": hidden_ok, "prepainted": prepainted, "shownOnKey": shown_on_key,
                           "hiddenAgain": not bwin.visible, "showMs": round(show_ms, 1),
                           "renderMsCold": times["cold"], "renderMsWarm": times["warm"]}
