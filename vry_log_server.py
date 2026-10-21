@@ -520,7 +520,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.7"
+APP_VERSION = "2.5.8-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4096,9 +4096,11 @@ def _pregame_fetch():
     side = {"red": "attack", "blue": "defense"}.get(team.lower())
     # Karte als Riot-Pfad ("/game/maps/jam/jam"): vry.exe schickt in der Agentenauswahl
     # keine, das Kopfbild blieb dort leer
+    # queue: fuers Spiel-Overlay (Modus im Kopf), das seit 2.5.8 denselben Stand nimmt
     return {"ok": True, "matchId": mid, "phase": m.get("Phase"),
             "timeLeft": m.get("PhaseTimeRemainingNS"), "players": players,
-            "enemies": enemies, "side": side, "map": (m.get("MapID") or "").lower() or None}
+            "enemies": enemies, "side": side, "map": (m.get("MapID") or "").lower() or None,
+            "queue": m.get("QueueID") or ""}
 
 
 UUID_RE = re.compile(
@@ -4979,8 +4981,12 @@ _ovl_wake = threading.Event()
 _ovl_cfg_cache = {"mtime": None, "data": dict(OVL_DEFAULTS)}
 _ovl_str_cache = {}
 _ovl_live_cache = {"mtime": None, "data": {}}
-_ovl_pg = {"ts": 0.0, "data": None}
+# Letzter gute Stand der Agentenauswahl fuers Spiel-Overlay (2.5.8): eine fehlgeschlagene Abfrage
+# soll das Fenster nicht kurz ausblenden, und einmal gesehene Gegner bleiben bis zum Ende der Auswahl
+_ovl_pg = {"ts": 0.0, "data": None, "mid": None, "enemies": {}}
 _ovl_pg_lock = threading.Lock()
+OVL_PG_CACHE = 1.5      # so alt darf der gemeinsame Stand von /api/pregame sein
+OVL_PG_HOLD = 6.0       # so lange haelt das Overlay nach einem Fehlschlag den letzten Stand
 _ovl_rr = {"match": None, "data": None, "tries": 0, "next": 0.0, "busy": False}
 _ovl_img_pending = set()
 _ovl_img_lock = threading.Lock()
@@ -5271,40 +5277,37 @@ def _ovl_queue_name(queue, hb_mode=None):
 
 
 def _ovl_pregame_raw():
-    """Agentenauswahl: fragt die Seite gerade (/api/pregame), deren Stand samt Gegnern -
-    sonst selbst eine schlanke Abfrage (ohne Gegner-Raenge/-Historie, die laufen nur mit Seite)."""
+    """Agentenauswahl fuers Spiel-Overlay: derselbe Stand wie /api/pregame (samt Gegnern aus dem
+    Loadouts-Endpunkt), geteilt ueber pregame_state(). Bis 2.5.7 nahm das Overlay den nur, wenn die
+    Seite ihn gerade frisch geholt hatte, und fragte sonst selbst OHNE Gegner - mit gedrosseltem
+    Hintergrund-Tab sprangen die Gegner dadurch rein und raus, ohne offene Seite kamen sie nie.
+    Ein Fehlschlag liefert kurz den letzten guten Stand (OVL_PG_HOLD), Gegner werden je Match
+    gesammelt (Loadouts-Abfrage zwischendurch gescheitert -> sie bleiben stehen)."""
+    now = time.time()
     c = _pregame_cache
-    if c["data"] and c["data"].get("ok") and time.time() - c["ts"] < 2.5:
-        return c["data"]
+    data = c["data"] if (c["data"] and c["data"].get("ok") and now - c["ts"] < OVL_PG_CACHE) else None
+    if data is None:
+        try:
+            data = pregame_state()
+        except RiotError:
+            data = None
     with _ovl_pg_lock:
-        now = time.time()
-        if _ovl_pg["data"] and now - _ovl_pg["ts"] < 0.9:
-            return _ovl_pg["data"]
-        mid = pregame_match_id()
-        if not mid:
-            _ovl_pg.update(ts=now, data=None)
+        if not data or not data.get("ok"):
+            last = _ovl_pg["data"]
+            if last and now - _ovl_pg["ts"] < OVL_PG_HOLD and _game["state"] == "PREGAME":
+                return last
             return None
-        status, m = riot_get("glz", "/pregame/v1/matches/%s" % mid)
-        if status != 200 or not m:
-            return None
-        raw = (m.get("AllyTeam") or {}).get("Players") or []
-        ids = [p.get("Subject") for p in raw if p.get("Subject")]
-        names = names_for_nonblocking(ids)
-        players = []
-        for p in raw:
-            if not p.get("Subject"):
-                continue
-            sel = p.get("CharacterSelectionState") or ""
-            players.append({"puuid": p["Subject"], "name": names.get(p["Subject"]),
-                            "level": (p.get("PlayerIdentity") or {}).get("AccountLevel"),
-                            "agent": p.get("CharacterID") or None, "locked": sel == "locked",
-                            "hovering": sel == "selected"})
-        team = str((m.get("AllyTeam") or {}).get("TeamID") or "")
-        data = {"ok": True, "matchId": mid, "players": players, "enemies": [],
-                "side": {"red": "attack", "blue": "defense"}.get(team.lower()),
-                "map": (m.get("MapID") or "").lower() or None, "queue": m.get("QueueID") or ""}
-        _ovl_pg.update(ts=time.time(), data=data)
-        return data
+        mid = data.get("matchId")
+        if mid != _ovl_pg["mid"]:
+            _ovl_pg.update(mid=mid, enemies={})
+        seen = _ovl_pg["enemies"]
+        for e in data.get("enemies") or []:
+            if isinstance(e, dict) and e.get("puuid"):
+                old = seen.get(e["puuid"]) or {}
+                seen[e["puuid"]] = dict(old, **{k: v for k, v in e.items() if v is not None})
+        out = dict(data, enemies=list(seen.values()))
+        _ovl_pg.update(ts=now, data=out)
+        return out
 
 
 def _ovl_il_chip(strings, mid):
@@ -6259,8 +6262,21 @@ def _prefetch_basics(roster):
     wait("mmr", enemies)
 
 
+def _prefetch_wanted():
+    """Vorladen lohnt sich: Seite in den letzten 2 h offen ODER das Spiel-Overlay laeuft und zeigt
+    Agentenauswahl/Tabelle (bis 2.5.7 zaehlte nur die Seite - wer nur das Spiel-Overlay nutzte,
+    bekam Gegner-Raenge, Partys und "Letzte 5" dort nie vorgeladen)."""
+    now = time.time()
+    if now - _page_seen["ts"] <= PREFETCH_PAGE_IDLE:
+        return True
+    if now - _ovl["seen"] > 30:
+        return False
+    s = ovl_settings()
+    return bool(s.get("on") and (s.get("pregame") or s.get("board")))
+
+
 def _prefetch_match(state, mid):
-    if not mid or time.time() - _page_seen["ts"] > PREFETCH_PAGE_IDLE:
+    if not mid or not _prefetch_wanted():
         return
     key = "%s:%s" % (state, mid)
     # Agentenauswahl: die Gegner tauchen (wenn ueberhaupt) oft erst nach ein paar
