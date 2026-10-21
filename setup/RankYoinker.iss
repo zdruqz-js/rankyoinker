@@ -83,6 +83,11 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+; Seit 2.5.0 kann die App auch pt (Brasilien), ru und ja - der Installer selbst erst seit 2.5.10
+; (vorher bekamen genau diese Nutzer die Sprachauswahl und landeten meist auf Englisch)
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 ; Die eingebauten [Languages]-MessagesFile-Dateien uebersetzen nur die
 ; Standard-Inno-Setup-UI (Weiter/Zurueck/Lizenzseite/Fertig-Seite, ...).
@@ -99,6 +104,9 @@ french.DesktopIconDesc=Créer une icône sur le bureau
 spanish.DesktopIconDesc=Crear un icono en el escritorio
 turkish.DesktopIconDesc=Masaüstü simgesi oluştur
 korean.DesktopIconDesc=바탕화면에 바로가기 만들기
+brazilianportuguese.DesktopIconDesc=Criar um ícone na área de trabalho
+russian.DesktopIconDesc=Создать значок на рабочем столе
+japanese.DesktopIconDesc=デスクトップにアイコンを作成する
 
 english.AdditionalIconsGroup=Additional icons:
 german.AdditionalIconsGroup=Zusätzliche Symbole:
@@ -107,6 +115,9 @@ french.AdditionalIconsGroup=Icônes supplémentaires :
 spanish.AdditionalIconsGroup=Iconos adicionales:
 turkish.AdditionalIconsGroup=Ek simgeler:
 korean.AdditionalIconsGroup=추가 아이콘:
+brazilianportuguese.AdditionalIconsGroup=Ícones adicionais:
+russian.AdditionalIconsGroup=Дополнительные значки:
+japanese.AdditionalIconsGroup=追加のアイコン:
 
 english.InstallStatusMsg=Setting up autostart, firewall and short address...
 german.InstallStatusMsg=Richte Autostart, Firewall und Kurzadresse ein...
@@ -115,6 +126,9 @@ french.InstallStatusMsg=Configuration du démarrage automatique, du pare-feu et 
 spanish.InstallStatusMsg=Configurando el inicio automático, el firewall y la dirección corta...
 turkish.InstallStatusMsg=Otomatik başlatma, güvenlik duvarı ve kısa adres ayarlanıyor...
 korean.InstallStatusMsg=자동 시작, 방화벽, 단축 주소를 설정하는 중...
+brazilianportuguese.InstallStatusMsg=Configurando a inicialização automática, o firewall e o endereço curto...
+russian.InstallStatusMsg=Настройка автозапуска, брандмауэра и короткого адреса...
+japanese.InstallStatusMsg=自動起動、ファイアウォール、短縮アドレスを設定しています...
 
 english.OpenOverlayNowDesc=Open RankYoinker now
 german.OpenOverlayNowDesc=RankYoinker jetzt öffnen
@@ -123,6 +137,9 @@ french.OpenOverlayNowDesc=Ouvrir RankYoinker maintenant
 spanish.OpenOverlayNowDesc=Abrir RankYoinker ahora
 turkish.OpenOverlayNowDesc=RankYoinker'ı şimdi aç
 korean.OpenOverlayNowDesc=지금 RankYoinker 열기
+brazilianportuguese.OpenOverlayNowDesc=Abrir o RankYoinker agora
+russian.OpenOverlayNowDesc=Открыть RankYoinker сейчас
+japanese.OpenOverlayNowDesc=今すぐRankYoinkerを開く
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIconDesc}"; GroupDescription: "{cm:AdditionalIconsGroup}"
