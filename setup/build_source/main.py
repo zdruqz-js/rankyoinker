@@ -190,16 +190,17 @@ try:
                 log(f"Match-Stand uebernommen: {len(restored)} Spieler ohne neue Riot-Abfrage")
             return
 
-        # TTL cleanup (safety)
+        # TTL cleanup (safety) - ueber eine Kopie: die Vorlade-Worker tragen gleichzeitig Spieler ein,
+        # sonst "dictionary changed size during iteration" -> vry.exe beendet (seltenes Rennen)
         now = time.time()
         expired = []
-        for puuid, cached in match_player_cache["players"].items():
+        for puuid, cached in list(match_player_cache["players"].items()):
             ts = cached.get("ts", now)
             if (now - ts) > MATCH_PLAYER_CACHE_TTL_SECONDS:
                 expired.append(puuid)
 
         for puuid in expired:
-            del match_player_cache["players"][puuid]
+            match_player_cache["players"].pop(puuid, None)
 
     def carry_over_rank(playerRank, previousPlayerRank):
         """Neuer Act, aber noch kein Ranked-Spiel darin: Riot uebernimmt den Rang
@@ -237,7 +238,10 @@ try:
         playerRank = carry_over_rank(playerRank, previousPlayerRank)
         ppstats = last_match_stats(player_subject)
 
-        if current_match_id and match_player_cache["match_id"] == current_match_id:
+        # Fehlgeschlagene Rang-Abfrage (Riot-Sperre) nicht fuers ganze Match merken - der naechste
+        # Aufbau (z. B. beim Spielstart) fragt dann erneut statt "Unranked" weiterzutragen
+        rank_ok = all(isinstance(r, dict) and r.get("statusgood") is True for r in (playerRank, previousPlayerRank))
+        if rank_ok and current_match_id and match_player_cache["match_id"] == current_match_id:
             match_player_cache["players"][player_subject] = {
                 "playerRank": dict(playerRank) if isinstance(playerRank, dict) else playerRank,
                 "previousPlayerRank": dict(previousPlayerRank) if isinstance(previousPlayerRank, dict) else previousPlayerRank,
@@ -318,16 +322,20 @@ try:
                 if not entry:
                     continue
                 target = hb_data["players"].get(puuid)
-                if target is not None:
-                    target["agentImgLink"] = entry.get("Agent")
-                    target["team"] = entry.get("Team")
-                    target["sprays"] = entry.get("Sprays")
-                    target["title"] = entry.get("Title")
-                    target["playerCard"] = entry.get("PlayerCard")
-                    target["weapons"] = entry.get("Weapons")
-                    found_any = True
-                remaining.discard(puuid)
-            if found_any:
+                if target is None:
+                    continue        # Spieler noch nicht eingetragen (Laden dauert) - naechster Versuch
+                target["agentImgLink"] = entry.get("Agent")
+                target["team"] = entry.get("Team") or target.get("team")
+                target["sprays"] = entry.get("Sprays")
+                target["title"] = entry.get("Title")
+                target["playerCard"] = entry.get("PlayerCard")
+                target["weapons"] = entry.get("Weapons")
+                found_any = True
+                remaining.discard(puuid)     # bis 2.5.7 auch ohne Eintrag abgehakt -> Loadout fehlte ganz
+            # Erst senden, wenn die Spielerliste vollstaendig ist: sonst ging ein halber Heartbeat raus
+            # (und json.dumps konnte an der gleichzeitig wachsenden Liste scheitern). Was hier schon
+            # eingetragen ist, nimmt der fertige Heartbeat der Hauptschleife ohnehin mit.
+            if found_any and len(hb_data.get("players") or {}) >= len(players):
                 try:
                     Server.send_payload("heartbeat", hb_data)
                 except Exception:
@@ -347,6 +355,8 @@ try:
     firstTime = True
     firstPrint = True
     last_hb_state = None      # Zustand des letzten Durchlaufs (sofortige Lobby-Meldung)
+    phase_retry = 0           # Match/Auswahl nicht lesbar -> so oft erneut laden (PHASE_RETRY_MAX)
+    PHASE_RETRY_MAX = 5
     while True:
         table.clear()
         table.set_default_field_names()
@@ -505,7 +515,14 @@ try:
                     log(f"[TIMING] INGAME {label}: +{time.time() - _t_ingame_start:.2f}s")
                 coregame_stats = coregame.get_coregame_stats()
                 if coregame_stats == None:
+                    # Match (noch) nicht lesbar: kurz warten und denselben Zustand erneut laden. Bis 2.5.7
+                    # ging es hier zum Warten auf einen ANDEREN Zustand - das ganze Match ohne Heartbeat
+                    phase_retry += 1
+                    if phase_retry <= PHASE_RETRY_MAX:
+                        time.sleep(3)
+                        firstTime = True
                     continue
+                phase_retry = 0
                 _log_timing("coregame_stats abgerufen")
                 coregame_match_id = coregame.get_coregame_match_id()
                 ensure_match_player_cache(coregame_match_id)
@@ -615,6 +632,7 @@ try:
                     partyCount = 0
                     partyNum = 0
                     partyIcons = {}
+                    partyNums = {}
                     lastTeamBoolean = False
                     lastTeam = "Red"
 
@@ -709,10 +727,14 @@ try:
                                     # PARTY_ICON
                                     party_icon = PARTYICONLIST[partyCount]
                                     partyNum = partyCount + 1
+                                    partyNums[party] = partyNum
                                     partyCount += 1
                                 else:
                                     # PARTY_ICON
                                     party_icon = partyIcons[party]
+                                    # Nummer DIESER Party (bis 2.5.7 blieb die der zuletzt neuen stehen:
+                                    # A in X, B in Y, C in X -> C zaehlte zu Bs Party)
+                                    partyNum = partyNums[party]
                         playerRank, previousPlayerRank, ppstats = get_or_fetch_rank_and_stats(
                             player["Subject"], coregame_match_id
                         )
@@ -889,7 +911,9 @@ try:
                             "agentImgLink": loadouts_data["Players"][
                                 player["Subject"]
                             ].get("Agent", None),
-                            "team": loadouts_data["Players"][player["Subject"]].get(
+                            # Team direkt aus dem Match (immer da) - aus dem Loadout fehlte es, wenn Riot
+                            # das Loadout eines Spielers spaet lieferte: er stand dann in keinem Team
+                            "team": player.get("TeamID") or loadouts_data["Players"][player["Subject"]].get(
                                 "Team", None
                             ),
                             "sprays": loadouts_data["Players"][player["Subject"]].get(
@@ -927,7 +951,12 @@ try:
                 already_played_with = []
                 pregame_stats = pregame.get_pregame_stats()
                 if pregame_stats == None:
+                    phase_retry += 1          # wie oben bei INGAME
+                    if phase_retry <= PHASE_RETRY_MAX:
+                        time.sleep(2)
+                        firstTime = True
                     continue
+                phase_retry = 0
                 server = pregame_stats.get("GamePodID", "")
                 Players = pregame_stats["AllyTeam"]["Players"]
                 presences.wait_for_presence(namesClass.get_players_puuid(Players))
@@ -963,7 +992,9 @@ try:
                     prefetch_players_rank_and_stats(Players, pregame_match_id)
 
                     partyCount = 0
+                    partyNum = 0
                     partyIcons = {}
+                    partyNums = {}
                     for player in Players:
                         status.update(
                             f"Loading players... [{playersLoaded}/{len(Players)}]"
@@ -981,10 +1012,12 @@ try:
                                     # PARTY_ICON
                                     party_icon = PARTYICONLIST[partyCount]
                                     partyNum = partyCount + 1
+                                    partyNums[party] = partyNum
+                                    partyCount += 1     # nur je neuer Party (bis 2.5.7 je Mitglied)
                                 else:
                                     # PARTY_ICON
                                     party_icon = partyIcons[party]
-                                partyCount += 1
+                                    partyNum = partyNums[party]
                         playerRank, previousPlayerRank, ppstats = get_or_fetch_rank_and_stats(
                             player["Subject"], pregame_match_id
                         )

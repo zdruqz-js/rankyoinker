@@ -30,14 +30,29 @@ class Names:
 
 
     def get_multiple_names_from_puuid(self, puuids):
-        response = self._put(puuids)
-
-        if 'errorCode' in response.json():
-            self.log(f'{response.json()["errorCode"]}, new token retrieved')
-            response = self._put(puuids, refresh=True)
-
-        name_dict = {player["Subject"]: f"{player['GameName']}#{player['TagLine']}"
-                     for player in response.json()}
+        """Bis 2.5.7 beendete eine Cloudflare-HTML-Seite (JSONDecodeError) oder ein fehlender Spieler in
+        der Antwort vry.exe ganz (KeyError weiter oben). Jetzt: einmal neu versuchen, fehlende Namen leer."""
+        data = None
+        for attempt in range(2):
+            try:
+                response = self._put(puuids, refresh=attempt > 0)
+                data = response.json()
+            except Exception as e:
+                self.log(f"name-service: {type(e).__name__}")
+                data = None
+            if isinstance(data, dict) and 'errorCode' in data:
+                self.log(f'{data["errorCode"]}, new token retrieved')
+                data = None
+            if isinstance(data, list):
+                break
+        name_dict = {}
+        for player in data if isinstance(data, list) else []:
+            try:
+                name_dict[player["Subject"]] = f"{player['GameName']}#{player['TagLine']}"
+            except (KeyError, TypeError):
+                continue
+        for puuid in puuids:
+            name_dict.setdefault(puuid, "")
         return name_dict
 
     def get_names_from_puuids(self, players):

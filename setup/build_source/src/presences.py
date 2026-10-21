@@ -149,6 +149,7 @@ class Presences:
 
         order = ["INGAME", "PREGAME"] if prefer == "INGAME" else ["PREGAME", "INGAME"]
         state = "MENUS"
+        unclear = False
         for candidate in order:
             prefix = "/pregame/v1/players/" if candidate == "PREGAME" else "/core-game/v1/players/"
             response = self.Requests.fetch(
@@ -159,7 +160,18 @@ class Presences:
             if isinstance(response, dict) and response.get("MatchID"):
                 state = candidate
                 break
+            # "nicht in diesem Zustand" nur bei einem echten 404 - eine 429/5xx/Cloudflare-Antwort
+            # ist kein Beweis. Bis 2.5.7 machte ein Aussetzer mitten im Match daraus "MENUS":
+            # Lobby-Heartbeat, Caches geleert, danach alle 10 Raenge neu von Riot (wie der Dienst
+            # seit 2.5.5-dev11: MENUS nur bei 404/404)
+            if not (isinstance(response, dict) and (response.get("errorCode") == "RESOURCE_NOT_FOUND"
+                                                    or response.get("httpStatus") == 404)):
+                unclear = True
 
+        if state == "MENUS" and unclear:
+            prev = self._state_cache.get("data")
+            if prev:
+                return prev                 # unklar -> beim letzten sicheren Stand bleiben
         self._state_cache = {"ts": now, "data": state}
         return state
 

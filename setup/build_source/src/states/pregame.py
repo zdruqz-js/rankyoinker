@@ -21,7 +21,7 @@ class Pregame:
             match_id = response['MatchID']
             self.log(f"retrieved pregame match id: '{match_id}'")
             return match_id
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):
             self.log(f"cannot find pregame match id: {response}")
             # print(f"No match id found. {response}")
             try:
@@ -29,7 +29,7 @@ class Pregame:
                 match_id = self.response['MatchID']
                 self.log(f"retrieved pregame match id: '{match_id}'")
                 return match_id
-            except (KeyError, TypeError):
+            except (KeyError, TypeError, AttributeError):
                 self.log(f"cannot find pregame match id: ")
                 print(f"No match id found. {self.response}")
             return 0
@@ -37,6 +37,9 @@ class Pregame:
     def get_pregame_stats(self):
         match_id = self.get_pregame_match_id()
         if match_id != 0:
-            return self.Requests.fetch("glz", f"/pregame/v1/matches/{match_id}", "get")
+            stats = self.Requests.fetch("glz", f"/pregame/v1/matches/{match_id}", "get")
+            # Fehlerantwort (429, Cloudflare) statt Match: wie "nicht lesbar" behandeln (bis 2.5.7
+            # KeyError auf "AllyTeam" -> vry.exe beendet)
+            return stats if isinstance(stats, dict) and stats.get("AllyTeam") else None
         else:
             return None

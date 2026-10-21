@@ -29,8 +29,12 @@ class Config:
             with open(cfg_path, "w") as file:
                 config = self.config_dialog(file)
 
+        config = {}
         try:
-            with open(cfg_path, "r") as file:
+            # utf-8-sig: von Hand gespeichert (Editor, PowerShell) oft mit BOM - bis 2.5.7 scheiterte
+            # das Lesen dann und die ganze Datei wurde auf die Standardwerte zurueckgesetzt
+            # (Update-Kanal, Sprache, Spiel-Overlay, Performance-Modus weg)
+            with open(cfg_path, "r", encoding="utf-8-sig") as file:
                 self.log("config opened")
                 config = json.load(file)
 
@@ -40,18 +44,21 @@ class Config:
 
                 if len(missingkeys) > 0:
                     self.log("config.json is missing keys")
-                    with open(cfg_path, 'w') as w:
-                        self.log(f"missing keys: " + str(missingkeys))
-                        for key in missingkeys:
-                            config[key] = DEFAULT_CONFIG[key]
-
-                        self.log("Succesfully added missing keys")
+                    self.log(f"missing keys: " + str(missingkeys))
+                    for key in missingkeys:
+                        config[key] = DEFAULT_CONFIG[key]
+                    # ueber eine Zwischendatei: der Dienst liest config.json gleichzeitig und haette eine
+                    # halb geschriebene Datei als kaputt beiseitegelegt
+                    tmp = cfg_path + ".tmp"
+                    with open(tmp, 'w', encoding="utf-8") as w:
                         json.dump(config, w, indent=4)
+                    os.replace(tmp, cfg_path)
+                    self.log("Succesfully added missing keys")
 
-        except (JSONDecodeError):
-            self.log("invalid file")
-            with open(cfg_path, "w") as file:
-                config = self.config_dialog(file)
+        except ValueError:      # JSONDecodeError, UnicodeDecodeError
+            # Nicht mehr ueberschreiben - nur fuer diesen Lauf mit Standardwerten arbeiten
+            self.log("invalid file - using defaults for this run, config.json left untouched")
+            config = {}
         finally:
             config = DEFAULT_CONFIG | config
             for name, value in config.items():

@@ -12,7 +12,10 @@ class Rank:
             return self.requestMap[puuid]
 
         response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
-        self.requestMap[puuid] = response
+        # Nur Erfolge merken: bis 2.5.7 galt eine 429/Cloudflare-Antwort hier bis zum Menue -
+        # der Spieler stand dann die ganze Auswahl und das ganze Match als "Unranked"
+        if getattr(response, "ok", False):
+            self.requestMap[puuid] = response
         return response
 
     def invalidate_cached_responses(self):

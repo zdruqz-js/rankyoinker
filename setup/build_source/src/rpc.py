@@ -209,7 +209,7 @@ def _current_lang() -> str:
     faellt nicht ins Gewicht, macht dafuer einen Sprachwechsel sofort wirksam
     statt erst nach einem Neustart."""
     try:
-        with open(_config_path(), "r", encoding="utf-8") as f:
+        with open(_config_path(), "r", encoding="utf-8-sig") as f:
             data = json.load(f)
         raw = (data or {}).get("lang")
         if raw:

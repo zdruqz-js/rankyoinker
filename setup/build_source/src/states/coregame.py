@@ -19,7 +19,7 @@ class Coregame:
             match_id = self.response['MatchID']
             self.log(f"retrieved coregame match id: '{match_id}'")
             return match_id
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):
             self.log(f"cannot find coregame match id: ")
             # print(f"No match id found. {self.response}")
             time.sleep(5)
@@ -30,7 +30,7 @@ class Coregame:
                 match_id = self.response['MatchID']
                 self.log(f"retrieved coregame match id: '{match_id}'")
                 return match_id
-            except (KeyError, TypeError):
+            except (KeyError, TypeError, AttributeError):
                 self.log(f"cannot find coregame match id: ")
                 print(f"No match id found. {self.response}")
             return 0
@@ -38,9 +38,11 @@ class Coregame:
     def get_coregame_stats(self):
         self.match_id = self.get_coregame_match_id()
         if self.match_id != 0:
-            return self.Requests.fetch(url_type="glz",
-                                       endpoint=f"/core-game/v1/matches/{self.match_id}",
-                                       method="get")
+            stats = self.Requests.fetch(url_type="glz",
+                                        endpoint=f"/core-game/v1/matches/{self.match_id}",
+                                        method="get")
+            # Fehlerantwort statt Match -> "nicht lesbar" (bis 2.5.7 KeyError auf "Players")
+            return stats if isinstance(stats, dict) and stats.get("Players") else None
         else:
             return None
 
