@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.8-dev3"
+APP_VERSION = "2.5.8-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1167,8 +1167,22 @@ def _update_waiter_ps1(pid, installer, target, log_path, setup_log, pythonw, scr
     ])
 
 
+# Fortschritt fuers Update-Fenster der Seite (2.5.8): /api/rankyoinker/self-update laeuft bis nach
+# Download + Pruefung; die Seite fragt nebenbei /api/rankyoinker/self-update/progress ab.
+_upd_prog = {"phase": "idle", "done": 0, "total": 0, "version": None, "at": 0.0}
+
+
+def self_update_progress():
+    p = dict(_upd_prog)
+    p["ok"] = True
+    return p
+
+
 def trigger_self_update():
+    _upd_prog.update(phase="resolve", done=0, total=0, version=None, at=time.time())
     res = _trigger_self_update()
+    if isinstance(res, dict) and not res.get("ok"):
+        _upd_prog.update(phase="error", at=time.time())
     if isinstance(res, dict) and not res.get("ok"):
         report_error("self-update", res.get("error") or "unbekannt")
     return res
@@ -1181,19 +1195,31 @@ def _trigger_self_update():
         return {"ok": False, "error": "Konnte aktuelle Version nicht ermitteln."}
     download_url, expected_sha256, version = resolved
     _ulog(f"Update ausgeloest. version={version!r} downloadUrl={download_url!r} sha256={expected_sha256!r}")
+    _upd_prog.update(phase="download", version=version, at=time.time())
 
     tmp_path = os.path.join(DATA_DIR, "rankyoinker-update.exe")
 
     try:
         req = urllib.request.Request(download_url, headers={"User-Agent": "RankYoinker-Updater"})
         with _urlopen_public(req, timeout=60) as resp, open(tmp_path, "wb") as out:
-            out.write(resp.read())
+            try:
+                _upd_prog["total"] = int(resp.headers.get("Content-Length") or 0)
+            except (TypeError, ValueError):
+                _upd_prog["total"] = 0
+            # in Stuecken statt resp.read() auf einmal - so sieht die Seite den Fortschritt
+            while True:
+                chunk = resp.read(256 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+                _upd_prog["done"] += len(chunk)
         _ulog(f"Download erfolgreich -> {tmp_path}")
     except Exception as e:
         _ulog(f"Download fehlgeschlagen: {type(e).__name__}: {e}")
         return {"ok": False, "error": f"Download fehlgeschlagen: {e}"}
 
     # --- Pflicht-Integritätsprüfung, bevor irgendetwas ausgeführt wird ---
+    _upd_prog.update(phase="verify", at=time.time())
     digest = hashlib.sha256()
     try:
         with open(tmp_path, "rb") as f:
@@ -1213,6 +1239,7 @@ def _trigger_self_update():
         return {"ok": False, "error": "Hash stimmt nicht ueberein - Update abgebrochen, nichts wurde ausgefuehrt."}
     # --- Ab hier ist die Datei verifiziert ---
     _ulog("Hash passt, verifiziert.")
+    _upd_prog.update(phase="install", at=time.time())
 
     _kill_all_vry()  # vry.exe blockiert sonst das Ueberschreiben seiner eigenen Datei
     _ulog("_kill_all_vry() aufgerufen.")
@@ -10791,6 +10818,11 @@ class Handler(BaseHTTPRequestHandler):
             out.update(proc_state())
             out.update(account_state())
             self._json(out)
+
+        elif path == "/api/rankyoinker/self-update/progress":
+            # Fortschritt des laufenden Updates (Download in Bytes, Phase) fuers Update-Fenster
+            if self._local_only():
+                self._safe(self_update_progress)
 
         elif path == "/api/local-config":
             # Liest ausschliesslich fuer den Update-Check gedachte, lokale
