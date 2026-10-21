@@ -11270,7 +11270,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev7";
+const CURRENT_VERSION = "2.5.8-dev8";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
@@ -11406,7 +11406,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       .then(res => {
         updStopPoll();
         if (res && res.ok) {
-          updSet('install');
+          updGo('install');
           updWaitNewVersion();
         } else {
           updFail(window.ryT('error_prefix') + (res && res.error ? res.error : window.ryT('unknown_short')));
@@ -11432,6 +11432,37 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     error: '<path d="M7 7l10 10"/><path d="M17 7 7 17"/>',
   };
   let updPollTimer = null, updStep = null, updShownIcon = null;
+  // Jeder Schritt bleibt eine Mindestzeit stehen, auch wenn der Dienst schon weiter ist - das Prüfen
+  // dauert real nur Millisekunden und wäre sonst nie zu sehen. updGo() merkt sich das Ziel,
+  // updAdvance() läuft Schritt für Schritt dorthin (nie einen überspringen).
+  const UPD_MIN_MS = {download: 500, verify: 1200, restart: 700};
+  let updTarget = null, updShownAt = 0, updQTimer = null, updDlFull = false, updOnDone = null;
+  function updGo(step){
+    const order = UPD_STEPS.concat(['done']);
+    if (!updTarget || order.indexOf(step) > order.indexOf(updTarget)) updTarget = step;
+    updAdvance();
+  }
+  function updAdvance(){
+    if (updQTimer || !updTarget) return;
+    const order = UPD_STEPS.concat(['done']);
+    const cur = order.indexOf(updStep);
+    if (cur < 0 || order.indexOf(updTarget) <= cur) return;
+    let wait = updShownAt + (UPD_MIN_MS[updStep] || 0) - Date.now();
+    // Download fertig: Ring kurz auf 100 % stehen lassen, bevor der Komet übernimmt
+    if (updStep === 'download' && updShownIcon === 'pct' && !updDlFull) {
+      updDlFull = true;
+      updRing(1, false);
+      updCorePct(1);
+      wait = Math.max(wait, 450);
+    }
+    if (wait > 0) { updQTimer = setTimeout(() => { updQTimer = null; updAdvance(); }, wait); return; }
+    updSet(order[cur + 1]);
+    updAdvance();
+  }
+  function updQueueReset(){
+    if (updQTimer) { clearTimeout(updQTimer); updQTimer = null; }
+    updTarget = null; updDlFull = false; updOnDone = null;
+  }
   function updIconSvg(name, cls){
     return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + UPD_ICON[name] + '</svg>';
   }
@@ -11495,6 +11526,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     document.getElementById("ryUpdClose").addEventListener("click", closeUpdatePopup);
     document.getElementById("ryUpdRetry").addEventListener("click", () => runInstall(null, null, true));
     updStep = null; updShownIcon = 'download';
+    updQueueReset();
     updSet('download');
     updStopPoll();
     updPollTimer = setInterval(updPoll, 350);
@@ -11515,7 +11547,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
             if (li) li.textContent = window.ryT('update_mb', {done: (p.done / 1048576).toFixed(1), total: (p.total / 1048576).toFixed(1)});
           } else if (li && p.done > 0) li.textContent = (p.done / 1048576).toFixed(1) + ' MB';
         } else if (p.phase === 'verify' || p.phase === 'install') {
-          updSet(p.phase === 'verify' ? 'verify' : 'install');
+          updGo(p.phase === 'verify' ? 'verify' : 'install');
         }
       })
       .catch(() => {});
@@ -11544,6 +11576,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
     const order = UPD_STEPS.concat(['done']);
     if (updStep && order.indexOf(step) <= order.indexOf(updStep)) return;     // nie rückwärts (späte Fortschritts-Antwort)
     updStep = step;
+    updShownAt = Date.now();
     const idx = order.indexOf(step);
     steps.querySelectorAll('li').forEach((li, i) => {
       li.classList.remove('err');
@@ -11569,6 +11602,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
       updTitle(window.ryT('update_done_title'));
       const st = document.getElementById('ryUpdStatus');
       if (st) updResize(() => { st.textContent = window.ryT('update_done_text', {version: pending && pending.version ? pending.version : ''}); });
+      if (updOnDone) { const f = updOnDone; updOnDone = null; f(); }
       return;
     }
     updCoreIcon(step);
@@ -11576,6 +11610,7 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
   }
   function updFail(msg){
     updStopPoll();
+    updQueueReset();
     const steps = document.getElementById('updSteps');
     if (steps) {
       const act = steps.querySelector('li.active') || steps.querySelector('li:not(.done)');
@@ -11618,8 +11653,8 @@ document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VE
         .then(j => {
           const v = j && j.appVersion;
           if (v && v !== CURRENT_VERSION && (!target || v === target || down)) {
-            updSet('restart');
-            setTimeout(() => { updSet('done'); setTimeout(() => location.reload(), 2300); }, 750);
+            updOnDone = () => setTimeout(() => location.reload(), 2300);
+            updGo('done');
             return;
           }
           if (down && v === CURRENT_VERSION) {
