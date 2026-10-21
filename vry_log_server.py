@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.8-dev9"
+APP_VERSION = "2.5.8-dev10"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -7964,22 +7964,15 @@ def _league_score():
 
 
 def detect_active_game():
-    """Bewusst vorsichtig: Ein Match/eine Queue (Score 3) schlaegt einen bloss
-    geoeffneten Client (Score 1) sofort. Sind beide gleich weit — meistens:
-    beide nur im Menue offen, weil viele Leute beide Clients nebenbei laufen
-    lassen — wird NICHT geraten. Frueher fiel ein Gleichstand ohne Vorwissen
-    immer auf Valorant zurueck; das sah nach kaputter Erkennung aus, sobald
-    League eigentlich gemeint war. Jetzt bleibt es in dem Fall unentschieden
-    (game: None) und die Seite zeigt den manuellen Umschalter — die einzige
-    ehrliche Antwort, wenn beide Spiele gleich "aktiv" wirken."""
+    """Welches Spiel AUTO zeigt. Seit 2.5.8 (Nutzerwunsch) hat VALORANT Vorrang: League nur, wenn
+    es weiter ist (Queue/Champ Select/Spiel, Score 3) und VALORANT bloss offen (Score 1) oder zu.
+    Beide offen oder beide im Match -> VALORANT. Bis 2.5.7 blieb ein Gleichstand unentschieden
+    (game: None) und die Seite zeigte dann trotzdem die VALORANT-Ansicht mit grauem AUTO."""
     sv, sl = _valorant_score(), _league_score()
     if sv == 0 and sl == 0:
         _active_game["game"] = None
-    elif sv != sl:
-        _active_game["game"] = "valorant" if sv > sl else "league"
-    # sonst (sv == sl > 0): echter Gleichstand, meistens beide Clients nur im
-    # Menü offen -> nicht raten. Ein vorheriger Stand (aus einem früheren
-    # Ungleichstand) bleibt einfach stehen, statt auf Valorant zu springen.
+    else:
+        _active_game["game"] = "league" if sl > sv else "valorant"
     return {"game": _active_game["game"],
             "valorantPresent": valorant_present(), "valorantScore": sv,
             "leaguePresent": league_present(), "leagueScore": sl}

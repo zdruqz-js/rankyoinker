@@ -377,10 +377,8 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
 }
 @keyframes iconFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-5px);}}
 .status-icon.load{animation:none;}
-/* Warte-Ansicht (beide Spiele gleich): Spiel-Plakette, Logo im drehenden Ring, Status-Zeilen */
-.status-game{display:inline-flex; align-items:center; gap:8px; margin:-8px auto 22px; padding:6px 12px 6px 10px; border-radius:999px;
-  background:var(--surface-2); border:1px solid var(--line-2); font:600 10.5px var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--text-2);}
-.status-game svg{color:var(--text);}
+/* Warte-Ansicht (beide Spiele gleich): Logo im drehenden Ring, Status-Zeilen. Die Spiel-Plakette
+   darüber ist seit 2.5.8 weg (Nutzer: steht ja schon in „Warte auf …“). */
 .status-icon.brand{color:var(--text); animation:none;}
 .status-icon.brand svg{filter:drop-shadow(0 0 10px color-mix(in srgb, var(--sc) 55%, transparent));}
 .status-icon.brand::before, .status-icon.brand::after{content:""; position:absolute; inset:-8px; border-radius:50%; border:2px solid transparent;}
@@ -400,7 +398,14 @@ body.lol-mode:has(#lolStatusOverlay.open) #lolTabs{opacity:0; pointer-events:non
   width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.1); border-top-color:var(--sc);
   animation:spin .9s linear infinite;
 }
-.status-card.swap{animation:cardPop .6s var(--ease) both;}
+.status-card.swap, #lolStatusOverlay.open .status-card{animation:cardPop .6s var(--ease) both;}
+/* AUTO ohne laufendes Spiel: VALORANT- und League-Symbol wechseln sich im Ring ab (2.5.8) */
+.status-icon .sw{grid-area:1/1; display:grid; place-items:center; animation:swGame 4.8s var(--ease) infinite;}
+.status-icon .sw + .sw{animation-delay:-2.4s;}
+.status-icon.brand-auto{display:grid;}
+@keyframes swGame{0%,40%{opacity:1; transform:none;} 50%,90%{opacity:0; transform:scale(.7) rotate(-8deg);} 100%{opacity:1; transform:none;}}
+html.perf .status-icon .sw + .sw{display:none;}
+@media (prefers-reduced-motion: reduce){ .status-icon .sw{animation:none;} .status-icon .sw + .sw{display:none;} }
 @keyframes cardPop{from{opacity:0; transform:translateY(18px) scale(.97); filter:blur(4px);}}
 .status-card h2{font-size:26px; font-weight:750; letter-spacing:-.025em; margin-bottom:10px; position:relative; text-wrap:balance;}
 .status-card p{position:relative; color:var(--text-2); font-size:14px; line-height:1.65; margin:0 0 22px;}
@@ -2022,31 +2027,6 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .ask-hint{font-size:12px; color:var(--warn); margin-top:9px; min-height:16px;}
 .ask-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
 
-/* ================= Log-Leiste ================= */
-#logDrawer{position:fixed; left:12px; right:12px; bottom:12px; z-index:400; height:46vh; display:none; flex-direction:column; overflow:hidden;
-  border-radius:22px; border:1px solid var(--line-2); background:rgba(10,10,12,.95); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); box-shadow:var(--shadow-pop);}
-#logDrawer.open{display:flex; animation:drawerUp .5s var(--spring-soft);}
-@keyframes drawerUp{from{transform:translateY(40px); opacity:0;}}
-.logbar{display:flex; align-items:center; gap:12px; padding:12px 14px 12px 18px; border-bottom:1px solid var(--line); flex-shrink:0;}
-.logbar .t{font-family:var(--font-display); font-weight:700; font-size:14px;}
-.logbar .f{font-family:var(--font-mono); font-size:11px; color:var(--text-3);}
-.logbar .proc{padding:4px 10px; border-radius:999px; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em;}
-.proc.on{background:rgba(61,220,132,.12); color:var(--win);}
-.proc.offp{background:rgba(255,107,122,.1); color:var(--loss);}
-.logbar .sp{flex:1;}
-#logBody{flex:1; overflow-y:auto; padding:10px 12px; font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-2);}
-.lg-row{display:flex; align-items:flex-start; gap:12px; padding:2px 8px; border-left:2px solid transparent; border-radius:6px;}
-.lg-row:hover{background:rgba(255,255,255,.03);}
-.lg-t{flex-shrink:0; width:62px; color:var(--text-4); font-size:11px; padding-top:1px; user-select:none;}
-.lg-m{flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere;}
-.lg-n{flex-shrink:0; align-self:center; padding:1px 7px; border-radius:99px; font-size:10px; background:var(--surface-3); color:var(--text-3);}
-.lg-row.err{border-left-color:var(--loss); background:rgba(255,107,122,.05);} .lg-row.err .lg-m{color:#ffa2ab;}
-.lg-row.warn{border-left-color:var(--warn);} .lg-row.warn .lg-m{color:#f2d394;}
-.lg-row.ok{border-left-color:var(--win);} .lg-row.ok .lg-m{color:#8ee6b3;}
-.lg-row.step{border-left-color:var(--accent-line);} .lg-row.step .lg-m{color:#d7d3c6;}
-.lg-row.dim .lg-m{color:var(--text-4);}
-.lg-m .u{color:#8ab4ff;} .lg-m .q{color:var(--accent);} .lg-m .cut{color:var(--text-3); font-style:italic;}
-.lg-hint{padding:10px 12px; margin-bottom:8px; border-radius:10px; color:var(--text-3); background:var(--surface); border:1px dashed var(--line-2); font-size:11.5px;}
 
 /* ================= Handy koppeln ================= */
 .pair-wrap{padding:30px 30px 26px; text-align:center;}
@@ -2909,7 +2889,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
 <div id="statusOverlay">
   <div class="status-card err" id="statusCard">
-    <div class="status-game" id="statusGame">VALORANT</div>
     <div class="status-orb"><div class="status-icon" id="statusCardIcon">⚡</div></div>
     <h2 id="statusCardTitle" data-i18n="program_not_running">Programm läuft nicht</h2>
     <p id="statusCardText">
@@ -2917,9 +2896,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       Starte <strong>VALORANT</strong>, RankYoinker startet automatisch mit.
     </p>
     <div class="status-pills" id="statusPills"></div>
-    <div>
-      <button class="btn-retry" id="logBtnCard">▤ Logs</button>
-    </div>
     <div id="procLine"></div>
   </div>
 </div>
@@ -2934,7 +2910,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
 <div id="lolStatusOverlay">
   <div class="status-card wait">
-    <div class="status-game" id="lolStatusGame">LEAGUE OF LEGENDS</div>
     <div class="status-orb"><div class="status-icon brand" id="lolStatusCardIcon"></div></div>
     <h2 data-i18n="waiting_for_lol">Warte auf League of Legends</h2>
     <p data-i18n="lol_not_running_hint">Starte League of Legends. Sobald der Client läuft, wird hier automatisch alles angezeigt.</p>
@@ -3007,16 +2982,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   </div>
 </div>
 
-<div id="logDrawer">
-  <div class="logbar">
-    <span class="t" data-i18n="console_logs_title">Konsolen-Logs</span>
-    <span class="f" id="logFile">—</span>
-    <span class="proc offp" id="logProc">…</span>
-    <span class="sp"></span>
-    <button class="icon-btn" id="logClose">✕</button>
-  </div>
-  <div id="logBody" data-i18n="connecting_to_log_server">Verbinde mit Log-Server…</div>
-</div>
 
 
 
@@ -3996,8 +3961,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
   }
 
-  document.getElementById('logClose').innerHTML = svgIcon('x', 14);
-  document.getElementById('logBtnCard').innerHTML = svgIcon('terminal', 13) + 'Logs';
 
   // Kopf der Statuskarte: entweder ein Icon oder das drehende Ladesymbol.
   // updateOverlay() läuft im Sekundentakt — ohne diese Sperre würde das Element
@@ -4009,8 +3972,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
   const statusPills = document.getElementById('statusPills');
   function setStatusPills(html){ if(statusPills.innerHTML !== html) statusPills.innerHTML = html; }
-  document.getElementById('statusGame').innerHTML = valBrandIcon(13) + '<span>VALORANT</span>';
-  document.getElementById('lolStatusGame').innerHTML = lolBrandIcon(13) + '<span>League of Legends</span>';
   let curStatusIcon = '';
   function setStatusIcon(name){
     if(name === curStatusIcon) return;
@@ -4018,6 +3979,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(name === 'brand'){
       statusCardIcon.className = 'status-icon brand';
       statusCardIcon.innerHTML = valBrandIcon(30);
+    } else if(name === 'brand-auto'){
+      statusCardIcon.className = 'status-icon brand brand-auto';
+      statusCardIcon.innerHTML = `<span class="sw">${valBrandIcon(30)}</span><span class="sw">${lolBrandIcon(30)}</span>`;
     } else if(name === 'load'){
       statusCardIcon.className = 'status-icon load';
       statusCardIcon.innerHTML = '<span class="loader"></span>';
@@ -4105,16 +4069,23 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       statusCardText.innerHTML = `<span class="wait-hint">${t('valorant_open_vry_connecting')}</span>` + matchHint;
     };
 
+    // AUTO und noch kein Spiel erkannt: auf beide warten statt nur "Warte auf VALORANT" (2.5.8)
+    const waitAny = !gameOverride && !activeGame;
+    const showWaiting = (hintKey, serviceOk) => {
+      statusCard.className = 'status-card wait';
+      setStatusIcon(waitAny ? 'brand-auto' : 'brand');
+      statusCardTitle.textContent = t(waitAny ? 'waiting_for_any' : 'waiting_for_valorant');
+      statusCardText.innerHTML = `<span class="wait-hint">${t(waitAny ? 'start_any_hint' : hintKey)}</span>`;
+      pills = waitAny
+        ? `<div class="status-pill ${serviceOk ? 'ok' : 'bad'}"><i></i>${esc(t(serviceOk ? 'status_service_ready' : 'status_service_down'))}</div>`
+          + `<div class="status-pill wait"><i></i>${esc(t('status_no_game'))}</div>`
+        : statusPillsHtml('VALORANT', serviceOk);
+    };
+
     if(!running && procStatus && procStatus.waiting){
       // RankYoinker läuft nicht — kommt aber von selbst, sobald VALORANT da ist
       if(valorantOpen) showConnecting();
-      else {
-        statusCard.className = 'status-card wait';
-        setStatusIcon('brand');
-        statusCardTitle.textContent = t('waiting_for_valorant');
-        statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_vry_autostart')}</span>`;
-        pills = statusPillsHtml('VALORANT', true);
-      }
+      else showWaiting('start_valorant_vry_autostart', true);
     } else if(running && phase === 'waiting_riot'){
       statusCard.className = 'status-card wait';
       setStatusIcon('brand');
@@ -4153,18 +4124,14 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     } else {
       // WICHTIG: Hier wartet RankYoinker NICHT auf Match-Daten, sondern schlicht darauf,
       // dass VALORANT überhaupt läuft. Alles andere wäre irreführend.
-      statusCard.className = 'status-card wait';
-      setStatusIcon('load');
-      statusCardTitle.textContent = t('waiting_for_valorant');
-      statusCardText.innerHTML = `<span class="wait-hint">${t('start_valorant_lobby_autoload')}</span>`
-        + matchHint
+      showWaiting('start_valorant_lobby_autoload', !!procStatus);
+      statusCardText.innerHTML += matchHint
         + (!procStatus ? `<br><span style="color:var(--text-faint);">${t('helper_service_unreachable_plain')}</span>` : '');
-      setStatusIcon('brand');
-      pills = statusPillsHtml('VALORANT', !!procStatus);
     }
     setStatusPills(pills);
 
-    // Status hat gewechselt -> Karte fliegt neu ein (der Reflow startet die Animation neu)
+    // Status hat gewechselt -> Karte fliegt neu ein (Klasse weg + Reflow startet die Animation neu)
+    statusCard.classList.remove('swap');
     const ovKey = statusCard.className + '|' + statusCardTitle.textContent;
     if(ovKey !== lastStatusKey){ lastStatusKey = ovKey; void statusCard.offsetWidth; }
     statusCard.classList.add('swap');
@@ -4437,49 +4404,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // Kopplung geht automatisch mit. Nur beim Öffnen als Datei (file://) bleibt
   // es bei der festen Adresse.
   const LOG_URL = /^https?:$/.test(location.protocol) ? '' : 'http://127.0.0.1:1101';
-  const logDrawer = document.getElementById('logDrawer');
-  const logBody = document.getElementById('logBody');
-  const logFile = document.getElementById('logFile');
-  const logProc = document.getElementById('logProc');
   const procLine = document.getElementById('procLine');
-  let logTimer = null, logPinned = true, lastLogText = null;
-
-  // ---------- Log-Aufbereitung ----------
-  // vry schreibt Zeilen der Form "[2026.08.12-01.48.32] Meldung", teils mit
-  // Fortsetzungszeilen (Header-Dicts). Daraus bauen wir lesbare Zeilen:
-  // Uhrzeit links, Meldung rechts, Farbe nach Schweregrad — und identische
-  // Meldungen direkt hintereinander werden zu einer Zeile mit Zähler.
-  const LOG_TS = /^\[(\d{4})\.(\d{2})\.(\d{2})-(\d{2})\.(\d{2})\.(\d{2})[^\]]*\]\s?/;
-  const LOG_MAX = 420;
-
-  function logEntries(text){
-    const raw = [];
-    String(text).split('\n').forEach(line => {
-      const l = line.replace(/\s+$/, '');
-      if(!l.trim()) return;
-      const m = l.match(LOG_TS);
-      if(m){ raw.push({t: `${m[4]}:${m[5]}:${m[6]}`, msg: l.slice(m[0].length), n: 1}); }
-      else if(raw.length){ raw[raw.length - 1].msg += '  ' + l.trim(); }   // Fortsetzung
-      else raw.push({t: '', msg: l, n: 1});
-    });
-    const packed = [];
-    raw.forEach(e => {
-      const prev = packed[packed.length - 1];
-      if(prev && prev.msg === e.msg){ prev.n++; prev.t = e.t; return; }    // Wiederholung
-      packed.push(e);
-    });
-    return packed;
-  }
-
-  function logClass(msg){
-    if(/traceback|exception|\bcrash|denied|failed|fehlgeschlagen|fehler/i.test(msg)) return 'err';
-    if(/retry|retrying|not ready|invalid|does not exist|is not open|warn|no .*found/i.test(msg)) return 'warn';
-    if(/\berror\b/i.test(msg)) return 'err';
-    if(/success|erfolg|connected|initialized|opened lockfile|got region|retrieved|loaded/i.test(msg)) return 'ok';
-    if(/^(getting|starting|new game state|first game state|api urls|account manager|config|operating system)/i.test(msg)) return 'step';
-    if(/^[{[('"]/.test(msg)) return 'dim';
-    return '';
-  }
 
   // Der Log-Server (vry_log_server.py) liefert manche Statustexte (procStatus.note)
   // auf Deutsch aus dem Backend - das Python-Skript selbst bewusst nicht anfassen
@@ -4527,57 +4452,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return note;
   }
 
-  function logMsgHtml(msg){
-    let rest = 0;
-    if(msg.length > LOG_MAX){ rest = msg.length - LOG_MAX; msg = msg.slice(0, LOG_MAX); }
-    let h = esc(msg)
-      .replace(/(https?:\/\/[^\s&'"<]*[^\s&'"<.,;:])/g, '<span class="u">$1</span>')
-      .replace(/&#39;((?:(?!&#39;).){1,80})&#39;/g, '<span class="q">&#39;$1&#39;</span>');
-    if(rest) h += ` <span class="cut">${t('log_chars_more', {rest})}</span>`;
-    return h;
-  }
-
-  function highlightLog(text){
-    const rows = logEntries(text).map(e =>
-      `<div class="lg-row ${logClass(e.msg)}">`
-      + `<span class="lg-t">${esc(e.t)}</span>`
-      + `<span class="lg-m">${logMsgHtml(e.msg)}</span>`
-      + (e.n > 1 ? `<span class="lg-n">×${e.n}</span>` : '')
-      + `</div>`).join('');
-    return rows || `<div class="lg-hint">${t('log_empty_hint')}</div>`;
-  }
-  async function pollLog(){
-    try{
-      const j = await (await fetch(LOG_URL + '/log', {cache:'no-store'})).json();
-      logFile.textContent = j.file || '—';
-      logProc.textContent = j.running ? t('vry_running') : t('vry_stopped');
-      logProc.className = 'proc ' + (j.running ? 'on' : 'offp');
-      if(j.log !== lastLogText){
-        lastLogText = j.log;
-        const hint = j.note ? `<div class="lg-hint">${esc(translateBackendNote(j.note))}</div>` : '';
-        logBody.innerHTML = hint + highlightLog(j.log || '');
-        if(logPinned) logBody.scrollTop = logBody.scrollHeight;
-      }
-    }catch(e){
-      lastLogText = null;
-      logBody.innerHTML = `<div class="lg-hint">${t('log_server_unreachable_html')}</div>`;
-      logProc.textContent = t('log_server_offline');
-      logProc.className = 'proc offp';
-    }
-  }
-  logBody.addEventListener('scroll', () => {
-    logPinned = logBody.scrollHeight - logBody.scrollTop - logBody.clientHeight < 40;
-  });
-  function openLog(){
-    logDrawer.classList.add('open');
-    logPinned = true;
-    pollLog();
-    clearInterval(logTimer);
-    logTimer = setInterval(pollLog, 2000);
-  }
-  function closeLog(){ logDrawer.classList.remove('open'); clearInterval(logTimer); }
-  document.getElementById('logBtnCard').addEventListener('click', openLog);
-  document.getElementById('logClose').addEventListener('click', closeLog);
 
   // Zentraler Status-Poll: Prozess + Ladefortschritt (aus dem Log geparst) fürs Overlay
   let procKnown = false, lastProcRunning = false, lastRestarts = null,
@@ -9137,6 +9011,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     moveGswPill();
     const shown = gameOverride || activeGame;
     document.body.classList.toggle('lol-mode', shown === 'league');
+    if(connState !== 'live') updateOverlay();
     requestAnimationFrame(() => { movePill(); moveLolPill(); });
     if(shown === 'league') startLolPoll(); else stopLolPoll();
   }
@@ -11270,7 +11145,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev9";
+const CURRENT_VERSION = "2.5.8-dev10";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
