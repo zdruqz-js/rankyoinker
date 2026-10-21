@@ -5104,7 +5104,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     pregameTimer = setInterval(syncPregame, 1000);   // nahezu live; Server cacht 0,7 s
     syncPregame();
   }
-  function stopPregamePoll(){ clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; pickLockAt = 0; }   // Seite und Schutzzeit gelten nur für diese eine Auswahl
+  function stopPregamePoll(){   // Seite, Schutzzeit und Gegner gelten nur für diese eine Auswahl
+    clearInterval(pregameTimer); pregameTimer = null; pregameSide = null; pregameMap = null; pickLockAt = 0;
+    pregameEnemies = []; pregameEnemiesSig = '';
+  }
 
   // variant 'peak' = kompakte Zeile (Peak bzw. Flex), sonst die große Kachel mit RR-Balken
   function rankTileHtml(label, rankNum, opts){
@@ -8186,7 +8189,10 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     });
     // Gegner aus der Agentenauswahl (siehe pregameEnemies) sind nicht Teil von
     // "players" (die kommen von RankYoinker selbst) — für Klick-Modal separat eintragen.
-    pregameEnemies.forEach(p => {
+    // Nur in der Agentenauswahl: bis 2.5.7 blieben sie danach stehen und überdeckten im
+    // Match die echten Spieler - ein Klick auf einen Gegner zeigte den Stand aus der
+    // Auswahl ohne Loadout ("kommt noch nach"), erst F5 half.
+    if(state === 'PREGAME') pregameEnemies.forEach(p => {
       if(p.puuid) playersByKey[p.puuid] = p;
       if(p.name) playersByKey[p.name] = p;
     });
@@ -11063,7 +11069,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8-dev1";
+const CURRENT_VERSION = "2.5.8-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 
 (function () {
