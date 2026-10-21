@@ -159,6 +159,42 @@ def newest_log():
     return max(files, key=os.path.getmtime) if files else None
 
 
+# vry.exe legt bei jedem Start ein neues log-N.txt an und loescht nie eins; die Seite fragt
+# /status alle 1,5 s, und bis 2.5.7 wurde dabei das ganze neueste Log gelesen (auch mehrere MB).
+# Alles, was ausgewertet wird (Fortschritt, /log, Fehlerbericht), braucht nur das Ende.
+LOG_TAIL_BYTES = 256 * 1024
+LOG_KEEP = 20
+
+
+def _log_tail(path, max_bytes=LOG_TAIL_BYTES):
+    """(Zeilen vom Ende der Datei, Dateigroesse in Bytes)."""
+    with open(path, "rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        start = max(0, size - max_bytes)
+        fh.seek(start)
+        data = fh.read()
+    lines = data.decode("utf-8", errors="replace").splitlines(True)
+    if start > 0 and lines:
+        lines = lines[1:]               # erste Zeile ist angeschnitten
+    return lines, size
+
+
+def _prune_vry_logs(keep=LOG_KEEP):
+    """Beim Start: nur die neuesten Logs behalten (gerade beschriebene nie anfassen)."""
+    try:
+        files = sorted(glob.glob(os.path.join(LOGDIR, "log-*.txt")), key=os.path.getmtime, reverse=True)
+        now = time.time()
+        for f in files[keep:]:
+            try:
+                if now - os.path.getmtime(f) > 600:
+                    os.remove(f)
+            except OSError:
+                pass
+    except Exception:
+        pass
+
+
 # vry.exe bis 2.4.5-dev3 schrieb beim Token-Holen den lokalen Auth-Header
 # (Basic riot:<Lockfile-Passwort>) ins Log - und /log gibt das Log auch an
 # gekoppelte Handys. Neue Logs enthalten ihn nicht mehr; aeltere Dateien werden
@@ -2088,7 +2124,7 @@ def entitlements(force=False):
     ts, old = acct_cached(puuid, "ent")
     if old and not force and time.time() - ts < ENT_TTL:
         return old
-    out, status = {}, 200
+    out, status, partial = {}, 200, False
     for key, type_id in ITEM_TYPES.items():
         st, j = riot_get("pd", "/store/v1/entitlements/%s/%s" % (puuid, type_id))
         if st == 200 and isinstance(j, dict):
@@ -2097,9 +2133,15 @@ def entitlements(force=False):
             status = st                  # ohne Skins taugt der Rest nichts
             break
         else:
+            if not (old or {}).get(key):
+                partial = True           # z. B. Chromas per 429 abgewiesen und kein alter Stand
             out[key] = (old or {}).get(key) or []
     if status == 200:
         out["ok"] = True
+        if partial:
+            # Nicht als frischen Stand merken (bis 2.5.7: 10 Min. "besitzt keine Chromas/Buddies",
+            # und das Vorladen galt als fertig) - der naechste Aufruf fragt erneut
+            return dict(out, stale=True)
         acct_store(puuid, "ent", out)
         return out
     if old:
@@ -2472,6 +2514,33 @@ def _extract(match, puuid):
     }
 
 
+# Nach Matchende: "Letzte 5" der Spieler dieses Matches sind ueberholt. Bis 2.5.7 galt der Stand von
+# vor dem Match noch STATS_TTL (5 Min.) weiter, die Seite zeigte ihn sogar bis F5 (eigene Kachel, Party).
+# Riot fuehrt das Match oft erst ein paar Sekunden spaeter - solange es fehlt, wird kurz erneut gefragt.
+STATS_AFTER_MAX = 600
+STATS_AFTER_RETRY = 30
+_stats_after = {"mid": None, "at": 0.0, "puuids": frozenset()}
+
+
+def _stats_after_match(mid, now):
+    roster = _game_roster if _game_roster.get("match") == mid else {}
+    ids = frozenset(p.get("puuid") for p in (roster.get("players") or []) if p.get("puuid"))
+    me = _account.get("puuid")
+    if me:
+        ids = ids | {me}
+    _stats_after.update(mid=mid, at=now, puuids=ids)
+
+
+def _stats_outdated(puuid, hit, now):
+    sa = _stats_after
+    if not sa["mid"] or puuid not in sa["puuids"] or now - sa["at"] > STATS_AFTER_MAX:
+        return False
+    if hit[0] < sa["at"]:
+        return True                     # vor dem Matchende geholt
+    has = any((m or {}).get("matchId") == sa["mid"] for m in (hit[1].get("matches") or []))
+    return not has and now - hit[0] > STATS_AFTER_RETRY
+
+
 def player_stats(puuid, count=1, season=True):
     """Letzte `count` Matches eines Spielers, plus Summe darueber.
 
@@ -2483,7 +2552,8 @@ def player_stats(puuid, count=1, season=True):
     now = time.time()
     with _cache_lock:
         hit = _stats_cache.get(key)
-        if hit and (now - hit[0] < STATS_TTL or _match_current(hit[0])) and (not season or "seasonGames" in hit[1]):
+        if (hit and (now - hit[0] < STATS_TTL or _match_current(hit[0])) and (not season or "seasonGames" in hit[1])
+                and not _stats_outdated(puuid, hit, now)):
             return hit[1]
     # Laeuft dieselbe Abfrage schon (Vorladen, "meistgespielter Agent", zweites
     # Geraet), auf deren Ergebnis warten statt Riot doppelt zu fragen
@@ -3123,9 +3193,30 @@ def _save_json(path, data):
 
 # ---------------------------- Begegnungen ----------------------------
 
-def _enc_account():
+_enc_read = {"key": None, "root": None}
+
+
+def _enc_root_cached():
+    """Nur zum Lesen: die Datei waechst mit jedem Match und wurde vom Spiel-Overlay bis 2.5.7 bei
+    JEDER Abfrage (bis 2,5x/s im Match) komplett neu eingelesen. Jetzt nur, wenn sie sich geaendert hat."""
+    try:
+        st = os.stat(ENCOUNTERS_FILE)
+        key = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is None or key != _enc_read["key"] or _enc_read["root"] is None:
+        _enc_read.update(key=key, root=_load_json(ENCOUNTERS_FILE))
+    return _enc_read["root"]
+
+
+def _enc_account(read_only=False):
     """Datensatz des eingeloggten Accounts: {players:{}, matches:[]}"""
     me = get_auth()["puuid"]
+    if read_only:
+        acc = _enc_root_cached().get(me)
+        if not isinstance(acc, dict):
+            return {}, {"players": {}, "matches": []}
+        return None, {"players": acc.get("players") or {}, "matches": acc.get("matches") or []}
     root = _load_json(ENCOUNTERS_FILE)
     acc = root.get(me)
     if not isinstance(acc, dict):
@@ -3140,7 +3231,7 @@ def encounters_for(puuids):
     # Notizen gibt es nicht mehr — alte Einträge in der Datei bleiben zwar
     # erhalten, werden aber nicht mehr ausgeliefert.
     with _store_lock:
-        _, acc = _enc_account()
+        _, acc = _enc_account(read_only=True)
         out = {p: {k: v for k, v in acc["players"][p].items() if k != "note"}
                for p in puuids if p in acc["players"]}
     return {"ok": True, "players": out}
@@ -3899,7 +3990,12 @@ def _fetch_shop():
     status, st = riot_post("pd", "/store/v3/storefront/%s" % auth["puuid"], "{}")
     if status != 200 or not st:
         return {"ok": False, "error": "Shop nicht lesbar (Status %s)." % status}
-    _, wallet = riot_get("pd", "/store/v1/wallet/%s" % auth["puuid"])
+    w_status, wallet = riot_get("pd", "/store/v1/wallet/%s" % auth["puuid"])
+    if w_status != 200 or not isinstance(wallet, dict) or not wallet.get("Balances"):
+        # Guthaben-Abfrage gescheitert: letzten bekannten Stand nehmen (bis 2.5.7 wurde ein leeres
+        # Guthaben mit dem Shop bis zu 6 h gemerkt)
+        prev = acct_cached(auth["puuid"], "shop")[1] or {}
+        wallet = {"Balances": prev.get("wallet") or {}}
 
     panel = st.get("SkinsPanelLayout") or {}
     prices = {}
@@ -4034,16 +4130,34 @@ def pregame_state():
     Eine Abfrage, die vor einem eigenen Hover/Lock gestartet ist ("gen"), kommt
     nicht in den Cache - sonst sah die Seite danach noch kurz den alten Agenten.
     """
-    with _pregame_lock:
-        now = time.time()
-        if _pregame_cache["data"] and now - _pregame_cache["ts"] < PREGAME_TTL:
-            return _pregame_cache["data"]
-        gen = _pregame_cache["gen"]
-        result = _pregame_fetch()
-        if _pregame_cache["gen"] == gen:
-            _pregame_cache["data"] = result
-            _pregame_cache["ts"] = time.time()
-        return result
+    return _pregame_state_locked()
+
+
+def pregame_state_nowait():
+    """Wie pregame_state(), wartet aber nicht auf eine laufende Abfrage (dann None) - fuers
+    Spiel-Overlay: bei Riot-Sperren dauert eine Abfrage samt Wiederholungen laenger als dessen
+    4-s-Zeitlimit, nach drei Zeitueberschreitungen leerte das Overlay alle Fenster."""
+    if not _pregame_lock.acquire(blocking=False):
+        return None
+    try:
+        return _pregame_state_locked(locked=True)
+    finally:
+        _pregame_lock.release()
+
+
+def _pregame_state_locked(locked=False):
+    if not locked:
+        with _pregame_lock:
+            return _pregame_state_locked(locked=True)
+    now = time.time()
+    if _pregame_cache["data"] and now - _pregame_cache["ts"] < PREGAME_TTL:
+        return _pregame_cache["data"]
+    gen = _pregame_cache["gen"]
+    result = _pregame_fetch()
+    if _pregame_cache["gen"] == gen:
+        _pregame_cache["data"] = result
+        _pregame_cache["ts"] = time.time()
+    return result
 
 
 def _pregame_invalidate():
@@ -4245,7 +4359,8 @@ def _parse_pregame_weapons(loadout_obj):
         return None
 
 
-_pregame_loadouts_cache = {"mid": None, "ts": 0.0, "data": None}
+_pregame_loadouts_cache = {"mid": None, "ts": 0.0, "data": None, "good": None, "goodTs": 0.0}
+PREGAME_LOADOUTS_HOLD = 12.0  # so lange gilt nach einem Fehlschlag der letzte gute Stand derselben Auswahl
 PREGAME_LOADOUTS_TTL = 1.5   # etwas grosszuegiger als PREGAME_TTL - deutlich teurer pro Aufruf
 
 
@@ -4284,7 +4399,16 @@ def _pregame_loadouts_by_puuid(mid):
                     }
     except Exception:
         out = None
-    _pregame_loadouts_cache.update({"mid": mid, "ts": now, "data": out})
+    c = _pregame_loadouts_cache
+    if out is not None:
+        c.update({"good": out, "goodTs": now})
+    elif c["mid"] == mid and c["good"] is not None and now - c["goodTs"] < PREGAME_LOADOUTS_HOLD:
+        # Bis 2.5.7 gab ein einzelner 429/Timeout hier None -> Gegner (Seite) verschwanden kurz und die
+        # Party-Erkennung ersetzte ihren Stand durch einen nur mit dem eigenen Team
+        out = c["good"]
+    if c["mid"] != mid:
+        c.update({"good": out, "goodTs": now if out is not None else 0.0})
+    c.update({"mid": mid, "ts": now, "data": out})
     return out
 
 
@@ -4459,6 +4583,7 @@ _il_poll = {"ts": 0.0}
 # bleibt der Instalock nach dem Sperren scharf und feuert im Dodge-Fall erneut.
 # Sicherheitsnetz, falls das echte Spiel nie erkannt wird (API-Aussetzer o.ä.):
 IL_LOCKED_TIMEOUT = 180.0
+IL_DODGE_MENU = 3.0       # so lange muss nach dem Sperren das Menue stehen, damit es als Dodge gilt
 
 # ---- Instalock bleibt aktiv (2.5.5, Nutzerwunsch) ----
 # Nach einem Match, in dem er gesperrt hat, bleibt der Instalock an und fragt: ein
@@ -4805,6 +4930,23 @@ def _instalock_tick():
                     return      # abgeschaltet waehrend der Versuche
             time.sleep(IL_LOCK_GAP)
         if not ok:
+            try:
+                now_mid = _pregame_id_fresh()
+            except Exception:
+                now_mid = mid
+            if now_mid != mid:
+                # Auswahl waehrend der Wartezeit gedodged (bis 2.5.7: Instalock aus mit Fehler) -
+                # wieder scharf fuer die naechste Auswahl, "free" bleibt
+                with _il_lock:
+                    if not _il["on"] or _il["match"] != mid:
+                        return
+                    _il.update({"status": "armed", "match": None, "fireAt": 0.0, "planned": 0.0,
+                                "message": "Match gedodged — %s wird in der nächsten Agentenauswahl gesperrt."
+                                           % (name or "Agent"),
+                                "gen": _il["gen"] + 1})
+                    _il_save()
+                _il_poll["ts"] = 0.0
+                return
             _il_finish(False, err)
             return
         # Gesperrt — aber noch nicht sicher im echten Spiel: Wird das Match
@@ -4841,6 +4983,21 @@ def _instalock_tick():
                             "message": "%s gesperrt — im Spiel." % (name or "Agent"),
                             "gen": _il["gen"] + 1})
                 _il_save()
+            return
+        st, since = _game["state"], _game["since"]
+        if st == "MENUS" and since > locked_at and now - since >= IL_DODGE_MENU:
+            # Gedodged und zurueck im Menue: bis 2.5.7 blieb er "gesperrt" und ging nach
+            # IL_LOCKED_TIMEOUT aus - kam die naechste Auswahl spaeter, wurde nicht gesperrt
+            with _il_lock:
+                if not _il["on"] or _il["status"] != "locked":
+                    return
+                _il.update({"status": "armed", "match": None, "fireAt": 0.0, "planned": 0.0,
+                            "lockedAt": 0.0,
+                            "message": "Match gedodged — %s wird in der nächsten Agentenauswahl gesperrt."
+                                       % (name or "Agent"),
+                            "gen": _il["gen"] + 1})
+                _il_save()
+            _il_poll["ts"] = 0.0
             return
         try:
             found = _pregame_id_fresh()
@@ -4910,7 +5067,7 @@ def _instalock_tick():
         if now - ask_at > IL_ASK_MAX:
             _il_pause("Keine Antwort — Instalock pausiert.")
             return
-        if not game_ready() or (_game["state"] in ("INGAME", "offline") and _game["since"] > ask_at):
+        if _game["state"] in ("INGAME", "offline") and _game["since"] > ask_at:
             _il_pause("Keine Antwort — Instalock pausiert.")
             return
         if now - _il_poll["ts"] < IL_POLL:
@@ -4973,7 +5130,10 @@ _OVL_STRING_KEYS = (
 _OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
                "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
                "hurm": "Team Deathmatch", "premier": "Premier", "onefa": "Replication",
-               "snowball": "Snowball Fight", "newmap": "New Map", "": "Custom"}
+               "snowball": "Snowball Fight", "newmap": "New Map", "": "Custom",
+               # wie QUEUE_NAMES in index.html (fehlten bis 2.5.7 -> "Abilitydraftarena")
+               "abilitydraftarena": "Gauntlet: Glitched", "skirmish2v2": "2v2 Skirmish",
+               "fortcollins": "Premier"}
 
 _ovl = {"proc": None, "token": secrets.token_urlsafe(24), "seen": 0.0, "crashes": [], "stopAt": 0.0,
         "stopping": False, "previewAt": 0.0, "dismissed": None, "askHidden": None}
@@ -5095,7 +5255,11 @@ def _vapi_ensure():
                 if isinstance(x, dict) and x.get("mapUrl"):
                     maps[x["mapUrl"].lower()] = {"name": x.get("displayName") or "",
                                                  "img": x.get("listViewIcon") or x.get("splash")}
-            _vapi.update(agents=agents, tiers=tiers, maps=maps, at=time.time(),
+            # Fehlt eine der Listen (5xx/429 bei valorant-api), den alten Stand behalten und bald erneut -
+            # bis 2.5.7 galten leere Raenge/Karten 12 h (VAPI_TTL): Overlay ohne Rang-Symbole/Kartennamen
+            partial = not tiers or not maps
+            _vapi.update(agents=agents, tiers=tiers or _vapi.get("tiers") or {}, maps=maps or _vapi.get("maps") or {},
+                         at=(time.time() - VAPI_TTL + 120) if partial else time.time(),
                          byName={v["name"].lower(): k for k, v in agents.items() if v["name"]})
         except Exception:
             _vapi["fail"] = time.time()
@@ -5288,7 +5452,7 @@ def _ovl_pregame_raw():
     data = c["data"] if (c["data"] and c["data"].get("ok") and now - c["ts"] < OVL_PG_CACHE) else None
     if data is None:
         try:
-            data = pregame_state()
+            data = pregame_state_nowait()          # laeuft schon eine Abfrage -> letzter Stand unten
         except RiotError:
             data = None
     with _ovl_pg_lock:
@@ -6090,13 +6254,12 @@ def _vry_view():
     if not path:
         return {"phase": "", "state": "", "log": None, "lines": 0}
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            lines = fh.readlines()
+        lines, size = _log_tail(path)
     except Exception:
         return {"phase": "", "state": "", "log": None, "lines": 0}
     info = parse_progress(lines)
     info["log"] = path
-    info["lines"] = len(lines)
+    info["lines"] = size                # waechst mit jeder Zeile - fuer den Haenger-Waechter reicht das
     return info
 
 
@@ -6235,7 +6398,11 @@ def _maybe_resync(state, mid, now):
 PREFETCH_PAGE_IDLE = 2 * 3600
 PREFETCH_BASICS_WAIT = 10.0
 _page_seen = {"ts": 0.0}
-_prefetch_done = {"key": None, "at": 0.0, "n": 0}
+_prefetch_done = {"key": None, "at": 0.0, "n": 0, "complete": False, "tries": 0, "running": False}
+# Im Match: hat das Vorladen nicht alles geschafft (Riot-Sperre -> "Letzte 5"/Partys fehlten), spaeter
+# erneut - bis 2.5.7 lief es nur einmal je Match, ohne offene Seite fragte danach niemand mehr nach
+PREFETCH_RETRY_GAP = 60.0
+PREFETCH_RETRIES = 5
 
 
 def _prefetch_basics(roster):
@@ -6279,10 +6446,15 @@ def _prefetch_match(state, mid):
     if not mid or not _prefetch_wanted():
         return
     key = "%s:%s" % (state, mid)
+    pd_ = _prefetch_done
     # Agentenauswahl: die Gegner tauchen (wenn ueberhaupt) oft erst nach ein paar
     # Sekunden auf - solange der Kader nicht voll ist, weiter nachsehen
-    if _prefetch_done["key"] == key and (state == "INGAME" or _prefetch_done["n"] >= 10):
-        return
+    retry = False
+    if pd_["key"] == key and (state == "INGAME" or pd_["n"] >= 10):
+        if (state != "INGAME" or pd_["complete"] or pd_["running"] or pd_["tries"] >= PREFETCH_RETRIES
+                or time.time() - pd_["at"] < PREFETCH_RETRY_GAP or _pd_bulk_paused()):
+            return
+        retry = True
     if state == "INGAME":
         if _game_roster["match"] != mid:
             return                            # Kader noch nicht da -> naechste Runde
@@ -6294,42 +6466,63 @@ def _prefetch_match(state, mid):
         except Exception:
             return
         puuids = [p["puuid"] for p in roster]
-    if not puuids or (_prefetch_done["key"] == key and len(puuids) <= _prefetch_done["n"]):
+    if not puuids or (not retry and pd_["key"] == key and len(puuids) <= pd_["n"]):
         return
-    _prefetch_done.update({"key": key, "at": time.time(), "n": len(puuids)})
+    tries = pd_["tries"] + 1 if pd_["key"] == key else 1
+    pd_.update({"key": key, "at": time.time(), "n": len(puuids), "complete": False, "tries": tries,
+                "running": True})
 
     def run():
-        if state == "PREGAME":
-            try:
-                _prefetch_basics(roster)
-            except Exception:
-                pass
-        # Dann die Party-Erkennung (eigener Thread): seit dev17 warten die "Letzte 5"
-        # auf sie (_pd_bulk_wait) statt umgekehrt - schon ab hier (_pd_party), nicht
-        # erst ab ihrer ersten Riot-Anfrage
-        with _pd_count_lock:
-            _pd_party["n"] += 1
-
-        def party():
-            try:
-                premades()
-            except Exception:
-                pass
-            finally:
-                with _pd_count_lock:
-                    _pd_party["n"] -= 1
-        threading.Thread(target=party, daemon=True).start()
-        # Nacheinander: die Riot-Bremse laesst ohnehin nur ~3 Anfragen/s durch,
-        # so ist wenigstens eine Karte nach der anderen fertig statt alle zuletzt
-        for pu in puuids:
-            if _pd_bulk_paused():
-                return                        # Riot-Pause: den Rest holt die Seite spaeter selbst
-            try:
-                card_data(pu)
-            except Exception:
-                pass
+        try:
+            ok = _prefetch_run(state, roster if state == "PREGAME" else None, puuids)
+        finally:
+            if pd_["key"] == key:
+                pd_.update({"running": False, "complete": bool(ok), "at": time.time()})
 
     threading.Thread(target=run, daemon=True).start()
+
+
+def _prefetch_run(state, roster, puuids):
+    """Ein Vorlade-Lauf. True, wenn alles da ist (sonst darf _prefetch_match spaeter erneut)."""
+    ok = [True]
+    if state == "PREGAME":
+        try:
+            _prefetch_basics(roster)
+        except Exception:
+            pass
+    # Dann die Party-Erkennung (eigener Thread): seit dev17 warten die "Letzte 5"
+    # auf sie (_pd_bulk_wait) statt umgekehrt - schon ab hier (_pd_party), nicht
+    # erst ab ihrer ersten Riot-Anfrage
+    with _pd_count_lock:
+        _pd_party["n"] += 1
+
+    party_done = threading.Event()
+
+    def party():
+        try:
+            r = premades()
+            if not (isinstance(r, dict) and r.get("ok")):
+                ok[0] = False
+        except Exception:
+            ok[0] = False
+        finally:
+            with _pd_count_lock:
+                _pd_party["n"] -= 1
+            party_done.set()
+    threading.Thread(target=party, daemon=True).start()
+    # Nacheinander: die Riot-Bremse laesst ohnehin nur ~3 Anfragen/s durch,
+    # so ist wenigstens eine Karte nach der anderen fertig statt alle zuletzt
+    for pu in puuids:
+        if _pd_bulk_paused():
+            return False                  # Riot-Pause: spaeter erneut (_prefetch_match)
+        try:
+            r = card_data(pu)
+            if not isinstance(r, dict) or r.get("error"):
+                ok[0] = False
+        except Exception:
+            ok[0] = False
+    party_done.wait(120)
+    return ok[0]
 
 
 # ---- Stand des laufenden Matches ueber einen Neustart retten ----
@@ -6394,34 +6587,39 @@ def _snapshot_restore():
                     pass
             time.sleep(1.0)
         if state is None:
-            return                              # Spiel (noch) nicht erreichbar - Datei bleibt
+            return                              # Spiel (noch) nicht erreichbar - Datei bleibt (_snapshot_tick)
         if state in ("PREGAME", "INGAME") and mid == snap["match"]:
-            now = time.time()
-            restored = 0
-            fmt = snap.get("fmt") if isinstance(snap.get("fmt"), dict) else {}
-            same = lambda name: fmt.get(name, 1) == _SNAPSHOT_FMT[name]
-            with _cache_lock:
-                for name, cache in _SNAPSHOT_CACHES:
-                    if not same(name):
-                        continue
-                    for key, value in (snap.get(name) or {}).items():
-                        # leere/verborgene Namen nicht: sie bekaemen hier einen frischen
-                        # Zeitstempel und sperrten die Nachfrage weitere NAME_TTL_HIDDEN
-                        # (live 2026-10-15: Update mitten im Match, Bericht mit "Unknown")
-                        if name == "names" and (not isinstance(value, str) or _name_hidden(value)):
-                            continue
-                        cache[key] = (now, value)
-                        restored += 1
-                pm = snap.get("premades")
-                if isinstance(pm, dict) and pm.get("data") and same("premades"):
-                    _premade_cache.update({"match": pm.get("match"), "ts": now, "data": pm["data"]})
-            _snapshot.update(match=mid, since=float(snap.get("since") or now), sig=None, restored=restored)
+            _snapshot_apply(snap, mid)
         elif state == "MENUS":
             _snapshot_clear()
     except Exception as e:
         report_error("match-snapshot", e)
     finally:
         _snapshot_ready.set()
+
+
+def _snapshot_apply(snap, mid):
+    """Gemerkten Stand des laufenden Matches in die Caches uebernehmen."""
+    now = time.time()
+    restored = 0
+    fmt = snap.get("fmt") if isinstance(snap.get("fmt"), dict) else {}
+    same = lambda name: fmt.get(name, 1) == _SNAPSHOT_FMT[name]
+    with _cache_lock:
+        for name, cache in _SNAPSHOT_CACHES:
+            if not same(name):
+                continue
+            for key, value in (snap.get(name) or {}).items():
+                # leere/verborgene Namen nicht: sie bekaemen hier einen frischen
+                # Zeitstempel und sperrten die Nachfrage weitere NAME_TTL_HIDDEN
+                # (live 2026-10-15: Update mitten im Match, Bericht mit "Unknown")
+                if name == "names" and (not isinstance(value, str) or _name_hidden(value)):
+                    continue
+                cache[key] = (now, value)
+                restored += 1
+        pm = snap.get("premades")
+        if isinstance(pm, dict) and pm.get("data") and same("premades"):
+            _premade_cache.update({"match": pm.get("match"), "ts": now, "data": pm["data"]})
+    _snapshot.update(match=mid, since=float(snap.get("since") or now), sig=None, restored=restored)
 
 
 def _snapshot_tick(state, mid, now):
@@ -6437,6 +6635,12 @@ def _snapshot_tick(state, mid, now):
     if state not in ("PREGAME", "INGAME") or not mid:
         return
     if _snapshot["match"] != mid:
+        snap = _load_json(MATCH_SNAPSHOT_FILE) if os.path.exists(MATCH_SNAPSHOT_FILE) else {}
+        if snap.get("match") == mid:
+            # Gehoert doch zu diesem Match (beim Start war das Spiel nur noch nicht erreichbar) -
+            # uebernehmen statt loeschen; bis 2.5.7 wurde hier alles neu bei Riot geholt
+            _snapshot_apply(snap, mid)
+            return
         _snapshot_clear()                       # Stand eines anderen Matches gilt nicht mehr
         with _pd_count_lock:
             _pd_counts.clear()
@@ -6592,8 +6796,7 @@ def problem_diagnostics(include_log):
         path = newest_log()
         if path:
             try:
-                with open(path, "r", encoding="utf-8", errors="replace") as fh:
-                    lines = fh.readlines()[-PROBLEM_LOG_LINES:]
+                lines = _log_tail(path)[0][-PROBLEM_LOG_LINES:]
                 log = _scrub_log("".join(lines))[-PROBLEM_LOG_MAX:]
             except OSError as e:
                 log = "[Log nicht lesbar: %s]" % type(e).__name__
@@ -7300,6 +7503,13 @@ def _match_report_build(match_id):
     return report
 
 
+# Ein einzelner tasklist-Aussetzer (z. B. beim Laden der Karte) setzte bis 2.5.7 sofort "offline":
+# ein Instalock im Match bzw. mit offener Frage pausierte dann mit "VALORANT geschlossen".
+# _follow_valorant und das Spiel-Overlay warten bei genau diesem Aussetzer schon ab.
+GAME_GONE_GRACE = 5.0
+_game_gone = {"at": 0.0}
+
+
 def _game_watcher():
     while True:
         _game_wait()
@@ -7311,6 +7521,10 @@ def _game_watcher():
             _digests_save()
             now = time.time()
             if not game_ready():
+                if not _game_gone["at"]:
+                    _game_gone["at"] = now
+                if _game["state"] != "offline" and now - _game_gone["at"] < GAME_GONE_GRACE:
+                    continue        # erst nach ein paar Sekunden ohne VALORANT als geschlossen werten
                 if _game["state"] != "offline":
                     _game.update({"state": "offline", "matchId": None, "since": now})
                 _game["ts"] = now
@@ -7318,6 +7532,7 @@ def _game_watcher():
                 _sync["match"] = None
                 _stall.update({"path": None, "lines": -1, "since": 0.0})
                 continue
+            _game_gone["at"] = 0.0
             # Bewusst VOR der Riot-Abfrage: ein stumm hängendes vry.exe soll
             # auch dann wieder hochkommen, wenn gerade keine Token zu holen sind.
             _maybe_unstick(now)
@@ -7328,6 +7543,7 @@ def _game_watcher():
             if state != _game["state"] or mid != _game["matchId"]:
                 if _game["state"] == "INGAME" and _game["matchId"] and state != "INGAME":
                     _report_schedule(_game["matchId"])     # Match vorbei -> Analyse holen
+                    _stats_after_match(_game["matchId"], now)
                 _game.update({"state": state, "matchId": mid, "since": now})
                 _game_hist.append((now, state))
             _game["ts"] = now
@@ -7568,8 +7784,12 @@ class LcuError(Exception):
 
 
 _lcu_lock = threading.Lock()
-_lcu = {"ts": 0.0, "port": None, "headers": None}
-LCU_AUTH_TTL = 20.0     # Client-Neustart aendert Port+Token -> nicht ewig cachen
+_lcu = {"ts": 0.0, "port": None, "headers": None, "failAt": 0.0}
+# Client-Neustart aendert Port+Token: neuer Port -> Verbindungsfehler, neuer Token -> 401/403, beides
+# sucht sofort neu (lcu_req). Darum reicht ein langer Takt - bis 2.5.7 alle 20 s PowerShell unter der
+# Sperre, das hielt Auto-Annehmen/-Bannen/-Picken jedes Mal kurz an.
+LCU_AUTH_TTL = 300.0
+LCU_FAIL_TTL = 10.0     # nach einem Fehlschlag so lange nicht erneut suchen
 
 
 def _lcu_detect():
@@ -7594,13 +7814,21 @@ def _lcu_detect():
 
 def lcu_auth(force=False):
     with _lcu_lock:
-        if not force and _lcu["port"] and time.time() - _lcu["ts"] < LCU_AUTH_TTL:
+        now = time.time()
+        if not force and _lcu["port"] and now - _lcu["ts"] < LCU_AUTH_TTL:
             return dict(_lcu)
-        info = _lcu_detect()
+        # Fehlschlag merken (bis 2.5.7 nicht): Ist nur das Spiel offen ("Client im Spiel schliessen")
+        # oder der Client noch nicht bereit, startete jede LCU-Abfrage - Waechter, schneller Waechter,
+        # jede /status-Abfrage der Seite - erneut PowerShell, nacheinander unter dieser Sperre
+        if now - _lcu.get("failAt", 0.0) < LCU_FAIL_TTL:
+            raise LcuError("League Client laeuft nicht (oder noch nicht bereit).")
+        info = _lcu_detect() if lcu_client_present() else None
         if not info:
+            _lcu["failAt"] = time.time()
             raise LcuError("League Client laeuft nicht (oder noch nicht bereit).")
         _lcu.update(info)
         _lcu["ts"] = time.time()
+        _lcu["failAt"] = 0.0
         return dict(_lcu)
 
 
@@ -7625,6 +7853,14 @@ def lcu_req(method, path, body=None, _retry=True):
     try:
         status, j = _http(url, auth["headers"], method=method, body=data, local_unverified=True)
     except Exception as e:
+        if _retry and isinstance(e, (ConnectionError, OSError)):
+            # Client neu gestartet -> neuer Port: gleich neu suchen statt bis zu LCU_AUTH_TTL am toten
+            # Port festzuhaengen (Token-Wechsel kommt als 401/403 unten)
+            try:
+                lcu_auth(force=True)
+                return lcu_req(method, path, body, _retry=False)
+            except LcuError:
+                pass
         _note_lcu_error(url, e)
         raise LcuError("League Client nicht erreichbar.")
     if status in (401, 403) and _retry:
@@ -8426,7 +8662,8 @@ _lol_auto = {"actionId": None, "hoveredChampionId": None, "fireAt": 0.0, "attemp
              "lastResult": None, "lastSkip": None,
              # Vorab-Pick (Absicht) auf der eigenen, noch NICHT laufenden Pick-Aktion
              "intentKey": None, "intentFailed": set(),
-             "phase": None, "alert": None}
+             "phase": None, "alert": None,
+             "manualAction": None}          # Pick-Aktion, bei der der Spieler selbst gewaehlt hat
 _lol_auto_history = collections.deque(maxlen=LOL_AUTO_HISTORY_MAX)
 _lol_auto_history_lock = threading.Lock()
 
@@ -8438,7 +8675,8 @@ def _lol_auto_reset():
 def _lol_auto_session_reset():
     """Champion-Auswahl vorbei/nicht aktiv: auch Absicht, Phase und Hinweis vergessen."""
     _lol_auto_reset()
-    _lol_auto.update({"intentKey": None, "intentFailed": set(), "phase": None, "alert": None})
+    _lol_auto.update({"intentKey": None, "intentFailed": set(), "phase": None, "alert": None,
+                      "manualAction": None})
 
 
 def _lol_auto_log(kind, action_type, action_id, champion_id, result, phase):
@@ -8623,6 +8861,11 @@ def _lol_champ_select_for_auto():
     mate_champs = {c.get("championId") for c in raw_my_team
                    if c.get("cellId") != local_cell and c.get("championId")}
     enemy_champs = {c.get("championId") for c in (j.get("theirTeam") or []) if c.get("championId")}
+    # In der Bann-Phase steht die Wahl eines Mitspielers in championPickIntent, nicht in
+    # championId - der Schutz "nicht bannen, was ein Mitspieler spielen will" griff bis 2.5.7 nie
+    mate_intents = {c.get("championPickIntent") for c in raw_my_team
+                    if c.get("cellId") != local_cell and c.get("championPickIntent")}
+    ally_ban_hovers = set()
 
     my_action = None
     # Die eigene Pick-Aktion auch dann, wenn sie (noch) NICHT laeuft - in der
@@ -8635,11 +8878,15 @@ def _lol_champ_select_for_auto():
         for a in group:
             mine = a.get("actorCellId") == local_cell
             if mine and a.get("isInProgress") and a.get("type") in ("pick", "ban"):
-                my_action = {"id": a.get("id"), "type": a.get("type"), "completed": bool(a.get("completed"))}
+                my_action = {"id": a.get("id"), "type": a.get("type"), "completed": bool(a.get("completed")),
+                             "championId": a.get("championId") or 0}
             if mine and a.get("type") == "pick" and not a.get("completed") and my_pick_action is None:
                 my_pick_action = {"id": a.get("id"), "isInProgress": bool(a.get("isInProgress"))}
             if a.get("type") == "ban" and a.get("completed") and a.get("championId"):
                 banned_ids.add(a["championId"])
+            if (a.get("type") == "ban" and not a.get("completed") and a.get("isAllyAction") and not mine
+                    and a.get("championId")):
+                ally_ban_hovers.add(a["championId"])     # Mitspieler hovert gerade diesen Bann
             if a.get("type") == "pick" and a.get("completed") and a.get("championId"):
                 locked_picks.add(a["championId"])
 
@@ -8662,6 +8909,8 @@ def _lol_champ_select_for_auto():
             "pickable": pickable, "bannable": bannable,
             "bannedChampionIds": sorted(banned_ids), "lockedPicks": locked_picks,
             "mateChamps": mate_champs, "enemyChamps": enemy_champs,
+            "mateIntents": mate_intents, "allyBanHovers": ally_ban_hovers,
+            "myIntent": (me_raw.get("championPickIntent") or 0) if me_raw else 0,
             "myPosition": (me_raw.get("assignedPosition") or "").upper() or None if me_raw else None}
 
 
@@ -8677,7 +8926,9 @@ def _lol_ban_choice(bans, lane, cs):
     if bannable in (set(), {-1}):
         banned_ids = set(cs.get("bannedChampionIds") or [])
         bannable = set(_lol_champion_catalog()["byId"]) - banned_ids
-    mate_champs = cs.get("mateChamps") or set()
+    # nicht bannen: was ein Mitspieler hovert/angekuendigt hat oder gerade selbst bannt (doppelter Bann)
+    mate_champs = ((cs.get("mateChamps") or set()) | (cs.get("mateIntents") or set())
+                   | (cs.get("allyBanHovers") or set()))
     desired = next((cid for cid in candidates if cid in bannable and cid not in mate_champs), None)
     if desired is not None:
         return desired, None
@@ -8826,6 +9077,21 @@ def _lol_auto_tick():
         _lol_auto_reset()
         return
 
+    if _lol_auto.get("manualAction") == action.get("id"):
+        return          # hier hat der Spieler selbst gewaehlt (siehe unten)
+    if action.get("type") == "pick" and _lol_auto["actionId"] != action.get("id"):
+        # Eigener Zug beginnt: hat der Spieler vorher im Client selbst einen anderen Champion
+        # angekuendigt als den, den Auto-Pick gesetzt hatte, nicht ueberstimmen (bis 2.5.7 wurde
+        # sofort das Preset gehovert und nach 0,4-1 s gesperrt)
+        cur = action.get("championId") or cs.get("myIntent") or 0
+        ours = _lol_auto.get("intentKey")
+        ours = ours[1] if ours and ours[0] == action.get("id") else None
+        if cur and cur != desired and cur != ours:
+            _lol_auto["manualAction"] = action.get("id")
+            _lol_auto["lastSkip"] = {"actionId": action.get("id"), "type": "pick", "at": time.time(),
+                                     "reason": "Im Client selbst gewählt - Auto-Pick hält sich raus."}
+            return
+
     # Neue Aktion oder ein anderes Ziel als zuletzt (z. B. Hauptpick weg,
     # jetzt Ausweich 1 dran) -> sofort hovern, Sperr-Timer neu setzen.
     if _lol_auto["actionId"] != action.get("id") or _lol_auto["hoveredChampionId"] != desired:
@@ -8970,13 +9236,14 @@ def _lol_apply_runes(champ_name, runes):
         page_id = (created or {}).get("id") if isinstance(created, dict) else None
     if page_id is not None:
         lcu_put("/lol-perks/v1/currentpage", page_id)
-    return {"ok": True, "status": st}
+    return {"ok": True, "status": st, "pageId": page_id}
 
 
 def _lol_apply_spells(spells):
     st, _ = lcu_patch("/lol-champ-select/v1/session/my-selection", {"spell1Id": spells[0], "spell2Id": spells[1]})
     return {"ok": st in (200, 204), "status": st, "code": None if st in (200, 204) else "rejected",
-            "error": None if st in (200, 204) else "Riot lehnte ab (Status %s)." % st}
+            "error": None if st in (200, 204) else "Riot lehnte ab (Status %s)." % st,
+            "spells": [spells[0], spells[1]]}
 
 
 def _lol_apply_itemset(champ_id, champ_name, blocks):
@@ -9017,7 +9284,10 @@ LOL_ROLES_URL = "https://rankyoinker.de/api/lol/roles"
 LOL_LANES = ("TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY")
 # ARAM, Clash-ARAM, Arena, ARAM Mayhem: andere Builds, die Statistik passt nicht
 LOL_AUTOBUILD_SKIP_QUEUES = {450, 720, 1700, 1710, 2400}
-_lol_autobuild = {"applied": None, "manualGame": None, "last": None}
+_lol_autobuild = {"applied": None, "manualGame": None, "last": None,
+                  "set": None,                 # was der Auto-Build zuletzt gesetzt hat: {game, pageId, spells}
+                  "failKey": None, "failN": 0}
+LOL_AUTOBUILD_TRIES = 3     # so oft je Build erneut versuchen, wenn das Uebernehmen scheitert
 _lol_mu_cache = {}
 _lol_roles_cache = {"ts": 0.0, "data": None}
 _LOL_BLOCK_NAMES = {
@@ -9144,6 +9414,24 @@ def _lol_gameflow():
     return j if st == 200 and isinstance(j, dict) else None
 
 
+def _lol_autobuild_user_changed(game, me):
+    """Hat der Spieler nach unserem letzten Auto-Build im Client selbst umgestellt?"""
+    last = _lol_autobuild.get("set") or {}
+    if last.get("game") != game:
+        return False
+    spells = last.get("spells")
+    if spells and sorted(spells) != sorted([me.get("spell1Id"), me.get("spell2Id")]):
+        return True
+    if last.get("pageId") is not None:
+        try:
+            st, cur = lcu_get("/lol-perks/v1/currentpage")
+        except LcuError:
+            return False
+        if st == 200 and isinstance(cur, dict) and cur.get("id") is not None and cur.get("id") != last["pageId"]:
+            return True
+    return False
+
+
 def _lol_autobuild_tick():
     with _lol_cfg_lock:
         if not _lol_cfg.get("autoBuild", True):
@@ -9179,13 +9467,31 @@ def _lol_autobuild_tick():
     key = (game, champ, vs, pos)
     if _lol_autobuild["applied"] == key:
         return
+    if _lol_autobuild["failKey"] == key and _lol_autobuild["failN"] >= LOL_AUTOBUILD_TRIES:
+        return
+    if _lol_autobuild_user_changed(game, me):
+        # Seit dem letzten Auto-Build im Client selbst Runenseite oder Zauber gewechselt: nicht
+        # zurueckdrehen (bis 2.5.7 setzte der Lock des Lane-Gegners alles wieder auf den Vorschlag)
+        _lol_autobuild["manualGame"] = game
+        return
     data = _lol_fetch_matchup(champ, vs, pos)
     if not data:
         return                       # nächster Takt versucht es erneut (Fehlschlag kurz gecacht)
-    _lol_autobuild["applied"] = key
     b = data["builds"][0]
     name = _lol_champion_catalog()["byId"].get(champ) or str(champ)
     res = lol_apply_build(champ, _lol_build_to_setup(name, b), manual=False)
+    if res.get("ok"):
+        _lol_autobuild.update(applied=key, failKey=None, failN=0)
+    else:
+        # bis 2.5.7 galt der Build auch nach einem Fehlschlag als uebernommen - nie erneut versucht
+        n = _lol_autobuild["failN"] + 1 if _lol_autobuild["failKey"] == key else 1
+        _lol_autobuild.update(failKey=key, failN=n)
+        if n >= LOL_AUTOBUILD_TRIES:
+            _lol_autobuild["applied"] = key
+    rs = res.get("results") or {}
+    _lol_autobuild["set"] = {"game": game,
+                             "pageId": (rs.get("runes") or {}).get("pageId"),
+                             "spells": (rs.get("spells") or {}).get("spells")}
     _lol_autobuild["last"] = {"gameId": game, "championId": champ, "vs": vs if not data.get("general") else None,
                               "guessedVs": vs, "pos": pos, "option": b.get("id"), "at": time.time(),
                               "ok": bool(res.get("ok")), "results": res.get("results") or {}, "error": res.get("error")}
@@ -10341,8 +10647,7 @@ class Handler(BaseHTTPRequestHandler):
         if not path:
             return "", []
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as fh:
-                return os.path.basename(path), fh.readlines()
+            return os.path.basename(path), _log_tail(path)[0]
         except Exception as e:
             return os.path.basename(path), ["[Fehler beim Lesen der Log-Datei: %s]" % e]
 
@@ -10893,6 +11198,16 @@ def _tray_wndproc_factory(user32, shell32, nid):
         finally:
             user32.DestroyMenu(hmenu)
 
+    # Startet der Explorer neu (Absturz, Windows-Update), verschwinden alle Tray-Symbole; Windows
+    # schickt dann "TaskbarCreated" an alle Fenster. Bis 2.5.7 kam das Symbol erst mit einem
+    # Neustart des Dienstes zurueck - und "Programm schliessen" gibt es nur dort.
+    try:
+        user32.RegisterWindowMessageW.argtypes = [ctypes.c_wchar_p]
+        user32.RegisterWindowMessageW.restype = ctypes.c_uint
+        taskbar_created = user32.RegisterWindowMessageW("TaskbarCreated")
+    except Exception:
+        taskbar_created = None
+
     def _wndproc(hwnd, msg, wparam, lparam):
         WM_DESTROY = 0x0002
         WM_LBUTTONDBLCLK = 0x0203
@@ -10901,6 +11216,10 @@ def _tray_wndproc_factory(user32, shell32, nid):
         NIM_DELETE = 0x00000002
 
         try:
+            if taskbar_created and msg == taskbar_created:
+                shell32.Shell_NotifyIconW(0x00000000, ctypes.byref(nid))     # NIM_ADD
+                _ulog("Tray: Explorer neu gestartet, Icon wieder eingetragen.")
+                return 0
             if msg == _WM_TRAYICON:
                 if lparam == WM_LBUTTONDBLCLK:
                     _tray_open_overlay()
@@ -11003,9 +11322,17 @@ def _run_tray_icon():
         nid.szTip = "RankYoinker"
 
         NIM_ADD = 0x00000000
-        if not shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid)):
-            _ulog("Tray: Shell_NotifyIconW(NIM_ADD) fehlgeschlagen, GetLastError=%s" % ctypes.GetLastError())
-            return
+        # Beim Anmelden ist die Taskleiste manchmal noch nicht bereit - ein paar Mal erneut versuchen
+        # (bis 2.5.7 gab der Thread nach dem ersten Fehlschlag auf: kein Symbol bis zum Neustart)
+        for attempt in range(20):
+            if shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid)):
+                break
+            if attempt == 0:
+                _ulog("Tray: Shell_NotifyIconW(NIM_ADD) fehlgeschlagen, GetLastError=%s - neuer Versuch"
+                      % ctypes.GetLastError())
+            time.sleep(3)
+        else:
+            _ulog("Tray: Icon liess sich nicht eintragen - kommt mit TaskbarCreated (Explorer-Start).")
 
         _ulog("Tray: Icon eingerichtet, Nachrichtenschleife startet.")
         msg = _MSG()
@@ -11051,6 +11378,7 @@ if __name__ == "__main__":
     # Erkennt einen Account-Wechsel und wirft dann alle Caches weg
     threading.Thread(target=_account_watcher, daemon=True).start()
     threading.Thread(target=_account_warmup, daemon=True).start()
+    threading.Thread(target=_prune_vry_logs, daemon=True).start()
     # Verfolgt den echten Spielzustand und holt vry.exe zurück, wenn es ein
     # laufendes Match verpasst hat
     try:
