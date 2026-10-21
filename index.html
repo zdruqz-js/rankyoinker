@@ -174,6 +174,41 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible{outline:2px soli
 .brand-word{display:flex; flex-direction:column; line-height:1.1; min-width:0;}
 .brand-word > span:first-child{font-family:var(--font-display); font-weight:750; font-size:16px; letter-spacing:-.02em; white-space:nowrap;}
 
+/* ================= Start-Animation (2.5.9) =================
+   Beim Öffnen: Logo groß in der Mitte, darunter "RankYoinker" und ein Ladebalken (der Ring um das
+   Logo flog auf Nutzerwunsch wieder raus). Ist die Seite fertig, fliegt das Logo an seinen Platz oben links (FLIP über die echte
+   .brand-mark), der Schriftzug zur .brand-word, der Hintergrund blendet aus. Im Performance-Modus aus. */
+#rySplash{position:fixed; inset:0; z-index:10000; display:grid; place-items:center; overflow:hidden; background:var(--bg);}
+#rySplash .sp-glow{position:absolute; left:50%; top:50%; width:820px; height:820px; margin:-410px 0 0 -410px; border-radius:50%; pointer-events:none;
+  background:radial-gradient(closest-side, rgba(216,184,124,.15), rgba(255,70,85,.06) 46%, transparent 72%);
+  animation:spFade 1s ease both, spGlow 2.6s ease-in-out .4s infinite alternate;}
+#rySplash .sp-center{position:relative; display:flex; flex-direction:column; align-items:center; margin-top:-24px;}
+#rySplash .sp-logo-wrap{position:relative; width:112px; height:112px; will-change:transform;}
+#rySplash .sp-logo{position:absolute; inset:0; border-radius:32px; background:#0b0b0d var(--ry-logo) center/cover no-repeat;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset, 0 26px 60px -20px rgba(255,70,85,.7), 0 0 90px -24px rgba(216,184,124,.55);
+  animation:spLogoIn .95s cubic-bezier(.2,1.3,.4,1) both;}
+#rySplash .sp-word-wrap{margin-top:26px; will-change:transform;}
+#rySplash .sp-word{font:800 34px/1.05 var(--font-display); letter-spacing:-.035em; color:var(--text); white-space:nowrap;
+  animation:spRise .75s var(--ease) .22s both;}
+#rySplash .sp-load{display:flex; flex-direction:column; align-items:center; gap:11px; margin-top:20px; animation:spRise .75s var(--ease) .38s both;}
+#rySplash .sp-bar{position:relative; width:150px; height:3px; border-radius:3px; overflow:hidden; background:rgba(255,255,255,.08);}
+#rySplash .sp-bar i{position:absolute; top:0; bottom:0; left:-40%; width:40%; border-radius:3px; background:var(--grad-accent);
+  box-shadow:0 0 10px rgba(216,184,124,.8); animation:spBar 1.15s cubic-bezier(.6,0,.4,1) infinite;}
+#rySplash .sp-txt{font:500 10.5px var(--font-mono); letter-spacing:.32em; padding-left:.32em; text-transform:uppercase; color:var(--text-3);}
+@keyframes spLogoIn{from{opacity:0; transform:scale(.5) rotate(-10deg); filter:blur(12px);}}
+@keyframes spRise{from{opacity:0; transform:translateY(14px);}}
+@keyframes spFade{from{opacity:0;}}
+@keyframes spBar{to{left:100%;}}
+@keyframes spGlow{to{transform:scale(1.08);}}
+/* Solange die Animation steht, sitzt oben noch kein Logo - es "landet" erst */
+html.splash .topbar .brand-mark, html.splash .topbar .brand-word{opacity:0;}
+html.perf #rySplash{display:none;}
+@media (max-width:640px){
+  #rySplash .sp-logo-wrap{width:92px; height:92px;}
+  #rySplash .sp-logo{border-radius:27px;}
+  #rySplash .sp-word{font-size:28px;}
+}
+
 /* Tabs (Segment-Steuerung mit gleitender Pille) */
 .tabs{
   position:relative; display:flex; gap:2px; padding:4px; border-radius:999px;
@@ -540,6 +575,23 @@ button.set-row:focus-visible, a.set-row:focus-visible{outline:2px solid var(--ac
   animation:spin .9s linear infinite;
 }
 .status-card.swap, #lolStatusOverlay.open .status-card{animation:cardPop .6s var(--ease) both;}
+/* Einheitliche Lade-Karte (2.5.9): Ring mit Komet wie im Update-Fenster + drei Schritte (Dienst ->
+   mit dem Spiel verbinden -> Match/Agentenauswahl/Lobby laden). Ersetzt beim Neustart mitten im Match
+   die vorher wechselnden Karten (rot "Programm läuft nicht", Uhr "startet…", "WebSocket gleich bereit",
+   Zielscheibe "Lobby wird gelesen"). Danach übernimmt das Skelett-Raster. */
+.status-card.boot .status-orb{width:92px; height:92px; margin-bottom:20px;}
+.status-icon.boot{width:92px; height:92px; background:none; border:0; box-shadow:none; animation:none; color:var(--text);}
+.status-icon.boot .upd-ring{margin:0;}
+.status-icon.boot .ur-core{color:var(--text);}
+.status-icon.boot .ur-core svg{filter:drop-shadow(0 0 10px rgba(216,184,124,.45));}
+.boot-steps{max-width:290px; margin:16px auto 14px;}
+.boot-steps li{padding:7px 12px;}
+.boot-steps .us-label{font-size:13px;}
+.status-card.boot h2{margin-bottom:0;}
+.status-card.boot #procLine{display:none;}
+/* League: beim kurzen Dienst-Neustart liegt der letzte Spielstand noch dahinter - abdunkeln */
+#lolStatusOverlay.open.boot{background:rgba(6,6,8,.72); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); animation:wrapFade .3s ease;}
+:where(html.perf) #lolStatusOverlay.open.boot{background:rgba(6,6,8,.94);}
 /* AUTO ohne laufendes Spiel: VALORANT- und League-Symbol wechseln sich im Ring ab (2.5.8) */
 .status-icon .sw{grid-area:1/1; display:grid; place-items:center; animation:swGame 4.8s var(--ease) infinite;}
 .status-icon .sw + .sw{animation-delay:-2.4s;}
@@ -970,9 +1022,15 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .load-strip{display:flex; align-items:center; gap:14px; margin:-14px 0 26px; padding:12px 18px; border-radius:16px;
   background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border:1px solid var(--line-2);}
 .agentpick + .load-strip{margin-top:-18px;}
-.ls-spin{width:16px; height:16px; flex-shrink:0; border-radius:50%; border:2px solid rgba(255,255,255,.12); border-top-color:var(--accent); animation:spin .9s linear infinite;}
-.load-strip.paused .ls-spin{border-top-color:var(--warn); animation-duration:2.2s;}
-.load-strip.done .ls-spin{border-top-color:var(--win);}
+/* Gleicher Kreis wie der aktive Schritt in der Lade-Karte/im Update-Fenster: Ring dreht, Punkt pulsiert */
+.ls-spin{position:relative; width:22px; height:22px; flex-shrink:0; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(216,184,124,.14); --lc:var(--accent);}
+.ls-spin::after{content:""; position:absolute; inset:0; border-radius:50%; border:2px solid transparent; border-top-color:var(--lc);
+  border-right-color:color-mix(in srgb, var(--lc) 40%, transparent); animation:spin .85s linear infinite;}
+.ls-spin::before{content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:var(--lc);
+  box-shadow:0 0 8px color-mix(in srgb, var(--lc) 90%, transparent); animation:usDot 1.4s ease-in-out infinite;}
+.load-strip.paused .ls-spin{--lc:var(--warn);}
+.load-strip.paused .ls-spin::after{animation-duration:2.2s;}
+.load-strip.done .ls-spin{--lc:var(--win);}
 .ls-txt{font-family:var(--font-display); font-weight:600; font-size:14px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
 .load-strip.paused .ls-txt{color:var(--warn);}
 .ls-num{font-family:var(--font-mono); font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; white-space:nowrap;}
@@ -2833,7 +2891,7 @@ html.perf *, html.perf *::before, html.perf *::after{
   animation-duration:.001s !important; animation-delay:0s !important; animation-iteration-count:1 !important;
   transition-duration:0s !important; transition-delay:0s !important;
 }
-html.perf .spin, html.perf .ls-spin, html.perf .status-icon .loader, html.perf .searching svg,
+html.perf .spin, html.perf .ls-spin::after, html.perf .status-icon .loader, html.perf .searching svg,
 html.perf .status-icon.brand::before, html.perf .upd-ring.busy .ur-orbit,
 html.perf .upd-steps li.active .us-ic::after{animation-duration:1s !important; animation-iteration-count:infinite !important;}
 html.perf .upd-ring .ur-bar{filter:none !important;}
@@ -2865,6 +2923,86 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 </style>
 </head>
 <body>
+
+<!-- Start-Animation (2.5.9): Logo groß in der Mitte, fliegt dann an seinen Platz oben links -->
+<div id="rySplash" aria-hidden="true">
+  <div class="sp-glow"></div>
+  <div class="sp-center">
+    <div class="sp-logo-wrap"><span class="sp-logo"></span></div>
+    <div class="sp-word-wrap"><div class="sp-word">RankYoinker</div></div>
+    <div class="sp-load"><span class="sp-bar"><i></i></span><span class="sp-txt" id="spTxt">Loading</span></div>
+  </div>
+</div>
+<script id="splashBoot">
+(function(){
+  var html = document.documentElement, sp = document.getElementById('rySplash');
+  if(!sp) return;
+  // Performance-Modus: keine Animation (schwache PCs ohne Grafikbeschleunigung)
+  if(html.classList.contains('perf')){ sp.parentNode.removeChild(sp); return; }
+  html.classList.add('splash');
+  // "Lädt" sofort in der richtigen Sprache (die Sprachdateien kommen erst später)
+  var T = {de:'Lädt', en:'Loading', pl:'Ładowanie', fr:'Chargement', es:'Cargando', tr:'Yükleniyor', ko:'로딩 중', pt:'Carregando', ru:'Загрузка', ja:'読み込み中'};
+  var l = null;
+  try{ l = localStorage.getItem('ry_lang'); }catch(e){}
+  if(!T[l]){ var n = (navigator.languages && navigator.languages[0]) || navigator.language || 'en'; l = String(n).slice(0, 2).toLowerCase(); }
+  document.getElementById('spTxt').textContent = T[l] || T.en;
+
+  var t0 = Date.now(), MIN = 1300, MAX = 3200, D = 780, started = false;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function done(){
+    html.classList.remove('splash');
+    if(sp.parentNode) sp.parentNode.removeChild(sp);
+  }
+  function fade(el, ms, delay){
+    if(el && el.animate) el.animate([{opacity: 1}, {opacity: 0}], {duration: ms, delay: delay || 0, easing: 'ease', fill: 'forwards'});
+  }
+  function fly(){
+    if(started) return;
+    started = true;
+    try{ flyOut(); }catch(e){ done(); }
+  }
+  function flyOut(){
+    if(!sp.animate){ done(); return; }
+    var wrap = sp.querySelector('.sp-logo-wrap'), word = sp.querySelector('.sp-word-wrap');
+    var mark = document.querySelector('.topbar .brand-mark'), bword = document.querySelector('.topbar .brand-word > span');
+    var ease = 'cubic-bezier(.65,0,.2,1)';
+    sp.animate([{backgroundColor: getComputedStyle(sp).backgroundColor}, {backgroundColor: 'rgba(7,7,8,0)'}],
+      {duration: 640, delay: 160, easing: 'ease', fill: 'forwards'});
+    fade(sp.querySelector('.sp-glow'), 320);
+    fade(sp.querySelector('.sp-load'), 220);
+    // Logo: Mitte auf Mitte der echten Marke, auf deren Größe
+    var mr = mark && mark.getBoundingClientRect(), a = wrap.getBoundingClientRect();
+    if(!reduce && mr && mr.width && a.width){
+      var dx = mr.left + mr.width / 2 - (a.left + a.width / 2), dy = mr.top + mr.height / 2 - (a.top + a.height / 2);
+      wrap.animate([{transform: 'none'}, {transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + (mr.width / a.width) + ')'}],
+        {duration: D, easing: ease, fill: 'forwards'});
+    } else fade(wrap, 300);
+    // Schriftzug: zur .brand-word (am Handy ausgeblendet -> nach oben ausblenden)
+    var wr = bword && bword.offsetWidth ? bword.getBoundingClientRect() : null, w = word.getBoundingClientRect();
+    if(!reduce && wr && w.width){
+      var s = wr.height / w.height;
+      var wx = wr.left + wr.width / 2 - (w.left + w.width / 2), wy = wr.top + wr.height / 2 - (w.top + w.height / 2);
+      word.animate([{transform: 'none'}, {transform: 'translate(' + wx + 'px,' + wy + 'px) scale(' + s + ')'}],
+        {duration: D, delay: 40, easing: ease, fill: 'forwards'});
+    } else word.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'translateY(-18px)'}], {duration: 360, easing: 'ease', fill: 'forwards'});
+    // Landung: echte Marke weich übernehmen, Flug-Elemente ausblenden
+    setTimeout(function(){
+      html.classList.remove('splash');
+      [mark, bword && bword.parentNode].forEach(function(el){
+        if(el && el.animate) el.animate([{opacity: 0}, {opacity: 1}], {duration: 200, easing: 'ease'});
+      });
+      fade(wrap, 200); fade(word, 200);
+      setTimeout(done, 220);
+    }, D - 30);
+  }
+  function ready(){ setTimeout(fly, Math.max(0, MIN - (Date.now() - t0))); }
+  document.addEventListener('DOMContentLoaded', function(){
+    var f = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    Promise.race([f, new Promise(function(r){ setTimeout(r, 1200); })]).then(ready, ready);
+  });
+  setTimeout(fly, MAX);   // Sicherheitsnetz, falls etwas hängt
+})();
+</script>
 
 <!-- Hintergrund: feines Korn und Sterne wie auf rankyoinker.de -->
 <div class="grain" aria-hidden="true"></div>
@@ -3084,6 +3222,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   <div class="status-card err" id="statusCard">
     <div class="status-orb"><div class="status-icon" id="statusCardIcon">⚡</div></div>
     <h2 id="statusCardTitle" data-i18n="program_not_running">Programm läuft nicht</h2>
+    <ol class="upd-steps boot-steps" id="statusBootSteps" hidden></ol>
     <p id="statusCardText">
       Keine Verbindung zu <code id="statusCardAddr">ws://localhost:1100</code>.
       Starte <strong>VALORANT</strong>, RankYoinker startet automatisch mit.
@@ -3104,8 +3243,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 <div id="lolStatusOverlay">
   <div class="status-card wait">
     <div class="status-orb"><div class="status-icon brand" id="lolStatusCardIcon"></div></div>
-    <h2 data-i18n="waiting_for_lol">Warte auf League of Legends</h2>
-    <p data-i18n="lol_not_running_hint">Starte League of Legends. Sobald der Client läuft, wird hier automatisch alles angezeigt.</p>
+    <h2 id="lolStatusTitle" data-i18n="waiting_for_lol">Warte auf League of Legends</h2>
+    <ol class="upd-steps boot-steps" id="lolBootSteps" hidden></ol>
+    <p id="lolStatusText" data-i18n="lol_not_running_hint">Starte League of Legends. Sobald der Client läuft, wird hier automatisch alles angezeigt.</p>
     <div class="status-pills" id="lolStatusPills"></div>
   </div>
 </div>
@@ -4220,6 +4360,26 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
   const statusPills = document.getElementById('statusPills');
   function setStatusPills(html){ if(statusPills.innerHTML !== html) statusPills.innerHTML = html; }
+  // ---- Einheitliche Lade-Karte (2.5.9) ----
+  // Ring mit Komet wie im Update-Fenster + drei Schritte. Nur die Klassen wechseln, sonst finge die
+  // Drehung bei jedem Poll (1,5 s) von vorn an.
+  const BOOT_GRACE_MS = 15000;     // so lange gilt ein weggebrochener Dienst als "startet neu" statt als Fehler
+  function bootRingHtml(icon){
+    return `<div class="upd-ring busy"><div class="ur-glow"></div><svg class="ur" viewBox="0 0 92 92" aria-hidden="true">`
+      + `<circle class="ur-track" cx="46" cy="46" r="43"/></svg><div class="ur-orbit"></div><div class="ur-core">${icon}</div></div>`;
+  }
+  function setBootSteps(ol, step, labels){
+    const key = step + '|' + labels.join('|');
+    if(ol.dataset.key === key) return;
+    if(ol.children.length !== labels.length)
+      ol.innerHTML = labels.map((l, i) => `<li><span class="us-ic"><b>${i + 1}</b>${svgIcon('check', 13)}</span><span class="us-label"></span></li>`).join('');
+    Array.from(ol.children).forEach((li, i) => {
+      li.classList.toggle('done', i < step);
+      li.classList.toggle('active', i === step);
+      li.querySelector('.us-label').textContent = labels[i];
+    });
+    ol.dataset.key = key;
+  }
   let curStatusIcon = '';
   function setStatusIcon(name){
     if(name === curStatusIcon) return;
@@ -4230,6 +4390,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     } else if(name === 'brand-auto'){
       statusCardIcon.className = 'status-icon brand brand-auto';
       statusCardIcon.innerHTML = `<span class="sw">${valBrandIcon(30)}</span><span class="sw">${lolBrandIcon(30)}</span>`;
+    } else if(name === 'boot'){
+      statusCardIcon.className = 'status-icon boot';
+      statusCardIcon.innerHTML = bootRingHtml(valBrandIcon(26));
     } else if(name === 'load'){
       statusCardIcon.className = 'status-icon load';
       statusCardIcon.innerHTML = '<span class="loader"></span>';
@@ -4265,10 +4428,14 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       }
     }
     connStateInit = true;
+    // Verbindung eben weggebrochen: erst den Dienst fragen (startet er neu? läuft vry.exe noch?), dann die
+    // Karte zeigen - sonst stand kurz "Mit VALORANT verbinden" und sprang zurück auf "Dienst" (2.5.9)
+    if(state === 'off' && prev === 'live'){ pollStatus(); return; }
     updateOverlay();
   }
 
   let procStatus = null, loadingShown = false, lastLoadKey = '';
+  let lastStatusOkAt = 0, lastGameState = null;   // Lade-Karte: Dienst eben noch erreichbar? (2.5.9)
   let lastStatusKey = '', lastFullSig = '', lastSceneSig = '';
 
   function updateOverlay(){
@@ -4310,12 +4477,24 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     // nicht "Starte VALORANT" anzeigen (Live-Test 2.4.9-dev1).
     const valorantOpen = !!(procStatus && procStatus.valorant);
     let pills = '';   // Status-Zeilen nur in den Warte-Zustaenden
-    const showConnecting = () => {
-      statusCard.className = 'status-card wait';
-      setStatusIcon('clock');
-      statusCardTitle.textContent = t('vry_starting');
-      statusCardText.innerHTML = `<span class="wait-hint">${t('valorant_open_vry_connecting')}</span>` + matchHint;
+    const bootSteps = document.getElementById('statusBootSteps');
+    bootSteps.hidden = true;
+
+    // Lade-Karte (2.5.9): step 0 = Dienst, 1 = mit VALORANT verbinden, 2 = Match/Auswahl/Lobby laden.
+    // Fällt der Dienst kurz weg (Neustart/Update), gilt der letzte bekannte Spielstand für Titel und Schritt 3.
+    const showBoot = (step, hint) => {
+      const gs = (game && game.state) || (!procStatus ? lastGameState : null);
+      statusCard.className = 'status-card wait boot';
+      setStatusIcon('boot');
+      statusCardTitle.textContent = t(gs === 'INGAME' ? 'boot_title_match' : gs === 'PREGAME' ? 'boot_title_pregame'
+        : step >= 2 ? 'boot_title_lobby' : 'vry_starting');
+      setBootSteps(bootSteps, step, [t('boot_step_service'), t('boot_step_connect', {game: 'VALORANT'}),
+        t(gs === 'INGAME' ? 'boot_step_load_match' : gs === 'PREGAME' ? 'boot_step_load_pregame' : 'boot_step_load_lobby')]);
+      bootSteps.hidden = false;
+      statusCardText.innerHTML = `<span class="wait-hint">${hint}</span>`;
     };
+    const connectHint = inMatch ? t(game.state === 'INGAME' ? 'match_running' : 'agent_select_running')
+      : t('valorant_open_vry_connecting');
 
     // AUTO und noch kein Spiel erkannt: auf beide warten statt nur "Warte auf VALORANT" (2.5.8)
     const waitAny = !gameOverride && !activeGame;
@@ -4329,30 +4508,33 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
           + `<div class="status-pill wait"><i></i>${esc(t('status_no_game'))}</div>`
         : statusPillsHtml('VALORANT', serviceOk);
     };
+    const problemPath = t('settings') + ' → ' + t('set_nav_about') + ' → ' + t('problem_report');
 
-    if(!running && procStatus && procStatus.waiting){
+    if(!procStatus && lastStatusOkAt && Date.now() - lastStatusOkAt < BOOT_GRACE_MS){
+      // Dienst war eben noch da: startet neu (Update, Neustart) - nicht gleich rot "Programm läuft nicht"
+      showBoot(0, t('boot_hint_service'));
+    } else if(!running && procStatus && procStatus.waiting){
       // RankYoinker läuft nicht — kommt aber von selbst, sobald VALORANT da ist
-      if(valorantOpen) showConnecting();
+      if(valorantOpen) showBoot(1, connectHint);
       else showWaiting('start_valorant_vry_autostart', true);
     } else if(running && phase === 'waiting_riot'){
-      statusCard.className = 'status-card wait';
-      setStatusIcon('brand');
-      pills = statusPillsHtml('VALORANT', true);
-      statusCardTitle.textContent = t('waiting_for_valorant');
-      statusCardText.innerHTML = t('vry_running_no_riot_html')
-        + (inMatch ? `<br><span style="color:var(--gold);">${t('match_already_running')}</span>` : '');
+      if(inMatch) showBoot(1, t('match_already_running'));
+      else {
+        statusCard.className = 'status-card wait';
+        setStatusIcon('brand');
+        pills = statusPillsHtml('VALORANT', true);
+        statusCardTitle.textContent = t('waiting_for_valorant');
+        statusCardText.innerHTML = t('vry_running_no_riot_html');
+      }
     } else if(connState === 'off' && running){
-      statusCard.className = 'status-card wait';
-      setStatusIcon('clock');
-      statusCardTitle.textContent = t('vry_starting');
-      statusCardText.innerHTML = t('process_already_running_html', {host: NET_HOST, port: port}) + matchHint;
+      showBoot(1, connectHint);
     } else if(connState === 'off'){
       statusCard.className = 'status-card err';
       setStatusIcon('zap');
       statusCardTitle.textContent = t('program_not_running');
       statusCardText.innerHTML = t('no_connection_to_ws_html', {host: NET_HOST, port: port})
         + (procStatus
-            ? t('vry_should_be_running_html')
+            ? t('vry_should_be_running_html', {path: esc(problemPath)})
             : ON_PHONE
               ? t('port_unreachable_phone_html', {port: port})
               : t('helper_service_unreachable_html'));
@@ -4360,15 +4542,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       statusCard.className = 'status-card err';
       setStatusIcon('alert');
       statusCardTitle.textContent = t('load_error_title');
-      statusCardText.innerHTML = t('load_error_text_html');
+      statusCardText.innerHTML = t('load_error_text_html', {path: esc(problemPath)});
     } else if(pr && pr.state === 'MENUS'){
       // RankYoinker ist schon im Menü angekommen und liest gerade die Lobby aus
-      statusCard.className = 'status-card wait';
-      setStatusIcon('target');
-      statusCardTitle.textContent = t('reading_lobby');
-      statusCardText.innerHTML = t('reading_lobby_text_html', {version: appVersion ? ` (v${esc(appVersion)})` : ''});
+      showBoot(2, t('boot_hint_lobby'));
     } else if(valorantOpen){
-      showConnecting();
+      showBoot(1, connectHint);
     } else {
       // WICHTIG: Hier wartet RankYoinker NICHT auf Match-Daten, sondern schlicht darauf,
       // dass VALORANT überhaupt läuft. Alles andere wäre irreführend.
@@ -4710,6 +4889,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     }catch(e){ procStatus = null; }
 
     if(procStatus){
+      lastStatusOkAt = Date.now();
+      lastGameState = (procStatus.game && procStatus.game.state) || null;
       // Seite vor VALORANT geöffnet: /api/session schlug fehl, ownPuuid blieb die ganze Sitzung leer
       // (eigener Platz in der Agentenauswahl nie markiert, Auswahl-Stand der letzten Runde blieb)
       if(!ownPuuid && procStatus.puuid) ownPuuid = procStatus.puuid;
@@ -9345,9 +9526,41 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return false;
   }
 
+  // Dienst kurz weg (Neustart/Update), während der Client lief: Lade-Karte statt "Warte auf League" -
+  // bis 2.5.8 galt das wie "Client zu" (Konto vergessen, Verlauf geleert). Gleiche Karte wie bei VALORANT.
+  let lolOkAt = 0, lolOkState = null, lolBootOn = false;
+  function lolBoot(on){
+    if(on === lolBootOn) return;
+    lolBootOn = on;
+    const card = document.querySelector('#lolStatusOverlay .status-card');
+    const icon = document.getElementById('lolStatusCardIcon'), steps = document.getElementById('lolBootSteps');
+    card.classList.toggle('boot', on);
+    document.getElementById('lolStatusOverlay').classList.toggle('boot', on);
+    steps.hidden = !on;
+    if(on){
+      icon.className = 'status-icon boot';
+      icon.innerHTML = bootRingHtml(lolBrandIcon(26));
+      document.getElementById('lolStatusTitle').textContent = t(lolOkState === 'INGAME' ? 'boot_title_match' : 'boot_title_reconnect');
+      setBootSteps(steps, 0, [t('boot_step_service'), t('boot_step_connect', {game: 'League'}), t('boot_step_load_lol')]);
+      document.getElementById('lolStatusText').textContent = t('boot_hint_service');
+      document.getElementById('lolStatusPills').innerHTML = '';
+    } else {
+      icon.className = 'status-icon brand';
+      icon.innerHTML = lolBrandIcon(30);
+      document.getElementById('lolStatusTitle').textContent = t('waiting_for_lol');
+      document.getElementById('lolStatusText').textContent = t('lol_not_running_hint');
+    }
+  }
   async function refreshLol(){
     let gs, gsFailed = false;
     try{ gs = await api('/api/lol/gamestate'); }catch(e){ gs = {state:'OFFLINE'}; gsFailed = true; }
+    if(gsFailed && lolOkState && lolOkState !== 'OFFLINE' && Date.now() - lolOkAt < BOOT_GRACE_MS){
+      document.getElementById('lolStatusOverlay').classList.add('open');
+      lolBoot(true);
+      return;
+    }
+    if(!gsFailed){ lolOkAt = Date.now(); lolOkState = gs.state || 'OFFLINE'; }
+    lolBoot(false);
     const state = gs.state || 'OFFLINE';
     lolLastState = state;
     // Erst alles anzeigen, sobald der League-Client wirklich läuft - bis dahin
@@ -11402,7 +11615,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.8";
+const CURRENT_VERSION = "2.5.9-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
