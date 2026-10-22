@@ -698,6 +698,11 @@
     "ovl_avg": "평균 {rank}",
     "ovl_preview": "미리 보기",
     "ovl_grade": "등급",
-    "ovl_today": "오늘 {rr} · {w}승 {l}패"
+    "ovl_today": "오늘 {rr} · {w}승 {l}패",
+    "set_privacy_label": "개인정보",
+    "usage_stats": "익명 사용 통계",
+    "usage_stats_hint": "어떤 기능을 쓰는지와 오류 보고 – Riot ID는 보내지 않아요. 끄면 버전과 언어만 보내요.",
+    "privacy_policy": "개인정보 처리방침",
+    "privacy_policy_hint": "RankYoinker가 보내고 저장하는 정보"
   }
 }

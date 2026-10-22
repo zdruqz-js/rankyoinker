@@ -697,6 +697,11 @@
     "ovl_avg": "平均 {rank}",
     "ovl_preview": "プレビュー",
     "ovl_grade": "評価",
-    "ovl_today": "今日 {rr} · {w}勝{l}敗"
+    "ovl_today": "今日 {rr} · {w}勝{l}敗",
+    "set_privacy_label": "プライバシー",
+    "usage_stats": "匿名の使用統計",
+    "usage_stats_hint": "使われている機能とエラー報告（Riot IDは送信しません）。オフにするとバージョンと言語のみ送信します。",
+    "privacy_policy": "プライバシーポリシー",
+    "privacy_policy_hint": "RankYoinkerが送信・保存する内容"
   }
 }

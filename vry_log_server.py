@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.11"
+APP_VERSION = "2.5.12"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -615,6 +615,7 @@ def _notify_match_tracked_once(game, match_id):
     recent.append(match_id)
     _matches_tracked_seen_cache[game] = recent[-MATCHES_TRACKED_SEEN_MAX:]
     _save_json(MATCHES_TRACKED_SEEN_FILE, _matches_tracked_seen_cache)
+    record_feature("match_" + game)      # matches played per installation (match_valorant / match_league)
     _notify_match_tracked(game)
 
 
@@ -936,17 +937,106 @@ def _telemetry_snapshot():
         return sorted((dict(v) for v in _telemetry.values()), key=lambda e: -e["lastAt"])
 
 
+# ---- Usage statistics: anonymous, can be turned off (2.5.12) ----
+# Until 2.5.11 the client report carried the Riot ID and puuid next to the feature counters, so the
+# server held a list of "this Riot account used Instalock". Now the account only leaves the PC as an
+# HMAC with a random salt that never leaves this PC (DATA_DIR/.account-salt): the server can count
+# accounts per installation, but can neither reverse the value nor check whether a known puuid is in
+# it. Settings -> About -> "Anonymous usage statistics" (config.json "usageStats", default on) stops
+# the client report (feature counters, account count, error reports) and asks the server to delete
+# this installation's entry. The heartbeat (clientId, version, language) is always sent.
+_ACCOUNT_SALT_PATH = os.path.join(DATA_DIR, ".account-salt")
+_account_salt_cache = None
+
+
+def _account_salt():
+    global _account_salt_cache
+    if _account_salt_cache is None:
+        salt = None
+        try:
+            with open(_ACCOUNT_SALT_PATH, "r", encoding="utf-8") as f:
+                salt = f.read().strip()
+        except OSError:
+            pass
+        if not salt or not re.fullmatch(r"[0-9a-f]{64}", salt):
+            salt = secrets.token_hex(32)
+            try:
+                with open(_ACCOUNT_SALT_PATH, "w", encoding="utf-8") as f:
+                    f.write(salt)
+            except OSError:
+                pass
+        _account_salt_cache = salt
+    return _account_salt_cache
+
+
+def _account_hash(puuid):
+    if not puuid:
+        return None
+    return hmac.new(_account_salt().encode("ascii"), str(puuid).lower().encode("utf-8"),
+                    hashlib.sha256).hexdigest()[:32]
+
+
+def usage_stats_enabled():
+    try:
+        return (_load_json(CONFIG_JSON_FILE) or {}).get("usageStats") is not False
+    except Exception:
+        return True
+
+
+def set_usage_stats(on, local=True):
+    """Settings -> About -> "Anonymous usage statistics". Only from the PC itself."""
+    if not local:
+        return {"ok": True, "ignored": True}
+    on = on is True
+    with _config_lock:
+        try:
+            data = _load_json(CONFIG_JSON_FILE, for_update=True)
+        except _FileBusy:
+            return _config_busy()
+        if data.get("usageStats", True) is on:
+            return {"ok": True}
+        data["usageStats"] = on
+        _save_json(CONFIG_JSON_FILE, data)
+    _client_report_wake.set()
+    return {"ok": True}
+
+
+_client_report_wake = threading.Event()
+
+
+def _client_report_post(payload):
+    req = urllib.request.Request(
+        CLIENT_REPORT_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-ClientReport"},
+        method="POST",
+    )
+    _urlopen_public(req, timeout=10).close()
+
+
 def _client_report_loop():
     client_id = _get_client_id()
     while True:
         try:
-            account = _current_riot_account()
+            if not usage_stats_enabled():
+                # turned off: ask the server once to delete this installation's entry, then stay quiet
+                last = _load_json(_LAST_REPORT_PATH) or {}
+                if not (isinstance(last, dict) and last.get("_optedOut")):
+                    _client_report_post({"clientId": client_id, "version": APP_VERSION, "optOut": True})
+                    _save_json(_LAST_REPORT_PATH, {"_optedOut": True})
+                _client_report_wake.wait(CLIENT_REPORT_INTERVAL)
+                _client_report_wake.clear()
+                continue
+            acc = _current_riot_account()
+            account = _account_hash(acc.get("puuid")) if isinstance(acc, dict) else None
             with _feature_lock:
                 features = dict(_load_feature_counts())
             errors = _telemetry_snapshot()
             snapshot = {"account": account, "features": features, "errors": errors}
             last = _load_json(_LAST_REPORT_PATH) or {}
-            sent_at = last.pop("_sentAt", 0) if isinstance(last, dict) else 0
+            if not isinstance(last, dict) or not isinstance(last.get("account"), (str, type(None))):
+                last = {}       # snapshot from <= 2.5.11 (account was {puuid, name}) or after opting out
+            sent_at = last.pop("_sentAt", 0)
             # Nur senden, wenn sich seit dem letzten Mal wirklich etwas
             # geaendert hat (neuer Account, neue Feature-Nutzung) - ein
             # unveraenderter Stand alle 5 Minuten erneut zu verschicken,
@@ -956,30 +1046,24 @@ def _client_report_loop():
             # wieder etwas geschickt und der Account fehlte dauerhaft.
             # Einen schon bekannten Account nicht durch "gerade kein Riot
             # Client offen" (None) ersetzen - das ist keine Aenderung.
-            if account is None and isinstance(last, dict) and last.get("account"):
+            if account is None and last.get("account"):
                 account = last["account"]
                 snapshot["account"] = account
             if snapshot != last or time.time() - sent_at > 6 * 3600:
-                body = json.dumps({
+                _client_report_post({
                     "clientId": client_id,
                     "version": APP_VERSION,
                     "lang": _heartbeat_lang(),
-                    "riotAccount": account,
+                    "account": account,          # HMAC, see _account_hash() - never puuid or Riot ID
                     "features": features,
                     "session": _TELEMETRY_SESSION,
                     "errors": errors,
-                }).encode("utf-8")
-                req = urllib.request.Request(
-                    CLIENT_REPORT_URL,
-                    data=body,
-                    headers={"Content-Type": "application/json", "User-Agent": "RankYoinker-ClientReport"},
-                    method="POST",
-                )
-                _urlopen_public(req, timeout=10).close()
+                })
                 _save_json(_LAST_REPORT_PATH, dict(snapshot, _sentAt=time.time()))
         except Exception:
             pass
-        time.sleep(CLIENT_REPORT_INTERVAL)
+        _client_report_wake.wait(CLIENT_REPORT_INTERVAL)
+        _client_report_wake.clear()
 
 
 # ---- Automatisches Update (mit Pflicht-Hash-Prüfung) ----
@@ -10590,6 +10674,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/set-perf":
             local = _is_local(self._client_ip())
             self._safe(lambda: set_perf_mode(body.get("on"), local=local))
+        elif path == "/api/set-usage-stats":
+            local = _is_local(self._client_ip())
+            self._safe(lambda: set_usage_stats(body.get("on"), local=local))
         elif path == "/api/presets/save":
             self._safe(lambda: preset_save(body.get("name"), body.get("data")))
         elif path == "/api/presets/delete":
@@ -10868,6 +10955,7 @@ class Handler(BaseHTTPRequestHandler):
                 channel, perf = "stable", None
             self._json({"ok": True, "updateChannel": channel if channel == "dev" else "stable",
                         "perfMode": perf if isinstance(perf, bool) else None,
+                        "usageStats": usage_stats_enabled(),
                         # Spiel-Overlay (2.5.5-dev2): Fenster ueber VALORANT, nur unter Windows
                         "gameOverlay": ovl_settings(), "gameOverlayAvailable": ovl_available()})
 

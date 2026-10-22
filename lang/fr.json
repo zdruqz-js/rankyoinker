@@ -697,6 +697,11 @@
     "ovl_avg": "Moy. {rank}",
     "ovl_preview": "APERÇU",
     "ovl_grade": "Note",
-    "ovl_today": "Aujourd'hui {rr} · {w}–{l}"
+    "ovl_today": "Aujourd'hui {rr} · {w}–{l}",
+    "set_privacy_label": "Confidentialité",
+    "usage_stats": "Statistiques d'utilisation anonymes",
+    "usage_stats_hint": "Fonctions utilisées et rapports d'erreurs – sans Riot ID. Désactivé : seules la version et la langue sont envoyées.",
+    "privacy_policy": "Politique de confidentialité",
+    "privacy_policy_hint": "Ce que RankYoinker envoie et conserve"
   }
 }

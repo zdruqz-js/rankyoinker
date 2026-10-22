@@ -697,6 +697,11 @@
     "ovl_avg": "Ort. {rank}",
     "ovl_preview": "ÖNİZLEME",
     "ovl_grade": "Not",
-    "ovl_today": "Bugün {rr} · {w}–{l}"
+    "ovl_today": "Bugün {rr} · {w}–{l}",
+    "set_privacy_label": "Gizlilik",
+    "usage_stats": "Anonim kullanım istatistikleri",
+    "usage_stats_hint": "Hangi özelliklerin kullanıldığı ve hata raporları – Riot ID olmadan. Kapalı: yalnızca sürüm ve dil gönderilir.",
+    "privacy_policy": "Gizlilik politikası",
+    "privacy_policy_hint": "RankYoinker'ın neyi gönderip sakladığı"
   }
 }
