@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.12"
+APP_VERSION = "2.5.13-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -3385,13 +3385,20 @@ def encounters_for(puuids):
 # Je Spieler werden ausser den Zählern die letzten Begegnungen einzeln
 # mitgeschrieben — daraus baut die Grossansicht ihre Liste. Kurze Schlüssel,
 # weil das je Spieler und Begegnung anfällt:
-#   t = Zeitpunkt (Unix), a = 1 wenn im eigenen Team, m = MapID, q = Queue
+#   t = Zeitpunkt (Unix), a = 1 wenn im eigenen Team, m = MapID, q = Queue,
+#   id = Match-ID (seit 2.5.13 - damit laesst sich das Match aus der Begegnung heraus oeffnen)
 ENC_LOG_MAX = 20
+# Ab so vielen Begegnungen im eigenen Team gilt ein Spieler beim einmaligen Aufraeumen (2.5.13) als
+# Party-Mitglied: Bis dahin zaehlte jede Runde mit Freunden mit, die Zahl stand schnell bei "50x".
+ENC_PARTY_GUESS = 3
 
 
-def encounters_record(match_id, players, meta=None):
+def encounters_record(match_id, players, meta=None, exclude=None):
     """Zaehlt eine Begegnung je Mitspieler. Doppelte Aufrufe fuer dieselbe
-    Match-ID werden ignoriert, damit ein Neuzeichnen nicht mitzaehlt."""
+    Match-ID werden ignoriert, damit ein Neuzeichnen nicht mitzaehlt.
+    exclude: puuids der eigenen Party - die zaehlen nicht (Nutzerwunsch 2.5.13:
+    nur echte Wiederbegegnungen ohne gemeinsame Party)."""
+    exclude = set(exclude or ())
     if not match_id or not isinstance(players, list):
         return {"ok": False, "error": "match_id oder Spielerliste fehlt."}
     meta = meta or {}
@@ -3405,7 +3412,7 @@ def encounters_record(match_id, players, meta=None):
         now = int(time.time())
         for p in players:
             pid = p.get("puuid")
-            if not pid or pid == me:
+            if not pid or pid == me or pid in exclude:
                 continue
             e = acc["players"].setdefault(pid, {"games": 0, "ally": 0, "enemy": 0})
             e["games"] = e.get("games", 0) + 1
@@ -3417,7 +3424,7 @@ def encounters_record(match_id, players, meta=None):
             if p.get("name"):
                 e["name"] = p["name"]
             e["last"] = now
-            entry = {"t": now, "a": 1 if ally else 0}
+            entry = {"t": now, "a": 1 if ally else 0, "id": str(match_id)}
             if meta.get("map"):
                 entry["m"] = meta["map"]
             if meta.get("queue"):
@@ -3427,6 +3434,59 @@ def encounters_record(match_id, players, meta=None):
             e["log"] = log[-ENC_LOG_MAX:]
         _save_json(ENCOUNTERS_FILE, root)
     return {"ok": True}
+
+
+def _enc_cleanup_party():
+    """Einmalig (2.5.13): Begegnungen mit wahrscheinlichen Party-Mitgliedern entfernen. Bis 2.5.12 zaehlte
+    jede gemeinsame Runde mit Freunden mit. Eine Party-Angabe gibt es in alten Eintraegen nicht - wer
+    ENC_PARTY_GUESS-mal oder oefter im eigenen Team war, gilt als Party: seine Team-Begegnungen fallen weg,
+    Begegnungen als Gegner bleiben."""
+    try:
+        with _store_lock:
+            root = _load_json(ENCOUNTERS_FILE, for_update=True)
+            changed = False
+            for acc in root.values():
+                if not isinstance(acc, dict) or acc.get("v", 1) >= 2:
+                    continue
+                players = acc.get("players") or {}
+                for pid in list(players):
+                    e = players[pid]
+                    if not isinstance(e, dict) or (e.get("ally") or 0) < ENC_PARTY_GUESS:
+                        continue
+                    e["games"] = max(0, (e.get("games") or 0) - (e.get("ally") or 0))
+                    e["ally"] = 0
+                    e["log"] = [x for x in (e.get("log") or []) if not x.get("a")]
+                    if not e["games"]:
+                        del players[pid]
+                acc["v"] = 2
+                changed = True
+            if changed:
+                _save_json(ENCOUNTERS_FILE, root)
+    except _FileBusy:
+        pass
+    except Exception as e:
+        report_error("encounters-cleanup", e)
+
+
+# Ein frueheres Match als Match-Analyse (aus einer Begegnung heraus geoeffnet, 2.5.13). Gemerkt im
+# Speicher, damit erneutes Oeffnen keine Riot-Anfrage kostet.
+_match_view_cache = collections.OrderedDict()
+_MATCH_ID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def match_view(match_id):
+    if not _MATCH_ID_RE.match(str(match_id or "")):
+        return {"ok": False, "error": "bad-id"}
+    mid = match_id.lower()
+    if mid in _match_view_cache:
+        return {"ok": True, "report": _match_view_cache[mid]}
+    data = _match_report_build(mid)
+    if not data:
+        return {"ok": False, "error": "unavailable"}
+    _match_view_cache[mid] = data
+    while len(_match_view_cache) > 8:
+        _match_view_cache.popitem(last=False)
+    return {"ok": True, "report": data}
 
 
 # Früher zählte die Seite die Begegnungen: Sie hatte den Kader ohnehin auf dem
@@ -3480,8 +3540,9 @@ def record_encounter_now(mid):
         _game_roster.update({"match": mid, "map": roster["map"], "queue": roster["queue"],
                              "players": [{"puuid": p["puuid"], "ally": p["ally"], "agent": p.get("agent")}
                                          for p in roster["players"]]})
+        _, party = _own_party()
         res = encounters_record(mid, roster["players"],
-                                {"map": roster["map"], "queue": roster["queue"]})
+                                {"map": roster["map"], "queue": roster["queue"]}, exclude=party)
     except Exception:
         return False
     _enc_seen["match"] = mid
@@ -10979,6 +11040,9 @@ class Handler(BaseHTTPRequestHandler):
             data = _report_current()
             self._json({"ok": bool(data), "report": data, "pending": bool(_report["pending"])})
 
+        elif path == "/api/match-view":
+            self._safe(lambda: match_view((q.get("id") or [""])[0]))
+
         elif path == "/api/kda":
             puuids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]
             if not puuids:
@@ -11526,6 +11590,7 @@ if __name__ == "__main__":
     # Wacht über vry.exe: genau eine Instanz, Neustart nach einem Absturz
     threading.Thread(target=_watchdog, daemon=True).start()
     # Erkennt einen Account-Wechsel und wirft dann alle Caches weg
+    threading.Thread(target=_enc_cleanup_party, daemon=True).start()
     threading.Thread(target=_account_watcher, daemon=True).start()
     threading.Thread(target=_account_warmup, daemon=True).start()
     threading.Thread(target=_prune_vry_logs, daemon=True).start()

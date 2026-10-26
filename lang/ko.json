@@ -711,6 +711,11 @@
     "risk_fact_lol_auto": "챔피언 선택에서 프리셋대로 자동 밴/픽해요. Riot이 공식적으로 허용하지 않는 자동화예요.",
     "risk_fact_skins": "비공식 Riot 인터페이스로 장비를 바꿔요. 외형만 바뀌고 게임 내 이점은 없어요.",
     "risk_asia_title": "아시아 서버 (AP/KR)",
-    "risk_fact_asia": "한 사용자가 아시아 서버에서 3일 정지를 보고했어요(확인되지 않음). 그곳에서는 이 기능을 권하지 않아요. EU 계정에서는 알려진 사례가 없어요."
+    "risk_fact_asia": "한 사용자가 아시아 서버에서 3일 정지를 보고했어요(확인되지 않음). 그곳에서는 이 기능을 권하지 않아요. EU 계정에서는 알려진 사례가 없어요.",
+    "enc_open_match": "매치 보기",
+    "match_view_failed": "매치를 불러오지 못했어요",
+    "match_view_unavailable": "Riot이 더 이상 이 매치를 제공하지 않거나 다른 계정의 매치예요.",
+    "report_past_title": "이전 매치",
+    "report_past_back": "돌아가기"
   }
 }

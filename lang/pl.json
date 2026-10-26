@@ -711,6 +711,11 @@
     "risk_fact_lol_auto": "Automatycznie banuje lub wybiera z twoich presetów w wyborze bohatera – automatyzacja, której Riot oficjalnie nie dopuszcza.",
     "risk_fact_skins": "Zmienia twój ekwipunek przez nieoficjalny interfejs Riot – tylko kosmetyka, bez przewagi w grze.",
     "risk_asia_title": "Serwery azjatyckie (AP/KR)",
-    "risk_fact_asia": "Jeden użytkownik zgłosił 3-dniową blokadę na serwerach azjatyckich (niepotwierdzone). Tam odradzamy te funkcje. Nie znamy przypadków na kontach EU."
+    "risk_fact_asia": "Jeden użytkownik zgłosił 3-dniową blokadę na serwerach azjatyckich (niepotwierdzone). Tam odradzamy te funkcje. Nie znamy przypadków na kontach EU.",
+    "enc_open_match": "Zobacz mecz",
+    "match_view_failed": "Nie udało się wczytać meczu",
+    "match_view_unavailable": "Riot nie udostępnia już tego meczu albo należy on do innego konta.",
+    "report_past_title": "Wcześniejszy mecz",
+    "report_past_back": "Wróć"
   }
 }

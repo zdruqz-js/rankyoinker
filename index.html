@@ -1487,6 +1487,17 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .consent-txt{font-family:var(--font-display); font-weight:600; font-size:14px; line-height:1.35; color:var(--text);}
 .risk-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
 html.perf .risk-ic-ring{animation:none;}
+.enc-row.enc-open{width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer; transition:border-color .2s ease, background .2s ease;}
+.enc-row.enc-open:hover{border-color:var(--accent-line); background:rgba(216,184,124,.06);}
+.enc-go{margin-left:auto; color:var(--text-3); display:grid; place-items:center;}
+.enc-row.enc-open:hover .enc-go{color:var(--accent);}
+.rp-pastbar{display:flex; align-items:center; gap:12px; margin:0 0 14px; padding:12px 14px; border-radius:14px;
+  background:linear-gradient(135deg, rgba(216,184,124,.12), rgba(216,184,124,.03)); border:1px solid var(--accent-line);}
+.rp-pastbar b{display:block; font-family:var(--font-display); font-size:14px;}
+.rp-pastbar span{font-size:12px; color:var(--text-3);}
+.rp-past-ic{width:30px; height:30px; flex-shrink:0; border-radius:10px; display:grid; place-items:center; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line);}
+.rp-pastbar .pbtn{margin-left:auto;}
+#reportView:has(.rp-pastbar) .rp-back{display:none;}
 .risk-actions .pbtn.go{transition:opacity .3s ease, transform .35s var(--spring), box-shadow .3s ease;}
 
 /* ================= Shop ================= */
@@ -6014,12 +6025,17 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function encListHtml(entry){
     const log = (entry.log || []).slice().reverse();
     const missing = Math.max(0, (entry.games || 0) - log.length);
-    const rows = log.map(x => `
-      <div class="enc-row" data-tip="${esc(encExact(x.t))}">
+    // Seit 2.5.13 traegt jede Begegnung ihre Match-ID -> anklickbar, oeffnet das Match als Analyse
+    const rows = log.map(x => {
+      const open = x.id && /^[0-9a-f-]{36}$/i.test(x.id);
+      return `
+      <${open ? 'button type="button"' : 'div'} class="enc-row${open ? ' enc-open' : ''}" ${open ? `data-enc-match="${esc(x.id)}" data-enc-t="${Number(x.t) || 0}"` : ''} data-tip="${esc(encExact(x.t))}${open ? ' · ' + esc(t('enc_open_match')) : ''}">
         <span class="enc-side ${x.a ? 'ally' : 'enemy'}">${x.a ? t('in_team') : t('enemies')}</span>
         <span class="enc-when">${esc(encWhen(x.t))}</span>
         <span class="enc-where">${esc(encWhere(x))}</span>
-      </div>`).join('');
+        ${open ? `<span class="enc-go">${svgIcon('chevron', 13)}</span>` : ''}
+      </${open ? 'button' : 'div'}>`;
+    }).join('');
     const hint = missing
       ? `<div class="enc-empty">${t(missing === 1 ? 'enc_older_counted_1' : 'enc_older_counted_n', {n: missing})}</div>`
       : '';
@@ -6238,11 +6254,40 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // Wegklicken merkt sich die Seite je Match (der Knopf unten rechts holt sie
   // zurueck).
   let reportData = null, reportLoading = false, reportRendered = '';
+  // Frueheres Match aus einer Begegnung (2.5.13): ersetzt die Analyse kurz, "Zurueck" stellt den alten Stand her
+  let reportPast = null, reportLive = null;
+  function openPastMatch(id, ts){
+    toast('busy', t('enc_open_match'), '', {id:'pastmatch', dur:0});
+    api('/api/match-view?id=' + encodeURIComponent(id)).catch(apiFail).then(j => {
+      if(!j || !j.ok || !j.report){
+        toast('error', t('match_view_failed'), j && j.error === 'unavailable' ? t('match_view_unavailable') : (j && j.error) || '', {id:'pastmatch', dur:6000});
+        return;
+      }
+      toast('success', t('enc_open_match'), '', {id:'pastmatch', dur:1200});
+      if(!reportPast) reportLive = reportData;
+      reportPast = {ts: ts || 0};
+      reportData = j.report; reportRendered = '';
+      if(typeof closeModal === 'function') closeModal();
+      if(activeTab !== 'match') setTab('match');
+      updateReportView();
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  }
+  function closePastMatch(){
+    reportData = reportLive; reportLive = null; reportPast = null; reportRendered = '';
+    updateReportView();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-enc-match]');
+    if(b) openPastMatch(b.getAttribute('data-enc-match'), Number(b.getAttribute('data-enc-t')) || 0);
+  });
   const REPORT_DISMISS_KEY = 'ry_report_dismissed';
   function reportDismissedId(){ try{ return localStorage.getItem(REPORT_DISMISS_KEY); }catch(e){ return null; } }
   function syncReport(){
     const g = procStatus && procStatus.game;
     const rs = g && g.report;
+    if(reportPast) return;   // frueheres Match offen - die aktuelle Analyse wird nach "Zurueck" nachgezogen
     // Dienst hat die Analyse verworfen (neues Match, anderes Konto) -> hier auch
     if(rs && !rs.matchId && reportData){ reportData = null; reportRendered = ''; }
     if(rs && rs.matchId && (!reportData || reportData.matchId !== rs.matchId) && !reportLoading){
@@ -6264,13 +6309,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const view = document.getElementById('reportView');
     const reopen = document.getElementById('reportReopen');
     if(!app || !view || !reopen) return;
-    const avail = !!reportData && currentValState() === 'MENUS';
-    const dismissed = avail && reportDismissedId() === reportData.matchId;
+    const avail = !!reportData && (!!reportPast || currentValState() === 'MENUS');
+    const dismissed = avail && !reportPast && reportDismissedId() === reportData.matchId;
     const show = avail && !dismissed && activeTab === 'match';
     if(show){
-      const key = reportData.matchId + '|' + Object.keys(agentMap).length + '|' + Object.keys(mapInfo).length + '|' + Object.keys(tierMap).length;
+      const key = (reportPast ? 'past|' : '') + reportData.matchId + '|' + Object.keys(agentMap).length + '|' + Object.keys(mapInfo).length + '|' + Object.keys(tierMap).length;
       if(key !== reportRendered){
-        view.innerHTML = reportHtml(reportData); reportRendered = key;
+        view.innerHTML = (reportPast ? pastMatchBarHtml() : '') + reportHtml(reportData); reportRendered = key;
         rpSelectRound(rpDefaultRound(reportData));
         requestAnimationFrame(() => { rpLayoutStrip(); rpScrollHints(); });
       }
@@ -6290,6 +6335,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   document.getElementById('reportView').addEventListener('click', e => {
     const col = e.target.closest('.rp-rt');
     if(col){ rpSelectRound(Number(col.dataset.rd)); return; }
+    if(e.target.closest('[data-report-close]') && reportPast){ closePastMatch(); return; }
     if(e.target.closest('[data-report-close]') && reportData){
       try{ localStorage.setItem(REPORT_DISMISS_KEY, reportData.matchId); }catch(err){}
       updateReportView();
@@ -6565,6 +6611,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
   ['reportView', 'lolReportView'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('scroll', e => rpScrollHints(el), true); });
   window.addEventListener('resize', () => rpScrollHints());
+  function pastMatchBarHtml(){
+    const when = reportPast && reportPast.ts ? encExact(reportPast.ts) : '';
+    return `<div class="rp-pastbar"><span class="rp-past-ic">${svgIcon('clock', 14)}</span>
+      <div><b>${esc(t('report_past_title'))}</b>${when ? `<span>${esc(when)}</span>` : ''}</div>
+      <button type="button" class="pbtn" data-report-close>${svgIcon('x', 12)}${esc(t('report_past_back'))}</button></div>`;
+  }
   function reportHtml(r){
     const me = r.players.find(p => p.me) || {};
     const mi = mapInfo[String(r.map || '').toLowerCase()] || null;
@@ -7306,9 +7358,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   let ilPollTimer = null, ilGen = -1;   // Anzeige-Poll; die Logik liegt im Log-Server
   let ilLast = null, ilAskSkip = false;  // letzter Stand vom Dienst, Haken "nicht fragen"
 
-  // Einmalige Risiko-Bestätigung, bevor Instalock ueberhaupt scharf geschaltet
-  // werden kann - siehe riskGate()/showRiskModal() weiter unten.
-  const IL_RISK_ACK_KEY = 'vry_instalock_risk_ack';
 
   // Feste Zielverzögerung: immer zufällig zwischen 11 und 12 Sekunden, nicht
   // mehr wählbar - nur fürs Anzeigen hier (muss zu IL_DELAY/IL_JITTER im
@@ -7400,7 +7449,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     lol_pick:   {icon:'shield',  eyebrow: () => 'League · ' + t('lol_auto_pick_short'), facts:[['zap','risk_fact_lol_auto','']]},
     skins:      {icon:'layers',  eyebrow: () => 'Skins', facts:[['layers','risk_fact_skins','ok']]},
   };
-  const riskKey = (f) => f === 'instalock' ? IL_RISK_ACK_KEY : 'ry_risk_ack_' + f;
+  // "ry_risk2_": mit 2.5.13 muss jeder neu bestaetigen (auch Instalock, vorher vry_instalock_risk_ack)
+  const riskKey = (f) => 'ry_risk2_' + f;
   function riskAcked(f){ try{ return localStorage.getItem(riskKey(f)) === '1'; }catch(e){ return false; } }
   // Fuehrt run() sofort aus, wenn schon bestaetigt - sonst erst nach dem Dialog. Gibt true zurueck, wenn sofort.
   function riskGate(f, run){
@@ -8791,9 +8841,15 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       // Party aber nur bei einem Zustandswechsel neu. Wer gerade erst eingeladen
       // wurde, fehlt dort — den füllen wir aus der Live-Party des Log-Servers auf.
       const meKey = latestData.puuid;
-      const keyed = Object.entries(players).map(([k, p]) => ({key: k, p}));
+      let keyed = Object.entries(players).map(([k, p]) => ({key: k, p}));
+      // vry.exe schickt die Lobby nur bei einem Zustandswechsel - wer die Party verlaesst, stand bis 2.5.12
+      // fuer immer in der Lobby. Die Live-Party (/api/lobby, alle 3 s) ist massgeblich.
+      if(Array.isArray(lobbyMembers) && lobbyMembers.length){
+        const live = new Set(lobbyMembers.map(m => m.puuid).filter(Boolean));
+        keyed = keyed.filter(({key, p}) => key === meKey || p.puuid === meKey || live.has(p.puuid || key));
+      }
       const known = new Set();
-      Object.entries(players).forEach(([k, p]) => { known.add(k); if(p.puuid) known.add(p.puuid); });
+      keyed.forEach(({key: k, p}) => { known.add(k); if(p.puuid) known.add(p.puuid); });
       (lobbyMembers || []).forEach(m => {
         if(!m.puuid || known.has(m.puuid)) return;
         const p = {puuid: m.puuid, name: m.name, level: m.level, rank: m.rank,
@@ -11715,7 +11771,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.12";
+const CURRENT_VERSION = "2.5.13-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

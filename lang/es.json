@@ -710,6 +710,11 @@
     "risk_fact_lol_auto": "Banea o elige automáticamente desde tus presets en la selección de campeones, una automatización que Riot no permite oficialmente.",
     "risk_fact_skins": "Cambia tu equipamiento mediante una interfaz no oficial de Riot: solo estético, sin ventaja en el juego.",
     "risk_asia_title": "Servidores de Asia (AP/KR)",
-    "risk_fact_asia": "Un usuario informó de un baneo de 3 días en servidores de Asia (sin confirmar). Allí desaconsejamos estas funciones. No conocemos ningún caso en cuentas de la UE."
+    "risk_fact_asia": "Un usuario informó de un baneo de 3 días en servidores de Asia (sin confirmar). Allí desaconsejamos estas funciones. No conocemos ningún caso en cuentas de la UE.",
+    "enc_open_match": "Ver partida",
+    "match_view_failed": "No se pudo cargar la partida",
+    "match_view_unavailable": "Riot ya no ofrece esta partida o pertenece a otra cuenta.",
+    "report_past_title": "Partida anterior",
+    "report_past_back": "Volver"
   }
 }
