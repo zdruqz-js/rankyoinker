@@ -716,6 +716,9 @@
     "match_view_failed": "Match konnte nicht geladen werden",
     "match_view_unavailable": "Riot liefert dieses Match nicht mehr oder es gehört zu einem anderen Konto.",
     "report_past_title": "Früheres Match",
-    "report_past_back": "Zurück"
+    "report_past_back": "Zurück",
+    "il_random": "Zufällig",
+    "il_random_agent": "Zufälliger Agent",
+    "il_random_tip": "Sperrt einen zufälligen Agenten, den du besitzt – wer es wird, siehst du erst nach dem Sperren."
   }
 }

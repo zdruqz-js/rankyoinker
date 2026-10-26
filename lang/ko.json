@@ -716,6 +716,9 @@
     "match_view_failed": "매치를 불러오지 못했어요",
     "match_view_unavailable": "Riot이 더 이상 이 매치를 제공하지 않거나 다른 계정의 매치예요.",
     "report_past_title": "이전 매치",
-    "report_past_back": "돌아가기"
+    "report_past_back": "돌아가기",
+    "il_random": "랜덤",
+    "il_random_agent": "랜덤 요원",
+    "il_random_tip": "보유한 요원 중 랜덤으로 선택해요. 누가 될지는 잠근 뒤에야 알 수 있어요."
   }
 }

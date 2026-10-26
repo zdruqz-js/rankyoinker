@@ -715,6 +715,9 @@
     "match_view_failed": "Impossible de charger le match",
     "match_view_unavailable": "Riot ne fournit plus ce match, ou il appartient à un autre compte.",
     "report_past_title": "Match précédent",
-    "report_past_back": "Retour"
+    "report_past_back": "Retour",
+    "il_random": "Aléatoire",
+    "il_random_agent": "Agent aléatoire",
+    "il_random_tip": "Verrouille un agent aléatoire que tu possèdes – tu ne vois lequel qu'après le verrouillage."
   }
 }

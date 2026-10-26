@@ -1487,6 +1487,9 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .consent-txt{font-family:var(--font-display); font-weight:600; font-size:14px; line-height:1.35; color:var(--text);}
 .risk-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
 html.perf .risk-ic-ring{animation:none;}
+.il-random .il-dice{width:100%; aspect-ratio:1; border-radius:12px; display:grid; place-items:center; color:var(--accent);
+  background:radial-gradient(circle at 30% 25%, rgba(216,184,124,.28), rgba(216,184,124,.06) 70%); border:1px dashed var(--accent-line);}
+.il-random.sel .il-dice{color:#1a1206; background:var(--grad-accent); border-style:solid;}
 .enc-row.enc-open{width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer; transition:border-color .2s ease, background .2s ease;}
 .enc-row.enc-open:hover{border-color:var(--accent-line); background:rgba(216,184,124,.06);}
 .enc-go{margin-left:auto; color:var(--text-3); display:grid; place-items:center;}
@@ -5083,6 +5086,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     presetCache = {}; presetAccount = null; presetsReady = false; tabsPrefetched = null;
     currentLoadout = null;
     entOwned = null; ownedAgents = null; ownPuuid = null;
+    loadOwnedAgents();
     shopState.data = null; shopState.at = 0;
     partySig = ''; lastFullSig = ''; lastSceneSig = '';
     premadeParties = {}; premadeGroups = []; premadeSig = '';
@@ -7287,13 +7291,24 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       </div>`;
   }
 
+  // Freigeschaltete Agenten des EINGELOGGTEN Kontos. Bis 2.5.12 nur in der Agentenauswahl geladen - in der
+  // Lobby (Instalock-Box) galten nach einem Kontowechsel alle Agenten als freigeschaltet. Antworten eines
+  // vorherigen Kontos werden verworfen (ownedGen).
+  let ownedGen = 0;
+  function loadOwnedAgents(){
+    const gen = ++ownedGen;
+    ownedAgents = [];
+    api('/api/agents/owned').then(j => {
+      if(gen !== ownedGen || !j || !j.ok) return;
+      ownedAgents = j.agents || [];
+      refreshPregameView();
+      if(document.getElementById('instalockBox')) repaintInstalock();
+    }).catch(() => {});
+  }
   function bindAgentPick(){
     const panel = document.querySelector('.agentpick:not(.instalock)');
     if(!panel) return;
-    if(ownedAgents === null){
-      ownedAgents = [];
-      api('/api/agents/owned').then(j => { if(j.ok){ ownedAgents = j.agents || []; refreshPregameView(); } }).catch(() => {});
-    }
+    if(ownedAgents === null) loadOwnedAgents();
     if(panel.dataset.bound) return;
     panel.dataset.bound = '1';
     // Stern zuerst binden und die Klicks dort stoppen, bevor sie die
@@ -7384,7 +7399,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" data-tip="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
         </div>`;
     };
-    const chosen = instalockAgent ? (agentById[sel] || '—') : null;
+    if(ownedAgents === null) setTimeout(loadOwnedAgents, 0);
+    const isRandom = sel === 'random';
+    const chosen = instalockAgent ? (isRandom ? t('il_random_agent') : (agentById[sel] || '—')) : null;
+    const randomCell = `<div class="agent-cell il-random ${isRandom ? 'sel' : ''}" data-il="random" data-tip="${esc(t('il_random_tip'))}">
+        <div class="il-dice">${svgIcon('sparkles', 22)}</div><div class="an">${esc(t('il_random'))}</div></div>`;
     const paused = !instalockOn && ilLast && ilLast.status === 'paused';
     return `
       <div class="agentpick instalock ${instalockOn ? 'armed' : ''}" id="instalockBox">
@@ -7401,7 +7420,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         ${favs.length ? `<div class="fav-label">${t('favorites_label')}</div>
         <div class="fav-row">${favs.map(cell).join('')}</div>
         <div class="ap-divider"></div>` : ''}
-        <div class="agent-grid">${list.filter(a => favs.indexOf(a) === -1).map(cell).join('')}</div>
+        <div class="agent-grid">${randomCell}${list.filter(a => favs.indexOf(a) === -1).map(cell).join('')}</div>
         <div class="ap-actions">
           <button class="pbtn ${instalockOn ? 'halt' : 'go'}" id="ilToggle" ${instalockAgent ? '' : 'disabled'}>
             ${svgIcon(instalockOn ? 'stop' : 'play', 12)}${instalockOn ? t('instalock_disable') : t('instalock_enable')}
@@ -7530,7 +7549,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function stopInstalockWatch(){ clearInterval(ilPollTimer); ilPollTimer = null; }
 
   function armInstalock(){
-    const name = agentById[String(instalockAgent).toLowerCase()] || '';
+    const name = instalockAgent === 'random' ? t('il_random_agent') : (agentById[String(instalockAgent).toLowerCase()] || '');
     // delay/jitter werden bewusst NICHT mitgeschickt - der Dienst legt sie
     // selbst fest (siehe IL_DELAY/IL_JITTER in vry_log_server.py).
     return api('/api/instalock/arm', {agent: instalockAgent, name: name})
@@ -7564,7 +7583,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   // Statuszeile im Instalock-Kasten (wird jede Sekunde direkt geschrieben, siehe syncInstalock)
   function ilLineHtml(j){
-    const name = esc(j.name || agentById[String(j.agent || instalockAgent || '').toLowerCase()] || '—');
+    // Zufallsmodus: der Agent bleibt geheim, bis der Dienst gesperrt hat (dann pickedName)
+    const picked = j.random && j.pickedName && (j.status === 'locked' || j.status === 'ingame') ? j.pickedName : '';
+    const name = esc(picked || j.name || agentById[String(j.agent || instalockAgent || '').toLowerCase()] || '—');
     if(j.status === 'waiting') return `${svgIcon('loader', 12, 'spin')} ${t('instalock_locking_html', {name, s: (j.remaining || 0).toFixed(1)})}`;
     if(j.status === 'locked') return `${svgIcon('check', 12)} ${t('instalock_locked_html', {name})}`;
     if(j.status === 'ingame') return `${svgIcon('check', 12)} ${t('instalock_ingame_html', {name})}`;
@@ -11772,7 +11793,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.13-dev2";
+const CURRENT_VERSION = "2.6.0";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

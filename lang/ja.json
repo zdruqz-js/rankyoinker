@@ -715,6 +715,9 @@
     "match_view_failed": "試合を読み込めませんでした",
     "match_view_unavailable": "Riotがこの試合を提供していないか、別のアカウントの試合です。",
     "report_past_title": "過去の試合",
-    "report_past_back": "戻る"
+    "report_past_back": "戻る",
+    "il_random": "ランダム",
+    "il_random_agent": "ランダムエージェント",
+    "il_random_tip": "所持しているエージェントからランダムでロックします。誰になるかはロック後にわかります。"
   }
 }

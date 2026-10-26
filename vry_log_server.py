@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.5.13-dev2"
+APP_VERSION = "2.6.0"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4781,8 +4781,45 @@ _il = {
     "askAt": 0.0,         # seit wann die Frage nach dem Match offen ist (Phase 5)
     "asked": False,       # Fenster ueber VALORANT fuer diese Frage schon gestartet?
     "gen": 0,             # zaehlt jede Zustandsaenderung (fuer die Oberflaeche)
+    "picked": None,       # nur bei agent == "random": tatsaechlich gesperrter Agent (erst nach dem Sperren bekannt)
+    "pickedName": "",
 }
 _il_poll = {"ts": 0.0}
+
+# ---- Zufaelliger Agent (2.6.0, Fun-Feature) ----
+# agent == "random": gewuerfelt wird erst beim Sperren, die Oberflaeche erfaehrt den Agenten erst danach.
+# Nur Agenten, die das EINGELOGGTE Konto besitzt (Entitlements frisch von Riot + Grund-Agenten), ohne die,
+# die ein Mitspieler schon gesperrt hat. Grund-Agenten aus valorant-api (isBaseContent), sonst diese:
+IL_RANDOM = "random"
+BASE_AGENTS = {
+    "add6443a-41bd-e414-f6ad-e58d267f4e95",   # Jett
+    "eb93336a-449b-9c1b-0a54-a891f7921d69",   # Phoenix
+    "569fdd95-4d10-43ab-ca70-79becc718b46",   # Sage
+    "320b2a48-4d9b-a075-30f1-1f93a9b638fa",   # Sova
+    "9f0d8ba9-4140-b941-57d3-a7ad57c6b417",   # Brimstone
+}
+
+
+def _random_agent_candidates(mid):
+    owned = {str(a).lower() for a in owned_agents()}
+    _vapi_ensure()
+    known = _vapi.get("agents") or {}
+    base = {u for u, a in known.items() if a.get("base")} or set(BASE_AGENTS)
+    pool = owned | base
+    if known:
+        pool &= set(known)          # nur spielbare Agenten (keine entfernten/unbekannten Eintraege)
+    taken = set()
+    try:
+        me = get_auth()["puuid"]
+        status, m = riot_get("glz", "/pregame/v1/matches/%s" % mid)
+        for pl in (((m or {}).get("AllyTeam") or {}).get("Players") or []) if status == 200 else []:
+            if pl.get("Subject") != me and pl.get("CharacterSelectionState") == "locked" and pl.get("CharacterID"):
+                taken.add(pl["CharacterID"].lower())
+    except Exception:
+        pass
+    cands = list(pool - taken)
+    random.shuffle(cands)
+    return cands
 
 # Nach dem Sperren ist noch nicht sicher, dass daraus ein echtes Spiel wird —
 # wird das Match gedodged, landet man in einer neuen Agentenauswahl. Darum
@@ -4889,6 +4926,8 @@ def instalock_state():
             "askLeft": (int(max(0, _il["askAt"] + IL_ASK_MAX - time.time()))
                         if _il["status"] == "ask" else 0),
             "gen": _il["gen"],
+            "random": _il["agent"] == IL_RANDOM,
+            "picked": _il.get("picked"), "pickedName": _il.get("pickedName") or "",
         }
 
 
@@ -4908,14 +4947,14 @@ def instalock_arm(body):
             "jitter": IL_JITTER,
             "match": None, "fireAt": 0.0, "planned": 0.0, "status": "armed",
             "lockedAt": 0.0, "free": IL_FREE_YES, "ingameMatch": None, "ingameAt": 0.0,
-            "askAt": 0.0, "asked": False,
+            "askAt": 0.0, "asked": False, "picked": None, "pickedName": "",
             "message": "Wartet auf die naechste Agentenauswahl.",
             "gen": _il["gen"] + 1,
         })
         _il_save()
     _il_popup_close()
     _il_poll["ts"] = 0.0        # sofort nachsehen, nicht erst im naechsten Takt
-    record_feature("instalock_armed")
+    record_feature("instalock_random" if agent == IL_RANDOM else "instalock_armed")
     return instalock_state()
 
 
@@ -5124,12 +5163,27 @@ def _instalock_tick():
             return
 
         ok, err = False, "Sperren fehlgeschlagen."
-        for _ in range(IL_LOCK_TRIES):
+        cands = None
+        if agent == IL_RANDOM:
             try:
-                ok, err = pick_agent(mid, "lock", agent)
+                cands = _random_agent_candidates(mid)
+            except Exception as e:
+                cands, err = [], "%s: %s" % (type(e).__name__, e)
+            if not cands:
+                _il_finish(False, "Kein freier Agent fuer die Zufallswahl gefunden.")
+                return
+        chosen = agent
+        for i in range(IL_LOCK_TRIES):
+            if cands is not None:
+                chosen = cands[i % len(cands)]      # war einer schon weg: naechster Kandidat
+            try:
+                ok, err = pick_agent(mid, "lock", chosen)
             except Exception as e:
                 ok, err = False, "%s: %s" % (type(e).__name__, e)
             if ok:
+                if cands is not None:
+                    with _il_lock:
+                        _il.update(picked=chosen, pickedName=((_vapi.get("agents") or {}).get(chosen) or {}).get("name") or "")
                 break
             with _il_lock:
                 if not _il["on"] or _il["match"] != mid:
@@ -5451,7 +5505,8 @@ def _vapi_ensure():
             agents = {}
             for x in (a or {}).get("data") or []:
                 if isinstance(x, dict) and x.get("uuid"):
-                    agents[x["uuid"].lower()] = {"name": x.get("displayName") or "", "icon": x.get("displayIcon")}
+                    agents[x["uuid"].lower()] = {"name": x.get("displayName") or "", "icon": x.get("displayIcon"),
+                                                 "base": bool(x.get("isBaseContent"))}
             if not agents:
                 raise ValueError("keine Agentenliste")
             sets = (t or {}).get("data") or []

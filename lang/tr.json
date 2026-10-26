@@ -715,6 +715,9 @@
     "match_view_failed": "Maç yüklenemedi",
     "match_view_unavailable": "Riot bu maçı artık sunmuyor ya da maç başka bir hesaba ait.",
     "report_past_title": "Önceki maç",
-    "report_past_back": "Geri"
+    "report_past_back": "Geri",
+    "il_random": "Rastgele",
+    "il_random_agent": "Rastgele ajan",
+    "il_random_tip": "Sahip olduğun rastgele bir ajanı kilitler – kim olduğunu ancak kilitledikten sonra görürsün."
   }
 }

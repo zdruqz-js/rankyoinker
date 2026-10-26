@@ -716,6 +716,9 @@
     "match_view_failed": "Nie udało się wczytać meczu",
     "match_view_unavailable": "Riot nie udostępnia już tego meczu albo należy on do innego konta.",
     "report_past_title": "Wcześniejszy mecz",
-    "report_past_back": "Wróć"
+    "report_past_back": "Wróć",
+    "il_random": "Losowo",
+    "il_random_agent": "Losowy agent",
+    "il_random_tip": "Blokuje losowego agenta, którego posiadasz – kogo, zobaczysz dopiero po zablokowaniu."
   }
 }

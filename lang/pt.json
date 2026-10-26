@@ -715,6 +715,9 @@
     "match_view_failed": "Não foi possível carregar a partida",
     "match_view_unavailable": "A Riot não fornece mais esta partida ou ela pertence a outra conta.",
     "report_past_title": "Partida anterior",
-    "report_past_back": "Voltar"
+    "report_past_back": "Voltar",
+    "il_random": "Aleatório",
+    "il_random_agent": "Agente aleatório",
+    "il_random_tip": "Trava um agente aleatório que você tem – você só vê qual é depois de travar."
   }
 }

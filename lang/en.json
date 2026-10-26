@@ -716,6 +716,9 @@
     "match_view_failed": "Couldn't load the match",
     "match_view_unavailable": "Riot no longer provides this match, or it belongs to another account.",
     "report_past_title": "Earlier match",
-    "report_past_back": "Back"
+    "report_past_back": "Back",
+    "il_random": "Random",
+    "il_random_agent": "Random agent",
+    "il_random_tip": "Locks a random agent you own – you only see who it is after the lock."
   }
 }
