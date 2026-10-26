@@ -7437,8 +7437,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // ---- Risiko-Hinweis vor Funktionen, die etwas im Spiel/Client ausloesen (2.5.13) ----
   // Einmal je Funktion (localStorage, je Geraet) bestaetigen: Instalock, Agent hovern/sperren, Dodge,
   // League Auto-Annehmen/-Bann/-Pick, Skins/Presets anwenden. Instalock behaelt seinen alten Schluessel.
-  // Asien-Hinweis: ein Nutzer meldete eine 3-taegige Sperre auf Asien-Servern (unbestaetigt) - bei
-  // VALORANT-Region ap/kr wird der Hinweis rot hervorgehoben (Region aus /api/session).
+  // Asien-Hinweis: ein Nutzer meldete eine 3-taegige Sperre auf Asien-Pazifik-Servern (unbestaetigt) - bei
+  // VALORANT-Region ap wird der Hinweis rot hervorgehoben (Region aus /api/session). Korea (kr) ist laut
+  // koreanischen Nutzern nicht betroffen (nachgefragt 2026-10-26).
   const RISK_FEATURES = {
     instalock:  {icon:'zap',     eyebrow: () => 'Instalock', title:'instalock_risk_title',
                  facts:[['clock','instalock_risk_fact_delay','ok'], ['zap','instalock_risk_fact_instant','bad']]},
@@ -7499,7 +7500,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     // Region: auf Asien-Servern den Hinweis hervorheben (ohne Antwort bleibt er neutral)
     fetch(LOG_URL + '/api/session', {cache:'no-store'}).then(r => r.json()).then(j => {
       const box = document.getElementById('riskRegion');
-      if(box && j && /^(ap|kr)$/i.test(String(j.shard || ''))) box.classList.add('hot');
+      if(box && j && /^ap$/i.test(String(j.shard || ''))) box.classList.add('hot');
     }).catch(() => {});
   }
   function repaintInstalock(){
@@ -11771,7 +11772,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.5.13-dev1";
+const CURRENT_VERSION = "2.5.13-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
