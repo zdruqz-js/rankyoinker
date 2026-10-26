@@ -703,6 +703,14 @@
     "usage_stats": "Anonyme Nutzungsstatistik",
     "usage_stats_hint": "Welche Funktionen genutzt werden und Fehlerberichte – ohne Riot-ID. Aus: nur noch Version und Sprache.",
     "privacy_policy": "Datenschutzerklärung",
-    "privacy_policy_hint": "Was RankYoinker sendet und speichert"
+    "privacy_policy_hint": "Was RankYoinker sendet und speichert",
+    "risk_title": "Bevor du diese Funktion nutzt",
+    "risk_fact_pick": "Steuert die Agentenauswahl über eine inoffizielle Riot-Schnittstelle – erst nach 11 Sekunden, wie ein Mensch.",
+    "risk_fact_dodge": "Verlässt die Agentenauswahl über eine inoffizielle Riot-Schnittstelle. Riots normale Dodge-Strafen (RR, Wartezeit) gelten.",
+    "risk_fact_lol_accept": "Nimmt gefundene Spiele automatisch im League-Client an – eine Automatisierung, die Riot nicht offiziell erlaubt.",
+    "risk_fact_lol_auto": "Bannt bzw. pickt automatisch aus deinen Presets in der Champ Select – eine Automatisierung, die Riot nicht offiziell erlaubt.",
+    "risk_fact_skins": "Ändert dein Loadout über eine inoffizielle Riot-Schnittstelle – nur Optik, kein Vorteil im Spiel.",
+    "risk_asia_title": "Asien-Server (AP/KR)",
+    "risk_fact_asia": "Ein Nutzer berichtete von einer 3-tägigen Sperre auf Asien-Servern (unbestätigt). Dort raten wir von diesen Funktionen ab. Für EU-Konten ist uns kein Fall bekannt."
   }
 }

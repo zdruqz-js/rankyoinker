@@ -702,6 +702,14 @@
     "usage_stats": "Estatísticas de uso anônimas",
     "usage_stats_hint": "Quais funções são usadas e relatórios de erro – sem Riot ID. Desligado: só a versão e o idioma são enviados.",
     "privacy_policy": "Política de privacidade",
-    "privacy_policy_hint": "O que o RankYoinker envia e armazena"
+    "privacy_policy_hint": "O que o RankYoinker envia e armazena",
+    "risk_title": "Antes de usar este recurso",
+    "risk_fact_pick": "Controla a seleção de agentes por uma interface não oficial da Riot – só depois de 11 segundos, como uma pessoa.",
+    "risk_fact_dodge": "Sai da seleção de agentes por uma interface não oficial da Riot. As penalidades normais de dodge da Riot (RR, espera) se aplicam.",
+    "risk_fact_lol_accept": "Aceita automaticamente partidas encontradas no cliente do League – uma automação que a Riot não permite oficialmente.",
+    "risk_fact_lol_auto": "Bane ou escolhe automaticamente pelos seus presets na seleção de campeões – uma automação que a Riot não permite oficialmente.",
+    "risk_fact_skins": "Altera seu loadout por uma interface não oficial da Riot – só visual, sem vantagem no jogo.",
+    "risk_asia_title": "Servidores da Ásia (AP/KR)",
+    "risk_fact_asia": "Um usuário relatou um banimento de 3 dias em servidores da Ásia (não confirmado). Lá não recomendamos esses recursos. Não sabemos de nenhum caso em contas da UE."
   }
 }

@@ -1439,22 +1439,36 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .chroma-opt img{width:100%; height:30px; object-fit:contain;}
 .chroma-opt .cn{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em; color:var(--text-3); margin-top:5px;}
 .skinpick-actions{display:flex; align-items:center; gap:10px; margin-top:22px; flex-wrap:wrap;}
-/* Instalock: Risiko-Bestätigung (kompakter Dialog mit Bestätigungs-Karte) */
-.modal:has(.risk-dlg){max-width:520px; margin-top:8vh;}
-.risk-dlg{padding:28px 28px 24px;}
-.risk-head{display:flex; align-items:center; gap:14px; margin:0 44px 20px 0;}
-.risk-ic{width:48px; height:48px; flex-shrink:0; border-radius:15px; display:grid; place-items:center; color:var(--warn);
-  background:rgba(244,184,80,.1); border:1px solid rgba(244,184,80,.32);}
-.risk-head .eyebrow{display:block; margin-bottom:3px; color:var(--warn);}
-.risk-head h3{font-size:20px; font-weight:750; letter-spacing:-.02em; line-height:1.2;}
-.risk-facts{display:flex; flex-direction:column; gap:8px; margin-bottom:16px;}
-.risk-fact{display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:14px; font-size:13.5px; line-height:1.5; color:var(--text-2);
-  background:var(--surface); border:1px solid var(--line); animation:rise .5s var(--ease) both;}
-.risk-fact:nth-child(2){animation-delay:.06s;} .risk-fact:nth-child(3){animation-delay:.12s;}
-.rf-ic{width:28px; height:28px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; color:var(--text-2); background:var(--surface-2); border:1px solid var(--line);}
+/* Risiko-Hinweis (2.5.13): gemeinsamer Dialog fuer alle Funktionen, die etwas im Spiel/Client ausloesen */
+.modal:has(.risk-dlg){max-width:540px; margin-top:7vh; overflow:hidden;}
+.risk-dlg{position:relative; padding:30px 28px 24px;}
+.risk-glow{position:absolute; inset:-120px -80px auto; height:260px; pointer-events:none;
+  background:radial-gradient(60% 60% at 30% 40%, rgba(244,184,80,.16), transparent 70%), radial-gradient(50% 50% at 80% 30%, rgba(255,107,122,.10), transparent 70%);}
+.risk-head{position:relative; display:flex; align-items:center; gap:16px; margin:0 44px 22px 0;}
+.risk-ic{position:relative; width:54px; height:54px; flex-shrink:0; border-radius:17px; display:grid; place-items:center; color:#1a1206;
+  background:linear-gradient(145deg, #ffd27a, #f4a63c 55%, #e07a3c); box-shadow:0 12px 30px -12px rgba(244,166,60,.9), inset 0 1px 0 rgba(255,255,255,.45);}
+.risk-ic-ring{position:absolute; inset:-6px; border-radius:21px; border:1px solid rgba(244,184,80,.35); animation:riskPulse 2.4s ease-in-out infinite;}
+@keyframes riskPulse{0%,100%{opacity:.35; transform:scale(1);} 50%{opacity:.9; transform:scale(1.04);}}
+.risk-eyebrow{display:inline-flex; align-items:center; gap:6px; margin-bottom:6px; padding:3px 9px 3px 7px; border-radius:99px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--warn);
+  background:rgba(244,184,80,.1); border:1px solid rgba(244,184,80,.28);}
+.risk-head h3{font-size:21px; font-weight:780; letter-spacing:-.025em; line-height:1.2;}
+.risk-facts{position:relative; list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:2px;
+  border-radius:16px; background:var(--surface); border:1px solid var(--line); overflow:hidden;}
+.risk-fact{display:flex; align-items:flex-start; gap:12px; padding:13px 15px; font-size:13.5px; line-height:1.5; color:var(--text-2);
+  animation:rise .5s var(--ease) both; animation-delay:calc(var(--i, 0) * .07s);}
+.risk-fact + .risk-fact{border-top:1px solid var(--line);}
+.rf-ic{width:28px; height:28px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; color:var(--warn); background:rgba(244,184,80,.08); border:1px solid rgba(244,184,80,.24);}
 .risk-fact.ok .rf-ic{color:var(--win); background:rgba(61,220,132,.08); border-color:rgba(61,220,132,.28);}
 .risk-fact.bad .rf-ic{color:var(--loss); background:rgba(255,107,122,.08); border-color:rgba(255,107,122,.28);}
-.risk-fact > span:last-child{padding-top:4px;}
+.rf-txt{padding-top:4px;}
+.risk-region{position:relative; display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; padding:12px 15px; border-radius:14px;
+  font-size:12.5px; line-height:1.5; color:var(--text-2); background:rgba(255,255,255,.02); border:1px dashed var(--line-2);
+  animation:rise .5s var(--ease) both; animation-delay:calc(var(--i, 3) * .07s);}
+.risk-region b{display:block; font-family:var(--font-display); font-size:13px; color:var(--text); margin-bottom:2px;}
+.rr-flag{width:26px; height:26px; flex-shrink:0; border-radius:8px; display:grid; place-items:center; color:var(--text-3); background:var(--surface-2); border:1px solid var(--line);}
+.risk-region.hot{border:1px solid rgba(255,107,122,.45); background:linear-gradient(135deg, rgba(255,107,122,.12), rgba(255,107,122,.04)); color:var(--text);}
+.risk-region.hot .rr-flag{color:var(--loss); background:rgba(255,107,122,.1); border-color:rgba(255,107,122,.35);}
 .consent{position:relative; display:flex; align-items:center; gap:13px; padding:14px 16px; border-radius:15px; cursor:pointer; user-select:none;
   background:rgba(255,255,255,.02); border:1px solid var(--line-2); transition:border-color .25s ease, background .25s ease, box-shadow .3s ease;}
 .consent:hover{border-color:var(--line-3); background:rgba(255,255,255,.035);}
@@ -1472,6 +1486,7 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .consent-input:focus-visible + .consent-box{outline:2px solid var(--accent); outline-offset:3px;}
 .consent-txt{font-family:var(--font-display); font-weight:600; font-size:14px; line-height:1.35; color:var(--text);}
 .risk-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+html.perf .risk-ic-ring{animation:none;}
 .risk-actions .pbtn.go{transition:opacity .3s ease, transform .35s var(--spring), box-shadow .3s ease;}
 
 /* ================= Shop ================= */
@@ -7246,6 +7261,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         if(pickLockLeft()) return;   // Schutzzeit läuft (Countdown am Knopf)
         const id = cell.getAttribute('data-agent');
         if(String(pickSelected || '').toLowerCase() === id.toLowerCase() && pickWanted === id) return;
+        if(!riskAcked('pick')){ showRiskModal('pick', () => cell.click()); return; }
         // sofort anzeigen (Raster und eigene Zeile), Riot bestätigt gleich hinterher
         pickSelected = id; pickLocked = false;
         pickPending = {agent: id, until: Date.now() + PICK_PENDING_MS};
@@ -7259,6 +7275,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(lockBtn){
       lockBtn.addEventListener('click', () => {
         if(!pickSelected || pickLocked || pickLockLeft()) return;
+        if(!riskAcked('pick')){ showRiskModal('pick', () => lockBtn.click()); return; }
         const agent = pickSelected;
         lockBtn.disabled = true;
         const label = lockBtn.querySelector('span');
@@ -7290,9 +7307,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   let ilLast = null, ilAskSkip = false;  // letzter Stand vom Dienst, Haken "nicht fragen"
 
   // Einmalige Risiko-Bestätigung, bevor Instalock ueberhaupt scharf geschaltet
-  // werden kann - siehe showInstalockRiskModal() weiter unten.
+  // werden kann - siehe riskGate()/showRiskModal() weiter unten.
   const IL_RISK_ACK_KEY = 'vry_instalock_risk_ack';
-  const hasInstalockRiskAck = () => localStorage.getItem(IL_RISK_ACK_KEY) === '1';
 
   // Feste Zielverzögerung: immer zufällig zwischen 11 und 12 Sekunden, nicht
   // mehr wählbar - nur fürs Anzeigen hier (muss zu IL_DELAY/IL_JITTER im
@@ -7365,48 +7381,76 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     if(btn) btn.addEventListener('click', () => {
       if(!instalockAgent) return;
       if(instalockOn){ disarmInstalock(); return; }
-      if(!hasInstalockRiskAck()){ showInstalockRiskModal(armInstalock); return; }
-      armInstalock();
+      riskGate('instalock', armInstalock);
     });
   }
 
-  // Muss einmalig bestaetigt werden, bevor Instalock ueberhaupt scharf
-  // geschaltet werden kann - danach dauerhaft (per localStorage) gemerkt,
-  // genau wie der zuletzt gewaehlte Agent selbst.
-  function showInstalockRiskModal(onConfirm){
-    const fact = (icon, key, cls) => `<div class="risk-fact ${cls || ''}"><span class="rf-ic">${svgIcon(icon, 15)}</span><span>${t(key)}</span></div>`;
+  // ---- Risiko-Hinweis vor Funktionen, die etwas im Spiel/Client ausloesen (2.5.13) ----
+  // Einmal je Funktion (localStorage, je Geraet) bestaetigen: Instalock, Agent hovern/sperren, Dodge,
+  // League Auto-Annehmen/-Bann/-Pick, Skins/Presets anwenden. Instalock behaelt seinen alten Schluessel.
+  // Asien-Hinweis: ein Nutzer meldete eine 3-taegige Sperre auf Asien-Servern (unbestaetigt) - bei
+  // VALORANT-Region ap/kr wird der Hinweis rot hervorgehoben (Region aus /api/session).
+  const RISK_FEATURES = {
+    instalock:  {icon:'zap',     eyebrow: () => 'Instalock', title:'instalock_risk_title',
+                 facts:[['clock','instalock_risk_fact_delay','ok'], ['zap','instalock_risk_fact_instant','bad']]},
+    pick:       {icon:'crosshair', eyebrow: () => t('choose_agent_btn'), facts:[['clock','risk_fact_pick','']]},
+    dodge:      {icon:'exit',    eyebrow: () => t('match_dodge_btn'), facts:[['alert','risk_fact_dodge','']]},
+    lol_accept: {icon:'check',   eyebrow: () => 'League · ' + t('lol_chip_accept'), facts:[['zap','risk_fact_lol_accept','']]},
+    lol_ban:    {icon:'shield',  eyebrow: () => 'League · ' + t('lol_auto_ban_short'), facts:[['zap','risk_fact_lol_auto','']]},
+    lol_pick:   {icon:'shield',  eyebrow: () => 'League · ' + t('lol_auto_pick_short'), facts:[['zap','risk_fact_lol_auto','']]},
+    skins:      {icon:'layers',  eyebrow: () => 'Skins', facts:[['layers','risk_fact_skins','ok']]},
+  };
+  const riskKey = (f) => f === 'instalock' ? IL_RISK_ACK_KEY : 'ry_risk_ack_' + f;
+  function riskAcked(f){ try{ return localStorage.getItem(riskKey(f)) === '1'; }catch(e){ return false; } }
+  // Fuehrt run() sofort aus, wenn schon bestaetigt - sonst erst nach dem Dialog. Gibt true zurueck, wenn sofort.
+  function riskGate(f, run){
+    if(riskAcked(f)){ run(); return true; }
+    showRiskModal(f, run);
+    return false;
+  }
+  function showRiskModal(f, onConfirm){
+    const cfg = RISK_FEATURES[f] || RISK_FEATURES.instalock;
+    const fact = (icon, key, cls, i) => `<li class="risk-fact ${cls || ''}" style="--i:${i}"><span class="rf-ic">${svgIcon(icon, 15)}</span><span class="rf-txt">${t(key)}</span></li>`;
+    const facts = cfg.facts.concat([['alert', 'instalock_risk_fact_residual', '']]);
     modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
       <div class="risk-dlg">
+        <div class="risk-glow" aria-hidden="true"></div>
         <div class="risk-head">
-          <div class="risk-ic">${svgIcon('shield', 22)}</div>
-          <div><span class="eyebrow">Instalock</span><h3>${t('instalock_risk_title')}</h3></div>
+          <div class="risk-ic"><span class="risk-ic-ring"></span>${svgIcon(cfg.icon, 22)}</div>
+          <div><span class="risk-eyebrow">${svgIcon('alert', 11)}${esc(cfg.eyebrow())}</span>
+            <h3>${t(cfg.title || 'risk_title')}</h3></div>
         </div>
-        <div class="risk-facts">
-          ${fact('clock', 'instalock_risk_fact_delay', 'ok')}
-          ${fact('zap', 'instalock_risk_fact_instant', 'bad')}
-          ${fact('alert', 'instalock_risk_fact_residual')}
+        <ul class="risk-facts">${facts.map((x, i) => fact(x[0], x[1], x[2], i)).join('')}</ul>
+        <div class="risk-region" id="riskRegion" style="--i:${facts.length}">
+          <span class="rr-flag">${svgIcon('globe', 14)}</span>
+          <div><b>${t('risk_asia_title')}</b><span>${t('risk_fact_asia')}</span></div>
         </div>
         <label class="consent">
-          <input type="checkbox" class="consent-input" id="ilRiskCheck">
+          <input type="checkbox" class="consent-input" id="riskCheck">
           <span class="consent-box"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           <span class="consent-txt">${t('instalock_risk_checkbox_label')}</span>
         </label>
         <div class="risk-actions">
-          <button class="pbtn" id="ilRiskCancel">${t('cancel')}</button>
-          <button class="pbtn go" id="ilRiskConfirm" disabled>${svgIcon('check', 12)}${t('instalock_risk_confirm_btn')}</button>
+          <button class="pbtn" id="riskCancel">${t('cancel')}</button>
+          <button class="pbtn go" id="riskConfirm" disabled>${svgIcon('check', 12)}${t('instalock_risk_confirm_btn')}</button>
         </div>
       </div>`;
     openModalWrap();
-    const check = document.getElementById('ilRiskCheck');
-    const confirmBtn = document.getElementById('ilRiskConfirm');
+    const check = document.getElementById('riskCheck');
+    const confirmBtn = document.getElementById('riskConfirm');
     check.addEventListener('change', () => { confirmBtn.disabled = !check.checked; });
     document.getElementById('modalClose').addEventListener('click', closeModal);
-    document.getElementById('ilRiskCancel').addEventListener('click', closeModal);
+    document.getElementById('riskCancel').addEventListener('click', closeModal);
     confirmBtn.addEventListener('click', () => {
-      localStorage.setItem(IL_RISK_ACK_KEY, '1');
+      try{ localStorage.setItem(riskKey(f), '1'); }catch(e){}
       closeModal();
       onConfirm();
     });
+    // Region: auf Asien-Servern den Hinweis hervorheben (ohne Antwort bleibt er neutral)
+    fetch(LOG_URL + '/api/session', {cache:'no-store'}).then(r => r.json()).then(j => {
+      const box = document.getElementById('riskRegion');
+      if(box && j && /^(ap|kr)$/i.test(String(j.shard || ''))) box.classList.add('hot');
+    }).catch(() => {});
   }
   function repaintInstalock(){
     const box = document.getElementById('instalockBox');
@@ -8082,6 +8126,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function applyPreset(name){
     const data = presets()[name];
     if(!data || !data.Guns) return;
+    if(!riskAcked('skins')){ showRiskModal('skins', () => applyPreset(name)); return; }
     const btn = document.getElementById('presetApply');
     if(btn){ btn.setAttribute('disabled', ''); btn.innerHTML = svgIcon('loader', 12, 'spin') + t('applying_ellipsis'); }
     toast('busy', t('toast_loadout_setting'), name, {id:'preset', dur:0});
@@ -8183,6 +8228,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 
   function applySkin(list){
     if(!pickSkin || !currentLoadout) return;
+    if(!riskAcked('skins')){ showRiskModal('skins', () => applySkin(list)); return; }
     const guns = (currentLoadout.Guns || []).map(g => {
       if(String(g.ID).toLowerCase() !== String(pickGunId).toLowerCase()) return g;
       const chosen = (pickSkin.chromas || []).find(c => String(c.uuid).toLowerCase() === pickChroma)
@@ -8912,6 +8958,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     let armed = false, armTimer = null;
     const label = btn.querySelector('span');
     btn.addEventListener('click', () => {
+      if(!riskAcked('dodge')){ showRiskModal('dodge', () => {}); return; }
       if(!armed){
         armed = true;
         btn.classList.add('confirm');
@@ -9456,6 +9503,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function lolToggleChip(btn){
     const kind = btn.getAttribute('data-chip');
     const next = !btn.classList.contains('on');
+    const rf = {accept:'lol_accept', ban:'lol_ban', pick:'lol_pick'}[kind];
+    if(next && rf && !riskAcked(rf)){ showRiskModal(rf, () => lolToggleChip(btn)); return; }
     btn.classList.toggle('on', next);
     const undo = () => btn.classList.toggle('on', !next);
     let call;
@@ -10898,6 +10947,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function lolTogglePresetAuto(btn){
     const kind = btn.getAttribute('data-kind');
     const next = !btn.classList.contains('on');
+    const rf = {ban:'lol_ban', pick:'lol_pick'}[kind];
+    if(next && rf && !riskAcked(rf)){ showRiskModal(rf, () => lolTogglePresetAuto(btn)); return; }
     btn.classList.toggle('on', next);
     // Bei Fehlschlag zurückstellen - sonst sah der Schalter "an" aus, obwohl
     // der Dienst die Einstellung nie gespeichert hatte.

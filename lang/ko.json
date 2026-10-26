@@ -703,6 +703,14 @@
     "usage_stats": "익명 사용 통계",
     "usage_stats_hint": "어떤 기능을 쓰는지와 오류 보고 – Riot ID는 보내지 않아요. 끄면 버전과 언어만 보내요.",
     "privacy_policy": "개인정보 처리방침",
-    "privacy_policy_hint": "RankYoinker가 보내고 저장하는 정보"
+    "privacy_policy_hint": "RankYoinker가 보내고 저장하는 정보",
+    "risk_title": "이 기능을 사용하기 전에",
+    "risk_fact_pick": "비공식 Riot 인터페이스로 요원 선택을 조작해요. 사람처럼 11초 후에만 동작해요.",
+    "risk_fact_dodge": "비공식 Riot 인터페이스로 요원 선택에서 나가요. Riot의 일반 닷지 페널티(RR, 대기 시간)가 적용돼요.",
+    "risk_fact_lol_accept": "League 클라이언트에서 찾은 게임을 자동으로 수락해요. Riot이 공식적으로 허용하지 않는 자동화예요.",
+    "risk_fact_lol_auto": "챔피언 선택에서 프리셋대로 자동 밴/픽해요. Riot이 공식적으로 허용하지 않는 자동화예요.",
+    "risk_fact_skins": "비공식 Riot 인터페이스로 장비를 바꿔요. 외형만 바뀌고 게임 내 이점은 없어요.",
+    "risk_asia_title": "아시아 서버 (AP/KR)",
+    "risk_fact_asia": "한 사용자가 아시아 서버에서 3일 정지를 보고했어요(확인되지 않음). 그곳에서는 이 기능을 권하지 않아요. EU 계정에서는 알려진 사례가 없어요."
   }
 }

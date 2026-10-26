@@ -702,6 +702,14 @@
     "usage_stats": "匿名の使用統計",
     "usage_stats_hint": "使われている機能とエラー報告（Riot IDは送信しません）。オフにするとバージョンと言語のみ送信します。",
     "privacy_policy": "プライバシーポリシー",
-    "privacy_policy_hint": "RankYoinkerが送信・保存する内容"
+    "privacy_policy_hint": "RankYoinkerが送信・保存する内容",
+    "risk_title": "この機能を使う前に",
+    "risk_fact_pick": "非公式のRiotインターフェースでエージェント選択を操作します。人と同じく11秒後からのみ動作します。",
+    "risk_fact_dodge": "非公式のRiotインターフェースでエージェント選択から抜けます。Riotの通常のドッジペナルティ（RR、待機時間）が適用されます。",
+    "risk_fact_lol_accept": "Leagueクライアントで見つかった試合を自動で承諾します。Riotが公式には許可していない自動化です。",
+    "risk_fact_lol_auto": "チャンピオン選択でプリセットから自動でバン／ピックします。Riotが公式には許可していない自動化です。",
+    "risk_fact_skins": "非公式のRiotインターフェースで装備を変更します。見た目だけで、ゲーム内の有利はありません。",
+    "risk_asia_title": "アジアサーバー（AP/KR）",
+    "risk_fact_asia": "アジアサーバーで3日間のBANを受けたという報告が1件あります（未確認）。そこではこれらの機能をおすすめしません。EUアカウントでの事例は把握していません。"
   }
 }

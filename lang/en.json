@@ -703,6 +703,14 @@
     "usage_stats": "Anonymous usage statistics",
     "usage_stats_hint": "Which features are used, plus error reports – no Riot ID. Off: only version and language are sent.",
     "privacy_policy": "Privacy policy",
-    "privacy_policy_hint": "What RankYoinker sends and stores"
+    "privacy_policy_hint": "What RankYoinker sends and stores",
+    "risk_title": "Before you use this feature",
+    "risk_fact_pick": "Controls agent select through an unofficial Riot interface – only after 11 seconds, like a human would.",
+    "risk_fact_dodge": "Leaves agent select through an unofficial Riot interface. Riot's normal dodge penalties (RR, queue timeout) apply.",
+    "risk_fact_lol_accept": "Automatically accepts found games in the League client – an automation Riot doesn't officially allow.",
+    "risk_fact_lol_auto": "Automatically bans or picks from your presets in champ select – an automation Riot doesn't officially allow.",
+    "risk_fact_skins": "Changes your loadout through an unofficial Riot interface – cosmetic only, no advantage in game.",
+    "risk_asia_title": "Asia servers (AP/KR)",
+    "risk_fact_asia": "One user reported a 3-day ban on Asia servers (unconfirmed). We advise against these features there. We know of no case on EU accounts."
   }
 }

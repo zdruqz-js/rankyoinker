@@ -702,6 +702,14 @@
     "usage_stats": "Anonim kullanım istatistikleri",
     "usage_stats_hint": "Hangi özelliklerin kullanıldığı ve hata raporları – Riot ID olmadan. Kapalı: yalnızca sürüm ve dil gönderilir.",
     "privacy_policy": "Gizlilik politikası",
-    "privacy_policy_hint": "RankYoinker'ın neyi gönderip sakladığı"
+    "privacy_policy_hint": "RankYoinker'ın neyi gönderip sakladığı",
+    "risk_title": "Bu özelliği kullanmadan önce",
+    "risk_fact_pick": "Ajan seçimini resmi olmayan bir Riot arayüzü üzerinden kontrol eder – bir insan gibi ancak 11 saniye sonra.",
+    "risk_fact_dodge": "Ajan seçiminden resmi olmayan bir Riot arayüzüyle çıkar. Riot'un normal dodge cezaları (RR, bekleme) geçerlidir.",
+    "risk_fact_lol_accept": "League istemcisinde bulunan maçları otomatik kabul eder – Riot'un resmi olarak izin vermediği bir otomasyon.",
+    "risk_fact_lol_auto": "Şampiyon seçiminde ön ayarlarından otomatik ban veya seçim yapar – Riot'un resmi olarak izin vermediği bir otomasyon.",
+    "risk_fact_skins": "Ekipmanını resmi olmayan bir Riot arayüzüyle değiştirir – sadece görünüm, oyunda avantaj yok.",
+    "risk_asia_title": "Asya sunucuları (AP/KR)",
+    "risk_fact_asia": "Bir kullanıcı Asya sunucularında 3 günlük ban bildirdi (doğrulanmadı). Orada bu özellikleri önermiyoruz. AB hesaplarında bilinen bir vaka yok."
   }
 }
