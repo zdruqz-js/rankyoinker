@@ -509,6 +509,8 @@
     "instalock_paused_html": "Pausado, sem resposta depois da partida",
     "toast_instalock_paused": "Instalock pausado",
     "toast_instalock_paused_msg": "Sem resposta depois da partida. Ative de novo para continuar.",
+    "toast_instalock_paused_closed_msg": "O VALORANT foi fechado. Ative de novo para continuar.",
+    "toast_instalock_paused_account_msg": "Conta trocada. Ative de novo para continuar.",
     "toast_instalock_continue_msg": "{name} será travado de novo na próxima partida.",
     "toast_instalock_continue_free_msg": "{name} será travado nas próximas {n} partidas sem perguntar.",
     "lol_queue_estimate": "≈ {t} estimado",

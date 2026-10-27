@@ -510,6 +510,8 @@
     "instalock_paused_html": "일시 중지됨, 매치 후 응답이 없었습니다",
     "toast_instalock_paused": "인스타락 일시 중지",
     "toast_instalock_paused_msg": "매치 후 응답이 없었습니다. 계속하려면 다시 켜세요.",
+    "toast_instalock_paused_closed_msg": "VALORANT가 종료되었습니다. 계속하려면 다시 켜세요.",
+    "toast_instalock_paused_account_msg": "계정이 변경되었습니다. 계속하려면 다시 켜세요.",
     "toast_instalock_continue_msg": "다음 매치에서도 {name}을(를) 고정합니다.",
     "toast_instalock_continue_free_msg": "다음 {n}매치 동안 묻지 않고 {name}을(를) 고정합니다.",
     "lol_queue_estimate": "≈ {t} 예상",

@@ -509,6 +509,8 @@
     "instalock_paused_html": "En pause, aucune réponse après le match",
     "toast_instalock_paused": "Instalock en pause",
     "toast_instalock_paused_msg": "Aucune réponse après le match. Réactive-le pour continuer.",
+    "toast_instalock_paused_closed_msg": "VALORANT a été fermé. Réactive-le pour continuer.",
+    "toast_instalock_paused_account_msg": "Compte changé. Réactive-le pour continuer.",
     "toast_instalock_continue_msg": "{name} sera de nouveau verrouillé au prochain match.",
     "toast_instalock_continue_free_msg": "{name} sera verrouillé pendant les {n} prochains matchs sans demander.",
     "lol_queue_estimate": "≈ {t} estimé",

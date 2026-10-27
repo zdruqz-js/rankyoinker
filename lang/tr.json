@@ -509,6 +509,8 @@
     "instalock_paused_html": "Duraklatıldı, maçtan sonra cevap gelmedi",
     "toast_instalock_paused": "Instalock duraklatıldı",
     "toast_instalock_paused_msg": "Maçtan sonra cevap gelmedi. Devam etmek için tekrar aç.",
+    "toast_instalock_paused_closed_msg": "VALORANT kapatıldı. Devam etmek için tekrar aç.",
+    "toast_instalock_paused_account_msg": "Hesap değiştirildi. Devam etmek için tekrar aç.",
     "toast_instalock_continue_msg": "{name} bir sonraki maçta yine kilitlenecek.",
     "toast_instalock_continue_free_msg": "{name} sonraki {n} maçta sormadan kilitlenecek.",
     "lol_queue_estimate": "≈ {t} bekleniyor",

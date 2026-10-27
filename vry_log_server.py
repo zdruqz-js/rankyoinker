@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.0"
+APP_VERSION = "2.6.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -4783,8 +4783,12 @@ _il = {
     "gen": 0,             # zaehlt jede Zustandsaenderung (fuer die Oberflaeche)
     "picked": None,       # nur bei agent == "random": tatsaechlich gesperrter Agent (erst nach dem Sperren bekannt)
     "pickedName": "",
+    "seen": False,        # VALORANT seit dem Scharfschalten laufend gesehen? (Schliessen -> Pause)
+    "acctGen": 0,         # _account["gen"] beim Scharfschalten (Kontowechsel -> Pause)
+    "reason": "",         # warum pausiert: noanswer | closed | account (Text in der Oberflaeche)
 }
 _il_poll = {"ts": 0.0}
+_GAME_RUNNING = ("MENUS", "PREGAME", "INGAME")
 
 # ---- Zufaelliger Agent (2.6.0, Fun-Feature) ----
 # agent == "random": gewuerfelt wird erst beim Sperren, die Oberflaeche erfaehrt den Agenten erst danach.
@@ -4881,7 +4885,7 @@ def _il_restore():
         "on": False, "status": "off", "message": "",
         "match": None, "fireAt": 0.0, "planned": 0.0,
         "free": max(1, int(data.get("free") or 1)), "ingameMatch": None, "ingameAt": 0.0,
-        "askAt": 0.0, "asked": False,
+        "askAt": 0.0, "asked": False, "seen": False, "acctGen": _account["gen"], "reason": "",
     }
     ingame_at, ask_at = float(data.get("ingameAt") or 0), float(data.get("askAt") or 0)
     if on and st == "ingame" and data.get("ingameMatch") and now - ingame_at < IL_INGAME_MAX:
@@ -4928,6 +4932,7 @@ def instalock_state():
             "gen": _il["gen"],
             "random": _il["agent"] == IL_RANDOM,
             "picked": _il.get("picked"), "pickedName": _il.get("pickedName") or "",
+            "reason": _il["reason"],
         }
 
 
@@ -4948,6 +4953,7 @@ def instalock_arm(body):
             "match": None, "fireAt": 0.0, "planned": 0.0, "status": "armed",
             "lockedAt": 0.0, "free": IL_FREE_YES, "ingameMatch": None, "ingameAt": 0.0,
             "askAt": 0.0, "asked": False, "picked": None, "pickedName": "",
+            "seen": _game["state"] in _GAME_RUNNING, "acctGen": _account["gen"], "reason": "",
             "message": "Wartet auf die naechste Agentenauswahl.",
             "gen": _il["gen"] + 1,
         })
@@ -4968,11 +4974,11 @@ def instalock_disarm():
     return instalock_state()
 
 
-def _il_pause(message):
-    """Keine Antwort (oder Matchende nicht erkennbar): nicht sperren, bis man im
-    Overlay wieder einschaltet. Agent bleibt gewaehlt."""
+def _il_pause(message, reason="noanswer"):
+    """Keine Antwort, Matchende nicht erkennbar, VALORANT geschlossen oder Konto
+    gewechselt: nicht sperren, bis man im Overlay wieder einschaltet. Agent bleibt gewaehlt."""
     with _il_lock:
-        _il.update({"on": False, "status": "paused", "message": message, "match": None,
+        _il.update({"on": False, "status": "paused", "message": message, "reason": reason, "match": None,
                     "fireAt": 0.0, "planned": 0.0, "ingameMatch": None, "askAt": 0.0,
                     "asked": False, "at": time.time(), "gen": _il["gen"] + 1})
         _il_save()
@@ -5129,6 +5135,21 @@ def _instalock_tick():
         locked_at = _il["lockedAt"]
         free, ingame_mid, ingame_at = _il["free"], _il["ingameMatch"], _il["ingameAt"]
         ask_at, asked = _il["askAt"], _il["asked"]
+        seen, acct_gen = _il["seen"], _il["acctGen"]
+
+    # VALORANT neu gestartet oder Konto gewechselt: aus (bis 2.6.0 blieb ein scharfer Instalock
+    # einfach an und sperrte im naechsten Spiel - auch auf dem anderen Konto). Nur ein Schliessen
+    # NACH dem Scharfschalten zaehlt - scharf schalten, bevor VALORANT laeuft, bleibt moeglich.
+    if _account["gen"] != acct_gen:
+        _il_pause("Konto gewechselt — Instalock pausiert.", "account")
+        return
+    gst = _game["state"]
+    if gst in _GAME_RUNNING and not seen:
+        with _il_lock:
+            _il["seen"] = True
+    elif gst == "offline" and seen:
+        _il_pause("VALORANT geschlossen — Instalock pausiert.", "closed")
+        return
 
     # --- Phase 1: auf eine Agentenauswahl warten ---
     if status == "armed":
@@ -5288,7 +5309,7 @@ def _instalock_tick():
         if st == "unknown" or since <= ingame_at or (st == "INGAME" and gmid == ingame_mid):
             return
         if st == "offline":
-            _il_pause("VALORANT geschlossen — Instalock pausiert.")
+            _il_pause("VALORANT geschlossen — Instalock pausiert.", "closed")
             return
         left = free - 1
         with _il_lock:

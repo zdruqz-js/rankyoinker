@@ -7671,7 +7671,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         } else if(j.status === 'ask'){
           ilAskSkip = false;                 // neue Frage: Haken wieder aus
         } else if(j.status === 'paused'){
-          toast('info', t('toast_instalock_paused'), t('toast_instalock_paused_msg'), {id:'il', dur:7000});
+          const why = j.reason === 'closed' ? 'toast_instalock_paused_closed_msg'
+            : j.reason === 'account' ? 'toast_instalock_paused_account_msg' : 'toast_instalock_paused_msg';
+          toast('info', t('toast_instalock_paused'), t(why), {id:'il', dur:7000});
         } else if(j.status === 'armed' && wasAsk){
           toast('success', t('toast_instalock_enabled'), j.free > 1
             ? t('toast_instalock_continue_free_msg', {name: j.name || '', n: j.free})
@@ -11793,7 +11795,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.0";
+const CURRENT_VERSION = "2.6.1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

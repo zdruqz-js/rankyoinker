@@ -509,6 +509,8 @@
     "instalock_paused_html": "На паузе, после матча не было ответа",
     "toast_instalock_paused": "Instalock на паузе",
     "toast_instalock_paused_msg": "После матча не было ответа. Включи снова, чтобы продолжить.",
+    "toast_instalock_paused_closed_msg": "VALORANT был закрыт. Включи снова, чтобы продолжить.",
+    "toast_instalock_paused_account_msg": "Аккаунт сменён. Включи снова, чтобы продолжить.",
     "toast_instalock_continue_msg": "{name} снова залочится в следующем матче.",
     "toast_instalock_continue_free_msg": "{name} будет лочиться следующие {n} матча без вопроса.",
     "lol_queue_estimate": "≈ {t} ожидания",

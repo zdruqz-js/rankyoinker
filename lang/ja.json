@@ -509,6 +509,8 @@
     "instalock_paused_html": "一時停止中。マッチ後に応答がありませんでした",
     "toast_instalock_paused": "インスタロック一時停止",
     "toast_instalock_paused_msg": "マッチ後に応答がありませんでした。続けるには再度オンにしてください。",
+    "toast_instalock_paused_closed_msg": "VALORANTが終了しました。続けるには再度オンにしてください。",
+    "toast_instalock_paused_account_msg": "アカウントが切り替わりました。続けるには再度オンにしてください。",
     "toast_instalock_continue_msg": "次のマッチでも{name}をロックします。",
     "toast_instalock_continue_free_msg": "次の{n}マッチは確認なしで{name}をロックします。",
     "lol_queue_estimate": "予想 約{t}",

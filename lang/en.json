@@ -510,6 +510,8 @@
     "instalock_paused_html": "Paused, no answer after the match",
     "toast_instalock_paused": "Instalock paused",
     "toast_instalock_paused_msg": "No answer after the match. Turn it back on to continue.",
+    "toast_instalock_paused_closed_msg": "VALORANT was closed. Turn it back on to continue.",
+    "toast_instalock_paused_account_msg": "Account switched. Turn it back on to continue.",
     "toast_instalock_continue_msg": "{name} will be locked again in the next match.",
     "toast_instalock_continue_free_msg": "{name} will be locked for the next {n} matches without asking.",
     "lol_queue_estimate": "≈ {t} expected",

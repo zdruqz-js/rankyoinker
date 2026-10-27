@@ -510,6 +510,8 @@
     "instalock_paused_html": "Pausiert, nach dem Match kam keine Antwort",
     "toast_instalock_paused": "Instalock pausiert",
     "toast_instalock_paused_msg": "Nach dem Match kam keine Antwort. Zum Weitermachen wieder aktivieren.",
+    "toast_instalock_paused_closed_msg": "VALORANT wurde geschlossen. Zum Weitermachen wieder aktivieren.",
+    "toast_instalock_paused_account_msg": "Konto gewechselt. Zum Weitermachen wieder aktivieren.",
     "toast_instalock_continue_msg": "{name} wird im nächsten Match wieder gesperrt.",
     "toast_instalock_continue_free_msg": "{name} wird die nächsten {n} Matches ohne Nachfrage gesperrt.",
     "lol_queue_estimate": "≈ {t} erwartet",
