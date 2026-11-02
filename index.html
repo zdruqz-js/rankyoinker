@@ -6469,12 +6469,12 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
   // Match eines Mitspielers, in dem man selbst nicht war (2.6.2): "me" ist dann dieser Spieler, die
   // Texte nennen ihn beim Namen statt "Du"/"Dein Team". rpPov(r) = Kurzname oder '' (eigene Sicht).
+  const RP_HIDDEN = 'Hidden';
   function rpPov(r){
     if(!r || !r.pov) return '';
     const p = (r.players || []).find(x => x.me);
-    if(p && p.name) return String(p.name).split('#')[0];
-    // kein Name (verborgen oder Riot-Namensdienst ohne Antwort): Agent wie im Spiel selbst
-    return (p && rpAgent(p.agent).name) || t('unknown_short');
+    // kein Name (verborgen oder Riot-Namensdienst ohne Antwort): "Hidden" (Nutzerwunsch 2.6.2-dev3)
+    return p && p.name ? String(p.name).split('#')[0] : RP_HIDDEN;
   }
   function rpT(r, k, params){
     const n = rpPov(r);
@@ -6487,7 +6487,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return `<tr class="${p.me ? 'me' : ''}">
       <td><div class="rp-pl">${a.info && a.info.icon ? `<img class="ag" src="${esc(a.info.icon)}" alt="" loading="lazy">` : '<span class="ag"></span>'}
         ${ri ? `<img class="rk" src="${esc(ri)}" alt="" loading="lazy">` : ''}
-        <span class="nm" data-tip="${esc(p.name || '')}">${esc(p.name || t('unknown_short'))}</span>
+        <span class="nm" data-tip="${esc(p.name || '')}">${esc(p.name || RP_HIDDEN)}</span>
         ${p.me && !rpPov(r) ? `<span class="rp-you">${esc(t('report_you'))}</span>` : ''}
         ${p.mvp ? `<span class="rp-mvp ${p.mvp === 'team' ? 'team' : ''}">${p.mvp === 'team' ? 'TEAM MVP' : 'MVP'}</span>` : ''}</div></td>
       <td class="rt"><span class="rtw">${rpGradeChip(p.rating)}<span class="pct">${rpPct(p.rating)}</span></span></td>
@@ -6519,7 +6519,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const placed = ps.slice().sort((a, b) => a.rating - b.rating).map(p => ({p, px: Number(x(p.rating))}));
     const dots = placed.sort((a, b) => (a.p.me ? 1 : 0) - (b.p.me ? 1 : 0)).map(({p, px}) => {
       const a = pic(p);
-      const who = p.name || t('unknown_short');
+      const who = p.name || RP_HIDDEN;
       const line = t('report_col_perf') + ' ' + rpGrade(p.rating) + ' · ' + rpPerfLine(p.rating) + (a.name ? '\n' + a.name : '');
       return `<span class="rp-ls-dot ${p.me ? 'me' : p.ally ? 'ally' : 'enemy'}" style="left:${px}%;" data-tip-head="${esc(p.me && !rpPov(r) ? who + ' (' + t('report_you') + ')' : who)}" data-tip="${esc(line)}">${a.icon ? `<img src="${esc(a.icon)}" alt="" loading="lazy">` : ''}</span>`;
     }).join('');
@@ -11868,7 +11868,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.2-dev2";
+const CURRENT_VERSION = "2.6.2-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
