@@ -720,6 +720,16 @@
     "report_past_back": "Назад",
     "il_random": "Случайно",
     "il_random_agent": "Случайный агент",
-    "il_random_tip": "Фиксирует случайного агента из твоих – кто это, увидишь только после выбора."
+    "il_random_tip": "Фиксирует случайного агента из твоих – кто это, увидишь только после выбора.",
+    "your_team_pov": "Команда {name}",
+    "report_my_kills_pov": "Убийства {name}",
+    "report_rd_died_pov": "погиб",
+    "report_rd_survived_pov": "выжил",
+    "report_perf_title_pov": "Игра {name}",
+    "report_perf_explain_pov": "Оценка сравнивает ACS, K/D, ADR и KAST игрока {name} с остальными игроками матча.",
+    "report_buy_title_pov": "Выигранные раунды по закупу (команда {name})",
+    "report_side_title_pov": "Выигранные раунды по стороне (команда {name})",
+    "report_pov_title": "Матч игрока {name}",
+    "match_view_not_found": "Этого матча больше нет в твоей истории матчей Riot."
   }
 }

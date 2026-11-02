@@ -720,6 +720,16 @@
     "report_past_back": "Voltar",
     "il_random": "Aleatório",
     "il_random_agent": "Agente aleatório",
-    "il_random_tip": "Trava um agente aleatório que você tem – você só vê qual é depois de travar."
+    "il_random_tip": "Trava um agente aleatório que você tem – você só vê qual é depois de travar.",
+    "your_team_pov": "Time de {name}",
+    "report_my_kills_pov": "Abates de {name}",
+    "report_rd_died_pov": "morreu",
+    "report_rd_survived_pov": "sobreviveu",
+    "report_perf_title_pov": "Desempenho de {name}",
+    "report_perf_explain_pov": "A nota compara o ACS, K/D, ADR e KAST de {name} com os outros jogadores da partida.",
+    "report_buy_title_pov": "Rodadas vencidas por compra (time de {name})",
+    "report_side_title_pov": "Rodadas vencidas por lado (time de {name})",
+    "report_pov_title": "Partida de {name}",
+    "match_view_not_found": "Esta partida não está mais no seu histórico da Riot."
   }
 }

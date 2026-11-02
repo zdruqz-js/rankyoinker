@@ -721,6 +721,16 @@
     "report_past_back": "Zurück",
     "il_random": "Zufällig",
     "il_random_agent": "Zufälliger Agent",
-    "il_random_tip": "Sperrt einen zufälligen Agenten, den du besitzt – wer es wird, siehst du erst nach dem Sperren."
+    "il_random_tip": "Sperrt einen zufälligen Agenten, den du besitzt – wer es wird, siehst du erst nach dem Sperren.",
+    "your_team_pov": "Team von {name}",
+    "report_my_kills_pov": "Kills von {name}",
+    "report_rd_died_pov": "gestorben",
+    "report_rd_survived_pov": "überlebt",
+    "report_perf_title_pov": "Leistung von {name}",
+    "report_perf_explain_pov": "Die Note vergleicht ACS, K/D, ADR und KAST von {name} mit den anderen Spielern dieses Matches.",
+    "report_buy_title_pov": "Runden gewonnen nach Kauf (Team von {name})",
+    "report_side_title_pov": "Runden gewonnen nach Seite (Team von {name})",
+    "report_pov_title": "Match von {name}",
+    "match_view_not_found": "Dieses Match steht nicht mehr in deiner Riot-Match-Historie."
   }
 }

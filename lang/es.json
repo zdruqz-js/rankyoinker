@@ -720,6 +720,16 @@
     "report_past_back": "Volver",
     "il_random": "Aleatorio",
     "il_random_agent": "Agente aleatorio",
-    "il_random_tip": "Bloquea un agente aleatorio que tengas; verás cuál es solo después de bloquearlo."
+    "il_random_tip": "Bloquea un agente aleatorio que tengas; verás cuál es solo después de bloquearlo.",
+    "your_team_pov": "Equipo de {name}",
+    "report_my_kills_pov": "Bajas de {name}",
+    "report_rd_died_pov": "murió",
+    "report_rd_survived_pov": "sobrevivió",
+    "report_perf_title_pov": "Rendimiento de {name}",
+    "report_perf_explain_pov": "La nota compara el ACS, K/D, ADR y KAST de {name} con los demás jugadores de la partida.",
+    "report_buy_title_pov": "Rondas ganadas según compra (equipo de {name})",
+    "report_side_title_pov": "Rondas ganadas según lado (equipo de {name})",
+    "report_pov_title": "Partida de {name}",
+    "match_view_not_found": "Esta partida ya no está en tu historial de Riot."
   }
 }

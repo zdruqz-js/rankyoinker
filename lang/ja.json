@@ -720,6 +720,16 @@
     "report_past_back": "戻る",
     "il_random": "ランダム",
     "il_random_agent": "ランダムエージェント",
-    "il_random_tip": "所持しているエージェントからランダムでロックします。誰になるかはロック後にわかります。"
+    "il_random_tip": "所持しているエージェントからランダムでロックします。誰になるかはロック後にわかります。",
+    "your_team_pov": "{name}のチーム",
+    "report_my_kills_pov": "{name}のキル",
+    "report_rd_died_pov": "デス",
+    "report_rd_survived_pov": "生存",
+    "report_perf_title_pov": "{name}のパフォーマンス",
+    "report_perf_explain_pov": "評価は、{name}のACS・K/D・ADR・KASTをこのマッチの他プレイヤーと比較したものです。",
+    "report_buy_title_pov": "購入別の勝利ラウンド（{name}のチーム）",
+    "report_side_title_pov": "サイド別の勝利ラウンド（{name}のチーム）",
+    "report_pov_title": "{name}の試合",
+    "match_view_not_found": "この試合はRiotのマッチ履歴にもうありません。"
   }
 }

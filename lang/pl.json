@@ -721,6 +721,16 @@
     "report_past_back": "Wróć",
     "il_random": "Losowo",
     "il_random_agent": "Losowy agent",
-    "il_random_tip": "Blokuje losowego agenta, którego posiadasz – kogo, zobaczysz dopiero po zablokowaniu."
+    "il_random_tip": "Blokuje losowego agenta, którego posiadasz – kogo, zobaczysz dopiero po zablokowaniu.",
+    "your_team_pov": "Drużyna gracza {name}",
+    "report_my_kills_pov": "Zabójstwa gracza {name}",
+    "report_rd_died_pov": "zgon",
+    "report_rd_survived_pov": "przeżycie",
+    "report_perf_title_pov": "Występ gracza {name}",
+    "report_perf_explain_pov": "Ocena porównuje ACS, K/D, ADR i KAST gracza {name} z innymi graczami tego meczu.",
+    "report_buy_title_pov": "Wygrane rundy według zakupu (drużyna gracza {name})",
+    "report_side_title_pov": "Wygrane rundy według strony (drużyna gracza {name})",
+    "report_pov_title": "Mecz gracza {name}",
+    "match_view_not_found": "Tego meczu nie ma już w twojej historii meczów Riot."
   }
 }

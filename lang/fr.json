@@ -720,6 +720,16 @@
     "report_past_back": "Retour",
     "il_random": "Aléatoire",
     "il_random_agent": "Agent aléatoire",
-    "il_random_tip": "Verrouille un agent aléatoire que tu possèdes – tu ne vois lequel qu'après le verrouillage."
+    "il_random_tip": "Verrouille un agent aléatoire que tu possèdes – tu ne vois lequel qu'après le verrouillage.",
+    "your_team_pov": "Équipe de {name}",
+    "report_my_kills_pov": "Éliminations de {name}",
+    "report_rd_died_pov": "mort",
+    "report_rd_survived_pov": "survécu",
+    "report_perf_title_pov": "Performance de {name}",
+    "report_perf_explain_pov": "La note compare l'ACS, le K/D, l'ADR et le KAST de {name} à ceux des autres joueurs du match.",
+    "report_buy_title_pov": "Manches gagnées selon l'achat (équipe de {name})",
+    "report_side_title_pov": "Manches gagnées selon le côté (équipe de {name})",
+    "report_pov_title": "Match de {name}",
+    "match_view_not_found": "Ce match n'est plus dans ton historique Riot."
   }
 }

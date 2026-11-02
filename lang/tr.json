@@ -720,6 +720,16 @@
     "report_past_back": "Geri",
     "il_random": "Rastgele",
     "il_random_agent": "Rastgele ajan",
-    "il_random_tip": "Sahip olduğun rastgele bir ajanı kilitler – kim olduğunu ancak kilitledikten sonra görürsün."
+    "il_random_tip": "Sahip olduğun rastgele bir ajanı kilitler – kim olduğunu ancak kilitledikten sonra görürsün.",
+    "your_team_pov": "{name} takımı",
+    "report_my_kills_pov": "{name} öldürmeleri",
+    "report_rd_died_pov": "öldü",
+    "report_rd_survived_pov": "hayatta kaldı",
+    "report_perf_title_pov": "{name} performansı",
+    "report_perf_explain_pov": "Not; {name} oyuncusunun ACS, K/D, ADR ve KAST değerlerini bu maçtaki diğer oyuncularla karşılaştırır.",
+    "report_buy_title_pov": "Satın almaya göre kazanılan rauntlar ({name} takımı)",
+    "report_side_title_pov": "Tarafa göre kazanılan rauntlar ({name} takımı)",
+    "report_pov_title": "{name} oyuncusunun maçı",
+    "match_view_not_found": "Bu maç artık Riot maç geçmişinde yok."
   }
 }

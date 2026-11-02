@@ -721,6 +721,16 @@
     "report_past_back": "Back",
     "il_random": "Random",
     "il_random_agent": "Random agent",
-    "il_random_tip": "Locks a random agent you own – you only see who it is after the lock."
+    "il_random_tip": "Locks a random agent you own – you only see who it is after the lock.",
+    "your_team_pov": "{name}'s team",
+    "report_my_kills_pov": "{name}'s kills",
+    "report_rd_died_pov": "died",
+    "report_rd_survived_pov": "survived",
+    "report_perf_title_pov": "{name}'s performance",
+    "report_perf_explain_pov": "The grade compares {name}'s ACS, K/D, ADR and KAST with the other players in this match.",
+    "report_buy_title_pov": "Rounds won by buy ({name}'s team)",
+    "report_side_title_pov": "Rounds won by side ({name}'s team)",
+    "report_pov_title": "{name}'s match",
+    "match_view_not_found": "This match is no longer in your Riot match history."
   }
 }

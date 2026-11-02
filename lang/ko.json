@@ -721,6 +721,16 @@
     "report_past_back": "돌아가기",
     "il_random": "랜덤",
     "il_random_agent": "랜덤 요원",
-    "il_random_tip": "보유한 요원 중 랜덤으로 선택해요. 누가 될지는 잠근 뒤에야 알 수 있어요."
+    "il_random_tip": "보유한 요원 중 랜덤으로 선택해요. 누가 될지는 잠근 뒤에야 알 수 있어요.",
+    "your_team_pov": "{name}의 팀",
+    "report_my_kills_pov": "{name}의 킬",
+    "report_rd_died_pov": "사망",
+    "report_rd_survived_pov": "생존",
+    "report_perf_title_pov": "{name}의 퍼포먼스",
+    "report_perf_explain_pov": "등급은 {name}의 ACS, K/D, ADR, KAST를 이 매치의 다른 플레이어와 비교한 결과예요.",
+    "report_buy_title_pov": "구매 유형별 승리 라운드 ({name}의 팀)",
+    "report_side_title_pov": "진영별 승리 라운드 ({name}의 팀)",
+    "report_pov_title": "{name}의 매치",
+    "match_view_not_found": "이 매치는 더 이상 내 Riot 매치 기록에 없어요."
   }
 }

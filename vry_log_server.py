@@ -556,7 +556,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.1"
+APP_VERSION = "2.6.2-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2760,7 +2760,9 @@ def card_data(puuid):
     """
     st = player_stats(puuid, 5, season=False)
     matches = st.get("matches") or []
-    results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent")}
+    # id/t seit 2.6.2: die Punkte oeffnen das Match als Analyse
+    results = [{"won": m.get("won"), "map": m.get("map"), "agent": m.get("agent"),
+                "id": m.get("matchId"), "t": m.get("startedAt")}
                for m in matches]
     # Grundlage für den Smurf-Hinweis (smurfHint() in index.html): NUR
     # Ranked-Matches. player_stats() fällt ohne Ranked-Historie auf alle Modi
@@ -3474,19 +3476,137 @@ _match_view_cache = collections.OrderedDict()
 _MATCH_ID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
-def match_view(match_id):
+_PUUID_RE = _MATCH_ID_RE
+
+
+_match_view_lock = threading.Lock()
+
+
+def _match_view_put(key, data):
+    with _match_view_lock:
+        _match_view_cache[key] = data
+        _match_view_cache.move_to_end(key)
+        while len(_match_view_cache) > 12:
+            _match_view_cache.popitem(last=False)
+
+
+def _match_view_get(key):
+    with _match_view_lock:
+        data = _match_view_cache.get(key)
+        if data is not None:
+            _match_view_cache.move_to_end(key)
+        return data
+
+
+def match_view(match_id, pov=None, at=None, queue=None, with_=None):
+    """Frueheres Match als Analyse. pov (2.6.2) = Spieler, aus dessen Liste das Match geoeffnet wurde
+    ("Letzte 5", Spieler-Fenster) - zaehlt nur, wenn man selbst nicht mitgespielt hat.
+    Ohne Match-ID (Begegnungen von vor 2.5.13 haben keine): at = Zeitpunkt der Begegnung, pov = der
+    Spieler -> Match ueber die Kurzfassungen bzw. die eigene Match-Historie suchen.
+    with_ = Spieler einer Begegnung: nur zum Suchen/Pruefen (die Begegnung ist ein eigenes Match) und als
+    Notnagel-Sicht, falls das eigene Konto doch nicht drinsteht."""
+    pov = pov or with_
+    pov = str(pov).lower() if pov and _PUUID_RE.match(str(pov)) else None
+    if not match_id and at:
+        return _match_view_at(at, pov, queue)
     if not _MATCH_ID_RE.match(str(match_id or "")):
         return {"ok": False, "error": "bad-id"}
     mid = match_id.lower()
-    if mid in _match_view_cache:
-        return {"ok": True, "report": _match_view_cache[mid]}
-    data = _match_report_build(mid)
+    for key in (mid, (mid, pov)):
+        hit = _match_view_get(key)
+        if hit is not None:
+            return {"ok": True, "report": hit}
+    data = _match_report_build(mid, pov=pov)
     if not data:
         return {"ok": False, "error": "unavailable"}
-    _match_view_cache[mid] = data
-    while len(_match_view_cache) > 8:
-        _match_view_cache.popitem(last=False)
+    _match_view_put((mid, data["pov"]) if data.get("pov") else mid, data)
     return {"ok": True, "report": data}
+
+
+# Begegnungen von vor 2.5.13 kennen nur den Zeitpunkt (t = als der Dienst das laufende Match sah,
+# also kurz nach dem Start). Die eigene Match-Historie liefert je Match GameStartTime -> passendes
+# Match suchen. Gemerkt je Konto im Speicher (eine Seite = 1 Riot-Anfrage fuer 20 Matches).
+MATCH_AT_PAGE = 20
+MATCH_AT_PAGES = 15                  # hoechstens 300 Matches zurueck
+MATCH_AT_BEFORE = 20 * 60 * 1000     # Match darf so lange VOR der Begegnung begonnen haben (+ Matchdauer)
+MATCH_AT_SLACK = 10 * 60 * 1000      # ... bzw. so kurz danach (Uhr, Ladebildschirm)
+_match_hist = {"puuid": None, "at": 0.0, "items": [], "next": 0, "done": False}
+_match_hist_lock = threading.Lock()
+
+
+def _match_at_candidates(target_ms, queue):
+    """Matches, die zur Begegnung passen koennen, beste zuerst."""
+    me = get_auth()["puuid"]
+    with _match_hist_lock:
+        h = _match_hist
+        if h["puuid"] != me or time.time() - h["at"] > 900:
+            h.update(puuid=me, at=time.time(), items=[], next=0, done=False)
+        while (not h["done"] and h["next"] < MATCH_AT_PAGE * MATCH_AT_PAGES
+               and not (h["items"] and h["items"][-1][0] < target_ms - 3 * 3600 * 1000)):
+            status, j = riot_get("pd", "/match-history/v1/history/%s?startIndex=%d&endIndex=%d"
+                                 % (me, h["next"], h["next"] + MATCH_AT_PAGE))
+            if status != 200 or not isinstance(j, dict):
+                break
+            got = [(m.get("GameStartTime") or 0, str(m.get("MatchID") or "").lower(), str(m.get("QueueID") or "").lower())
+                   for m in (j.get("History") or []) if m.get("MatchID")]
+            h["items"].extend(got)
+            h["items"].sort(key=lambda x: -x[0])
+            h["next"] += MATCH_AT_PAGE
+            if len(got) < MATCH_AT_PAGE:
+                h["done"] = True
+        items = list(h["items"])
+    cands = [x for x in items if target_ms - MATCH_AT_BEFORE - 90 * 60 * 1000 <= x[0] <= target_ms + MATCH_AT_SLACK]
+    q = str(queue or "").lower()
+    # gleiche Queue zuerst, dann das Match, das zuletzt VOR der Begegnung begann
+    cands.sort(key=lambda x: (bool(q) and x[2] != q, x[0] > target_ms, abs(target_ms - x[0])))
+    return [x[1] for x in cands]
+
+
+def _match_view_at(at, pov, queue):
+    try:
+        target_ms = int(float(at)) * 1000
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "bad-id"}
+    me = get_auth()["puuid"]
+    # 1) ohne Riot-Anfrage: Kurzfassungen (Match-Cache), in denen man selbst und der Spieler stehen
+    with _cache_lock:
+        digests = list(_match_cache.items())
+    best = None
+    for mid, d in digests:
+        rows = (d or {}).get("rows") or {}
+        mine = rows.get(me)
+        if not mine or (pov and pov not in rows) or not mine.get("startedAt"):
+            continue
+        st = mine["startedAt"]
+        if target_ms - MATCH_AT_BEFORE - 90 * 60 * 1000 <= st <= target_ms + MATCH_AT_SLACK:
+            score = (st > target_ms, abs(target_ms - st))
+            if best is None or score < best[0]:
+                best = (score, mid)
+    if best:
+        res = match_view(best[1], pov)
+        if res.get("ok"):
+            return res
+    # 2) eigene Match-Historie; der Spieler muss im Match stehen (hoechstens 3 Versuche)
+    try:
+        cands = _match_at_candidates(target_ms, queue)
+    except RiotError as e:
+        return {"ok": False, "error": str(e)}
+    for mid in cands[:3]:
+        data = _match_view_get(mid) or (_match_view_get((mid, pov)) if pov else None)
+        if data is None:
+            j = _match_details_full(mid)
+            if not j:
+                continue
+            if pov and not any(p.get("subject") == pov for p in (j.get("players") or [])):
+                continue
+            data = _match_report_build(mid, pov=pov, details=j)
+            if not data:
+                continue
+            _match_view_put((mid, data["pov"]) if data.get("pov") else mid, data)
+        if pov and not any(p.get("puuid") == pov for p in data.get("players") or []):
+            continue
+        return {"ok": True, "report": data}
+    return {"ok": False, "error": "not-found"}
 
 
 # Früher zählte die Seite die Begegnungen: Sie hatte den Kader ohnehin auf dem
@@ -7522,18 +7642,32 @@ def _report_tier_cached(puuid):
     return ((hit[1] or {}).get("rank") or 0) if hit and isinstance(hit[1], dict) else 0
 
 
-def _match_report_build(match_id):
+def _match_details_full(match_id):
+    """Volle Match-Details (fuer die Analyse); legt nebenbei die Kurzfassung in den Cache."""
     status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
     if status != 200 or not isinstance(j, dict) or not j.get("players"):
         return None
     with _cache_lock:
         _cache_put(_match_cache, match_id, _digest_match(j), MATCH_CACHE_MAX)
         _digest_disk["dirty"] = True
+    return j
+
+
+def _match_report_build(match_id, pov=None, details=None):
+    """pov (seit 2.6.2): Match eines Mitspielers, in dem man selbst nicht war -> Analyse aus dessen
+    Sicht ("me" = pov, report["pov"] gesetzt). Ist das eigene Konto im Match, gilt immer die eigene Sicht."""
+    j = details or _match_details_full(match_id)
+    if not j:
+        return None
     me = get_auth()["puuid"]
     info = j.get("matchInfo") or {}
     queue = str(info.get("queueID") or info.get("queueId") or "").lower()
     players = [p for p in (j.get("players") or []) if p.get("subject") and p.get("teamId") not in (None, "Neutral")]
     team_of = {p["subject"]: p.get("teamId") for p in players}
+    if me not in team_of and pov and pov in team_of:
+        me = pov
+    else:
+        pov = None
     my_team = team_of.get(me)
     if not my_team:
         return None
@@ -7767,8 +7901,10 @@ def _match_report_build(match_id):
         "rounds": total_rounds, "result": result, "score": score,
         "players": out_players, "timeline": timeline, "highlights": highlights[:8],
         "sides": None if ffa else {"atk": side_won["atk"], "def": side_won["def"], "pistol": pistol},
-        "myAvg": None,
+        "myAvg": None, "pov": pov,
     }
+    if pov:
+        return report      # kein Schnitt fuer fremde Spieler - das kostete bis zu 10 Riot-Anfragen
     try:
         hist = player_stats(me, 10, season=False)
         rows = [r for r in (hist.get("matches") or []) if r.get("matchId") != match_id and r.get("rounds")]
@@ -11117,7 +11253,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": bool(data), "report": data, "pending": bool(_report["pending"])})
 
         elif path == "/api/match-view":
-            self._safe(lambda: match_view((q.get("id") or [""])[0]))
+            self._safe(lambda: match_view((q.get("id") or [""])[0], (q.get("pov") or [""])[0],
+                                          (q.get("at") or [""])[0], (q.get("queue") or [""])[0],
+                                          (q.get("with") or [""])[0]))
 
         elif path == "/api/kda":
             puuids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]
