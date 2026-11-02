@@ -5117,7 +5117,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // damit render() das Loadout darin nachziehen kann, wenn es erst nach dem
   // Oeffnen eintrudelt (siehe refreshOpenModalLoadout). Andere Modals (Presets,
   // Pairing, Instalock-Risiko, ...) setzen das nie, closeModal() raeumt immer auf.
-  let openModalPlayerKey = null;
+  let openModalPlayerKey = null, lastModalPlayer = null;
 
   function agentInfo(agentName){ return agentMap[String(agentName || '').toLowerCase()] || null; }
   function rankIcon(rankNum){
@@ -5193,6 +5193,15 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   }
   function partyGroupOf(puuid){
     return premadeGroups.find(g => g.members && g.members.indexOf(puuid) >= 0) || null;
+  }
+  function knownNameOf(puuid){
+    if(!puuid) return '';
+    const ok = n => typeof n === 'string' && n && !/^(#|None#|null#|undefined#)/.test(n) && n !== t('unknown_short');
+    const all = [lastModalPlayer].concat(Object.values((latestData && latestData.players) || {}), pregameEnemies || [], Object.values(lastPlayersByKey || {}));
+    const hit = all.find(x => x && x.puuid === puuid && ok(x.name));
+    if(hit) return hit.name;
+    const e = encCache[puuid];
+    return e && ok(e.name) ? e.name : '';
   }
   function playerNameOf(puuid){
     const all = Object.values((latestData && latestData.players) || {}).concat(pregameEnemies);
@@ -5889,6 +5898,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       </div>`;
     openModalWrap();
     openModalPlayerKey = p.puuid || keyHint || null;
+    lastModalPlayer = p;
     document.getElementById('modalClose').addEventListener('click', closeModal);
     loadModalStats(p.puuid || keyHint);
     loadModalMeta(p.puuid || keyHint);
@@ -6303,6 +6313,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         return;
       }
       toast('success', t('enc_open_match'), '', {id:'pastmatch', dur:1200});
+      // Riot liefert in match-details keine Namen, der Namensdienst nicht fuer verborgene Spieler (2.6.2-dev1:
+      // "unknown's match") -> fehlende Namen aus dem, was das Overlay schon kennt (Karten, Begegnungen)
+      (j.report.players || []).forEach(p => { if(!p.name) p.name = knownNameOf(p.puuid) || null; });
       if(!reportPast) reportLive = reportData;
       reportPast = {ts: ts || 0};
       reportData = j.report; reportRendered = '';
@@ -6459,7 +6472,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function rpPov(r){
     if(!r || !r.pov) return '';
     const p = (r.players || []).find(x => x.me);
-    return (p && p.name ? String(p.name).split('#')[0] : '') || t('unknown_short');
+    if(p && p.name) return String(p.name).split('#')[0];
+    // kein Name (verborgen oder Riot-Namensdienst ohne Antwort): Agent wie im Spiel selbst
+    return (p && rpAgent(p.agent).name) || t('unknown_short');
   }
   function rpT(r, k, params){
     const n = rpPov(r);
@@ -11853,7 +11868,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.2-dev1";
+const CURRENT_VERSION = "2.6.2-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
