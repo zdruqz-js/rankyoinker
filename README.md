@@ -153,4 +153,6 @@ Each language lives in [`lang/<code>.json`](lang) (about 500 strings) with the s
 
 Built on top of [VALORANT Rank Yoinker](https://github.com/zayKenyon/VALORANT-rank-yoinker) by Zay Kenyon and Contributors (ISC license). See [`setup/VRY-LICENSE.txt`](setup/VRY-LICENSE.txt) and [`frozen_application_license.txt`](frozen_application_license.txt).
 
+The online status feature (appear offline in Riot chat) follows the approach of [Deceive](https://github.com/molenzwiebel/Deceive) by molenzwiebel: a local config and chat proxy that rewrites your own presence. The implementation in RankYoinker is its own.
+
 <sub>RankYoinker isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</sub>
