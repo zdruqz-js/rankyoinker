@@ -56,7 +56,11 @@ FWWS = "vRY Overlay - WebSocket 1100"
 HOSTS_PATH = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "drivers", "etc", "hosts")
 # "vry" bleibt aus Kompatibilitaetsgruenden (aeltere Lesezeichen/Anleitungen),
 # "rankyoinker" ist der offizielle Produktname - beide zeigen auf 127.0.0.1.
-HOSTS_NAMES = ["vry", "rankyoinker"]
+# "local.rankyoinker.de" (seit 2.6.3) ist der Name des lokalen Chat-Proxys fuer den
+# Online-Status (wie Deceive): der Riot Client verlangt fuer den Chat ein gueltiges
+# Zertifikat, also braucht es einen echten Namen. Steht auch im oeffentlichen DNS auf
+# 127.0.0.1 - der hosts-Eintrag hilft bei Routern mit DNS-Rebind-Schutz (FRITZ!Box).
+HOSTS_NAMES = ["vry", "rankyoinker", "local.rankyoinker.de"]
 
 CREATE_NO_WINDOW = 0x08000000
 DETACHED_PROCESS = 0x00000008

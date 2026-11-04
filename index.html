@@ -1509,6 +1509,42 @@ html.perf .risk-ic-ring{animation:none;}
 .rp-pastbar .pbtn{margin-left:auto;}
 #reportView:has(.rp-pastbar) .rp-back{display:none;}
 .risk-actions .pbtn.go{transition:opacity .3s ease, transform .35s var(--spring), box-shadow .3s ease;}
+/* 2.6.3: Online-Status (Chat-Proxy) */
+.chat-seg{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;}
+.chat-opt{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:14px 14px 13px; border-radius:16px; cursor:pointer;
+  background:rgba(255,255,255,.022); border:1px solid var(--line); color:inherit; font:inherit; text-align:left;
+  transition:border-color .25s ease, background .25s ease, transform .35s var(--spring), box-shadow .3s ease;}
+.chat-opt:hover{border-color:var(--line-3); transform:translateY(-2px);}
+.chat-opt:focus-visible{outline:2px solid var(--accent-line); outline-offset:2px;}
+.chat-opt .lbl{font-family:var(--font-display); font-weight:650; font-size:14px; color:var(--text); margin-top:6px;}
+.chat-opt small{font-size:11.5px; line-height:1.4; color:var(--text-3);}
+.chat-opt.on{border-color:var(--accent-line); background:linear-gradient(180deg, rgba(216,184,124,.09), rgba(216,184,124,.02));
+  box-shadow:0 0 0 3px rgba(216,184,124,.1), 0 18px 40px -22px rgba(216,184,124,.55);}
+.chat-dot{width:12px; height:12px; border-radius:50%; background:var(--win); box-shadow:0 0 0 3px rgba(61,220,132,.16), 0 0 12px rgba(61,220,132,.5);}
+.chat-opt[data-st="offline"] .chat-dot{background:transparent; border:2px solid var(--text-3); box-shadow:none;}
+.chat-opt[data-st="mobile"] .chat-dot{border-radius:3px; width:9px; height:13px; background:transparent; border:2px solid var(--warn); box-shadow:0 0 10px -2px rgba(244,184,80,.6);}
+.chat-opt:disabled{opacity:.6; cursor:progress;}
+.chat-state{display:flex; align-items:flex-start; gap:12px; margin-top:12px; padding:13px 15px; border-radius:15px; font-size:13px; line-height:1.5; color:var(--text-2);
+  background:rgba(255,255,255,.022); border:1px solid var(--line);}
+.chat-state b{display:block; font-family:var(--font-display); font-size:13.5px; color:var(--text); margin-bottom:1px;}
+.chat-state .cs-ic{width:28px; height:28px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; color:var(--text-3); background:var(--surface-2); border:1px solid var(--line);}
+.chat-state.good{border-color:rgba(61,220,132,.35); background:linear-gradient(135deg, rgba(61,220,132,.10), rgba(61,220,132,.02));}
+.chat-state.good .cs-ic{color:var(--win); background:rgba(61,220,132,.08); border-color:rgba(61,220,132,.3);}
+.chat-state.warn{border-color:rgba(244,184,80,.38); background:linear-gradient(135deg, rgba(244,184,80,.10), rgba(244,184,80,.02));}
+.chat-state.warn .cs-ic{color:var(--warn); background:rgba(244,184,80,.08); border-color:rgba(244,184,80,.3);}
+.chat-state.bad{border-color:rgba(255,107,122,.4); background:linear-gradient(135deg, rgba(255,107,122,.10), rgba(255,107,122,.02));}
+.chat-state.bad .cs-ic{color:var(--loss); background:rgba(255,107,122,.08); border-color:rgba(255,107,122,.3);}
+.chat-state code{font-family:var(--font-mono); font-size:11.5px; color:var(--text-3); word-break:break-all;}
+.chat-go:disabled{opacity:.6; cursor:progress;}
+.chat-chip{display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px 0 10px; margin-right:8px; border-radius:999px; cursor:pointer;
+  font:600 12px var(--font-display); color:var(--text-2); background:var(--surface-2); border:1px solid var(--line-2); transition:border-color .2s ease, color .2s ease;}
+.chat-chip:hover{border-color:var(--accent-line); color:var(--text);}
+.chat-chip .chat-dot{width:9px; height:9px;}
+.chat-chip[data-st="offline"] .chat-dot{background:transparent; border:2px solid var(--text-3); box-shadow:none;}
+.chat-chip[data-st="mobile"] .chat-dot{border-radius:2px; width:7px; height:10px; background:transparent; border:2px solid var(--warn); box-shadow:none;}
+@media (max-width:760px){ .chat-chip span:last-child{display:none;} .chat-chip{padding:0 10px; margin-right:4px;} }
+.chat-go:disabled .set-ic svg{animation:spin .9s linear infinite;}
+@media (max-width:560px){ .chat-seg{grid-template-columns:1fr;} .chat-opt{flex-direction:row; align-items:center; gap:10px;} .chat-opt .lbl{margin:0;} .chat-opt small{margin-left:auto; text-align:right;} }
 
 /* ================= Shop ================= */
 .wallet-row{display:flex; flex-wrap:wrap; gap:8px;}
@@ -3094,6 +3130,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <button class="gsw-btn" id="gswValorant" data-choice="valorant" data-i18n-title="show_valorant" data-tip="Valorant anzeigen">VAL</button>
         <button class="gsw-btn" id="gswLeague" data-choice="league" data-i18n-title="show_league" data-tip="League anzeigen">LOL</button>
       </div>
+      <button type="button" class="chat-chip" id="chatChip" hidden></button>
       <button class="icon-btn" id="sidebarToggle" data-i18n-title="settings" data-tip="Einstellungen">⚙</button>
     </div>
   </div>
@@ -3117,6 +3154,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       <button type="button" class="set-nav-btn" data-sec="general" role="tab"><span class="sn-ic" data-ic="gear"></span><span data-i18n="set_nav_general">Allgemein</span></button>
       <button type="button" class="set-nav-btn" data-sec="display" role="tab"><span class="sn-ic" data-ic="sparkles"></span><span data-i18n="settings_display_label">Darstellung</span></button>
       <button type="button" class="set-nav-btn" data-sec="overlay" role="tab" id="setNavOverlay" hidden><span class="sn-ic" data-ic="layers"></span><span data-i18n="settings_overlay_label">Spiel-Overlay</span></button>
+      <button type="button" class="set-nav-btn" data-sec="chat" role="tab"><span class="sn-ic" data-ic="chat"></span><span data-i18n="chat_title">Online-Status</span></button>
       <button type="button" class="set-nav-btn" data-sec="connect" role="tab"><span class="sn-ic" data-ic="link"></span><span data-i18n="settings_connect_label">Verbinden</span></button>
       <button type="button" class="set-nav-btn" data-sec="about" role="tab"><span class="sn-ic" data-ic="info"></span><span data-i18n="set_nav_about">Info</span></button>
     </div>
@@ -3209,6 +3247,35 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
           </button>
         </div>
       </div>
+    </section>
+
+    <!-- Online-Status (2.6.3): Riot-Chat offline/mobil wie Deceive, siehe chat_* in vry_log_server.py -->
+    <section class="set-sec" data-sec="chat">
+      <header class="set-head"><h4 data-i18n="chat_title">Online-Status</h4><p data-i18n="chat_desc">Im Riot-Chat offline erscheinen – Freundesliste und Chat funktionieren weiter.</p></header>
+      <div class="chat-seg" id="chatSeg" role="radiogroup">
+        <button type="button" class="chat-opt" data-st="online" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_online">Online</span><small data-i18n="chat_st_online_hint">Ganz normal sichtbar</small></button>
+        <button type="button" class="chat-opt" data-st="offline" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_offline">Offline</span><small data-i18n="chat_st_offline_hint">Freunde sehen dich offline</small></button>
+        <button type="button" class="chat-opt" data-st="mobile" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_mobile">Mobil</span><small data-i18n="chat_st_mobile_hint">Wie in der Riot-App am Handy</small></button>
+      </div>
+      <div class="chat-state" id="chatState" hidden></div>
+      <div id="chatLaunch">
+        <div class="set-glabel" data-i18n="chat_launch_label">Über RankYoinker starten</div>
+        <div class="set-group">
+          <button type="button" class="set-row set-link chat-go" data-game="valorant">
+            <span class="set-ic" data-ic="play"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_valorant">VALORANT starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
+          </button>
+          <button type="button" class="set-row set-link chat-go" data-game="league">
+            <span class="set-ic" data-ic="play"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_league">League of Legends starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
+          </button>
+          <button type="button" class="set-row set-link chat-go" data-game="riot">
+            <span class="set-ic" data-ic="chat"></span>
+            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_riot">Nur Riot Client starten</span><small data-i18n="chat_launch_riot_hint">Ohne Spiel, z. B. nur für den Chat</small></span>
+          </button>
+        </div>
+      </div>
+      <p class="set-note" data-i18n="chat_note">Der Status wirkt nur, wenn der Riot Client über RankYoinker gestartet wurde. Umschalten geht danach jederzeit, auch mitten im Spiel. Freunde können dich nicht einladen, solange du offline bist – du sie aber schon.</p>
     </section>
 
     <section class="set-sec" data-sec="connect">
@@ -3701,6 +3768,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     skull: '<path d="M12 3a8 8 0 0 0-8 8c0 2.6 1.2 4.6 3 5.8V20a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3.2c1.8-1.2 3-3.2 3-5.8a8 8 0 0 0-8-8z"/><circle cx="9" cy="11.5" r="1.6"/><circle cx="15" cy="11.5" r="1.6"/><line x1="10" y1="21" x2="10" y2="18"/><line x1="14" y1="21" x2="14" y2="18"/>',
     search: '<circle cx="11" cy="11" r="7"/><line x1="20.5" y1="20.5" x2="16" y2="16"/>',
     crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+    chat: '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.3 9.3 0 0 1-3.8-.8L3 20.5l1.5-4.3A8 8 0 0 1 3 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 9 8.4z"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     swords: '<polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="17" x2="4" y2="20"/><line x1="3" y1="19" x2="5" y2="21"/>'
   };
@@ -7156,6 +7224,129 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return fetch(LOG_URL + path, opt).then(r => r.json());
   }
   function apiFail(e){ return {ok:false, error:t('err_local_service_port')}; }
+
+  // ================= ONLINE-STATUS (2.6.3) =================
+  // Riot-Chat offline/mobil wie Deceive: der Dienst startet den Riot Client mit eigenem Config-Proxy
+  // und schreibt im Chat-Proxy nur die eigene Presence um (chat_* in vry_log_server.py).
+  const chatUi = {state: null};
+  const CHAT_ERR_KEYS = {'no-riot-client': 'chat_err_no_rc', 'no-cert': 'chat_err_cert', 'no-dns': 'chat_err_dns', 'ports-busy': 'chat_err_ports'};
+  function chatStatusName(st){ return t('chat_st_' + (st || 'online')); }
+  function chatPaint(){
+    const st = chatUi.state;
+    document.querySelectorAll('#chatSeg .chat-opt').forEach(b => {
+      const on = !!st && b.getAttribute('data-st') === st.status;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    const box = document.getElementById('chatState');
+    if(box){
+      if(!st){ box.hidden = true; }
+      else {
+        let cls = '', icon = 'info', key = 'none';
+        if(st.connected) { cls = st.status === 'online' ? '' : 'good'; icon = 'check'; key = st.status === 'online' ? 'online' : 'active'; }
+        else if(st.used && st.certOk === false && st.rc !== 'foreign'){ cls = 'bad'; icon = 'alert'; key = 'cert'; }
+        else if(st.used && st.dnsOk === false){ cls = 'bad'; icon = 'alert'; key = 'dns'; }
+        else if(st.rc === 'foreign'){ cls = 'warn'; icon = 'refresh'; key = 'foreign'; }
+        else if(st.rc === 'ours' && /^tls-client/.test(st.err || '')){ cls = 'bad'; icon = 'alert'; key = 'rejected'; }
+        else if(st.rc === 'ours'){ icon = 'clock'; key = 'wait'; }
+        else { icon = 'play'; key = 'none'; }
+        const err = cls === 'bad' && st.err ? `<br><code>${esc(st.err)}</code>` : '';
+        box.className = 'chat-state ' + cls;
+        box.innerHTML = `<span class="cs-ic">${svgIcon(icon, 15)}</span><div><b>${esc(t('chat_s_' + key + '_title', {status: chatStatusName(st.status)}))}</b>${esc(t('chat_s_' + key))}${err}</div>`;
+        box.hidden = false;
+      }
+    }
+    // Kleiner Hinweis oben rechts, solange der Proxy wirkt und man nicht "Online" ist
+    const chip = document.getElementById('chatChip');
+    if(chip){
+      const show = !!(st && st.connected && st.status !== 'online');
+      chip.hidden = !show;
+      if(show){
+        chip.setAttribute('data-st', st.status);
+        chip.setAttribute('data-tip', t('chat_chip_tip'));
+        chip.innerHTML = `<span class="chat-dot"></span><span>${esc(chatStatusName(st.status))}</span>`;
+      }
+    }
+  }
+  function chatRefresh(){
+    return api('/api/chat').then(j => {
+      if(j && j.ok){ chatUi.state = j; chatPaint(); }
+      return j;
+    }).catch(() => null);
+  }
+  function chatOpenSettings(){ openSidebar(); showSetSec('chat', true); chatRefresh(); }
+  if(ON_PHONE) document.getElementById('chatLaunch').hidden = true;     // Riot Client starten nur am PC
+  document.getElementById('chatChip').addEventListener('click', chatOpenSettings);
+  document.querySelector('.set-nav-btn[data-sec="chat"]').addEventListener('click', chatRefresh);
+  document.getElementById('sidebarToggle').addEventListener('click', () => { if(setSec === 'chat') chatRefresh(); });
+  // Offen im Bereich: alle 3 s; sonst nur gelegentlich fuer den Hinweis oben rechts
+  let chatTick = 0;
+  setInterval(() => {
+    chatTick++;
+    const open = sidebar.classList.contains('open') && setSec === 'chat';
+    if(document.hidden && !open) return;
+    if(open || (chatUi.state && chatUi.state.used && chatTick % 7 === 0)) chatRefresh();
+  }, 3000);
+  setTimeout(chatRefresh, 2500);
+  document.querySelectorAll('#chatSeg .chat-opt').forEach(b => b.addEventListener('click', () => {
+    const status = b.getAttribute('data-st');
+    if(chatUi.state && chatUi.state.status === status) return;
+    api('/api/chat/status', {status}).catch(apiFail).then(j => {
+      if(j && j.ok){
+        chatUi.state = j; chatPaint();
+        toast('success', t('chat_toast_set', {status: chatStatusName(status)}),
+          t(j.connected ? 'chat_toast_set_live' : 'chat_toast_set_later'), {id:'chat', dur:5000});
+      } else {
+        toast('error', t('chat_title'), (j && j.error) || t('err_local_service_port'), {id:'chat', dur:7000});
+      }
+    });
+  }));
+  function chatLaunch(game, restart, btn){
+    if(btn) btn.disabled = true;
+    api('/api/chat/launch', {game, restart: !!restart}).catch(apiFail).then(j => {
+      if(btn) btn.disabled = false;
+      if(j && j.ok){
+        toast('success', t('chat_toast_started'), t(j.restarted ? 'chat_toast_restarted_msg' : 'chat_toast_started_msg'), {id:'chat', dur:7000});
+        setTimeout(chatRefresh, 2000);
+        return;
+      }
+      if(j && j.error === 'needs-restart'){
+        chatUi.state = Object.assign({}, j, {ok: true}); chatPaint();
+        chatRestartModal(game, !!j.inGame);
+        return;
+      }
+      const key = j && CHAT_ERR_KEYS[j.error];
+      toast('error', t('chat_toast_fail'), key ? t(key) : ((j && j.error) || t('err_local_service_port')), {id:'chat', dur:10000});
+      chatRefresh();
+    });
+  }
+  function chatRestartModal(game, inGame){
+    modalBox.innerHTML = `<button class="modal-close" id="modalClose">${svgIcon('x', 15)}</button>
+      <div class="risk-dlg">
+        <div class="risk-glow" aria-hidden="true"></div>
+        <div class="risk-head">
+          <div class="risk-ic"><span class="risk-ic-ring"></span>${svgIcon('refresh', 22)}</div>
+          <div><span class="risk-eyebrow">${svgIcon('chat', 11)}${esc(t('chat_title'))}</span>
+            <h3>${esc(t('chat_restart_title'))}</h3></div>
+        </div>
+        <ul class="risk-facts">
+          <li class="risk-fact" style="--i:0"><span class="rf-ic">${svgIcon('info', 15)}</span><span class="rf-txt">${esc(t('chat_restart_why'))}</span></li>
+          <li class="risk-fact ${inGame ? 'bad' : ''}" style="--i:1"><span class="rf-ic">${svgIcon(inGame ? 'alert' : 'exit', 15)}</span><span class="rf-txt">${esc(t(inGame ? 'chat_restart_ingame' : 'chat_restart_close'))}</span></li>
+        </ul>
+        <div class="risk-actions">
+          <button class="pbtn" id="chatRsCancel">${esc(t('cancel'))}</button>
+          <button class="pbtn go" id="chatRsGo">${svgIcon('refresh', 12)}${esc(t('chat_restart_btn'))}</button>
+        </div>
+      </div>`;
+    openModalWrap();
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('chatRsCancel').addEventListener('click', closeModal);
+    document.getElementById('chatRsGo').addEventListener('click', () => {
+      closeModal();
+      chatLaunch(game, true, document.querySelector(`.chat-go[data-game="${game}"]`));
+    });
+  }
+  document.querySelectorAll('.chat-go').forEach(b => b.addEventListener('click', () => chatLaunch(b.getAttribute('data-game'), false, b)));
 
   // ================= AGENTENAUSWAHL =================
   let ownedAgents = null, pickSelected = null, pickTaken = {}, pickLocked = false, ownPuuid = null;
@@ -11868,7 +12059,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.2";
+const CURRENT_VERSION = "2.6.3-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

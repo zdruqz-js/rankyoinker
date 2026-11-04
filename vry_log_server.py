@@ -46,6 +46,7 @@ import os
 import random
 import re
 import secrets
+import select
 import shutil
 import socket
 import ssl
@@ -556,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.2"
+APP_VERSION = "2.6.3-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -10702,6 +10703,738 @@ def _lol_record_encounter_now():
     return bool(res.get("ok")) and not res.get("skipped")
 
 
+# ============================ Online-Status (wie Deceive) ============================
+# Seit 2.6.3: im Riot-Chat offline (oder "Mobil") erscheinen, Freundesliste und Chat bleiben nutzbar.
+# Verfahren wie Deceive (github.com/molenzwiebel/Deceive, GPL - kein Code uebernommen, nur die Idee):
+#  1. Wir starten den Riot Client mit --client-config-url=http://127.0.0.1:<cfg-Port>.
+#  2. Der Config-Proxy holt die echte Konfiguration von clientconfig.rpg.riotgames.com und biegt
+#     chat.host/chat.port/chat.affinities auf local.rankyoinker.de:<chat-Port> um.
+#  3. Der Chat-Proxy nimmt die TLS-Verbindung des Clients an, verbindet sich selbst per TLS (geprueft)
+#     mit dem echten Chat-Server und schreibt NUR die eigenen, ungerichteten <presence>-Meldungen um.
+#     Alles andere (Nachrichten, Freundesliste, Lobby-Chat) geht unveraendert durch.
+# Der Riot Client nimmt seit 2026 kein selbstsigniertes Zertifikat mehr (chat.allow_bad_cert ist weg),
+# darum ein echter Name, der auf 127.0.0.1 zeigt (oeffentliches DNS + hosts-Eintrag vom Installer), und
+# ein Zertifikat dafuer, das rankyoinker.de ausliefert (/api/chat-cert, alle ~60 Tage neu).
+# Sicherheitsnetz: Fehlt Zertifikat oder Namensaufloesung, wird die Konfiguration NICHT umgebogen - der
+# Chat laeuft dann ganz normal (nur eben sichtbar), statt kaputtzugehen.
+CHAT_LOCAL_HOST = "local.rankyoinker.de"
+CHAT_CERT_URL = "https://rankyoinker.de/api/chat-cert"
+CHAT_CERT_FILE = os.path.join(DATA_DIR, "chat-cert.json")
+CHAT_TLS_PEM = os.path.join(DATA_DIR, "chat-tls.pem")
+CHAT_STATE_FILE = os.path.join(DATA_DIR, "chat-status.json")
+CHAT_CONFIG_URL = "https://clientconfig.rpg.riotgames.com"
+CHAT_PAS_URL = "https://riot-geo.pas.si.riotgames.com/pas/v1/service/chat"
+# Feste Ports: startet der Dienst neu (Update), verbindet sich der laufende Riot Client wieder mit
+# demselben Port, statt den Chat bis zum naechsten Client-Neustart zu verlieren.
+CHAT_PORT_PAIRS = ((51101, 51102), (51111, 51112), (51121, 51122), (51131, 51132))
+CHAT_STATUSES = ("online", "offline", "mobile")
+CHAT_DEFAULT_PORT = 5223
+CHAT_CERT_RENEW = 20 * 86400        # so lange vor Ablauf ein neues Zertifikat holen
+CHAT_CERT_RETRY = 600.0             # nach einem Fehlschlag so lange nicht erneut fragen
+CHAT_DNS_TTL = 60.0
+CHAT_RC_TTL = 10.0
+CHAT_BUF_MAX = 512 * 1024           # unvollstaendige <presence> laenger als das -> ungefiltert weiter
+RIOT_CLIENT_PROC = "RiotClientServices.exe"
+# Was beim Neustart des Riot Clients mit beendet wird (wie Deceive: Client + davon gestartete Spiele)
+RIOT_KILL_PROCS = ("RiotClientServices.exe", "Riot Client.exe", "RiotClientUx.exe", "RiotClientUxRender.exe",
+                   "LeagueClient.exe", "LeagueClientUx.exe", "LeagueClientUxRender.exe", "League of Legends.exe",
+                   "VALORANT.exe", "VALORANT-Win64-Shipping.exe", "LoR.exe")
+CHAT_PRODUCTS = {"valorant": "valorant", "league": "league_of_legends", "riot": None}
+
+_chat_lock = threading.RLock()
+_chat = {
+    "status": "offline", "used": False, "ports": None, "upstream": None,
+    "cfgSrv": None, "chatSock": None, "ctx": None, "ctxNotAfter": 0,
+    "conns": [], "cfgAt": 0.0, "rewrote": False, "err": "", "errAt": 0.0,
+    "certTry": 0.0, "certErr": "", "dns": (0.0, False), "rc": (0.0, None),
+}
+
+
+def _chat_note(msg):
+    _chat["err"] = str(msg)[:300]
+    _chat["errAt"] = time.time()
+
+
+def _chat_restore():
+    d = _load_json(CHAT_STATE_FILE)
+    if d.get("status") in CHAT_STATUSES:
+        _chat["status"] = d["status"]
+    _chat["used"] = bool(d.get("used"))
+    p = d.get("ports")
+    if isinstance(p, list) and len(p) == 2 and all(isinstance(x, int) and 1024 < x < 65536 for x in p):
+        _chat["ports"] = (p[0], p[1])
+    u = d.get("upstream")
+    if isinstance(u, list) and len(u) == 2 and isinstance(u[0], str) and isinstance(u[1], int):
+        _chat["upstream"] = (u[0], u[1])
+
+
+def _chat_save():
+    try:
+        _save_json(CHAT_STATE_FILE, {
+            "status": _chat["status"], "used": _chat["used"],
+            "ports": list(_chat["ports"]) if _chat["ports"] else None,
+            "upstream": list(_chat["upstream"]) if _chat["upstream"] else None,
+        })
+    except Exception as e:
+        report_error("chat-save", e)
+
+
+# ---------------------------- Zertifikat + Name ----------------------------
+
+def _chat_cert_valid(d):
+    return (isinstance(d, dict) and d.get("host") == CHAT_LOCAL_HOST
+            and isinstance(d.get("cert"), str) and d["cert"].lstrip().startswith("-----BEGIN CERTIFICATE-----")
+            and isinstance(d.get("key"), str) and "PRIVATE KEY-----" in d["key"]
+            and isinstance(d.get("notAfter"), (int, float)))
+
+
+def _chat_ctx_from(d):
+    """TLS-Kontext fuer die Seite zum Riot Client. ssl kann Schluessel nur aus Dateien laden."""
+    tmp = CHAT_TLS_PEM + ".tmp"
+    with open(tmp, "w", encoding="ascii") as fh:
+        fh.write(d["key"].strip() + "\n" + d["cert"].strip() + "\n")
+    os.replace(tmp, CHAT_TLS_PEM)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(CHAT_TLS_PEM)
+    return ctx
+
+
+def _chat_cert_ensure(now_ok=False):
+    """Sorgt fuer ein gueltiges Zertifikat (Datei-Cache, sonst von rankyoinker.de). True = bereit.
+    now_ok=True: auch innerhalb der Wartezeit nach einem Fehlschlag erneut fragen (Klick im Overlay)."""
+    now = time.time()
+
+    def usable():
+        return _chat["ctx"] is not None and _chat["ctxNotAfter"] > now + 3600
+
+    with _chat_lock:
+        if _chat["ctx"] is not None and _chat["ctxNotAfter"] - now > CHAT_CERT_RENEW:
+            return True
+        cached = _load_json(CHAT_CERT_FILE)
+        if not _chat_cert_valid(cached):
+            cached = None
+        if cached and cached["notAfter"] > now + 3600 and cached["notAfter"] > _chat["ctxNotAfter"]:
+            try:
+                _chat["ctx"] = _chat_ctx_from(cached)
+                _chat["ctxNotAfter"] = cached["notAfter"]
+            except Exception as e:
+                report_error("chat-cert", e)
+        if _chat["ctx"] is not None and _chat["ctxNotAfter"] - now > CHAT_CERT_RENEW:
+            _chat["certErr"] = ""
+            return True
+        if not now_ok and now - _chat["certTry"] < CHAT_CERT_RETRY:
+            return usable()
+        _chat["certTry"] = now
+        try:
+            req = urllib.request.Request(CHAT_CERT_URL, headers={"User-Agent": "RankYoinker/" + APP_VERSION})
+            with _urlopen_public(req, 15) as resp:
+                fresh = json.loads(resp.read().decode("utf-8"))
+            if not _chat_cert_valid(fresh) or fresh["notAfter"] <= now + 3600:
+                raise ValueError("unbrauchbare Antwort")
+            ctx = _chat_ctx_from(fresh)
+            _save_json(CHAT_CERT_FILE, {k: fresh[k] for k in ("host", "cert", "key", "notAfter")})
+            _chat["ctx"], _chat["ctxNotAfter"], _chat["certErr"] = ctx, fresh["notAfter"], ""
+            return True
+        except Exception as e:
+            # Ein altes, noch gueltiges Zertifikat (oben geladen) ist besser als keins
+            _chat["certErr"] = "%s: %s" % (type(e).__name__, e)
+            return usable()
+
+
+def _chat_dns_ok():
+    t, ok = _chat["dns"]
+    if time.time() - t < CHAT_DNS_TTL:
+        return ok
+    try:
+        addrs = {ai[4][0] for ai in socket.getaddrinfo(CHAT_LOCAL_HOST, None, socket.AF_INET)}
+        ok = "127.0.0.1" in addrs
+    except OSError:
+        ok = False
+    _chat["dns"] = (time.time(), ok)
+    return ok
+
+
+def _chat_ready():
+    return _chat["chatSock"] is not None and _chat["ctx"] is not None and _chat_dns_ok()
+
+
+# ---------------------------- Config-Proxy ----------------------------
+
+def _chat_affinity(auth):
+    """Welcher Chat-Server fuer dieses Konto gilt (wie der Riot Client selbst: PAS-Token -> affinity)."""
+    try:
+        req = urllib.request.Request(CHAT_PAS_URL, headers={"Authorization": auth, "User-Agent": "RiotClient"})
+        with _urlopen_public(req, 10) as resp:
+            token = resp.read().decode("utf-8", "replace").strip()
+        payload = _jwt_payload(token) or {}
+        aff = payload.get("affinity")
+        return aff if isinstance(aff, str) else None
+    except Exception:
+        return None
+
+
+def _chat_rewrite_config(cfg, auth):
+    """Biegt den Chat auf unseren Proxy um. Gibt (neue Konfiguration, (host, port)) zurueck."""
+    host = cfg.get("chat.host") if isinstance(cfg.get("chat.host"), str) else None
+    port = cfg.get("chat.port") if isinstance(cfg.get("chat.port"), int) else CHAT_DEFAULT_PORT
+    aff = cfg.get("chat.affinities")
+    if isinstance(aff, dict):
+        if cfg.get("chat.affinity.enabled") and auth:
+            a = _chat_affinity(auth)
+            if a and isinstance(aff.get(a), str):
+                host = aff[a]
+        for k in list(aff):
+            aff[k] = CHAT_LOCAL_HOST
+    if "chat.host" in cfg:
+        cfg["chat.host"] = CHAT_LOCAL_HOST
+    cfg["chat.port"] = _chat["ports"][1]
+    return cfg, ((host, port) if host else None)
+
+
+def _chat_cfg_fetch(path, hdr):
+    """Ein Aufruf des Riot Clients an seine Konfiguration -> (Status, Body, Content-Type)."""
+    req = urllib.request.Request(CHAT_CONFIG_URL + path)
+    for name in ("User-Agent", "X-Riot-Entitlements-JWT", "Authorization", "Accept"):
+        val = hdr.get(name)
+        if val:
+            req.add_header(name, val)
+    try:
+        resp = _urlopen_public(req, 15)
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read()
+        except Exception:
+            body = b""
+        return e.code, body, e.headers.get("Content-Type") or "application/json"
+    with resp:
+        raw = _unzip(resp.read(), resp.headers)
+        code, ctype = resp.status, resp.headers.get("Content-Type") or "application/json"
+    _chat["cfgAt"] = time.time()
+    if code != 200:
+        return code, raw, ctype
+    try:
+        cfg = json.loads(raw)
+    except ValueError:
+        return code, raw, ctype
+    if not isinstance(cfg, dict) or not ("chat.host" in cfg or "chat.affinities" in cfg):
+        return code, raw, ctype
+    if not _chat_ready():
+        # Ohne Zertifikat/Namen lieber sichtbar chatten als gar nicht
+        _chat["rewrote"] = False
+        _chat_note("not-ready")
+        return code, raw, ctype
+    try:
+        cfg, upstream = _chat_rewrite_config(cfg, hdr.get("Authorization"))
+    except Exception as e:
+        report_error("chat-config", e)
+        return code, raw, ctype
+    if upstream:
+        with _chat_lock:
+            if _chat["upstream"] != upstream:
+                _chat["upstream"] = upstream
+                _chat_save()
+    _chat["rewrote"] = True
+    return code, json.dumps(cfg).encode("utf-8"), "application/json"
+
+
+class _ChatCfgHandler(BaseHTTPRequestHandler):
+    timeout = 30
+
+    def log_message(self, *args):
+        pass
+
+    def _reply(self, code, body, ctype="application/json"):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        # Nur der Riot Client: Browser schicken bei fremden Seiten einen Origin mit
+        if self.headers.get("Origin") or not self.path.startswith("/") or self.path.startswith("//"):
+            self._reply(403, b"{}")
+            return
+        try:
+            code, body, ctype = _chat_cfg_fetch(self.path, self.headers)
+        except Exception as e:
+            _chat_note("config: %s" % type(e).__name__)
+            self._reply(502, b"{}")     # der Riot Client versucht es dann selbst erneut
+            return
+        self._reply(code, body, ctype)
+
+
+# ---------------------------- Chat-Proxy ----------------------------
+
+_PRES_OPEN = b"<presence"
+
+
+def _xml_el_re(tag):
+    # <tag .../> oder <tag ...>...</tag> (Riot verschachtelt gleichnamige Elemente nicht)
+    return re.compile(rb"<" + tag + rb"(?:\s[^>]*?)?(?:/>|>.*?</" + tag + rb"\s*>)", re.S)
+
+
+_RE_X_SHOW = _xml_el_re(b"show")
+_RE_X_STATUS = _xml_el_re(b"status")
+_RE_X_GAMES = _xml_el_re(b"games")
+_RE_X_LOL = _xml_el_re(b"league_of_legends")
+_RE_X_P = _xml_el_re(b"p")
+_RE_X_M = _xml_el_re(b"m")
+_RE_X_ST = _xml_el_re(b"st")
+_RE_X_DIRECTED = re.compile(rb"\s(?:to|type)\s*=")
+
+
+def _start_tag_end(buf, start=0):
+    """Index hinter dem '>' des Start-Tags ab buf[start] (Anfuehrungszeichen beachtet), sonst None."""
+    q = 0
+    for j in range(start + 1, len(buf)):
+        ch = buf[j]
+        if q:
+            if ch == q:
+                q = 0
+        elif ch in (0x22, 0x27):
+            q = ch
+        elif ch == 0x3e:
+            return j + 1
+    return None
+
+
+def _presence_end(buf):
+    """buf beginnt mit b'<presence'. Ende der Stanza, None = unvollstaendig, -1 = kein <presence>-Tag."""
+    n = len(_PRES_OPEN)
+    if len(buf) <= n:
+        return None
+    if buf[n:n + 1] not in (b" ", b">", b"/", b"\t", b"\r", b"\n"):
+        return -1
+    head = _start_tag_end(buf)
+    if head is None:
+        return None
+    if buf[head - 2:head] == b"/>":
+        return head
+    k = buf.find(b"</presence", head)
+    if k < 0:
+        return None
+    e = buf.find(b">", k)
+    return None if e < 0 else e + 1
+
+
+def _presence_mask(stanza, status):
+    """Eigene Presence als 'offline'/'mobile': show ersetzen, Statustext und Spiele entfernen
+    (bei 'mobile' bleibt League ohne Details stehen, damit der Client 'Mobil' anzeigt)."""
+    head_end = _start_tag_end(stanza)
+    if stanza[head_end - 2:head_end] == b"/>":
+        head, body, tail = stanza[:head_end - 2].rstrip() + b">", b"", b"</presence>"
+    else:
+        cut = stanza.rfind(b"</presence")
+        head, body, tail = stanza[:head_end], stanza[head_end:cut], stanza[cut:]
+    games = b""
+    gm = _RE_X_GAMES.search(body)
+    if gm:
+        if status == "mobile":
+            lol = _RE_X_LOL.search(gm.group(0))
+            if lol:
+                el = _RE_X_M.sub(b"", _RE_X_P.sub(b"", lol.group(0)))
+                el = _RE_X_ST.sub(b"<st>mobile</st>", el, count=1)
+                games = b"<games>" + el + b"</games>"
+        before, after = body[:gm.start()], body[gm.end():]
+    else:
+        before, after = body, b""
+    show = b"<show>" + status.encode("ascii") + b"</show>"
+    parts = [_RE_X_STATUS.sub(b"", before), games, _RE_X_STATUS.sub(b"", after)]
+    joined = b"".join(parts)
+    if _RE_X_SHOW.search(joined):
+        joined = _RE_X_SHOW.sub(show, joined, count=1)
+    else:
+        joined = show + joined
+    return head + joined + tail
+
+
+class _PresenceFilter:
+    """Filtert den Datenstrom Riot Client -> Chat-Server. Haelt eine angefangene <presence> zurueck,
+    bis sie vollstaendig ist; alles andere geht sofort und unveraendert weiter."""
+
+    def __init__(self):
+        self.buf = b""
+        self.last = None        # letzte eigene Presence im Original (fuer den Statuswechsel)
+
+    def _one(self, stanza, status):
+        head = stanza[:_start_tag_end(stanza)]
+        if _RE_X_DIRECTED.search(head):        # an Lobby-/Party-Chat gerichtet oder unavailable
+            return stanza
+        self.last = stanza
+        if status not in ("offline", "mobile"):
+            return stanza
+        try:
+            return _presence_mask(stanza, status)
+        except Exception as e:
+            report_error("chat-presence", e)
+            return stanza
+
+    def feed(self, data, status):
+        buf = self.buf + data
+        out = []
+        while buf:
+            i = buf.find(_PRES_OPEN)
+            if i < 0:
+                keep = 0
+                for k in range(min(len(_PRES_OPEN) - 1, len(buf)), 0, -1):
+                    if _PRES_OPEN.startswith(buf[-k:]):
+                        keep = k
+                        break
+                out.append(buf[:len(buf) - keep])
+                buf = buf[len(buf) - keep:]
+                break
+            if i:
+                out.append(buf[:i])
+                buf = buf[i:]
+            end = _presence_end(buf)
+            if end is None:
+                if len(buf) > CHAT_BUF_MAX:
+                    out.append(buf)
+                    buf = b""
+                break
+            if end < 0:
+                out.append(buf[:len(_PRES_OPEN)])
+                buf = buf[len(_PRES_OPEN):]
+                continue
+            out.append(self._one(buf[:end], status))
+            buf = buf[end:]
+        self.buf = buf
+        return b"".join(out)
+
+    def replay(self, status):
+        if not self.last:
+            return b""
+        if status not in ("offline", "mobile"):
+            return self.last
+        try:
+            return _presence_mask(self.last, status)
+        except Exception:
+            return b""
+
+
+def _sock_send(sock, data, limit=30.0):
+    view = memoryview(data)
+    deadline = time.time() + limit
+    while view:
+        try:
+            n = sock.send(view)
+            view = view[n:]
+        except (ssl.SSLWantWriteError, ssl.SSLWantReadError, BlockingIOError):
+            if time.time() > deadline:
+                raise TimeoutError("send")
+            select.select([], [sock], [], 1.0)
+
+
+class _ChatConn:
+    """Eine Verbindung Riot Client <-> Chat-Server. Ein Thread besitzt beide TLS-Sockets
+    (OpenSSL mag kein gleichzeitiges Lesen und Schreiben aus zwei Threads)."""
+
+    def __init__(self, cli, up):
+        self.cli, self.up = cli, up
+        self.filt = _PresenceFilter()
+        self.resend = False
+        self.since = time.time()
+
+    def run(self):
+        a, b = self.cli, self.up
+        a.setblocking(False)
+        b.setblocking(False)
+        while True:
+            if self.resend:
+                self.resend = False
+                data = self.filt.replay(_chat["status"])
+                if data:
+                    _sock_send(b, data)
+            ready = [s for s in (a, b) if s.pending()]
+            if not ready:
+                ready = select.select([a, b], [], [], 0.5)[0]
+            for s in ready:
+                try:
+                    data = s.recv(65536)
+                except (ssl.SSLWantReadError, ssl.SSLWantWriteError, BlockingIOError):
+                    continue
+                if not data:
+                    return
+                if s is a:
+                    data = self.filt.feed(data, _chat["status"])
+                    if data:
+                        _sock_send(b, data)
+                else:
+                    _sock_send(a, data)
+
+
+def _chat_upstream_connect(host, port):
+    ctxs = [ssl.create_default_context()]
+    if _CERTIFI_CTX:
+        ctxs.append(_CERTIFI_CTX)
+    last = None
+    for ctx in ctxs:
+        raw = socket.create_connection((host, port), timeout=15)
+        try:
+            return ctx.wrap_socket(raw, server_hostname=host)
+        except ssl.SSLCertVerificationError as e:
+            last = e
+            raw.close()
+    raise last
+
+
+def _chat_handle(raw):
+    cli = up = conn = None
+    try:
+        raw.settimeout(20)
+        ctx = _chat["ctx"]
+        if ctx is None:
+            return
+        try:
+            cli = ctx.wrap_socket(raw, server_side=True)
+        except (ssl.SSLError, OSError) as e:
+            _chat_note("tls-client: %s" % e)     # z.B. der Riot Client lehnt das Zertifikat ab
+            return
+        target = _chat["upstream"]
+        if not target:
+            _chat_note("no-upstream")
+            return
+        try:
+            up = _chat_upstream_connect(target[0], target[1])
+        except Exception as e:
+            _chat_note("upstream: %s" % e)
+            return
+        conn = _ChatConn(cli, up)
+        with _chat_lock:
+            _chat["conns"].append(conn)
+        _chat["err"] = ""
+        conn.run()
+    except Exception as e:
+        if not isinstance(e, (ConnectionError, TimeoutError, ssl.SSLError, OSError)):
+            report_error("chat-proxy", e)
+    finally:
+        if conn is not None:
+            with _chat_lock:
+                if conn in _chat["conns"]:
+                    _chat["conns"].remove(conn)
+        for s in (cli, up, raw):
+            if s is not None:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+
+
+def _chat_accept_loop(sock):
+    while True:
+        try:
+            raw, _addr = sock.accept()
+        except OSError:
+            time.sleep(1.0)
+            continue
+        threading.Thread(target=_chat_handle, args=(raw,), daemon=True).start()
+
+
+def _chat_bind(pair):
+    cfg = ThreadingHTTPServer(("127.0.0.1", pair[0]), _ChatCfgHandler)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        s.bind(("127.0.0.1", pair[1]))
+        s.listen(8)
+    except OSError:
+        cfg.server_close()
+        raise
+    return cfg, s
+
+
+def _chat_start():
+    """Startet beide Proxys (einmalig). True = laufen."""
+    with _chat_lock:
+        if _chat["cfgSrv"] is not None:
+            return True
+        ThreadingHTTPServer.allow_reuse_address = False
+        pairs = list(CHAT_PORT_PAIRS)
+        if _chat["ports"] in pairs:
+            pairs.remove(_chat["ports"])
+        if _chat["ports"]:
+            pairs.insert(0, _chat["ports"])
+        for pair in pairs:
+            try:
+                cfg, sock = _chat_bind(pair)
+            except OSError:
+                continue
+            cfg.daemon_threads = True
+            _chat["cfgSrv"], _chat["chatSock"] = cfg, sock
+            if _chat["ports"] != pair:
+                _chat["ports"] = pair
+                _chat_save()
+            threading.Thread(target=cfg.serve_forever, daemon=True).start()
+            threading.Thread(target=_chat_accept_loop, args=(sock,), daemon=True).start()
+            return True
+        _chat_note("ports-busy")
+        return False
+
+
+def _chat_watcher():
+    """Haelt das Zertifikat frisch, solange die Funktion benutzt wird."""
+    while True:
+        try:
+            if _chat["used"]:
+                _chat_start()
+                _chat_cert_ensure()
+        except Exception as e:
+            report_error("chat-watch", e)
+        time.sleep(1800)
+
+
+# ---------------------------- Riot Client starten ----------------------------
+
+def _riot_client_path():
+    p = os.path.join(os.environ.get("ProgramData") or r"C:\ProgramData", "Riot Games", "RiotClientInstalls.json")
+    try:
+        with open(p, "r", encoding="utf-8-sig") as fh:
+            data = json.load(fh)        # Riots Datei - nie umbenennen/anfassen (darum nicht _load_json)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    for key in ("rc_default", "rc_live", "rc_beta"):
+        path = data.get(key)
+        if isinstance(path, str) and path.lower().endswith(".exe") and os.path.isfile(path):
+            return path
+    return None
+
+
+def _riot_client_cmdline():
+    """Kommandozeile(n) des laufenden Riot Clients (leer = laeuft nicht)."""
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='%s'\" | "
+          "ForEach-Object { $_.CommandLine }" % RIOT_CLIENT_PROC)
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                             capture_output=True, text=True, timeout=15,
+                             creationflags=CREATE_NO_WINDOW).stdout or ""
+    except Exception:
+        return None
+    return out.strip()
+
+
+def _chat_rc_state(force=False):
+    """'none' (kein Riot Client), 'ours' (ueber RankYoinker gestartet) oder 'foreign'."""
+    with _chat_lock:
+        if _chat["conns"]:
+            return "ours"
+    t, val = _chat["rc"]
+    # "foreign" aendert sich nur durch einen Neustart des Clients - seltener nachsehen (PowerShell ist teuer)
+    if not force and val is not None and time.time() - t < (CHAT_RC_TTL * 6 if val == "foreign" else CHAT_RC_TTL):
+        return val
+    if not _image_running(RIOT_CLIENT_PROC):
+        val = "none"
+    else:
+        cmd = _riot_client_cmdline()
+        ports = _chat["ports"]
+        if cmd is None:
+            val = "foreign"
+        elif ports and ("127.0.0.1:%d" % ports[0]) in cmd:
+            val = "ours"
+        elif not cmd:
+            val = "none"
+        else:
+            val = "foreign"
+    _chat["rc"] = (time.time(), val)
+    return val
+
+
+def _riot_kill_all():
+    for name in RIOT_KILL_PROCS:
+        try:
+            subprocess.run(["taskkill", "/F", "/IM", name], capture_output=True, timeout=15,
+                           creationflags=CREATE_NO_WINDOW)
+        except Exception:
+            pass
+    _task_cache.clear()
+    deadline = time.time() + 12
+    while time.time() < deadline and _image_running(RIOT_CLIENT_PROC):
+        time.sleep(0.5)
+        _task_cache.pop(RIOT_CLIENT_PROC, None)
+    time.sleep(2.0)          # der Riot Client braucht etwas, bis Ports/Dateien frei sind
+
+
+def _riot_spawn(path, product):
+    args = [path, "--client-config-url=http://127.0.0.1:%d" % _chat["ports"][0]]
+    if product:
+        args += ["--launch-product=%s" % product, "--launch-patchline=live"]
+    # Ueber "start": dann ist nicht der Dienst der Elternprozess - ein Neustart/Update des Dienstes
+    # (taskkill /T) darf den Riot Client nicht mitreissen.
+    subprocess.Popen(["cmd", "/c", "start", ""] + args, creationflags=CREATE_NO_WINDOW, close_fds=True)
+
+
+def chat_state():
+    rc = _chat_rc_state()
+    with _chat_lock:
+        conns = len(_chat["conns"])
+    return {
+        "ok": True,
+        "status": _chat["status"],
+        "used": _chat["used"],
+        "running": _chat["cfgSrv"] is not None,
+        "certOk": _chat["ctx"] is not None,
+        "dnsOk": _chat_dns_ok() if _chat["used"] else None,
+        "rc": rc,
+        "connected": conns > 0,
+        "rewrote": _chat["rewrote"],
+        "inGame": bool(_image_running(VALORANT_PROC) or _image_running(LOL_GAME_PROC)),
+        "rcFound": _riot_client_path() is not None,
+        "err": _chat["err"] if time.time() - _chat["errAt"] < 600 else "",
+    }
+
+
+def chat_set_status(status):
+    if status not in CHAT_STATUSES:
+        return {"ok": False, "error": "bad-status"}
+    with _chat_lock:
+        changed = _chat["status"] != status
+        _chat["status"] = status
+        _chat_save()
+        conns = list(_chat["conns"])
+    if changed:
+        for c in conns:
+            c.resend = True
+        record_feature("chat_" + status)
+    return chat_state()
+
+
+def chat_launch(game, restart=False):
+    """Startet den Riot Client (+ Spiel) ueber unseren Proxy. Laeuft er schon ohne uns, braucht es
+    restart=True (vorher im Overlay bestaetigt) - dann werden Client und Spiele beendet."""
+    if game not in CHAT_PRODUCTS:
+        return {"ok": False, "error": "bad-game"}
+    path = _riot_client_path()
+    if not path:
+        return {"ok": False, "error": "no-riot-client"}
+    with _chat_lock:
+        if not _chat["used"]:
+            _chat["used"] = True
+            _chat_save()
+    if not _chat_start():
+        return {"ok": False, "error": "ports-busy"}
+    if not _chat_cert_ensure(now_ok=True):
+        return {"ok": False, "error": "no-cert", "detail": _chat["certErr"]}
+    _chat["dns"] = (0.0, False)
+    if not _chat_dns_ok():
+        return {"ok": False, "error": "no-dns"}
+    rc = _chat_rc_state(force=True)
+    if rc == "foreign":
+        if not restart:
+            st = chat_state()
+            st.update({"ok": False, "error": "needs-restart"})
+            return st
+        _riot_kill_all()
+    _riot_spawn(path, CHAT_PRODUCTS[game])
+    _chat["rc"] = (0.0, None)
+    record_feature("chat_launch")
+    return {"ok": True, "restarted": rc == "foreign"}
+
+
 # ============================ HTTP ============================
 
 # Antworten werden nur für die eigene Seite freigegeben, nicht mehr für jede
@@ -10958,6 +11691,12 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: preset_import(body.get("presets")))
         elif path == "/api/encounters/record":
             self._safe(lambda: encounters_record(body.get("matchId"), body.get("players")))
+        elif path == "/api/chat/status":
+            self._safe(lambda: chat_set_status(body.get("status")))
+        elif path == "/api/chat/launch":
+            # Beendet ggf. Riot Client und Spiele -> nur am PC selbst
+            if self._local_only():
+                self._safe(lambda: chat_launch(body.get("game"), bool(body.get("restart"))))
         elif path == "/api/instalock/arm":
             self._safe(lambda: instalock_arm(body))
         elif path == "/api/instalock/disarm":
@@ -11309,6 +12048,8 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/instalock":
             self._json(instalock_state())
+        elif path == "/api/chat":
+            self._safe(chat_state)
 
         elif path == "/api/ovl/state":
             if self._ovl_check():
@@ -11826,6 +12567,9 @@ if __name__ == "__main__":
     threading.Thread(target=_instalock_watcher, daemon=True).start()
     # Spiel-Overlay (game_overlay.py): laeuft, solange VALORANT offen ist
     threading.Thread(target=_ovl_watcher, daemon=True).start()
+    # Online-Status (Chat-Proxy wie Deceive): nur, wenn die Funktion schon mal benutzt wurde
+    _chat_restore()
+    threading.Thread(target=_chat_watcher, daemon=True).start()
     # League of Legends: automatisches Annehmen der Spielfindung, unabhängig
     # vom VALORANT-Zweig oben — gleiches Prinzip wie der Instalock.
     _lol_cfg_restore()

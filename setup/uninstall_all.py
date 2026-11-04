@@ -6,7 +6,7 @@ Macht rueckgaengig, was install_all.py eingerichtet hat:
   1. beendet vry.exe und den Log-Server
   2. entfernt die alten Browser-Protokolle vry-start/vry-stop (Registry, HKCU)
   3. entfernt den Autostart                (Startordner)
-  4. entfernt die hosts-Eintraege "vry"/"rankyoinker" und die Firewall-Freigaben (braucht Admin)
+  4. entfernt die hosts-Eintraege "vry"/"rankyoinker"/"local.rankyoinker.de" und die Firewall-Freigaben (braucht Admin)
 Die Programmdateien selbst bleiben liegen.
 
 WICHTIG: Nur Schritt 4 laeuft erhoeht - genau wie bei install_all.py. Die
@@ -30,7 +30,7 @@ PYTHON_EXE = os.path.join(APPDIR, "python.exe")
 FWLOG = "vRY Overlay - Log-Server 1101"
 FWWS = "vRY Overlay - WebSocket 1100"
 HOSTS_PATH = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "drivers", "etc", "hosts")
-HOSTS_NAMES = ["vry", "rankyoinker"]
+HOSTS_NAMES = ["vry", "rankyoinker", "local.rankyoinker.de"]
 
 CREATE_NO_WINDOW = 0x08000000
 
