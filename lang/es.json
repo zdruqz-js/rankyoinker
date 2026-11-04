@@ -745,7 +745,7 @@
     "chat_launch_hint": "Inicia el Riot Client con el proxy de chat de RankYoinker",
     "chat_launch_riot": "Iniciar solo el Riot Client",
     "chat_launch_riot_hint": "Sin juego, p. ej. solo para el chat",
-    "chat_note": "El estado solo funciona si el Riot Client se inició con RankYoinker. Después puedes cambiarlo cuando quieras, incluso en plena partida. Tus amigos no pueden invitarte mientras estés desconectado, pero tú a ellos sí.",
+    "chat_note": "El estado solo funciona si el Riot Client se inició con RankYoinker. Después puedes cambiarlo cuando quieras, incluso en plena partida. Tus amigos no pueden invitarte mientras estés desconectado, pero tú a ellos sí. En tu lista de amigos aparece «RankYoinker»: te avisa de cada cambio y puedes escribirle «en línea», «desconectado» o «móvil».",
     "chat_s_active_title": "Activo: apareces {status}",
     "chat_s_active": "Así te ven tus amigos. El chat y las invitaciones siguen funcionando.",
     "chat_s_online_title": "Conectado, eres visible",
@@ -778,6 +778,10 @@
     "chat_restart_why": "El Riot Client ya está abierto, pero no con RankYoinker. Hay que reiniciarlo para que tu estado se aplique.",
     "chat_restart_close": "El Riot Client y los juegos que haya abierto se cerrarán y se volverán a iniciar enseguida.",
     "chat_restart_ingame": "Cuidado: hay una partida en curso y se cerrará. Mejor reinicia después de la partida.",
-    "chat_restart_btn": "Reiniciar"
+    "chat_restart_btn": "Reiniciar",
+    "chat_bot_intro": "¡Hola! RankYoinker está activo: ahora apareces {status}. Escríbeme «en línea», «desconectado» o «móvil» para cambiar, o «status».",
+    "chat_bot_now": "Ahora apareces {status}.",
+    "chat_bot_is": "Ahora mismo apareces {status}.",
+    "chat_bot_help": "Escríbeme «en línea», «desconectado», «móvil» o «status». Lo que me escribas se queda en tu PC."
   }
 }

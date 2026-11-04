@@ -745,7 +745,7 @@
     "chat_launch_hint": "Riot Client'ı RankYoinker sohbet proxy'si ile başlatır",
     "chat_launch_riot": "Sadece Riot Client'ı başlat",
     "chat_launch_riot_hint": "Oyun olmadan, örn. sadece sohbet için",
-    "chat_note": "Durum yalnızca Riot Client RankYoinker ile başlatıldıysa geçerlidir. Sonrasında istediğin zaman, maç ortasında bile değiştirebilirsin. Çevrim dışıyken arkadaşların seni davet edemez – ama sen onları edebilirsin.",
+    "chat_note": "Durum yalnızca Riot Client RankYoinker ile başlatıldıysa geçerlidir. Sonrasında istediğin zaman, maç ortasında bile değiştirebilirsin. Çevrim dışıyken arkadaşların seni davet edemez – ama sen onları edebilirsin. Arkadaş listende „RankYoinker“ görünür: her değişikliği mesajla bildirir, ona „çevrim içi“, „çevrim dışı“ veya „mobil“ yazabilirsin.",
     "chat_s_active_title": "Etkin: {status} görünüyorsun",
     "chat_s_active": "Arkadaşların seni böyle görüyor. Sohbet ve davetler çalışmaya devam eder.",
     "chat_s_online_title": "Bağlı, görünürsün",
@@ -778,6 +778,10 @@
     "chat_restart_why": "Riot Client zaten açık ama RankYoinker ile değil. Durumunun geçerli olması için yeniden başlatılması gerekiyor.",
     "chat_restart_close": "Riot Client ve onun başlattığı oyunlar kapatılıp hemen yeniden başlatılacak.",
     "chat_restart_ingame": "Dikkat: şu an bir oyun açık – kapatılacak! Maçtan sonra yeniden başlatmak daha iyi.",
-    "chat_restart_btn": "Yeniden başlat"
+    "chat_restart_btn": "Yeniden başlat",
+    "chat_bot_intro": "Selam! RankYoinker etkin – şu an {status} görünüyorsun. Değiştirmek için bana „çevrim içi“, „çevrim dışı“ veya „mobil“ yaz ya da „status“.",
+    "chat_bot_now": "Artık {status} görünüyorsun.",
+    "chat_bot_is": "Şu an {status} görünüyorsun.",
+    "chat_bot_help": "Bana „çevrim içi“, „çevrim dışı“, „mobil“ veya „status“ yaz. Bana yazdıkların bilgisayarında kalır."
   }
 }

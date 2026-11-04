@@ -746,7 +746,7 @@
     "chat_launch_hint": "Uruchamia Riot Client z proxy czatu RankYoinker",
     "chat_launch_riot": "Uruchom tylko Riot Client",
     "chat_launch_riot_hint": "Bez gry, np. tylko do czatu",
-    "chat_note": "Status działa tylko wtedy, gdy Riot Client został uruchomiony przez RankYoinker. Potem możesz go zmieniać w każdej chwili, nawet w trakcie gry. Gdy jesteś offline, znajomi nie mogą cię zaprosić – ale ty ich tak.",
+    "chat_note": "Status działa tylko wtedy, gdy Riot Client został uruchomiony przez RankYoinker. Potem możesz go zmieniać w każdej chwili, nawet w trakcie gry. Gdy jesteś offline, znajomi nie mogą cię zaprosić – ale ty ich tak. Na liście znajomych pojawi się „RankYoinker”: informuje o każdej zmianie, a ty możesz mu napisać „online”, „offline” lub „mobilny”.",
     "chat_s_active_title": "Aktywne: jesteś {status}",
     "chat_s_active": "Tak widzą cię znajomi. Czat i zaproszenia działają dalej.",
     "chat_s_online_title": "Połączono, jesteś widoczny",
@@ -779,6 +779,10 @@
     "chat_restart_why": "Riot Client już działa, ale nie przez RankYoinker. Aby status zadziałał, trzeba go uruchomić ponownie.",
     "chat_restart_close": "Riot Client i uruchomione przez niego gry zostaną zamknięte i od razu uruchomione ponownie.",
     "chat_restart_ingame": "Uwaga: trwa gra – zostanie zamknięta! Lepiej uruchom ponownie po meczu.",
-    "chat_restart_btn": "Uruchom ponownie"
+    "chat_restart_btn": "Uruchom ponownie",
+    "chat_bot_intro": "Cześć! RankYoinker działa – teraz jesteś widoczny jako {status}. Napisz „online”, „offline” lub „mobilny”, aby przełączyć, albo „status”.",
+    "chat_bot_now": "Teraz jesteś widoczny jako {status}.",
+    "chat_bot_is": "Obecnie jesteś widoczny jako {status}.",
+    "chat_bot_help": "Napisz „online”, „offline”, „mobilny” lub „status”. To, co do mnie piszesz, zostaje na twoim komputerze."
   }
 }

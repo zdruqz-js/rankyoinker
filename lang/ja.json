@@ -745,7 +745,7 @@
     "chat_launch_hint": "RankYoinkerのチャットプロキシ付きでRiot Clientを起動します",
     "chat_launch_riot": "Riot Clientだけ起動",
     "chat_launch_riot_hint": "ゲームなし（チャットだけなど）",
-    "chat_note": "状態はRiot ClientをRankYoinkerから起動したときだけ有効です。その後は試合中でもいつでも切り替えられます。オフラインの間はフレンドから招待されませんが、自分から招待することはできます。",
+    "chat_note": "状態はRiot ClientをRankYoinkerから起動したときだけ有効です。その後は試合中でもいつでも切り替えられます。オフラインの間はフレンドから招待されませんが、自分から招待することはできます。 フレンドリストに「RankYoinker」が表示されます。切り替えるたびにメッセージが届き、「オンライン」「オフライン」「モバイル」と送ると切り替わります。",
     "chat_s_active_title": "有効：{status}として表示中",
     "chat_s_active": "フレンドにはこう見えています。チャットと招待はそのまま使えます。",
     "chat_s_online_title": "接続中、表示されています",
@@ -778,6 +778,10 @@
     "chat_restart_why": "Riot Clientはすでに起動していますが、RankYoinker経由ではありません。状態を反映するには再起動が必要です。",
     "chat_restart_close": "Riot Clientとそこから起動したゲームを終了し、すぐに再起動します。",
     "chat_restart_ingame": "注意：いまゲームが実行中です – 終了されます！試合後に再起動するのがおすすめです。",
-    "chat_restart_btn": "再起動"
+    "chat_restart_btn": "再起動",
+    "chat_bot_intro": "こんにちは！RankYoinkerが有効です – いまは「{status}」と表示されています。「オンライン」「オフライン」「モバイル」で切り替え、「status」で確認できます。",
+    "chat_bot_now": "「{status}」と表示されるようになりました。",
+    "chat_bot_is": "いまは「{status}」と表示されています。",
+    "chat_bot_help": "「オンライン」「オフライン」「モバイル」または「status」と送ってください。送った内容はPCの中だけに残ります。"
   }
 }

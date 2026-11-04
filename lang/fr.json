@@ -745,7 +745,7 @@
     "chat_launch_hint": "Lance le Riot Client avec le proxy de chat de RankYoinker",
     "chat_launch_riot": "Lancer seulement le Riot Client",
     "chat_launch_riot_hint": "Sans jeu, p. ex. juste pour le chat",
-    "chat_note": "Le statut ne s'applique que si le Riot Client a été lancé via RankYoinker. Ensuite, tu peux changer à tout moment, même en pleine partie. Tes amis ne peuvent pas t'inviter tant que tu es hors ligne – mais toi, tu peux les inviter.",
+    "chat_note": "Le statut ne s'applique que si le Riot Client a été lancé via RankYoinker. Ensuite, tu peux changer à tout moment, même en pleine partie. Tes amis ne peuvent pas t'inviter tant que tu es hors ligne – mais toi, tu peux les inviter. Ta liste d'amis affiche alors « RankYoinker » : il t'écrit à chaque changement, et tu peux lui envoyer « en ligne », « hors ligne » ou « mobile ».",
     "chat_s_active_title": "Actif : tu apparais {status}",
     "chat_s_active": "C'est ce que voient tes amis. Le chat et les invitations fonctionnent toujours.",
     "chat_s_online_title": "Connecté, tu es visible",
@@ -778,6 +778,10 @@
     "chat_restart_why": "Le Riot Client tourne déjà, mais pas via RankYoinker. Il doit redémarrer pour que ton statut s'applique.",
     "chat_restart_close": "Le Riot Client et les jeux qu'il a lancés seront fermés puis relancés aussitôt.",
     "chat_restart_ingame": "Attention : une partie est en cours – elle sera fermée ! Mieux vaut redémarrer après le match.",
-    "chat_restart_btn": "Redémarrer"
+    "chat_restart_btn": "Redémarrer",
+    "chat_bot_intro": "Salut ! RankYoinker est actif – tu apparais actuellement {status}. Écris-moi « en ligne », « hors ligne » ou « mobile » pour changer, ou « status ».",
+    "chat_bot_now": "Tu apparais maintenant {status}.",
+    "chat_bot_is": "Tu apparais actuellement {status}.",
+    "chat_bot_help": "Écris-moi « en ligne », « hors ligne », « mobile » ou « status ». Ce que tu m'écris reste sur ton PC."
   }
 }

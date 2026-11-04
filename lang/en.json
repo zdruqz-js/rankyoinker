@@ -746,7 +746,7 @@
     "chat_launch_hint": "Starts the Riot Client with RankYoinker's chat proxy",
     "chat_launch_riot": "Launch Riot Client only",
     "chat_launch_riot_hint": "No game, e.g. just for chat",
-    "chat_note": "Your status only applies when the Riot Client was launched through RankYoinker. After that you can switch any time, even mid-game. Friends can't invite you while you're offline – but you can invite them.",
+    "chat_note": "Your status only applies when the Riot Client was launched through RankYoinker. After that you can switch any time, even mid-game. Friends can't invite you while you're offline – but you can invite them. Your friends list then shows “RankYoinker”: it messages you on every switch, and you can send it “online”, “offline” or “mobile”.",
     "chat_s_active_title": "Active: you appear {status}",
     "chat_s_active": "This is what your friends see. Chatting and inviting still work.",
     "chat_s_online_title": "Connected, you're visible",
@@ -779,6 +779,10 @@
     "chat_restart_why": "The Riot Client is already running, but not through RankYoinker. It has to restart for your status to apply.",
     "chat_restart_close": "The Riot Client and any games it launched will be closed and started again right away.",
     "chat_restart_ingame": "Careful: a game is running right now – it will be closed! Better restart after the match.",
-    "chat_restart_btn": "Restart"
+    "chat_restart_btn": "Restart",
+    "chat_bot_intro": "Hi! RankYoinker is active – you currently appear {status}. Message me “online”, “offline” or “mobile” to switch, or “status”.",
+    "chat_bot_now": "You now appear {status}.",
+    "chat_bot_is": "You currently appear {status}.",
+    "chat_bot_help": "Message me “online”, “offline”, “mobile” or “status”. Whatever you send me stays on your PC."
   }
 }
