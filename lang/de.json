@@ -768,6 +768,7 @@
     "chat_s_none_title": "Riot Client ist nicht gestartet",
     "chat_s_none": "Starte VALORANT oder League unten – RankYoinker startet den Riot Client gleich mit.",
     "chat_chip_tip": "Online-Status ändern",
+    "chat_chip_idle_tip": "Online-Status – wirkt, sobald der Riot Client über RankYoinker läuft",
     "chat_toast_set": "Status: {status}",
     "chat_toast_set_live": "Gilt ab sofort für deine Freunde.",
     "chat_toast_set_later": "Gilt, sobald der Riot Client über RankYoinker läuft.",

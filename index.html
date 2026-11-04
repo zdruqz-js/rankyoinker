@@ -1542,7 +1542,47 @@ html.perf .risk-ic-ring{animation:none;}
 .chat-chip .chat-dot{width:9px; height:9px;}
 .chat-chip[data-st="offline"] .chat-dot{background:transparent; border:2px solid var(--text-3); box-shadow:none;}
 .chat-chip[data-st="mobile"] .chat-dot{border-radius:2px; width:7px; height:10px; background:transparent; border:2px solid var(--warn); box-shadow:none;}
-@media (max-width:760px){ .chat-chip span:last-child{display:none;} .chat-chip{padding:0 10px; margin-right:4px;} }
+.chat-chip[aria-expanded="true"]{border-color:var(--accent-line); color:var(--text); background:var(--accent-soft);}
+.chat-chip .cc-caret{width:12px; height:12px; margin-left:-2px; opacity:.55; transition:transform .3s var(--spring);}
+.chat-chip[aria-expanded="true"] .cc-caret{transform:rotate(180deg);}
+/* Offline/Mobil gewaehlt, wirkt aber noch nicht (Riot Client nicht ueber RankYoinker) */
+.chat-chip.idle{border-style:dashed;}
+.chat-chip.idle .chat-dot{opacity:.55;}
+.chat-chip.live[data-st="offline"], .chat-chip.live[data-st="mobile"]{border-color:var(--accent-line); color:var(--text);}
+@media (max-width:760px){ .chat-chip .cc-lbl, .chat-chip .cc-caret{display:none;} .chat-chip{padding:0 11px; margin-right:4px;} }
+/* 2.6.3-dev4: Online-Status als Panel unter der oberen Leiste statt in den Einstellungen */
+.chat-pop{position:fixed; z-index:260; top:72px; right:22px; width:min(420px, calc(100vw - 24px)); max-height:calc(100dvh - 90px);
+  display:flex; flex-direction:column; overflow:hidden; border-radius:24px; border:1px solid var(--line-2);
+  background:linear-gradient(180deg, rgba(24,24,28,.96), rgba(11,11,13,.97));
+  -webkit-backdrop-filter:blur(26px) saturate(150%); backdrop-filter:blur(26px) saturate(150%);
+  box-shadow:var(--shadow-pop), 0 0 0 1px rgba(216,184,124,.05);
+  transform-origin:top right; transform:translateY(-8px) scale(.97); opacity:0; visibility:hidden;
+  transition:transform .45s var(--spring-soft), opacity .22s ease, visibility 0s linear .45s;}
+.chat-pop::before{content:""; position:absolute; inset:0 0 auto; height:1px; z-index:2; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(216,184,124,.65), transparent);}
+.chat-pop.open{transform:none; opacity:1; visibility:visible; transition:transform .45s var(--spring-soft), opacity .22s ease, visibility 0s;}
+.chat-pop-head{display:flex; align-items:flex-start; gap:12px; padding:18px 18px 4px 20px;}
+.chat-pop-head > div{flex:1; min-width:0;}
+.chat-pop-head h4{margin:0; font-family:var(--font-display); font-weight:750; font-size:17px; letter-spacing:-.02em;}
+.chat-pop-head p{margin:4px 0 0; font-size:12.5px; line-height:1.45; color:var(--text-3);}
+.chat-pop-x{width:32px; height:32px; font-size:13px; flex-shrink:0;}
+.chat-pop-body{padding:12px 16px 16px; overflow:auto; overscroll-behavior:contain;}
+.chat-pop .chat-seg{gap:8px;}
+.chat-pop .chat-opt{padding:12px 12px 11px; border-radius:14px;}
+.chat-pop .chat-opt .lbl{font-size:13.5px; margin-top:5px;}
+.chat-pop .chat-opt small{font-size:11px;}
+.chat-pop .chat-state{padding:11px 13px; font-size:12.5px; border-radius:14px;}
+.chat-pop .set-group{margin-top:10px; border-radius:16px;}
+.chat-pop .set-glabel{margin:16px 4px 8px;}
+.chat-pop #chatLaunch .set-group{margin-top:0;}
+.chat-pop .set-row, .chat-pop .set-group .lol-toggle.set-toggle{min-height:56px; padding:10px 14px; gap:12px;}
+.chat-pop .set-ic{width:32px; height:32px; border-radius:10px;}
+.chat-pop .set-row .lbl{font-size:13.5px;}
+.chat-pop .set-row small{font-size:11.5px;}
+.chat-pop .set-group > .set-row + .set-row::before{left:58px;}
+.chat-pop .set-note{margin:12px 4px 0; font-size:11.5px; line-height:1.5; color:var(--text-3);}
+@media (max-width:640px){ .chat-pop{left:10px; right:10px; width:auto; top:66px; max-height:calc(100dvh - 150px);} }
+html.perf .chat-pop{-webkit-backdrop-filter:none; backdrop-filter:none; background:#131316;}
 .chat-go:disabled .set-ic svg{animation:spin .9s linear infinite;}
 @media (max-width:560px){ .chat-seg{grid-template-columns:1fr;} .chat-opt{flex-direction:row; align-items:center; gap:10px;} .chat-opt .lbl{margin:0;} .chat-opt small{margin-left:auto; text-align:right;} }
 
@@ -3130,11 +3170,53 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <button class="gsw-btn" id="gswValorant" data-choice="valorant" data-i18n-title="show_valorant" data-tip="Valorant anzeigen">VAL</button>
         <button class="gsw-btn" id="gswLeague" data-choice="league" data-i18n-title="show_league" data-tip="League anzeigen">LOL</button>
       </div>
-      <button type="button" class="chat-chip" id="chatChip" hidden></button>
+      <button type="button" class="chat-chip" id="chatChip" aria-haspopup="dialog" aria-expanded="false" aria-controls="chatPop" hidden></button>
       <button class="icon-btn" id="sidebarToggle" data-i18n-title="settings" data-tip="Einstellungen">⚙</button>
     </div>
   </div>
 </header>
+
+<!-- Online-Status (2.6.3-dev4: aus den Einstellungen in die obere Leiste, Nutzerwunsch). Riot-Chat offline/mobil
+     wie Deceive, siehe chat_* in vry_log_server.py. Oeffnet sich unter #chatChip. -->
+<div class="chat-pop" id="chatPop" role="dialog" aria-labelledby="chatPopTitle" aria-hidden="true">
+  <div class="chat-pop-head">
+    <div><h4 id="chatPopTitle" data-i18n="chat_title">Online-Status</h4><p data-i18n="chat_desc">Im Riot-Chat offline erscheinen – Freundesliste und Chat funktionieren weiter.</p></div>
+    <button type="button" class="icon-btn chat-pop-x" id="chatPopClose" data-i18n-title="close" data-tip="Schließen">✕</button>
+  </div>
+  <div class="chat-pop-body">
+    <div class="chat-seg" id="chatSeg" role="radiogroup">
+      <button type="button" class="chat-opt" data-st="online" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_online">Online</span><small data-i18n="chat_st_online_hint">Ganz normal sichtbar</small></button>
+      <button type="button" class="chat-opt" data-st="offline" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_offline">Offline</span><small data-i18n="chat_st_offline_hint">Freunde sehen dich offline</small></button>
+      <button type="button" class="chat-opt" data-st="mobile" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_mobile">Mobil</span><small data-i18n="chat_st_mobile_hint">Wie in der Riot-App am Handy</small></button>
+    </div>
+    <div class="chat-state" id="chatState" hidden></div>
+    <div class="set-group" id="chatAutoGroup">
+      <button type="button" class="lol-toggle set-toggle set-row" id="chatAuto" role="switch" aria-checked="false">
+        <span class="set-ic" data-ic="refresh"></span>
+        <span class="st-txt"><span class="lbl" data-i18n="chat_auto">Riot Client automatisch umleiten</span><small data-i18n="chat_auto_hint">Startest du VALORANT, League oder den Riot Client ganz normal, startet RankYoinker ihn einmal kurz neu – nur solange noch kein Spiel offen ist.</small></span>
+        <span class="sw"></span>
+      </button>
+    </div>
+    <div id="chatLaunch">
+      <div class="set-glabel" data-i18n="chat_launch_label">Über RankYoinker starten</div>
+      <div class="set-group">
+        <button type="button" class="set-row set-link chat-go" data-game="valorant">
+          <span class="set-ic" data-ic="play"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_valorant">VALORANT starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
+        </button>
+        <button type="button" class="set-row set-link chat-go" data-game="league">
+          <span class="set-ic" data-ic="play"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_league">League of Legends starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
+        </button>
+        <button type="button" class="set-row set-link chat-go" data-game="riot">
+          <span class="set-ic" data-ic="chat"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_riot">Nur Riot Client starten</span><small data-i18n="chat_launch_riot_hint">Ohne Spiel, z. B. nur für den Chat</small></span>
+        </button>
+      </div>
+    </div>
+    <p class="set-note" data-i18n="chat_note">Der Status wirkt nur, wenn der Riot Client über RankYoinker gestartet wurde. Umschalten geht danach jederzeit, auch mitten im Spiel. Freunde können dich nicht einladen, solange du offline bist – du sie aber schon. In deiner Freundesliste steht dann „RankYoinker“: Er meldet jeden Wechsel per Nachricht, und du kannst ihm „online“, „offline“ oder „mobil“ schreiben.</p>
+  </div>
+</div>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <!-- Einstellungen (2.5.8): Dialog mit Navigation links (am Handy: Sheet mit Chips oben). Die ids der
@@ -3154,7 +3236,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       <button type="button" class="set-nav-btn" data-sec="general" role="tab"><span class="sn-ic" data-ic="gear"></span><span data-i18n="set_nav_general">Allgemein</span></button>
       <button type="button" class="set-nav-btn" data-sec="display" role="tab"><span class="sn-ic" data-ic="sparkles"></span><span data-i18n="settings_display_label">Darstellung</span></button>
       <button type="button" class="set-nav-btn" data-sec="overlay" role="tab" id="setNavOverlay" hidden><span class="sn-ic" data-ic="layers"></span><span data-i18n="settings_overlay_label">Spiel-Overlay</span></button>
-      <button type="button" class="set-nav-btn" data-sec="chat" role="tab"><span class="sn-ic" data-ic="chat"></span><span data-i18n="chat_title">Online-Status</span></button>
       <button type="button" class="set-nav-btn" data-sec="connect" role="tab"><span class="sn-ic" data-ic="link"></span><span data-i18n="settings_connect_label">Verbinden</span></button>
       <button type="button" class="set-nav-btn" data-sec="about" role="tab"><span class="sn-ic" data-ic="info"></span><span data-i18n="set_nav_about">Info</span></button>
     </div>
@@ -3247,42 +3328,6 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
           </button>
         </div>
       </div>
-    </section>
-
-    <!-- Online-Status (2.6.3): Riot-Chat offline/mobil wie Deceive, siehe chat_* in vry_log_server.py -->
-    <section class="set-sec" data-sec="chat">
-      <header class="set-head"><h4 data-i18n="chat_title">Online-Status</h4><p data-i18n="chat_desc">Im Riot-Chat offline erscheinen – Freundesliste und Chat funktionieren weiter.</p></header>
-      <div class="chat-seg" id="chatSeg" role="radiogroup">
-        <button type="button" class="chat-opt" data-st="online" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_online">Online</span><small data-i18n="chat_st_online_hint">Ganz normal sichtbar</small></button>
-        <button type="button" class="chat-opt" data-st="offline" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_offline">Offline</span><small data-i18n="chat_st_offline_hint">Freunde sehen dich offline</small></button>
-        <button type="button" class="chat-opt" data-st="mobile" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_mobile">Mobil</span><small data-i18n="chat_st_mobile_hint">Wie in der Riot-App am Handy</small></button>
-      </div>
-      <div class="chat-state" id="chatState" hidden></div>
-      <div class="set-group" id="chatAutoGroup">
-        <button type="button" class="lol-toggle set-toggle set-row" id="chatAuto" role="switch" aria-checked="false">
-          <span class="set-ic" data-ic="refresh"></span>
-          <span class="st-txt"><span class="lbl" data-i18n="chat_auto">Riot Client automatisch umleiten</span><small data-i18n="chat_auto_hint">Startest du VALORANT, League oder den Riot Client ganz normal, startet RankYoinker ihn einmal kurz neu – nur solange noch kein Spiel offen ist.</small></span>
-          <span class="sw"></span>
-        </button>
-      </div>
-      <div id="chatLaunch">
-        <div class="set-glabel" data-i18n="chat_launch_label">Über RankYoinker starten</div>
-        <div class="set-group">
-          <button type="button" class="set-row set-link chat-go" data-game="valorant">
-            <span class="set-ic" data-ic="play"></span>
-            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_valorant">VALORANT starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
-          </button>
-          <button type="button" class="set-row set-link chat-go" data-game="league">
-            <span class="set-ic" data-ic="play"></span>
-            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_league">League of Legends starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
-          </button>
-          <button type="button" class="set-row set-link chat-go" data-game="riot">
-            <span class="set-ic" data-ic="chat"></span>
-            <span class="st-txt"><span class="lbl" data-i18n="chat_launch_riot">Nur Riot Client starten</span><small data-i18n="chat_launch_riot_hint">Ohne Spiel, z. B. nur für den Chat</small></span>
-          </button>
-        </div>
-      </div>
-      <p class="set-note" data-i18n="chat_note">Der Status wirkt nur, wenn der Riot Client über RankYoinker gestartet wurde. Umschalten geht danach jederzeit, auch mitten im Spiel. Freunde können dich nicht einladen, solange du offline bist – du sie aber schon. In deiner Freundesliste steht dann „RankYoinker“: Er meldet jeden Wechsel per Nachricht, und du kannst ihm „online“, „offline“ oder „mobil“ schreiben.</p>
     </section>
 
     <section class="set-sec" data-sec="connect">
@@ -7268,16 +7313,16 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       auto.classList.toggle('on', st.auto !== false);
       auto.setAttribute('aria-checked', st.auto !== false ? 'true' : 'false');
     }
-    // Kleiner Hinweis oben rechts, solange der Proxy wirkt und man nicht "Online" ist
+    // Status oben rechts (seit dev4 immer sichtbar, oeffnet das Panel). idle = gewaehlt, wirkt aber noch nicht.
     const chip = document.getElementById('chatChip');
-    if(chip){
-      const show = !!(st && st.connected && st.status !== 'online');
-      chip.hidden = !show;
-      if(show){
-        chip.setAttribute('data-st', st.status);
-        chip.setAttribute('data-tip', t('chat_chip_tip'));
-        chip.innerHTML = `<span class="chat-dot"></span><span>${esc(chatStatusName(st.status))}</span>`;
-      }
+    if(chip && st){
+      const live = !!st.connected, idle = st.status !== 'online' && !live;
+      chip.hidden = false;
+      chip.setAttribute('data-st', st.status);
+      chip.classList.toggle('live', live);
+      chip.classList.toggle('idle', idle);
+      chip.setAttribute('data-tip', t(idle ? 'chat_chip_idle_tip' : 'chat_chip_tip'));
+      chip.innerHTML = `<span class="chat-dot"></span><span class="cc-lbl">${esc(chatStatusName(st.status))}</span>${svgIcon('chevron', 12).replace('<svg', '<svg class="cc-caret"')}`;
     }
   }
   // Hat der Dienst einen normal gestarteten Riot Client gerade umgeleitet? Einmal Bescheid geben.
@@ -7291,7 +7336,24 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       return j;
     }).catch(() => null);
   }
-  function chatOpenSettings(){ openSidebar(); showSetSec('chat', true); chatRefresh(); }
+  // Panel unter dem Chip: Klick daneben, Escape oder ✕ schliesst
+  const chatPop = document.getElementById('chatPop');
+  chatPop.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = svgIcon(el.getAttribute('data-ic'), 17); });
+  function chatPopIsOpen(){ return chatPop.classList.contains('open'); }
+  function chatPopPlace(){
+    const r = document.getElementById('chatChip').getBoundingClientRect();
+    if(window.innerWidth <= 640 || !r.width){ chatPop.style.top = ''; chatPop.style.right = ''; return; }
+    chatPop.style.top = Math.round(r.bottom + 10) + 'px';
+    chatPop.style.right = Math.max(12, Math.round(window.innerWidth - r.right)) + 'px';
+  }
+  function chatPopShow(on){
+    if(on === chatPopIsOpen()) return;
+    if(on){ closeSidebar(); chatPopPlace(); chatRefresh(); }
+    chatPop.classList.toggle('open', on);
+    chatPop.setAttribute('aria-hidden', on ? 'false' : 'true');
+    document.getElementById('chatChip').setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  function chatOpenSettings(){ chatPopShow(true); }
   if(ON_PHONE){                                   // Riot Client starten/umleiten nur am PC
     document.getElementById('chatLaunch').hidden = true;
     document.getElementById('chatAutoGroup').hidden = true;
@@ -7303,16 +7365,20 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       else toast('error', t('chat_title'), (j && j.error) || t('err_local_service_port'), {id:'chat', dur:7000});
     });
   });
-  document.getElementById('chatChip').addEventListener('click', chatOpenSettings);
-  document.querySelector('.set-nav-btn[data-sec="chat"]').addEventListener('click', chatRefresh);
-  document.getElementById('sidebarToggle').addEventListener('click', () => { if(setSec === 'chat') chatRefresh(); });
-  // Offen im Bereich: alle 3 s; sonst nur gelegentlich fuer den Hinweis oben rechts
+  document.getElementById('chatChip').addEventListener('click', e => { e.stopPropagation(); chatPopShow(!chatPopIsOpen()); });
+  document.getElementById('chatPopClose').addEventListener('click', () => chatPopShow(false));
+  document.addEventListener('pointerdown', e => {
+    if(chatPopIsOpen() && !chatPop.contains(e.target) && !e.target.closest('#chatChip') && !e.target.closest('#modalWrap')) chatPopShow(false);
+  });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && chatPopIsOpen()) chatPopShow(false); });
+  window.addEventListener('resize', () => { if(chatPopIsOpen()) chatPopPlace(); });
+  // Offen: alle 3 s; sonst gelegentlich fuer den Status oben rechts (Tray/DM koennen ihn auch aendern)
   let chatTick = 0;
   setInterval(() => {
     chatTick++;
-    const open = sidebar.classList.contains('open') && setSec === 'chat';
+    const open = chatPopIsOpen();
     if(document.hidden && !open) return;
-    if(open || (chatUi.state && chatUi.state.used && chatTick % 7 === 0)) chatRefresh();
+    if(open || chatTick % 5 === 0) chatRefresh();
   }, 3000);
   setTimeout(chatRefresh, 2500);
   document.querySelectorAll('#chatSeg .chat-opt').forEach(b => b.addEventListener('click', () => {
@@ -12086,7 +12152,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.3-dev3";
+const CURRENT_VERSION = "2.6.3-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

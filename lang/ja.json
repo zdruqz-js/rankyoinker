@@ -767,6 +767,7 @@
     "chat_s_none_title": "Riot Clientが起動していません",
     "chat_s_none": "下からVALORANTかLeagueを起動してください – RankYoinkerがRiot Clientも一緒に起動します。",
     "chat_chip_tip": "オンライン状態を変更",
+    "chat_chip_idle_tip": "オンライン状態 – Riot ClientがRankYoinker経由で動いていると有効になります",
     "chat_toast_set": "状態：{status}",
     "chat_toast_set_live": "フレンドにすぐ反映されます。",
     "chat_toast_set_later": "Riot ClientがRankYoinker経由で起動すると反映されます。",

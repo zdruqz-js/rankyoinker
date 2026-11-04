@@ -768,6 +768,7 @@
     "chat_s_none_title": "Riot Client nie jest uruchomiony",
     "chat_s_none": "Uruchom poniżej VALORANT lub League – RankYoinker od razu uruchomi Riot Client.",
     "chat_chip_tip": "Zmień status online",
+    "chat_chip_idle_tip": "Status online – zadziała, gdy Riot Client będzie działał przez RankYoinker",
     "chat_toast_set": "Status: {status}",
     "chat_toast_set_live": "Znajomi widzą to od razu.",
     "chat_toast_set_later": "Zadziała, gdy Riot Client będzie działał przez RankYoinker.",

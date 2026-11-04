@@ -768,6 +768,7 @@
     "chat_s_none_title": "Riot Client가 실행되지 않음",
     "chat_s_none": "아래에서 VALORANT나 League를 실행하세요 – RankYoinker가 Riot Client도 함께 실행해요.",
     "chat_chip_tip": "온라인 상태 변경",
+    "chat_chip_idle_tip": "온라인 상태 – Riot Client가 RankYoinker를 통해 실행되면 적용됩니다",
     "chat_toast_set": "상태: {status}",
     "chat_toast_set_live": "친구에게 바로 적용돼요.",
     "chat_toast_set_later": "Riot Client가 RankYoinker로 실행되면 적용돼요.",

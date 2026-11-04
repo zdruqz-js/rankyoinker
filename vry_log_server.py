@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.3-dev3"
+APP_VERSION = "2.6.3-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -11775,6 +11775,8 @@ def chat_set_status(status):
     with _chat_lock:
         changed = _chat["status"] != status
         _chat["status"] = status
+        if status != "online":
+            _chat["used"] = True
         _chat_save()
         conns = list(_chat["conns"])
     _chat_auto["seen"] = None               # z. B. Online -> Offline: normal gestarteten Client jetzt umleiten
@@ -12605,6 +12607,8 @@ _TRAY_CLASS_NAME = "RankYoinkerTrayWndClass"
 _WM_TRAYICON = 0x8001  # WM_APP + 1 - eigene Nachricht fuer Tray-Klicks
 _ID_MENU_OPEN = 1001
 _ID_MENU_QUIT = 1002
+# Online-Status direkt im Tray umschalten (2.6.3-dev4)
+_ID_MENU_STATUS = {1011: "online", 1012: "offline", 1013: "mobile"}
 
 
 class _POINT(ctypes.Structure):
@@ -12698,6 +12702,7 @@ def _tray_setup_prototypes(user32, shell32, kernel32):
     user32.TranslateMessage.argtypes = [ctypes.c_void_p]
     user32.DispatchMessageW.argtypes = [ctypes.c_void_p]
     shell32.Shell_NotifyIconW.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+    user32.CheckMenuRadioItem.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
 
 
 _TRAY_STRINGS = {
@@ -12726,6 +12731,17 @@ def _tray_open_overlay():
     threading.Thread(target=open_overlay_in_browser, daemon=True).start()
 
 
+def _tray_set_status(status):
+    def run():
+        try:
+            if _chat["status"] != status:
+                record_feature("chat_tray")
+            chat_set_status(status)
+        except Exception as e:
+            report_error("chat-tray", e)
+    threading.Thread(target=run, daemon=True).start()
+
+
 def _tray_wndproc_factory(user32, shell32, nid):
     """nid wird hier nur PER REFERENZ gehalten (ctypes-Structures sind
     veraenderlich) - beim Aufruf ist es noch leer, wird aber laengst
@@ -12742,7 +12758,21 @@ def _tray_wndproc_factory(user32, shell32, nid):
             return
         try:
             MF_STRING = 0x00000000
+            MF_GRAYED = 0x00000001
+            MF_SEPARATOR = 0x00000800
             tray_strings = _tray_strings()
+            # Online-Status: Ueberschrift (grau) + drei Punkte, der aktuelle mit Radio-Punkt
+            try:
+                chat_s = _bot_strings()
+                user32.AppendMenuW(hmenu, MF_STRING | MF_GRAYED, 0, chat_s.get("chat_title", "Online-Status"))
+                for mid, st in sorted(_ID_MENU_STATUS.items()):
+                    user32.AppendMenuW(hmenu, MF_STRING, mid, "   " + chat_s.get("chat_st_" + st, st))
+                cur = [mid for mid, st in _ID_MENU_STATUS.items() if st == _chat["status"]]
+                if cur:
+                    user32.CheckMenuRadioItem(hmenu, min(_ID_MENU_STATUS), max(_ID_MENU_STATUS), cur[0], 0)
+                user32.AppendMenuW(hmenu, MF_SEPARATOR, 0, None)
+            except Exception as e:
+                _ulog("Tray: Status-Eintraege fehlgeschlagen: %s: %s" % (type(e).__name__, e))
             user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_OPEN, tray_strings["open"])
             user32.AppendMenuW(hmenu, MF_STRING, _ID_MENU_QUIT, tray_strings["quit"])
             pt = _POINT()
@@ -12788,7 +12818,9 @@ def _tray_wndproc_factory(user32, shell32, nid):
                 return 0
             if msg == WM_COMMAND:
                 cmd = wparam & 0xFFFF
-                if cmd == _ID_MENU_OPEN:
+                if cmd in _ID_MENU_STATUS:
+                    _tray_set_status(_ID_MENU_STATUS[cmd])
+                elif cmd == _ID_MENU_OPEN:
                     _tray_open_overlay()
                 elif cmd == _ID_MENU_QUIT:
                     try:

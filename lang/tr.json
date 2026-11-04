@@ -767,6 +767,7 @@
     "chat_s_none_title": "Riot Client açık değil",
     "chat_s_none": "Aşağıdan VALORANT veya League'i başlat – RankYoinker Riot Client'ı da başlatır.",
     "chat_chip_tip": "Çevrim içi durumunu değiştir",
+    "chat_chip_idle_tip": "Çevrim içi durumu – Riot Client RankYoinker üzerinden çalıştığında etkin olur",
     "chat_toast_set": "Durum: {status}",
     "chat_toast_set_live": "Arkadaşların için hemen geçerli.",
     "chat_toast_set_later": "Riot Client RankYoinker ile çalıştığında geçerli olur.",

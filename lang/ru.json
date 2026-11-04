@@ -767,6 +767,7 @@
     "chat_s_none_title": "Riot Client не запущен",
     "chat_s_none": "Запусти VALORANT или League ниже – RankYoinker сразу запустит и Riot Client.",
     "chat_chip_tip": "Изменить статус в сети",
+    "chat_chip_idle_tip": "Онлайн-статус – заработает, когда Riot Client будет запущен через RankYoinker",
     "chat_toast_set": "Статус: {status}",
     "chat_toast_set_live": "Друзья видят это сразу.",
     "chat_toast_set_later": "Заработает, когда Riot Client будет запущен через RankYoinker.",

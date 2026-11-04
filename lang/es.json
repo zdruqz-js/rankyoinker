@@ -767,6 +767,7 @@
     "chat_s_none_title": "El Riot Client no está abierto",
     "chat_s_none": "Inicia VALORANT o League abajo: RankYoinker abre también el Riot Client.",
     "chat_chip_tip": "Cambiar estado en línea",
+    "chat_chip_idle_tip": "Estado en línea: se aplica en cuanto el Riot Client funcione a través de RankYoinker",
     "chat_toast_set": "Estado: {status}",
     "chat_toast_set_live": "Tus amigos lo ven al instante.",
     "chat_toast_set_later": "Se aplicará cuando el Riot Client funcione con RankYoinker.",
