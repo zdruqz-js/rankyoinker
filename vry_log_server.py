@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.4-dev1"
+APP_VERSION = "2.6.4-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -10926,6 +10926,9 @@ def _chat_cfg_fetch(path, hdr):
         cfg = json.loads(raw)
     except ValueError:
         return code, raw, ctype
+    if isinstance(cfg, dict):
+        _chat_dbg_add("config", "%s | %s | %s" % (path.split("?")[0][:80], (hdr.get("User-Agent") or "")[:60],
+                                                  ",".join(sorted(k for k in cfg if "chat" in k.lower()))[:400]))
     if not isinstance(cfg, dict) or not ("chat.host" in cfg or "chat.affinities" in cfg):
         return code, raw, ctype
     if not _chat_ready():
@@ -11092,7 +11095,7 @@ def _presence_mask(stanza, status, published=()):
 
 
 # ---- Diagnose (nur im Speicher, /api/chat/debug am PC): was ging an den Chat-Server, was meldet er zurueck ----
-_chat_dbg = collections.deque(maxlen=60)
+_chat_dbg = collections.deque(maxlen=200)
 _RE_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 
@@ -11191,15 +11194,18 @@ def _bot_val_json(own):
 def _bot_presence(filt=None):
     """Presence des Chat-Freundes. Aufgebaut aus der eigenen Presence (Region, VALORANT-Daten), damit er in
     denselben Gruppen steht und VALORANT keine Versionswarnung zeigt. Ohne eigene Daten: nur Riot Client."""
+    # Reihenfolge und <pty/>/<platform> wie Riots eigene Presence - in 2.6.4-dev1 ohne das stand der Freund
+    # beim Nutzer als offline in der Liste.
     now = int(time.time() * 1000)
-    games = [b"<keystone><st>chat</st><s.t>%d</s.t><s.p>keystone</s.p></keystone>" % now]
-    if filt is not None and filt.lol_region:
-        games.append(b"<league_of_legends><st>chat</st><s.t>%d</s.t><s.p>league_of_legends</s.p>%s</league_of_legends>"
-                     % (now, filt.lol_region))
+    games = [b"<keystone><st>chat</st><s.t>%d</s.t><s.p>keystone</s.p><pty/></keystone>" % now,
+             b"<league_of_legends><st>chat</st><s.t>%d</s.t><s.p>league_of_legends</s.p>%s<p>{&quot;pty&quot;:true}</p>"
+             b"</league_of_legends>" % (now, (filt.lol_region if filt is not None else b"") or b"<s.c>live</s.c>")]
     if filt is not None and filt.val_json:
         p64 = base64.b64encode(json.dumps(_bot_val_json(filt.val_json), separators=(",", ":")).encode("utf-8"))
-        games.append(b"<valorant><st>chat</st><s.t>%d</s.t><s.p>valorant</s.p><p>%s</p></valorant>" % (now, p64))
-    return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><show>chat</show><games>%s</games></presence>"
+        games.append(b"<valorant><st>chat</st><s.t>%d</s.t><s.p>valorant</s.p><s.r>PC</s.r><p>%s</p><pty/></valorant>"
+                     % (now, p64))
+    return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><games>%s</games><platform>riot</platform>"
+            b"<show>chat</show><status/></presence>"
             % (CHAT_BOT_JID.encode("ascii"), secrets.token_hex(6).encode("ascii"), b"".join(games)))
 
 
@@ -11366,9 +11372,12 @@ class _PresenceFilter:
         if CHAT_BOT_ID.encode("ascii") in stanza:
             return self._bot(stanza)
         if not stanza.startswith(b"<presence"):
+            if b"league_of_legends" in stanza or b"<valorant" in stanza:
+                _chat_dbg_add("other", stanza[:600])
             return stanza
         head = stanza[:_start_tag_end(stanza)]
         if _RE_X_DIRECTED.search(head):        # an Lobby-/Party-Chat gerichtet oder unavailable
+            _chat_dbg_add("dir", stanza[:400])
             return stanza
         self.last = stanza
         self._own(stanza)
@@ -11519,9 +11528,16 @@ class _ChatConn:
                 if m:
                     self.own = m.group(1)
             if self.own and b"<presence" in data:
-                for m in re.finditer(rb"<presence\s[^>]*from=['\"]" + re.escape(self.own) + rb"[/'\"].*?(?:</presence\s*>|/>)",
-                                     data, re.S):
-                    _chat_dbg_add("echo", m.group(0))
+                for m in re.finditer(rb"<presence\s[^>]*?from=['\"]" + re.escape(self.own) + rb"[/'\"]", data):
+                    head = _start_tag_end(data, m.start())
+                    if head is None:
+                        continue
+                    if data[head - 2:head] == b"/>":
+                        end = head
+                    else:
+                        k = data.find(b"</presence", head)
+                        end = len(data) if k < 0 else data.find(b">", k) + 1
+                    _chat_dbg_add("echo", data[m.start():end])
         except Exception:
             pass
 
@@ -11565,6 +11581,7 @@ def _chat_handle(raw):
         conn = _ChatConn(cli, up)
         with _chat_lock:
             _chat["conns"].append(conn)
+            _chat_dbg_add("conn+", "%d offen, Ziel %s" % (len(_chat["conns"]), target[0]))
         _chat["err"] = ""
         conn.run()
     except Exception as e:
@@ -11575,6 +11592,7 @@ def _chat_handle(raw):
             with _chat_lock:
                 if conn in _chat["conns"]:
                     _chat["conns"].remove(conn)
+                    _chat_dbg_add("conn-", "%d offen" % len(_chat["conns"]))
         for s in (cli, up, raw):
             if s is not None:
                 try:
