@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.4"
+APP_VERSION = "2.6.4.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -11818,7 +11818,10 @@ def _chat_launch_args(cmd):
 
 def _chat_auto_tick():
     st = _chat_auto
-    if not (_chat["used"] and _chat["auto"]) or _chat["status"] == "online":
+    # Auch bei "Online": sonst wirkt ein spaeterer Wechsel auf Offline erst nach einem Neustart des Riot Clients
+    # (Nutzer-Test 2.6.4: nach dem Ruecksetzen auf Online wurde nie umgeleitet). Wer die Funktion nie
+    # benutzt hat (used=False), bleibt unberuehrt.
+    if not (_chat["used"] and _chat["auto"]):
         return None
     with _chat_lock:
         if _chat["conns"]:
@@ -11872,7 +11875,9 @@ def _chat_auto_tick():
 def _chat_auto_loop():
     while True:
         try:
-            _chat_auto_tick()
+            res = _chat_auto_tick()
+            if res and res != "ours":
+                _chat_dbg_add("auto", res)       # warum (nicht) umgeleitet wurde
         except Exception as e:
             report_error("chat-auto", e)
             time.sleep(10)
