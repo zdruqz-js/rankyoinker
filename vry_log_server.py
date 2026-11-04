@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.3"
+APP_VERSION = "2.6.3.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -10743,7 +10743,8 @@ CHAT_PRODUCTS = {"valorant": "valorant", "league": "league_of_legends", "riot": 
 
 _chat_lock = threading.RLock()
 _chat = {
-    "status": "offline", "used": False, "ports": None, "upstream": None,
+    # Standard "online": wer den Status nie selbst gewaehlt hat, bleibt ganz normal sichtbar (bis 2.6.3 "offline")
+    "status": "online", "chosen": False, "used": False, "ports": None, "upstream": None,
     "cfgSrv": None, "chatSock": None, "ctx": None, "ctxNotAfter": 0,
     "conns": [], "cfgAt": 0.0, "rewrote": False, "err": "", "errAt": 0.0,
     "certTry": 0.0, "certErr": "", "dns": (0.0, False), "rc": (0.0, None),
@@ -10758,8 +10759,12 @@ def _chat_note(msg):
 
 def _chat_restore():
     d = _load_json(CHAT_STATE_FILE)
-    if d.get("status") in CHAT_STATUSES:
+    # "chosen" gibt es seit 2.6.3.1. Aeltere Dateien: "offline" war bis dahin der Standard (z. B. nur
+    # "Riot Client starten" gedrueckt) und laesst sich nicht von einer echten Wahl unterscheiden -> einmal online.
+    chosen = bool(d.get("chosen")) or d.get("status") in ("online", "mobile")
+    if chosen and d.get("status") in CHAT_STATUSES:
         _chat["status"] = d["status"]
+        _chat["chosen"] = True
     _chat["intro"] = bool(d.get("intro"))
     _chat["used"] = bool(d.get("used"))
     _chat["auto"] = d.get("auto", True) is not False
@@ -10774,7 +10779,7 @@ def _chat_restore():
 def _chat_save():
     try:
         _save_json(CHAT_STATE_FILE, {
-            "status": _chat["status"], "used": _chat["used"], "intro": bool(_chat.get("intro")),
+            "status": _chat["status"], "chosen": bool(_chat["chosen"]), "used": _chat["used"], "intro": bool(_chat.get("intro")),
             "auto": bool(_chat["auto"]),
             "ports": list(_chat["ports"]) if _chat["ports"] else None,
             "upstream": list(_chat["upstream"]) if _chat["upstream"] else None,
@@ -11775,6 +11780,7 @@ def chat_set_status(status):
     with _chat_lock:
         changed = _chat["status"] != status
         _chat["status"] = status
+        _chat["chosen"] = True
         if status != "online":
             _chat["used"] = True
         _chat_save()
