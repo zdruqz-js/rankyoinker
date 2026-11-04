@@ -3258,6 +3258,13 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <button type="button" class="chat-opt" data-st="mobile" role="radio" aria-checked="false"><span class="chat-dot"></span><span class="lbl" data-i18n="chat_st_mobile">Mobil</span><small data-i18n="chat_st_mobile_hint">Wie in der Riot-App am Handy</small></button>
       </div>
       <div class="chat-state" id="chatState" hidden></div>
+      <div class="set-group" id="chatAutoGroup">
+        <button type="button" class="lol-toggle set-toggle set-row" id="chatAuto" role="switch" aria-checked="false">
+          <span class="set-ic" data-ic="refresh"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="chat_auto">Riot Client automatisch umleiten</span><small data-i18n="chat_auto_hint">Startest du VALORANT, League oder den Riot Client ganz normal, startet RankYoinker ihn einmal kurz neu – nur solange noch kein Spiel offen ist.</small></span>
+          <span class="sw"></span>
+        </button>
+      </div>
       <div id="chatLaunch">
         <div class="set-glabel" data-i18n="chat_launch_label">Über RankYoinker starten</div>
         <div class="set-group">
@@ -7256,6 +7263,11 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         box.hidden = false;
       }
     }
+    const auto = document.getElementById('chatAuto');
+    if(auto && st){
+      auto.classList.toggle('on', st.auto !== false);
+      auto.setAttribute('aria-checked', st.auto !== false ? 'true' : 'false');
+    }
     // Kleiner Hinweis oben rechts, solange der Proxy wirkt und man nicht "Online" ist
     const chip = document.getElementById('chatChip');
     if(chip){
@@ -7268,14 +7280,29 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       }
     }
   }
+  // Hat der Dienst einen normal gestarteten Riot Client gerade umgeleitet? Einmal Bescheid geben.
+  function chatAutoNotice(prev, j){
+    if(!prev || !j.autoAt || j.autoAt === prev.autoAt || Date.now() / 1000 - j.autoAt > 120) return;
+    toast('success', t('chat_toast_auto'), t('chat_toast_auto_msg', {status: chatStatusName(j.status)}), {id:'chat', dur:8000});
+  }
   function chatRefresh(){
     return api('/api/chat').then(j => {
-      if(j && j.ok){ chatUi.state = j; chatPaint(); }
+      if(j && j.ok){ chatAutoNotice(chatUi.state, j); chatUi.state = j; chatPaint(); }
       return j;
     }).catch(() => null);
   }
   function chatOpenSettings(){ openSidebar(); showSetSec('chat', true); chatRefresh(); }
-  if(ON_PHONE) document.getElementById('chatLaunch').hidden = true;     // Riot Client starten nur am PC
+  if(ON_PHONE){                                   // Riot Client starten/umleiten nur am PC
+    document.getElementById('chatLaunch').hidden = true;
+    document.getElementById('chatAutoGroup').hidden = true;
+  }
+  document.getElementById('chatAuto').addEventListener('click', () => {
+    const on = !(chatUi.state && chatUi.state.auto !== false);
+    api('/api/chat/auto', {on}).catch(apiFail).then(j => {
+      if(j && j.ok){ chatUi.state = j; chatPaint(); }
+      else toast('error', t('chat_title'), (j && j.error) || t('err_local_service_port'), {id:'chat', dur:7000});
+    });
+  });
   document.getElementById('chatChip').addEventListener('click', chatOpenSettings);
   document.querySelector('.set-nav-btn[data-sec="chat"]').addEventListener('click', chatRefresh);
   document.getElementById('sidebarToggle').addEventListener('click', () => { if(setSec === 'chat') chatRefresh(); });
@@ -12059,7 +12086,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.3-dev2";
+const CURRENT_VERSION = "2.6.3-dev3";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

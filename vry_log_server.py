@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.3-dev2"
+APP_VERSION = "2.6.3-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -10747,6 +10747,7 @@ _chat = {
     "cfgSrv": None, "chatSock": None, "ctx": None, "ctxNotAfter": 0,
     "conns": [], "cfgAt": 0.0, "rewrote": False, "err": "", "errAt": 0.0,
     "certTry": 0.0, "certErr": "", "dns": (0.0, False), "rc": (0.0, None),
+    "auto": True, "autoAt": 0.0,
 }
 
 
@@ -10761,6 +10762,7 @@ def _chat_restore():
         _chat["status"] = d["status"]
     _chat["intro"] = bool(d.get("intro"))
     _chat["used"] = bool(d.get("used"))
+    _chat["auto"] = d.get("auto", True) is not False
     p = d.get("ports")
     if isinstance(p, list) and len(p) == 2 and all(isinstance(x, int) and 1024 < x < 65536 for x in p):
         _chat["ports"] = (p[0], p[1])
@@ -10773,6 +10775,7 @@ def _chat_save():
     try:
         _save_json(CHAT_STATE_FILE, {
             "status": _chat["status"], "used": _chat["used"], "intro": bool(_chat.get("intro")),
+            "auto": bool(_chat["auto"]),
             "ports": list(_chat["ports"]) if _chat["ports"] else None,
             "upstream": list(_chat["upstream"]) if _chat["upstream"] else None,
         })
@@ -11594,13 +11597,154 @@ def _riot_kill_all():
     time.sleep(2.0)          # der Riot Client braucht etwas, bis Ports/Dateien frei sind
 
 
-def _riot_spawn(path, product):
+def _riot_spawn(path, product, patchline="live"):
     args = [path, "--client-config-url=http://127.0.0.1:%d" % _chat["ports"][0]]
     if product:
-        args += ["--launch-product=%s" % product, "--launch-patchline=live"]
+        args += ["--launch-product=%s" % product, "--launch-patchline=%s" % (patchline or "live")]
     # Ueber "start": dann ist nicht der Dienst der Elternprozess - ein Neustart/Update des Dienstes
     # (taskkill /T) darf den Riot Client nicht mitreissen.
     subprocess.Popen(["cmd", "/c", "start", ""] + args, creationflags=CREATE_NO_WINDOW, close_fds=True)
+
+
+# ---------------------------- Automatisch umleiten ----------------------------
+# Startet jemand VALORANT/League/Riot Client ganz normal (Desktop-Symbol), laeuft der Chat an RankYoinker
+# vorbei und Offline/Mobil wirkt nicht. Solange noch kein Spiel offen ist, beendet der Dienst diesen Client
+# sofort wieder und startet ihn ueber den Proxy neu - mit demselben Spiel, das gestartet werden sollte.
+CHAT_AUTO_TICK = 1.5
+CHAT_AUTO_YOUNG = 120.0      # nur ein frisch gestarteter Client bekommt sein Spiel (--launch-product) wieder mit
+CHAT_AUTO_MAX = 2            # hoechstens so viele automatische Neustarts ...
+CHAT_AUTO_WINDOW = 300.0     # ... in diesem Zeitraum (Schutz vor Schleifen, z. B. wenn sich der Client selbst aktualisiert)
+CHAT_GAME_PROCS = (VALORANT_PROC, VALORANT_LAUNCHER, "LeagueClient.exe", "LeagueClientUx.exe",
+                   "League of Legends.exe", "LoR.exe")
+_rc_restart_lock = threading.Lock()
+_chat_auto = {"seen": None, "hist": []}
+
+
+def _image_pids(name):
+    """PIDs eines Prozessnamens ueber tasklist (billig, ohne PowerShell). None = Abfrage fehlgeschlagen."""
+    try:
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq %s" % name, "/FO", "CSV", "/NH"],
+                             capture_output=True, text=True, timeout=10,
+                             creationflags=CREATE_NO_WINDOW).stdout or ""
+    except Exception:
+        return None
+    pids = set()
+    for line in out.splitlines():
+        m = re.match(r'\s*"([^"]*)","(\d+)"', line)
+        if m and m.group(1).lower() == name.lower():
+            pids.add(int(m.group(2)))
+    return frozenset(pids)
+
+
+def _riot_client_procs():
+    """[(pid, alter_s, kommandozeile)] aller laufenden RiotClientServices.exe, None = Abfrage fehlgeschlagen."""
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='%s'\" | ForEach-Object { "
+          "'{0}|{1}|{2}' -f $_.ProcessId, [int]((Get-Date) - $_.CreationDate).TotalSeconds, $_.CommandLine }"
+          % RIOT_CLIENT_PROC)
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                             capture_output=True, text=True, timeout=15,
+                             creationflags=CREATE_NO_WINDOW).stdout or ""
+    except Exception:
+        return None
+    procs = []
+    for line in out.splitlines():
+        parts = line.strip().split("|", 2)
+        if len(parts) == 3 and parts[0].isdigit():
+            try:
+                age = float(parts[1])
+            except ValueError:
+                age = 1e9
+            procs.append((int(parts[0]), age, parts[2]))
+    return procs
+
+
+def _chat_game_open():
+    for name in CHAT_GAME_PROCS:
+        _task_cache.pop(name, None)          # frisch nachsehen, nicht 2 s alt
+        if _image_running(name):
+            return True
+    return False
+
+
+def _chat_launch_args(cmd):
+    """Spiel + Patchline aus der Kommandozeile des normal gestarteten Clients."""
+    m = re.search(r"--launch-product[= ]\"?([A-Za-z0-9_]{1,40})", cmd or "")
+    if not m:
+        return None, "live"
+    pl = re.search(r"--launch-patchline[= ]\"?([A-Za-z0-9_]{1,40})", cmd)
+    return m.group(1), (pl.group(1) if pl else "live")
+
+
+def _chat_auto_tick():
+    st = _chat_auto
+    if not (_chat["used"] and _chat["auto"]) or _chat["status"] == "online":
+        return None
+    with _chat_lock:
+        if _chat["conns"]:
+            return None
+    pids = _image_pids(RIOT_CLIENT_PROC)
+    if not pids:
+        st["seen"] = None
+        return None
+    if pids == st["seen"]:
+        return None                          # diesen Client schon beurteilt (unserer, Spiel offen, ...)
+    procs = _riot_client_procs()
+    if not procs:
+        return None
+    ports = _chat["ports"]
+    mark = ("127.0.0.1:%d" % ports[0]) if ports else None
+    if mark and any(mark in cmd for _, _, cmd in procs):
+        st["seen"] = pids
+        return "ours"
+    if not any(cmd for _, _, cmd in procs):
+        st["seen"] = pids                    # Kommandozeile nicht lesbar -> nichts riskieren
+        return "unknown"
+    if _chat_game_open():
+        st["seen"] = pids                    # Spiel laeuft schon -> nie automatisch beenden
+        return "game"
+    now = time.time()
+    st["hist"] = [t for t in st["hist"] if now - t < CHAT_AUTO_WINDOW]
+    if len(st["hist"]) >= CHAT_AUTO_MAX:
+        st["seen"] = pids
+        _chat_note("auto-loop")
+        return "loop"
+    path = _riot_client_path()
+    if not path or not _chat_start() or not _chat_cert_ensure() or not _chat_ready():
+        st["seen"] = pids                    # ohne Zertifikat/DNS wuerde der Neustart nichts bringen
+        return "not-ready"
+    young = [p for p in procs if p[1] <= CHAT_AUTO_YOUNG]
+    product, patchline = _chat_launch_args(young[0][2]) if young else (None, "live")
+    with _rc_restart_lock:
+        if _chat_game_open():                # zwischendurch gestartet?
+            st["seen"] = pids
+            return "game"
+        _riot_kill_all()
+        _riot_spawn(path, product, patchline)
+    st["hist"].append(now)
+    st["seen"] = None
+    _chat["autoAt"] = now
+    _chat["rc"] = (0.0, None)
+    record_feature("chat_auto")
+    return "restarted"
+
+
+def _chat_auto_loop():
+    while True:
+        try:
+            _chat_auto_tick()
+        except Exception as e:
+            report_error("chat-auto", e)
+            time.sleep(10)
+        time.sleep(CHAT_AUTO_TICK)
+
+
+def chat_set_auto(on):
+    with _chat_lock:
+        _chat["auto"] = bool(on)
+        _chat_save()
+    _chat_auto["seen"] = None
+    return chat_state()
 
 
 def chat_state():
@@ -11619,6 +11763,8 @@ def chat_state():
         "rewrote": _chat["rewrote"],
         "inGame": bool(_image_running(VALORANT_PROC) or _image_running(LOL_GAME_PROC)),
         "rcFound": _riot_client_path() is not None,
+        "auto": _chat["auto"],
+        "autoAt": int(_chat["autoAt"]),
         "err": _chat["err"] if time.time() - _chat["errAt"] < 600 else "",
     }
 
@@ -11631,6 +11777,7 @@ def chat_set_status(status):
         _chat["status"] = status
         _chat_save()
         conns = list(_chat["conns"])
+    _chat_auto["seen"] = None               # z. B. Online -> Offline: normal gestarteten Client jetzt umleiten
     if changed:
         note = _bot_text("chat_bot_now", status=status)
         for c in conns:
@@ -11665,8 +11812,11 @@ def chat_launch(game, restart=False):
             st = chat_state()
             st.update({"ok": False, "error": "needs-restart"})
             return st
-        _riot_kill_all()
-    _riot_spawn(path, CHAT_PRODUCTS[game])
+        with _rc_restart_lock:
+            _riot_kill_all()
+            _riot_spawn(path, CHAT_PRODUCTS[game])
+    else:
+        _riot_spawn(path, CHAT_PRODUCTS[game])
     _chat["rc"] = (0.0, None)
     record_feature("chat_launch")
     return {"ok": True, "restarted": rc == "foreign"}
@@ -11930,6 +12080,10 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: encounters_record(body.get("matchId"), body.get("players")))
         elif path == "/api/chat/status":
             self._safe(lambda: chat_set_status(body.get("status")))
+        elif path == "/api/chat/auto":
+            # Darf Riot Client beenden -> nur am PC selbst
+            if self._local_only():
+                self._safe(lambda: chat_set_auto(bool(body.get("on"))))
         elif path == "/api/chat/launch":
             # Beendet ggf. Riot Client und Spiele -> nur am PC selbst
             if self._local_only():
@@ -12807,6 +12961,7 @@ if __name__ == "__main__":
     # Online-Status (Chat-Proxy wie Deceive): nur, wenn die Funktion schon mal benutzt wurde
     _chat_restore()
     threading.Thread(target=_chat_watcher, daemon=True).start()
+    threading.Thread(target=_chat_auto_loop, daemon=True).start()
     # League of Legends: automatisches Annehmen der Spielfindung, unabhängig
     # vom VALORANT-Zweig oben — gleiches Prinzip wie der Instalock.
     _lol_cfg_restore()
