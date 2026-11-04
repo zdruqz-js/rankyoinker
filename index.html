@@ -3200,17 +3200,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     <div id="chatLaunch">
       <div class="set-glabel" data-i18n="chat_launch_label">Über RankYoinker starten</div>
       <div class="set-group">
-        <button type="button" class="set-row set-link chat-go" data-game="valorant">
-          <span class="set-ic" data-ic="play"></span>
-          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_valorant">VALORANT starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
-        </button>
-        <button type="button" class="set-row set-link chat-go" data-game="league">
-          <span class="set-ic" data-ic="play"></span>
-          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_league">League of Legends starten</span><small data-i18n="chat_launch_hint">Startet den Riot Client mit dem Chat-Proxy von RankYoinker</small></span>
-        </button>
         <button type="button" class="set-row set-link chat-go" data-game="riot">
-          <span class="set-ic" data-ic="chat"></span>
-          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_riot">Nur Riot Client starten</span><small data-i18n="chat_launch_riot_hint">Ohne Spiel, z. B. nur für den Chat</small></span>
+          <span class="set-ic" data-ic="play"></span>
+          <span class="st-txt"><span class="lbl" data-i18n="chat_launch_riot">Riot Client starten</span><small data-i18n="chat_launch_riot_hint">Dein Spiel startest du dann wie gewohnt im Riot Client mit „Spielen“.</small></span>
         </button>
       </div>
     </div>
@@ -12152,7 +12144,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.3-dev4";
+const CURRENT_VERSION = "2.6.3-dev5";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
