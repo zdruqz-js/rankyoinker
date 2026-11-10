@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.4.1"
+APP_VERSION = "2.6.5-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2416,7 +2416,7 @@ def _digest_match(match):
 # letzten Matches und die der Party tauchen in jedem Spiel wieder auf und kamen
 # bisher jedes Mal neu von Riot. Aendern sich _digest_match()/_extract(),
 # DIGEST_VERSION erhoehen - sonst kaemen alte Kurzfassungen ohne neue Felder.
-DIGEST_VERSION = 1
+DIGEST_VERSION = 2      # 2: wk/wb/pr fuer den Waffen-Crutch (2.6.5)
 MATCH_DIGEST_FILE = os.path.join(DATA_DIR, "match-digests.json")
 MATCH_DIGEST_KEEP = 400
 _digest_disk = {"dirty": False, "saved": 0.0}
@@ -2535,6 +2535,68 @@ def _recent_match_ids(puuid, count):
     return ids[:count]
 
 
+# Waffen-Crutch (2.6.5, Nutzerwunsch): wer auffaellig viel mit OP, Odin, Shotguns, Marshal, Outlaw oder
+# Shorty spielt. _extract() zaehlt je Match Kills (finishingDamage.damageItem) und Kaufrunden
+# (economy.weapon) dieser Gruppen, _crutch_summary() wertet die letzten Matches aus. UUIDs von
+# valorant-api.com (aendern sich nie). Kaufrunden zaehlen nur gegen Runden mit Primaerwaffe - Eco-Runden
+# mit Pistole verwaessern sonst alles; die Shorty ist selbst eine Pistole -> bei ihr nur die Kills.
+CRUTCH_WEAPONS = {
+    "a03b24d3-4319-996d-0f8c-94bbfba1dfc7": "op",        # Operator
+    "63e6c2b6-4a8e-869c-3d4c-e38355226584": "odin",
+    "ec845bf4-4f79-ddda-a3da-0db3774b2794": "shotgun",   # Judge
+    "910be174-449b-c412-ab22-d0873436b21b": "shotgun",   # Bucky
+    "c4883e50-4494-202c-3ec3-6b8a9284f00b": "marshal",
+    "5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c": "outlaw",
+    "42da8ccc-40d5-affc-beec-15aa47b42eda": "shorty",
+}
+SIDEARM_UUIDS = frozenset((
+    "29a0cfab-485b-f5d5-779a-b59f85e204a8",   # Classic
+    "42da8ccc-40d5-affc-beec-15aa47b42eda",   # Shorty
+    "44d4e95c-4157-0037-81b2-17841bf2e8e3",   # Frenzy
+    "1baa85b4-4c70-1284-64bb-6481dfc3bb4e",   # Ghost
+    "e336c6b8-418d-9340-d77f-7a9e4cfe0702",   # Sheriff
+    "410b2e0b-4ceb-1321-1727-20858f7f3477",   # Bandit
+    "2f59173c-4bed-b6c3-2191-dea9b58be9c7",   # Melee
+))
+# Gruppe -> (Mindestanteil Kills, Mindestanteil Kaufrunden; None = zaehlt nicht)
+CRUTCH_LIMITS = {"op": (0.30, 0.35), "odin": (0.25, 0.30), "shotgun": (0.25, 0.30),
+                 "marshal": (0.25, 0.30), "outlaw": (0.25, 0.30), "shorty": (0.15, None)}
+CRUTCH_MIN_KILLS = 15      # so viele Kills mindestens fuer den Kill-Anteil
+CRUTCH_MIN_ROUNDS = 20     # so viele Runden mit Primaerwaffe mindestens fuer den Kauf-Anteil
+CRUTCH_MIN_HITS = 5        # und die Waffe selbst mindestens so oft (Kills bzw. Kaeufe)
+# Nur Modi mit normalem Kaufen - Deathmatch, Team-Deathmatch, Escalation, Spike Rush & Co. geben Waffen vor
+CRUTCH_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "premier", "newmap", "onefa"))
+
+
+def _crutch_summary(matches):
+    """Waffen-Anteile ueber die Matches (nur Modi mit Kaufen). hits = die Gruppen ueber der Schwelle,
+    staerkste zuerst. None, wenn keines der Matches dafuer taugt (auch alte Kurzfassungen ohne Felder)."""
+    use = [m for m in matches or () if m.get("queue") in CRUTCH_QUEUES and "pr" in m]
+    if not use:
+        return None
+    kills = sum(m.get("kills") or 0 for m in use)
+    prim = sum(m.get("pr") or 0 for m in use)
+    groups, hits = {}, []
+    for g, (lk, lb) in CRUTCH_LIMITS.items():
+        k = sum((m.get("wk") or {}).get(g, 0) for m in use)
+        b = sum((m.get("wb") or {}).get(g, 0) for m in use)
+        if not k and not b:
+            continue
+        kp = round(k / kills * 100) if kills else None
+        bp = round(b / prim * 100) if prim and lb is not None else None
+        groups[g] = {"k": k, "b": b, "kp": kp, "bp": bp}
+        kill_hit = kills >= CRUTCH_MIN_KILLS and k >= CRUTCH_MIN_HITS and k / kills >= lk
+        buy_hit = (lb is not None and prim >= CRUTCH_MIN_ROUNDS and b >= CRUTCH_MIN_HITS
+                   and b / prim >= lb)
+        if kill_hit or buy_hit:
+            # Staerke: wie weit ueber der Schwelle (der hoehere der beiden Anteile)
+            score = max(k / kills / lk if kills else 0, (b / prim / lb) if (prim and lb) else 0)
+            hits.append((score, g))
+    hits.sort(reverse=True)
+    return {"games": len(use), "kills": kills, "rounds": prim, "groups": groups,
+            "hits": [g for _, g in hits]}
+
+
 def _extract(match, puuid):
     """Zieht die Werte eines Spielers aus einem Match-Details-Objekt."""
     me = None
@@ -2552,10 +2614,24 @@ def _extract(match, puuid):
     first_kills = 0
     multi_kills = 0
     plants = defuses = 0
+    wk, wb, prim = {}, {}, 0      # Waffen-Crutch (2.6.5): Kills / Kaufrunden je Gruppe, Runden mit Primaerwaffe
 
     for rnd in match.get("roundResults") or []:
         best_time = None
         for ps in rnd.get("playerStats") or []:
+            if ps.get("subject") == puuid:
+                w = str((ps.get("economy") or {}).get("weapon") or "").lower()
+                if w and w not in SIDEARM_UUIDS:
+                    prim += 1
+                    g = CRUTCH_WEAPONS.get(w)
+                    if g:
+                        wb[g] = wb.get(g, 0) + 1
+                for k in ps.get("kills") or []:
+                    fd = k.get("finishingDamage") or {}
+                    if fd.get("damageType") == "Weapon" and (k.get("killer") or puuid) == puuid:
+                        g = CRUTCH_WEAPONS.get(str(fd.get("damageItem") or "").lower())
+                        if g:
+                            wk[g] = wk.get(g, 0) + 1
             for d in ps.get("damage") or []:
                 if ps.get("subject") == puuid:
                     head += d.get("headshots") or 0
@@ -2623,6 +2699,7 @@ def _extract(match, puuid):
         "multiKills": multi_kills,
         "plants": plants,
         "defuses": defuses,
+        "wk": wk, "wb": wb, "pr": prim,
     }
 
 
@@ -2722,6 +2799,7 @@ def _player_stats_fetch(puuid, count, season, key):
             "firstKills": s("firstKills"), "multiKills": s("multiKills"),
             "plants": s("plants"), "defuses": s("defuses"),
         }
+        out["weapons"] = _crutch_summary(out["matches"])
 
     # Sieg-/Match-Bilanz der LAUFENDEN Season (Riot-eigene Zaehlung, nicht
     # aus den oben abgerufenen `count` Matches hergeleitet - kann also mehr
@@ -2781,7 +2859,8 @@ def card_data(puuid):
     out = {"puuid": puuid,
            "results": results,
            "last": (matches or [None])[0],
-           "rankedTotals": comp_totals}
+           "rankedTotals": comp_totals,
+           "weapons": st.get("weapons")}
     if st.get("error"):
         out["error"] = st["error"]          # Seite versucht es spaeter erneut
     return out
@@ -3383,6 +3462,70 @@ def encounters_for(puuids):
         out = {p: {k: v for k, v in acc["players"][p].items() if k != "note"}
                for p in puuids if p in acc["players"]}
     return {"ok": True, "players": out}
+
+
+# ---------------------------- Spieler-Notizen (2.6.5) ----------------------------
+# Nutzerwunsch: eigene Notiz + Schnell-Tags je Spieler, ueber alle eigenen Riot-Konten hinweg (Schluessel
+# ist die puuid, bleibt bei Namenswechsel). Nur lokal in DATA_DIR - geht nie an rankyoinker.de.
+# Bis 1.9.x gab es schon einmal Notizen (Feld "note" in vry_encounters.json); die werden einmal uebernommen.
+NOTES_FILE = os.path.join(DATA_DIR, "player-notes.json")
+NOTE_TAGS = ("good", "toxic", "thrower", "smurf")
+NOTE_TEXT_MAX = 300
+NOTES_MAX = 3000
+_notes = {"data": None}
+
+
+def _notes_data():
+    """Alle Notizen {puuid: {...}} - einmal gelesen, danach im Speicher (nur der Dienst schreibt)."""
+    if _notes["data"] is not None:
+        return _notes["data"]
+    root = _load_json(NOTES_FILE)
+    players = root.get("players") if isinstance(root.get("players"), dict) else {}
+    if not root.get("imported"):
+        try:
+            for acc in _load_json(ENCOUNTERS_FILE).values():
+                for pid, e in ((acc or {}).get("players") or {}).items() if isinstance(acc, dict) else ():
+                    txt = str((e or {}).get("note") or "").strip()[:NOTE_TEXT_MAX]
+                    if txt and _is_puuid(pid) and pid not in players:
+                        players[pid] = {"text": txt, "tags": [], "name": str(e.get("name") or "")[:40],
+                                        "t": int(e.get("last") or time.time())}
+        except Exception:
+            pass
+        try:
+            _save_json(NOTES_FILE, {"v": 1, "imported": True, "players": players})
+        except Exception:
+            pass
+    _notes["data"] = players
+    return players
+
+
+def notes_all():
+    with _store_lock:
+        return {"ok": True, "players": dict(_notes_data()), "tags": list(NOTE_TAGS)}
+
+
+def note_set(puuid, text, tags, name=None):
+    """Leerer Text und keine Tags = Notiz loeschen."""
+    if not _is_puuid(puuid):
+        return {"ok": False, "error": "Keine Spieler-ID."}
+    text = str(text or "").replace("\r", "").strip()[:NOTE_TEXT_MAX]
+    tags = [t for t in NOTE_TAGS if t in (tags if isinstance(tags, list) else [])]
+    with _store_lock:
+        players = _notes_data()
+        if not text and not tags:
+            players.pop(puuid, None)
+            note = None
+        else:
+            if puuid not in players and len(players) >= NOTES_MAX:
+                return {"ok": False, "error": "full"}
+            note = {"text": text, "tags": tags, "t": int(time.time())}
+            nm = str(name or (players.get(puuid) or {}).get("name") or "").strip()[:40]
+            if nm:
+                note["name"] = nm
+            players[puuid] = note
+        _save_json(NOTES_FILE, {"v": 1, "imported": True, "players": players})
+    record_feature("player_notes")
+    return {"ok": True, "note": note}
 
 
 # Je Spieler werden ausser den Zählern die letzten Begegnungen einzeln
@@ -12227,6 +12370,8 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: preset_import(body.get("presets")))
         elif path == "/api/encounters/record":
             self._safe(lambda: encounters_record(body.get("matchId"), body.get("players")))
+        elif path == "/api/notes":
+            self._safe(lambda: note_set(body.get("puuid"), body.get("text"), body.get("tags"), body.get("name")))
         elif path == "/api/chat/status":
             self._safe(lambda: chat_set_status(body.get("status")))
         elif path == "/api/chat/auto":
@@ -12574,6 +12719,9 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/presets":
             self._safe(account_presets)
+
+        elif path == "/api/notes":
+            self._safe(notes_all)
 
         elif path == "/api/encounters":
             ids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]

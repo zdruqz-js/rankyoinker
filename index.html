@@ -927,6 +927,43 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
   animation:popIn .55s var(--spring) both;
 }
 .smurf-slot:empty{display:none;}
+/* Spieler-Notiz + Waffen-Crutch (2.6.5) - stehen oben links neben "2x" */
+.note-badge, .crutch-badge{
+  display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; cursor:help; max-width:100%;
+  font-family:var(--font-mono); font-weight:600; font-size:10.5px; letter-spacing:.04em; white-space:nowrap;
+  animation:popIn .55s var(--spring) both;
+}
+.note-badge{color:#e9e6ff; background:rgba(28,26,40,.88); border:1px solid rgba(190,180,255,.45); box-shadow:0 6px 18px -6px rgba(0,0,0,.7);}
+.note-badge.t-good{color:#06210f; background:#5fd68a; border-color:transparent;}
+.note-badge.t-toxic, .note-badge.t-thrower{color:#2b0606; background:#ff6b6b; border-color:transparent;}
+.note-badge.t-smurf{color:#2a1300; background:#ffa257; border-color:transparent;}
+.crutch-badge{text-transform:uppercase; color:#ffd8f0; background:rgba(60,14,44,.9); border:1px solid rgba(255,110,190,.55); box-shadow:0 6px 18px -6px rgba(255,80,170,.45);}
+.crutch-slot:empty{display:none;}
+/* Notiz im Spieler-Fenster */
+.note-box{display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid var(--line-2, rgba(255,255,255,.08));}
+.note-tags{display:flex; flex-wrap:wrap; gap:6px;}
+.note-tag{padding:6px 12px; border-radius:999px; font:600 12px/1 var(--font-body, inherit); color:var(--text-2); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); cursor:pointer; transition:background .15s, color .15s, border-color .15s;}
+.note-tag:hover{color:var(--text); border-color:rgba(255,255,255,.22);}
+.note-tag.on.t-good{color:#06210f; background:#5fd68a; border-color:transparent;}
+.note-tag.on.t-toxic, .note-tag.on.t-thrower{color:#2b0606; background:#ff6b6b; border-color:transparent;}
+.note-tag.on.t-smurf{color:#2a1300; background:#ffa257; border-color:transparent;}
+.note-text{width:100%; min-height:64px; resize:vertical; box-sizing:border-box; padding:10px 12px; border-radius:12px; font:13.5px/1.5 var(--font-body, inherit);
+  color:var(--text); background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.1); outline:none;}
+.note-text:focus{border-color:var(--accent);}
+.note-foot{display:flex; justify-content:space-between; gap:10px; font-size:11.5px; color:var(--text-3, var(--text-faint));}
+.note-state.ok{color:var(--green);} .note-state.err{color:var(--loss);}
+/* Waffen-Crutch im Spieler-Fenster */
+.crutch-list{display:flex; flex-direction:column; gap:6px;}
+.crutch-row{display:grid; grid-template-columns:92px 1fr auto auto; align-items:center; gap:12px; padding:8px 12px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); font-size:13px;}
+.crutch-row.hit{border-color:rgba(255,110,190,.5); background:rgba(255,80,170,.07);}
+.crutch-row .cw{font-weight:700;}
+.crutch-row .cbar{height:6px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden;}
+.crutch-row .cbar i{display:block; height:100%; border-radius:99px; background:var(--text-3, #888);}
+.crutch-row.hit .cbar i{background:#ff6ebe;}
+.crutch-row .cv{font-family:var(--font-mono); font-weight:600; min-width:62px; text-align:right;}
+.crutch-row .cv small{font-weight:500; color:var(--text-3, var(--text-faint)); margin-left:3px;}
+.crutch-foot{margin-top:6px; font-size:11.5px; color:var(--text-3, var(--text-faint));}
+@media (max-width:560px){ .crutch-row{grid-template-columns:76px 1fr auto; } .crutch-row .cv.b{display:none;} }
 
 .pcard-body{position:relative; z-index:3; display:flex; flex-direction:column; gap:8px; padding:10px 11px 12px; flex:1;}
 
@@ -2577,8 +2614,8 @@ ul.ry-upd-notes li:nth-child(4){animation-delay:.15s;} ul.ry-upd-notes li:nth-ch
 .rr-pt:hover{transform:scale(1.5);}
 .rr-svg{height:auto;}
 /* Badges nur beim echten Szenenwechsel einploppen lassen, nicht bei jedem Heartbeat */
-#content .enc-badge, #content .smurf-badge{animation:none;}
-#content.anim .enc-badge, #content.anim .smurf-badge{animation:popIn .55s var(--spring) both;}
+#content .enc-badge, #content .smurf-badge, #content .note-badge, #content .crutch-badge{animation:none;}
+#content.anim .enc-badge, #content.anim .smurf-badge, #content.anim .note-badge, #content.anim .crutch-badge{animation:popIn .55s var(--spring) both;}
 .agentpick.instalock{margin-top:0;}
 .agent-fallback-big{font-size:54px; color:rgba(255,255,255,.12);}
 .card-grid > *{max-width:340px;}
@@ -3771,6 +3808,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     play: '<path d="M7 4.7v14.6a1 1 0 0 0 1.53.85l11.7-7.3a1 1 0 0 0 0-1.7L8.53 3.85A1 1 0 0 0 7 4.7z" fill="currentColor" stroke="none"/>',
     stop: '<rect x="5.5" y="5.5" width="13" height="13" rx="3.5" fill="currentColor" stroke="none"/>',
     loader: '<path d="M21 12a9 9 0 1 1-6.2-8.56"/>',
+    edit: '<path d="M4 20h4L19 9a2.83 2.83 0 0 0-4-4L4 16v4z"/><path d="m13.5 6.5 4 4"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
     layers: '<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>',
     keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9"/>',
@@ -5254,6 +5292,57 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     return `<span class="enc-badge${games >= 5 ? ' hot' : ''}" data-tip="${esc(tip)}">${games}×</span>`;
   }
 
+  // ---------- Spieler-Notizen (2.6.5) ----------
+  // Liegen nur lokal im Dienst (player-notes.json), Schluessel puuid - bleibt bei Namenswechsel.
+  const NOTE_TAGS = ['good', 'toxic', 'thrower', 'smurf'];
+  let notesCache = {}, notesLoaded = false;
+  function loadNotes(){
+    api('/api/notes').catch(apiFail).then(j => {
+      if(!j || !j.ok) return;
+      const sig = JSON.stringify(j.players || {});
+      const changed = sig !== JSON.stringify(notesCache);
+      notesCache = j.players || {};
+      notesLoaded = true;
+      if(changed && latestData){ lastFullSig = ''; render(); }
+    });
+  }
+  function noteBadgeHtml(puuid){
+    const n = puuid && notesCache[puuid];
+    if(!n) return '';
+    const tags = (n.tags || []).filter(x => NOTE_TAGS.includes(x));
+    const tip = [tags.map(x => t('note_tag_' + x)).join(' · '), n.text || ''].filter(Boolean).join('\n');
+    const label = tags.length ? t('note_tag_' + tags[0]) + (tags.length > 1 ? ' +' + (tags.length - 1) : '') : t('note_badge');
+    return `<span class="note-badge${tags.length ? ' t-' + tags[0] : ''}" data-tip="${esc(tip)}">${svgIcon('edit', 11)}${esc(label)}</span>`;
+  }
+  // Waffen-Crutch (2.6.5): der Dienst wertet die "Letzte 5" aus (weapons.hits, staerkste zuerst)
+  const CRUTCH_NAMES = {op:'Operator', odin:'Odin', shotgun:'Shotguns', marshal:'Marshal', outlaw:'Outlaw', shorty:'Shorty'};
+  const CRUTCH_SHORT = {op:'OP', odin:'Odin', shotgun:'Shotgun', marshal:'Marshal', outlaw:'Outlaw', shorty:'Shorty'};
+  function crutchPart(g, x){
+    const parts = [];
+    if(x.kp != null && x.k) parts.push(t('crutch_tip_kills', {pct: x.kp}));
+    if(x.bp != null && x.b) parts.push(t('crutch_tip_buys', {pct: x.bp}));
+    return CRUTCH_NAMES[g] + ': ' + parts.join(', ');
+  }
+  function crutchBadgeHtml(puuid){
+    const w = kdaCache[puuid] && kdaCache[puuid].weapons;
+    const hits = (w && w.hits || []).filter(g => CRUTCH_NAMES[g] && w.groups && w.groups[g]);
+    if(!hits.length) return '';
+    const tip = t('crutch_tip_head', {games: w.games}) + '\n' + hits.map(g => crutchPart(g, w.groups[g])).join('\n');
+    return `<span class="crutch-badge" data-tip="${esc(tip)}">${esc(t('crutch_badge', {weapon: CRUTCH_SHORT[hits[0]]}))}</span>`;
+  }
+  function crutchSlotHtml(p, isMe){
+    if(!p.puuid || isMe) return '';
+    return kdaCache[p.puuid] !== undefined ? crutchBadgeHtml(p.puuid) : `<span class="crutch-slot" data-crutch="${esc(p.puuid)}"></span>`;
+  }
+  function paintCrutch(){
+    content.querySelectorAll('.crutch-slot[data-crutch]').forEach(el => {
+      const id = el.getAttribute('data-crutch');
+      if(kdaCache[id] === undefined) return;
+      const html = crutchBadgeHtml(id);
+      if(html) el.outerHTML = html; else el.remove();
+    });
+  }
+
   // Zählstände laden und Badges nachtragen.
   // Gezählt wird NICHT hier, sondern im Log-Server: Der merkt selbst, wann ein
   // Match beginnt, und holt sich den Kader direkt von Riot. Sonst fiele jedes
@@ -5596,6 +5685,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     });
     fillMissingStats();
     paintSmurf();
+    paintCrutch();
   }
 
   // ---------- Smurf-Hinweis ----------
@@ -5835,7 +5925,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       <div class="pcard-portrait">
         ${info && info.art ? `<div class="pc-art" style="background-image:url('${esc(info.art)}');"></div>` : ''}
         ${isMe ? `<span class="you-badge">${t('pregame_you')}</span>` : ''}
-        <div class="pc-tl">${p.puuid ? (encCache[p.puuid] !== undefined ? encBadgeHtml(p.puuid) : `<span class="enc-slot" data-enc="${esc(p.puuid)}"></span>`) : ''}</div>
+        <div class="pc-tl">${p.puuid ? (encCache[p.puuid] !== undefined ? encBadgeHtml(p.puuid) : `<span class="enc-slot" data-enc="${esc(p.puuid)}"></span>`) : ''}${isMe ? '' : noteBadgeHtml(p.puuid)}${crutchSlotHtml(p, isMe)}</div>
         ${portraitUrl
           ? `<img class="portrait ${isFullPortrait ? 'full' : ''}" src="${esc(portraitUrl)}" alt="" loading="lazy">`
           : `<div class="agent-fallback-big">${esc(String(p.agent || '?').slice(0,2).toUpperCase())}</div>`}
@@ -6001,6 +6091,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
             </div>
           </div>
         </div>
+        <div id="modalNote">${noteEditorHtml(p.puuid || keyHint)}</div>
         <div id="modalMeta"></div>
         <div class="sec-title">${t('performance_recent_matches')}</div>
         <div id="modalStats"></div>
@@ -6012,8 +6103,89 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     openModalPlayerKey = p.puuid || keyHint || null;
     lastModalPlayer = p;
     document.getElementById('modalClose').addEventListener('click', closeModal);
+    bindNoteEditor(p.puuid || keyHint, p.name);
     loadModalStats(p.puuid || keyHint);
     loadModalMeta(p.puuid || keyHint);
+  }
+
+  // ---------- Notiz im Spieler-Fenster (2.6.5) ----------
+  // Speichert von selbst (Tag-Klick sofort, Text kurz nach dem Tippen bzw. beim Verlassen des Felds).
+  const noteEdit = {puuid: null, timer: null, saving: false};
+  function noteBusy(){ return !!(noteEdit.timer || noteEdit.saving); }
+  function noteIsSelf(puuid){ return !puuid || puuid === ownPuuid || (latestData && puuid === latestData.puuid); }
+  function noteEditorHtml(puuid){
+    if(noteIsSelf(puuid) || typeof puuid !== 'string' || puuid.length > 80) return '';   // gueltige puuid prueft der Dienst
+    const n = notesCache[puuid] || {};
+    const on = new Set(n.tags || []);
+    return `<div class="sec-title">${t('note_title')}</div>
+      <div class="note-box">
+        <div class="note-tags">${NOTE_TAGS.map(x => `<button type="button" class="note-tag t-${x}${on.has(x) ? ' on' : ''}" data-ntag="${x}" aria-pressed="${on.has(x)}">${esc(t('note_tag_' + x))}</button>`).join('')}</div>
+        <textarea class="note-text" id="noteText" maxlength="300" rows="2" placeholder="${esc(t('note_placeholder'))}">${esc(n.text || '')}</textarea>
+        <div class="note-foot"><span>${esc(t('note_local_hint'))}</span><span class="note-state" id="noteState"></span></div>
+      </div>`;
+  }
+  function bindNoteEditor(puuid, name){
+    noteEdit.puuid = puuid;
+    clearTimeout(noteEdit.timer); noteEdit.timer = null;
+    const box = document.getElementById('modalNote');
+    const ta = document.getElementById('noteText');
+    if(!box || !ta) return;
+    const save = () => {
+      clearTimeout(noteEdit.timer); noteEdit.timer = null;
+      const tags = Array.from(box.querySelectorAll('.note-tag.on')).map(b => b.getAttribute('data-ntag'));
+      const text = ta.value.trim();
+      const old = notesCache[puuid] || {};
+      if(text === (old.text || '') && tags.join() === (old.tags || []).join()) return;
+      const st = document.getElementById('noteState');
+      noteEdit.saving = true;
+      api('/api/notes', {puuid, text, tags, name: name || ''}).catch(apiFail).then(j => {
+        noteEdit.saving = false;
+        if(j && j.ok){
+          if(j.note) notesCache[puuid] = j.note; else delete notesCache[puuid];
+          if(st && modalIs(puuid)){ st.textContent = t('note_saved'); st.className = 'note-state ok'; }
+          if(latestData){ lastFullSig = ''; render(); }
+        } else if(st && modalIs(puuid)){
+          st.textContent = t('note_save_failed'); st.className = 'note-state err';
+        }
+      });
+    };
+    box.querySelectorAll('.note-tag').forEach(b => b.addEventListener('click', () => {
+      const on = !b.classList.contains('on');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+      save();
+    }));
+    ta.addEventListener('input', () => {
+      const st = document.getElementById('noteState');
+      if(st){ st.textContent = ''; st.className = 'note-state'; }
+      clearTimeout(noteEdit.timer);
+      noteEdit.timer = setTimeout(save, 800);
+    });
+    ta.addEventListener('blur', () => { if(noteEdit.timer) save(); });
+    // Esc im Textfeld schliesst das Fenster - vorher noch speichern
+    ta.addEventListener('keydown', e => { if(e.key === 'Escape' && noteEdit.timer) save(); });
+  }
+
+  // Waffen-Crutch-Abschnitt im Spieler-Fenster (Anteile ueber die angezeigten Matches)
+  function crutchGroupHtml(w){
+    if(!w) return '';
+    const groups = Object.entries(w.groups || {}).filter(([g]) => CRUTCH_NAMES[g]);
+    const hits = new Set(w.hits || []);
+    groups.sort((a, b) => (hits.has(b[0]) - hits.has(a[0])) || ((b[1].kp || 0) - (a[1].kp || 0)));
+    const rows = groups.map(([g, x]) => {
+      const pct = Math.max(x.kp || 0, x.bp || 0);
+      return `<div class="crutch-row${hits.has(g) ? ' hit' : ''}">
+        <span class="cw">${esc(CRUTCH_NAMES[g])}</span>
+        <span class="cbar"><i style="width:${Math.min(100, pct)}%;"></i></span>
+        <span class="cv" data-tip="${esc(t('crutch_kills_tip', {n: x.k}))}">${x.kp != null ? x.kp + '%' : '—'}<small>${esc(t('crutch_kills_short'))}</small></span>
+        <span class="cv b" data-tip="${esc(x.bp != null ? t('crutch_buys_tip', {n: x.b}) : t('crutch_buys_na'))}">${x.bp != null ? x.bp + '%' : '—'}<small>${esc(t('crutch_buys_short'))}</small></span>
+      </div>`;
+    }).join('');
+    return `<div class="stat-group">
+      <div class="stat-group-label">${t('stat_group_weapons')}</div>
+      ${rows ? `<div class="crutch-list">${rows}</div>` : `<div class="crutch-foot">${esc(t('crutch_none'))}</div>`}
+      <div class="crutch-foot">${esc(t('crutch_basis', {games: w.games, kills: w.kills, rounds: w.rounds}))}</div>
+    </div>`;
   }
 
   // Zieht ein bereits offenes Spieler-Modal live nach, wenn Loadout/Sprays erst
@@ -6321,7 +6493,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
               ${statBox(tot.plants, t('stat_plants'))}
               ${statBox(tot.defuses, t('stat_defuses'))}
             </div>
-          </div>`;
+          </div>
+          ${crutchGroupHtml(j.weapons)}`;
         const moreHtml = hasMore ? `<button class="btn-loadmore" id="loadMoreMatchesBtn">${t('load_more_n_btn', {n: MODAL_STATS_STEP})}</button>` : '';
         const list = box.querySelector('.match-list');
         if(loadingMore && list){
@@ -8050,6 +8223,9 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // Zurück im Tab: sofort nachziehen, statt auf den gedrosselten Poll zu warten
   document.addEventListener('visibilitychange', () => { if(!document.hidden) syncInstalock(); });
   window.addEventListener('focus', () => syncInstalock());
+  // Notizen: einmal laden, beim Zurueckkehren neu (Handy und PC koennen beide schreiben)
+  loadNotes();
+  document.addEventListener('visibilitychange', () => { if(!document.hidden && !noteBusy()) loadNotes(); });
 
   // ================= PARTY =================
   const QUEUE_NAMES = {
@@ -12144,7 +12320,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.4.1";
+const CURRENT_VERSION = "2.6.5-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
