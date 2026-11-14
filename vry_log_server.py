@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.5"
+APP_VERSION = "2.6.6"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -630,14 +630,58 @@ def _notify_match_tracked_once(game, match_id):
 # Heartbeat/Update-Download stillschweigend verschluckt wurden. Fix: beim
 # Standardkontext bleiben, aber bei einem Zertifikatsfehler einmal mit dem
 # mitgelieferten certifi-Bundle (lib/certifi/cacert.pem) erneut versuchen.
-try:
-    import certifi
-    _CERTIFI_CTX = ssl.create_default_context(cafile=certifi.where())
-except Exception:
-    _CERTIFI_CTX = None
+#
+# 2.6.6: "import certifi" klappte im Dienst NIE - das python310._pth aus dem
+# python.org-Embed-Paket (CI) bindet lib/ nicht ein, _CERTIFI_CTX war immer
+# None und der Fallback tot. Folge: auf PCs, deren Windows-Zertifikatsdepot die
+# Root von pvp.net (IdenTrust Commercial Root CA 1) noch nicht hat (Windows
+# laedt Roots erst bei Bedarf nach - Browser/Riot Client loesen das aus,
+# Pythons OpenSSL nicht), scheiterte jede pd-/glz-Anfrage des Dienstes mit
+# "unable to get local issuer certificate" (Dashboard 2026-11: tausende Fehler
+# bei /api/premades, /api/shop, /api/lobby ..., fast nur KR). Jetzt wird
+# cacert.pem direkt aus lib/ gelesen (Ordner oder library.zip, je nachdem wie
+# cx_Freeze es ablegt), ohne lib/ in sys.path zu haengen.
+def _load_certifi_ctx():
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+    lib = os.path.join(BASE, "lib")
+    try:
+        pem = os.path.join(lib, "certifi", "cacert.pem")
+        if os.path.isfile(pem):
+            return ssl.create_default_context(cafile=pem)
+    except Exception:
+        pass
+    try:
+        import zipfile
+        with zipfile.ZipFile(os.path.join(lib, "library.zip")) as z:
+            text = z.read("certifi/cacert.pem").decode("utf-8", "replace")
+        # cadata als str muss reines ASCII sein - die Kommentarzeilen der
+        # Datei enthalten Umlaute, darum nur die PEM-Bloecke uebernehmen.
+        blocks = re.findall(r"-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+?-----END CERTIFICATE-----", text)
+        if blocks:
+            return ssl.create_default_context(cadata="\n".join(blocks))
+    except Exception:
+        pass
+    return None
+
+
+_CERTIFI_CTX = _load_certifi_ctx()
+# Einmal "System scheitert, certifi klappt" gesehen -> danach certifi zuerst
+# (spart pro Anfrage einen vergeblichen TLS-Handshake; verifiziert weiter voll).
+_TLS_PREFER_CERTIFI = {"on": False}
+
+
+def _tls_ctx_first():
+    return _CERTIFI_CTX if (_CERTIFI_CTX and _TLS_PREFER_CERTIFI["on"]) else None
 
 
 def _urlopen_public(req, timeout):
+    first = _tls_ctx_first()
+    if first is not None:
+        return urllib.request.urlopen(req, timeout=timeout, context=first)
     try:
         return urllib.request.urlopen(req, timeout=timeout)
     except urllib.error.URLError as e:
@@ -648,7 +692,9 @@ def _urlopen_public(req, timeout):
         # eigentlichen Fehler). Der erste Versuch dieses Fixes hat genau
         # deswegen nie gegriffen - der Fallback-Zweig war totes Code.
         if _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
-            return urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX)
+            r = urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX)
+            _TLS_PREFER_CERTIFI["on"] = True
+            return r
         raise
 
 
@@ -898,10 +944,16 @@ def _telemetry_noise(source, err):
     * Heartbeat erreicht rankyoinker.de kurz nicht (Timeout, 5xx, DNS) -
       fehlende Heartbeats sieht man im Dashboard ohnehin.
     * League Client lehnt die Verbindung ab (WinError 10061) - passiert beim
-      Schliessen/Neustarten des Clients, bevor das Lockfile weg ist."""
-    if isinstance(err, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
-        return True
+      Schliessen/Neustarten des Clients, bevor das Lockfile weg ist.
+    * 2.6.6: dieselben Abbrüche, wenn urllib sie als URLError verpackt
+      (steckt dann in .reason), PC offline/DNS weg (getaddrinfo, 11001) und
+      der lokale Riot Client lehnt ab (10061 bei /api/..., beim Beenden)."""
     reason = getattr(err, "reason", None)
+    for x in (err, reason):
+        if isinstance(x, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, socket.gaierror)):
+            return True
+    if str(source).startswith("api ") and isinstance(reason, ConnectionRefusedError):
+        return True
     if source == "heartbeat":
         if isinstance(err, urllib.error.HTTPError):
             return err.code >= 500
@@ -1610,15 +1662,22 @@ def _http(url, headers=None, method="GET", body=None, timeout=12, local_unverifi
                                  data=(body.encode("utf-8") if body else None))
     for k, v in (headers or {}).items():
         req.add_header(k, v)
-    ctx = _SSL if local_unverified else None
+    ctx = _SSL if local_unverified else _tls_ctx_first()
     try:
         try:
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
                 raw = _unzip(r.read(), r.headers)
                 return r.status, (json.loads(raw) if raw else None)
         except urllib.error.URLError as e:
-            if (not local_unverified) and _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
-                with urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX) as r:
+            if (not local_unverified) and ctx is None and _CERTIFI_CTX and isinstance(e.reason, ssl.SSLError):
+                try:
+                    r = urllib.request.urlopen(req, timeout=timeout, context=_CERTIFI_CTX)
+                except urllib.error.HTTPError:
+                    # auch 404/429 & Co. heissen: TLS mit certifi ging
+                    _TLS_PREFER_CERTIFI["on"] = True
+                    raise
+                _TLS_PREFER_CERTIFI["on"] = True
+                with r:
                     raw = _unzip(r.read(), r.headers)
                     return r.status, (json.loads(raw) if raw else None)
             raise
@@ -6385,7 +6444,23 @@ def _ovl_err_tail():
     return tail.strip()
 
 
-def _ovl_should_run(now):
+def _ovl_tail_short(tail):
+    """Telemetrie schneidet nach 300 Zeichen ab - bei einem Traceback stand da
+    nur der Anfang ("File ... in main"), die eigentliche Ausnahme fehlte. Darum
+    zuerst die Ausnahme, dann die Stelle (letzte "File"-Zeile + Code), dann der Rest."""
+    lines = [l.strip() for l in tail.splitlines() if l.strip()]
+    if "Traceback (most recent call last):" not in tail or len(lines) < 2:
+        return tail
+    exc = lines[-1]
+    where = ""
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].startswith("File "):
+            m = re.match(r'File "(?:.*[\\/])?([^"\\/]+)", line (\d+), in (\S+)', lines[i])
+            where = ("%s:%s %s" % m.groups()) if m else lines[i]
+            if i + 1 < len(lines) - 1 and not lines[i + 1].startswith("File "):
+                where += " | " + lines[i + 1]
+            break
+    return "%s @ %s" % (exc, where) if where else exc
     if now - _ovl["previewAt"] < sum(d for _, d in OVL_PREVIEW) + 2:
         return True
     # Zustand vom _game_watcher (alle 5 s, prueft game_ready) - hier kein eigenes tasklist
@@ -6426,7 +6501,7 @@ def _ovl_tick(now):
         if not _ovl["stopping"] and (code != 0 or tail):
             if code != 0:
                 _ovl["crashes"].append(now)
-            report_error("game-overlay", RuntimeError("Overlay beendet mit Code %s %s" % (code, tail)))
+            report_error("game-overlay", RuntimeError("Overlay beendet mit Code %s %s" % (code, _ovl_tail_short(tail))))
     if _ovl_should_run(now):
         _ovl["stopAt"] = 0.0
         if not proc:
