@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.6"
+APP_VERSION = "2.6.6.1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -6461,6 +6461,9 @@ def _ovl_tail_short(tail):
                 where += " | " + lines[i + 1]
             break
     return "%s @ %s" % (exc, where) if where else exc
+
+
+def _ovl_should_run(now):
     if now - _ovl["previewAt"] < sum(d for _, d in OVL_PREVIEW) + 2:
         return True
     # Zustand vom _game_watcher (alle 5 s, prueft game_ready) - hier kein eigenes tasklist
