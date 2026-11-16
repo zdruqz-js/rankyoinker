@@ -12184,7 +12184,7 @@ def _bot_roster_item():
 _BOT_VAL_SET = {
     # Nutzerwunsch 2026-11-16: der Kontakt erscheint als Radiant #1 mit Premier-Tag "RY" (nur der lokale Kontakt -
     # die eigene Presence und alles, was an Riot geht, bleibt unveraendert)
-    "playerCardId": CHAT_BOT_CARD, "playerTitleId": "", "accountLevel": 1, "competitiveTier": CHAT_BOT_TIER,
+    "playerCardId": CHAT_BOT_CARD, "playerTitleId": "", "accountLevel": 1337, "competitiveTier": CHAT_BOT_TIER,
     "leaderboardPosition": 1, "isIdle": False, "isPartyOwner": True, "partySize": 1, "partyState": "DEFAULT",
     "partyAccessibility": "CLOSED", "partyLFM": False, "queueId": "", "matchMap": "", "partyOwnerMatchMap": "",
     "sessionLoopState": "MENUS", "partyOwnerSessionLoopState": "MENUS", "customGameName": CHAT_BOT_NAME,
