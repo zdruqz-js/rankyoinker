@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev7"
+APP_VERSION = "2.6.7-dev8"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -12067,10 +12067,19 @@ def _dbg_raw_games(stanza):
         return b""
 
 
-def _dbg_skeleton(stanza):
-    """Nur die Tag-Folge einer Stanza (Inhalte durch ihre Laenge ersetzt) - fuer die "bot"-Zeile im Debug."""
+_DBG_KEEP = (b"st", b"s.p", b"s.r", b"s.c", b"show", b"platform")
+
+
+def _dbg_skeleton(stanza, strict=False):
+    """Nur die Tag-Folge einer Stanza (Inhalte durch ihre Laenge ersetzt) - fuer die "bot"-Zeile im Debug.
+    strict (fremde Presences): JEDER Text wird zur Laenge, ausser in den Status-/Produkt-Feldern."""
     try:
-        return re.sub(rb">([^<]{13,})<", lambda m: b">[%d]<" % len(m.group(1)), stanza)[:1100]
+        if not strict:
+            return re.sub(rb">([^<]{13,})<", lambda m: b">[%d]<" % len(m.group(1)), stanza)[:1100]
+
+        def repl(m):
+            return m.group(0) if m.group(1) in _DBG_KEEP else b"<" + m.group(1) + (m.group(2) or b"") + b">[%d]<" % len(m.group(3))
+        return re.sub(rb"<([A-Za-z0-9_.]+)(\s[^>]*)?>([^<]+)<", repl, stanza)[:1300]
     except Exception:
         return b""
 
@@ -12260,7 +12269,7 @@ def _bot_val_block(own_el, p64, now):
     return b"<valorant><st>chat</st><s.t>%d</s.t><s.p>valorant</s.p><s.r>PC</s.r><p>%s</p><pty/></valorant>" % (now, p64)
 
 
-def _bot_presence(filt=None):
+def _bot_presence(filt=None, to=None):
     """Presence des Chat-Freundes. Aufgebaut aus der eigenen Presence (Region, VALORANT-Daten), damit er in
     denselben Gruppen steht und VALORANT keine Versionswarnung zeigt. Ohne eigene Daten: nur Riot Client."""
     # Reihenfolge und <pty/>/<platform> wie Riots eigene Presence - in 2.6.4-dev1 ohne das stand der Freund
@@ -12278,21 +12287,31 @@ def _bot_presence(filt=None):
     # (League stand vorn, der VALORANT-Block fehlte in /chat/v4/presences). Per /api/chat/bot-test umstellbar.
     games = [blocks[n] for n in _bot_opts["order"] if n in blocks]
     plat = _bot_opts["platform"]
-    return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><games>%s</games>%s<show>chat</show><status/></presence>"
-            % (CHAT_BOT_JID.encode("ascii"), secrets.token_hex(6).encode("ascii"), b"".join(games),
+    to_attr = (b" to='" + to + b"'") if to and _bot_opts["to"] and re.fullmatch(rb"[^'\"<>&\s]{3,200}", to) else b""
+    return (b"<presence from='%s/%s'%s id='ry-%s'><games>%s</games>%s<show>chat</show><status/></presence>"
+            % (CHAT_BOT_JID.encode("ascii"), _bot_opts["resource"].encode("ascii"), to_attr,
+               secrets.token_hex(6).encode("ascii"), b"".join(games),
                (b"<platform>" + plat.encode("ascii") + b"</platform>") if plat else b""))
 
 
 # Diagnose (nur am PC, POST /api/chat/bot-test): Aufbau der Kontakt-Presence zur Laufzeit umstellen und sofort neu
 # schicken - damit laesst sich am PC ausprobieren, welche Form der Riot Client annimmt, ohne jedes Mal neu zu bauen.
 _BOT_GAMES = ("keystone", "valorant", "league_of_legends")
-_bot_opts = {"order": _BOT_GAMES, "platform": "riot"}
+_BOT_RESOURCE = "RC-RankYoinker"
+_bot_opts = {"order": _BOT_GAMES, "platform": "riot", "resource": _BOT_RESOURCE, "to": False}
 
 
 def chat_bot_test(body):
     body = body if isinstance(body, dict) else {}
     if body.get("reset"):
-        _bot_opts.update(order=_BOT_GAMES, platform="riot")
+        _bot_opts.update(order=_BOT_GAMES, platform="riot", resource=_BOT_RESOURCE, to=False)
+    res = body.get("resource")
+    if isinstance(res, str) and re.fullmatch(r"RC-[A-Za-z0-9]{1,24}", res):
+        _bot_opts["resource"] = res           # echte Clients heissen "RC-<Ziffern>"
+    if isinstance(body.get("to"), bool):
+        _bot_opts["to"] = body["to"]          # to='<eigene volle JID>' wie bei echten Presences vom Server
+    if body.get("sample"):
+        _chat_in_sample["left"] = 3           # die naechsten echten VALORANT-Presences von Freunden mitschreiben
     order = body.get("order")
     if isinstance(order, list):
         order = tuple(n for n in order if n in _BOT_GAMES)
@@ -12305,14 +12324,21 @@ def chat_bot_test(body):
         conns = list(_chat["conns"])
     for c in conns:
         c.bot_ver = False                     # beim naechsten Durchlauf neu schicken
-    return {"ok": True, "order": list(_bot_opts["order"]), "platform": _bot_opts["platform"], "conns": len(conns)}
+    return {"ok": True, "order": list(_bot_opts["order"]), "platform": _bot_opts["platform"],
+            "resource": _bot_opts["resource"], "to": _bot_opts["to"],
+            "conns": [{"n": c.n, "valorant": bool(c.filt.val_json), "roster": bool(c.roster.done),
+                       "age": int(time.time() - c.since)} for c in conns]}
+
+
+_chat_in_sample = {"left": 3}                 # so viele eingehende VALORANT-Presences echter Freunde noch loggen
+_chat_conn_seq = {"n": 0}
 
 
 def _bot_message(text):
     t = time.time() + 1
     stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(t)) + ".%03d" % int((t % 1) * 1000)
-    return ("<message from='%s/RC-RankYoinker' stamp='%s' id='ry-%s' type='chat'><body>%s</body></message>"
-            % (CHAT_BOT_JID, stamp, secrets.token_hex(6), _xml_text(text))).encode("utf-8")
+    return ("<message from='%s/%s' stamp='%s' id='ry-%s' type='chat'><body>%s</body></message>"
+            % (CHAT_BOT_JID, _bot_opts["resource"], stamp, secrets.token_hex(6), _xml_text(text))).encode("utf-8")
 
 
 def _lang_string(key, default):
@@ -12573,6 +12599,9 @@ class _ChatConn:
         self.outbox = []            # DMs des Chat-Freundes an den Riot Client
         self.bot_ver = False        # False = Presence des Chat-Freundes noch nicht geschickt, sonst bot_sig()
         self.own = None             # eigene JID ohne Ressource (aus der bind-Antwort), nur fuer die Diagnose
+        self.own_full = None        # ... und mit Ressource (fuer to='...' des Chat-Freundes, nur Testschalter)
+        _chat_conn_seq["n"] += 1
+        self.n = _chat_conn_seq["n"]
         self.intro_at = 0.0
 
     def _to_client(self):
@@ -12582,9 +12611,9 @@ class _ChatConn:
         a = self.cli
         if self.bot_ver is False or self.bot_ver != self.filt.bot_sig():
             self.bot_ver = self.filt.bot_sig()
-            pres = _bot_presence(self.filt)
+            pres = _bot_presence(self.filt, self.own_full)
             _sock_send(a, pres)
-            _chat_dbg_add("bot", _dbg_raw_games(pres) + _dbg_skeleton(pres))
+            _chat_dbg_add("bot", b"c%d " % self.n + _dbg_raw_games(pres) + _dbg_skeleton(pres))
             if not self.intro_at:
                 self.intro_at = time.time() + CHAT_BOT_INTRO_DELAY
         if self.intro_at > 0 and time.time() >= self.intro_at:
@@ -12640,9 +12669,25 @@ class _ChatConn:
         """Diagnose: was der Server als eigene Presence zurueckmeldet (best effort, nur ganze Stanzas im Block)."""
         try:
             if self.own is None:
-                m = re.search(rb"<jid>([^<@/]{1,80}@[^<@/]{1,80})(?:/[^<]*)?</jid>", data)
+                m = re.search(rb"<jid>([^<@/]{1,80}@[^<@/]{1,80})(/[^<]{1,80})?</jid>", data)
                 if m:
                     self.own = m.group(1)
+                    self.own_full = m.group(1) + (m.group(2) or b"")
+            if _chat_in_sample["left"] > 0 and b"<valorant" in data and b"<presence" in data:
+                # Vorlage: wie sieht die Presence eines ECHTEN Freundes in VALORANT aus, wenn sie vom Server kommt?
+                for m in re.finditer(rb"<presence\s[^>]*>", data):
+                    if m.group(0).endswith(b"/>"):
+                        continue
+                    k = data.find(b"</presence", m.end())
+                    if k < 0:
+                        break
+                    st = data[m.start():data.find(b">", k) + 1]
+                    if (b"<valorant" in st and CHAT_BOT_ID.encode("ascii") not in st
+                            and not (self.own and re.search(rb"from=['\"]" + re.escape(self.own), m.group(0)))):
+                        _chat_in_sample["left"] -= 1
+                        _chat_dbg_add("in", b"c%d " % self.n + _dbg_raw_games(st) + _dbg_skeleton(st, True))
+                        if _chat_in_sample["left"] <= 0:
+                            break
             if self.own and b"<presence" in data:
                 for m in re.finditer(rb"<presence\s[^>]*?from=['\"]" + re.escape(self.own) + rb"[/'\"]", data):
                     head = _start_tag_end(data, m.start())
