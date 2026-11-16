@@ -2915,12 +2915,14 @@ def _hist_still_there(pairs, now):
     die Grenze, vor der es nichts mehr gibt - beim naechsten Spieler entfallen die vergeblichen Abrufe."""
     with _cache_lock:
         gone = {mid for mid, ts in _match_404.items() if now - ts < MATCH_404_TTL}
+        have = {mid for mid, _ in pairs if mid in _match_cache}    # Kurzfassung liegt schon hier (auch von der Platte)
     for mid, t in pairs:
         if mid in gone and t and now * 1000 - t > HIST_GONE_MIN_AGE * 1000 and t > _hist_gone["before"]:
             _hist_gone["before"] = t
-    # ein 404 zaehlt nur bei Matches, die aelter als einen Tag sind (frisch beendete brauchen kurz)
-    return [mid for mid, t in pairs
-            if not (mid in gone and (not t or now * 1000 - t > 86400000)) and not (t and t <= _hist_gone["before"])]
+    # ein 404 zaehlt nur bei Matches, die aelter als einen Tag sind (frisch beendete brauchen kurz); was wir
+    # schon als Kurzfassung haben, bleibt immer - dafuer muss Riot nichts mehr liefern
+    return [mid for mid, t in pairs if mid in have or (
+        not (mid in gone and (not t or now * 1000 - t > 86400000)) and not (t and t <= _hist_gone["before"]))]
 
 
 def _hist_prepend(pu, mid, comp, now, start_ms=None):
