@@ -12193,7 +12193,8 @@ _BOT_VAL_SET = {
 }
 
 
-_BOT_PREMIER = {"rosterName": CHAT_BOT_NAME, "rosterTag": "RY", "rosterId": CHAT_BOT_ROSTER, "showTag": True}
+_BOT_PREMIER = {"rosterName": CHAT_BOT_NAME, "rosterTag": "RY", "rosterId": CHAT_BOT_ROSTER, "showTag": True,
+                "score": 1337}                 # Premier-Score: Nutzerwunsch 2026-11-16
 
 
 def _bot_val_json(own):
@@ -12458,6 +12459,7 @@ class _PresenceFilter:
         self.val_el = None      # der ganze eigene <valorant>-Block, wie der Riot Client ihn schickt
         self.lol_region = b""   # <s.r>/<s.c> der eigenen League-Presence (Freund in derselben Gruppe)
         self.published = set() # Spiele, die in dieser Verbindung unverfaelscht an den Server gingen
+        self.tag = b""          # "c<n> " fuer die Diagnose: der Riot Client UND VALORANT haben je eine Verbindung
         self.replays = 0
         self.commands = []      # Texte, die an den Chat-Freund gingen
 
@@ -12517,12 +12519,12 @@ class _PresenceFilter:
             return stanza
         head = stanza[:_start_tag_end(stanza)]
         if _RE_X_DIRECTED.search(head):        # an Lobby-/Party-Chat gerichtet oder unavailable
-            _chat_dbg_add("dir", stanza[:400])
+            _chat_dbg_add("dir", self.tag + stanza[:400])
             return stanza
         self.last = stanza
         self._own(stanza)
         out = self._out(stanza, status)
-        _chat_dbg_add("up", _dbg_raw_games(stanza) + out)
+        _chat_dbg_add("up", self.tag + _dbg_raw_games(stanza) + out)
         return out
 
     def feed(self, data, status):
@@ -12568,7 +12570,7 @@ class _PresenceFilter:
         stanza = _RE_X_ID.sub(lambda m: m.group(1) + m.group(2) + m.group(3) + b"-ry%d" % self.replays + m.group(2),
                               self.last, count=1)
         out = self._out(stanza, status)
-        _chat_dbg_add("replay", _dbg_raw_games(stanza) + out)
+        _chat_dbg_add("replay", self.tag + _dbg_raw_games(stanza) + out)
         return out
 
 
@@ -12602,6 +12604,7 @@ class _ChatConn:
         self.own_full = None        # ... und mit Ressource (fuer to='...' des Chat-Freundes, nur Testschalter)
         _chat_conn_seq["n"] += 1
         self.n = _chat_conn_seq["n"]
+        self.filt.tag = b"c%d " % self.n
         self.intro_at = 0.0
 
     def _to_client(self):
@@ -12698,7 +12701,7 @@ class _ChatConn:
                     else:
                         k = data.find(b"</presence", head)
                         end = len(data) if k < 0 else data.find(b">", k) + 1
-                    _chat_dbg_add("echo", data[m.start():end])
+                    _chat_dbg_add("echo", b"c%d " % self.n + data[m.start():end])
         except Exception:
             pass
 
