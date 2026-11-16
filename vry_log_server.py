@@ -4694,6 +4694,42 @@ def _premades_build(mid, state, roster):
 # falsch, je Quelle), ohne Spieler. So laesst sich im Dashboard sehen, wie gut die Erkennung wirklich ist,
 # statt zu raten. Die eigene Party zaehlt nicht mit (die ist live bekannt und waere geschenkt).
 _party_eval = {"last": None, "n": 0}
+# Reihenfolge der Spielerliste (pregame-loadouts bzw. core-game Players), wie Riot sie liefert. Im Live-Test
+# 2026-11-16 stand die einzige fremde Party direkt nebeneinander vorn im Team - ob das eine Regel ist
+# (Matchmaking haengt Partys als Block an), zaehlt die Selbstkontrolle mit: partyEval.order.
+_premade_order = {"match": None, "order": [], "team": {}}
+
+
+def _party_order_stats(mid, by_pid):
+    """Stehen echte Partys (2 bis Teamgroesse-1 Spieler) in Riots Liste lueckenlos nebeneinander? None = keine
+    Liste zu diesem Match."""
+    po = _premade_order
+    if po["match"] != mid or not po["order"]:
+        return None
+    lists = {}
+    for pu in po["order"]:
+        lists.setdefault(po["team"].get(pu) or "", []).append(pu)
+    out = {"groups": 0, "together": 0, "front": 0, "chance": 0.0}
+    for g in by_pid.values():
+        teams = {po["team"].get(pu) or "" for pu in g}
+        if len(g) < 2 or len(teams) != 1:
+            continue
+        row = lists.get(teams.pop()) or []
+        if not all(pu in row for pu in g) or len(g) >= len(row):
+            continue
+        idx = sorted(row.index(pu) for pu in g)
+        out["groups"] += 1
+        if idx[-1] - idx[0] == len(g) - 1:
+            out["together"] += 1
+            if idx[0] == 0:
+                out["front"] += 1
+        # Wahrscheinlichkeit, dass k von n Plaetzen zufaellig einen Block bilden: (n-k+1) / C(n, k)
+        n, k = len(row), len(g)
+        comb = 1
+        for i in range(k):
+            comb = comb * (n - i) // (i + 1)
+        out["chance"] = round(out["chance"] + (n - k + 1) / comb, 2)
+    return out
 
 
 def _pairs_of(groups):
@@ -4721,6 +4757,7 @@ def _party_eval_run(mid):
             by_pid.setdefault(party_of[pu], set()).add(pu)
     if len(by_pid) < 2:
         return None                           # Custom/Uebung o. Ae.: alle in einer "Party" - sagt nichts
+    order = _party_order_stats(mid, by_pid)
     real = [g for g in by_pid.values() if len(g) > 1 and me not in g]
     found = [(set(g.get("members") or []), g.get("source") or "") for g in data.get("groups") or []]
     found = [(m, src) for m, src in found if me not in m and len(m) > 1]
@@ -4738,9 +4775,11 @@ def _party_eval_run(mid):
     res = {"match": mid[:8], "known": len(roster), "state": data.get("state"),
            "realGroups": sorted(len(g) for g in real), "foundGroups": sorted(len(m) for m, _ in found),
            "pairs": len(rp), "hit": len(rp & fp), "missed": len(rp - fp), "wrong": len(fp - rp),
-           "hitBy": hit_by, "wrongBy": wrong_by, "at": int(time.time())}
+           "hitBy": hit_by, "wrongBy": wrong_by, "order": order, "at": int(time.time())}
     _party_eval["last"] = res
     _party_eval["n"] += 1
+    if order and order["groups"]:
+        record_feature("party_order_yes" if order["together"] == order["groups"] else "party_order_no")
     if not rp and not fp:
         record_feature("party_eval_none")     # keine fremde Party, keine behauptet
     elif not res["missed"] and not res["wrong"]:
@@ -4793,6 +4832,8 @@ def _premades_store(key, mid, state, roster):
         return {"ok": False, "error": "riot-ratelimit"}
     with _cache_lock:
         _premade_cache.update({"match": key, "ts": time.time(), "data": data})
+        _premade_order.update(match=mid, order=[p["puuid"] for p in roster],
+                              team={p["puuid"]: p.get("team") or "" for p in roster})
     return data
 
 
