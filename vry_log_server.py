@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev6"
+APP_VERSION = "2.6.7-dev7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -12102,7 +12102,8 @@ _RE_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 def _chat_dbg_add(kind, raw):
     try:
         t = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
-        t = re.sub(r"<p>([^<]*)</p>", lambda m: "<p>[%d]</p>" % len(m.group(1)), t)
+        t = re.sub(r"<p>([^<]*)</p>", lambda m: m.group(0) if re.fullmatch(r"\[\d+\]", m.group(1))
+                   else "<p>[%d]</p>" % len(m.group(1)), t)
         t = re.sub(r"<status>([^<]*)</status>", lambda m: "<status>[%d]</status>" % len(m.group(1)), t)
         t = _RE_UUID.sub("<id>", t)
         t = re.sub(r"(['\"])[^'\"@<>]{1,80}@", r"\1x@", t)     # uebrige JID-Namen
@@ -12247,15 +12248,46 @@ def _bot_presence(filt=None):
     # Reihenfolge und <pty/>/<platform> wie Riots eigene Presence - in 2.6.4-dev1 ohne das stand der Freund
     # beim Nutzer als offline in der Liste.
     now = int(time.time() * 1000)
-    games = [b"<keystone><st>chat</st><s.t>%d</s.t><s.p>keystone</s.p><pty/></keystone>" % now,
-             b"<league_of_legends><st>chat</st><s.t>%d</s.t><s.p>league_of_legends</s.p>%s<p>{&quot;pty&quot;:true}</p>"
-             b"</league_of_legends>" % (now, (filt.lol_region if filt is not None else b"") or b"<s.c>live</s.c>")]
+    blocks = {
+        "keystone": b"<keystone><st>chat</st><s.t>%d</s.t><s.p>keystone</s.p><pty/></keystone>" % now,
+        "league_of_legends": (b"<league_of_legends><st>chat</st><s.t>%d</s.t><s.p>league_of_legends</s.p>%s"
+                              b"<p>{&quot;pty&quot;:true}</p></league_of_legends>"
+                              % (now, (filt.lol_region if filt is not None else b"") or b"<s.c>live</s.c>"))}
     if filt is not None and filt.val_json:
         p64 = base64.b64encode(json.dumps(_bot_val_json(filt.val_json), separators=(",", ":")).encode("utf-8"))
-        games.append(_bot_val_block(filt.val_el, p64, now))
-    return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><games>%s</games><platform>riot</platform>"
-            b"<show>chat</show><status/></presence>"
-            % (CHAT_BOT_JID.encode("ascii"), secrets.token_hex(6).encode("ascii"), b"".join(games)))
+        blocks["valorant"] = _bot_val_block(filt.val_el, p64, now)
+    # Reihenfolge: VALORANT vor League. Am PC (2026-11-16) uebernahm der Riot Client fuer den Kontakt nur EIN Spiel
+    # (League stand vorn, der VALORANT-Block fehlte in /chat/v4/presences). Per /api/chat/bot-test umstellbar.
+    games = [blocks[n] for n in _bot_opts["order"] if n in blocks]
+    plat = _bot_opts["platform"]
+    return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><games>%s</games>%s<show>chat</show><status/></presence>"
+            % (CHAT_BOT_JID.encode("ascii"), secrets.token_hex(6).encode("ascii"), b"".join(games),
+               (b"<platform>" + plat.encode("ascii") + b"</platform>") if plat else b""))
+
+
+# Diagnose (nur am PC, POST /api/chat/bot-test): Aufbau der Kontakt-Presence zur Laufzeit umstellen und sofort neu
+# schicken - damit laesst sich am PC ausprobieren, welche Form der Riot Client annimmt, ohne jedes Mal neu zu bauen.
+_BOT_GAMES = ("keystone", "valorant", "league_of_legends")
+_bot_opts = {"order": _BOT_GAMES, "platform": "riot"}
+
+
+def chat_bot_test(body):
+    body = body if isinstance(body, dict) else {}
+    if body.get("reset"):
+        _bot_opts.update(order=_BOT_GAMES, platform="riot")
+    order = body.get("order")
+    if isinstance(order, list):
+        order = tuple(n for n in order if n in _BOT_GAMES)
+        if order:
+            _bot_opts["order"] = tuple(dict.fromkeys(order))
+    plat = body.get("platform")
+    if isinstance(plat, str) and re.fullmatch(r"[a-z0-9_]{0,16}", plat):
+        _bot_opts["platform"] = plat
+    with _chat_lock:
+        conns = list(_chat["conns"])
+    for c in conns:
+        c.bot_ver = False                     # beim naechsten Durchlauf neu schicken
+    return {"ok": True, "order": list(_bot_opts["order"]), "platform": _bot_opts["platform"], "conns": len(conns)}
 
 
 def _bot_message(text):
@@ -13301,6 +13333,10 @@ class Handler(BaseHTTPRequestHandler):
             # Darf Riot Client beenden -> nur am PC selbst
             if self._local_only():
                 self._safe(lambda: chat_set_auto(bool(body.get("on"))))
+        elif path == "/api/chat/bot-test":
+            # Diagnose: Form der Presence des lokalen Kontakts "RankYoinker" umstellen (geht nur an den eigenen Client)
+            if self._local_only():
+                self._safe(lambda: chat_bot_test(body))
         elif path == "/api/chat/launch":
             # Beendet ggf. Riot Client und Spiele -> nur am PC selbst
             if self._local_only():
