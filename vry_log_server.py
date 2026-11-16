@@ -2906,7 +2906,8 @@ def _recent_match_ids(puuid, count):
         merged = comp + [m for m in _hist_still_there(more, now) if m not in comp]
         if merged:
             return merged[:count]
-    return [e["id"] for e in items][:count]
+    # alle Modi - ohne das, was Riot nicht mehr liefert (live: Fenster mit 4 frischen Matches, dahinter Monate altes)
+    return (_hist_still_there([(e["id"], e.get("t") or 0) for e in items], now) or [e["id"] for e in items])[:count]
 
 
 def _hist_still_there(pairs, now):
