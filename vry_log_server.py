@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev11"
+APP_VERSION = "2.6.7"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -12244,7 +12244,8 @@ _chat_own = {"games": frozenset(), "val_json": None, "val_el": None, "val_versio
 
 
 def _bot_mode():
-    """In welchem Produkt ist der Nutzer gerade? Der Kontakt zeigt sich dann nur dort (Nutzerwunsch 2026-11-16)."""
+    """In welchem Produkt ist der Nutzer gerade? In VALORANT zeigt sich der Kontakt nur in VALORANT, sonst
+    (League oder nur Riot Client) als League of Legends (Nutzerwunsch 2026-11-16)."""
     g = _chat_own["games"]
     if b"valorant" in g:
         return "valorant"
@@ -12329,10 +12330,11 @@ def _bot_presence(filt=None, to=None):
         mode = _bot_mode()
         if mode == "valorant" and "valorant" in blocks:
             order = ("keystone", "valorant") + (() if _bot_opts["strict"] else ("league_of_legends",))
-        elif mode == "league_of_legends":
-            order = ("keystone", "league_of_legends")
         else:
-            order = ("keystone", "riot_client")
+            # League offen ODER nur der Riot Client: als League of Legends melden. Nutzerwunsch zum Release 2.6.7:
+            # als League-Spieler steht der Kontakt in der Freundesliste des Riot Client ganz oben (als reiner
+            # riot_client-Eintrag - so in dev10/dev11 - stand er weiter unten).
+            order = ("keystone", "league_of_legends")
     else:
         order = _bot_opts["order"]
     games = [blocks[n] for n in order if n in blocks]
