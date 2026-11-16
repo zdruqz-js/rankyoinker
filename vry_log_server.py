@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev2"
+APP_VERSION = "2.6.7-dev3"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2737,7 +2737,7 @@ HIST_ADV_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "spikerush",
                              "ggteam", "onefa", "snowball", "newmap"))
 _hist_cache = {}                # puuid -> (Zeitpunkt, {"items": [...], "real": Zeitpunkt, "adv": bool})
 _hist_comp_cache = {}           # puuid -> (Zeitpunkt, [ids]) - Nachschlag mit queue=competitive
-_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0, "gone": 0}
+_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0, "gone": 0, "casual": 0}
 # Alte Matches liefert Riot nicht mehr (match-details 404, gemessen: 07/2026 und aelter im 11/2026). Wer nur
 # solche Competitive-Matches hat, bekam eine leere "Letzte 5"-Reihe - und kostete bei jedem Matchstart den
 # Nachschlag plus 5 vergebliche Abrufe. _match_404 merkt sich die IDs, _hist_gone["before"] den Zeitpunkt,
@@ -2854,7 +2854,8 @@ def _recent_match_ids(puuid, count):
     items = _history(puuid, STATS_TTL)
     if items is None:
         return None
-    comp = [e["id"] for e in items if _hist_is_comp(puuid, e)]
+    now = time.time()
+    comp = _hist_still_there([(e["id"], e.get("t") or 0) for e in items if _hist_is_comp(puuid, e)], now)
     if _hist_flags["split"]:                   # gerade eben aufgefallen
         return _recent_match_ids_split(puuid, count)
     if len(comp) >= count or (comp and len(items) < HIST_FETCH):
@@ -2865,10 +2866,15 @@ def _recent_match_ids(puuid, count):
         if status == 200 and j:
             return [m.get("MatchID") for m in (j.get("History") or []) if m.get("MatchID")][:count]
         return []
-    if len(items) >= HIST_FETCH:
-        # Die Seite ist voll und enthaelt zu wenige Competitive-Matches: aeltere gibt es evtl. noch -
-        # nur dann die gefilterte Abfrage hinterher (wer fast nur Unrated/Deathmatch spielt)
-        now = time.time()
+    if not comp and len(items) >= HIST_FETCH:
+        # 2.6.7-dev3 (Nutzer: ja): unter den letzten 20 Matches ist KEIN Competitive - dann die neuesten Matches
+        # aller Modi zeigen statt per Nachschlag nach uralten Ranked-Matches zu suchen. Im Swiftplay-Live-Test
+        # brauchten sonst 7 von 10 Spielern die zweite Anfrage (17 statt 10 /mmr/-Verlaeufe), und bei 3 davon
+        # lieferte Riot die alten Matches gar nicht mehr.
+        _hist_flags["casual"] += 1
+    elif len(items) >= HIST_FETCH:
+        # Die Seite ist voll und enthaelt 1-4 Competitive-Matches: aeltere gibt es evtl. noch -
+        # nur dann die gefilterte Abfrage hinterher
         with _cache_lock:
             hit = _hist_comp_cache.get(puuid)
         if hit and (now - hit[0] < STATS_TTL or _match_current(hit[0])):
@@ -2892,14 +2898,16 @@ def _recent_match_ids(puuid, count):
 
 
 def _hist_still_there(pairs, now):
-    """Aus dem Competitive-Nachschlag [(id, startMs)] nur, was Riot noch liefert. Lernt dabei aus den 404
+    """Aus Competitive-Eintraegen [(id, startMs)] nur, was Riot noch liefert. Lernt dabei aus den 404
     die Grenze, vor der es nichts mehr gibt - beim naechsten Spieler entfallen die vergeblichen Abrufe."""
     with _cache_lock:
         gone = {mid for mid, ts in _match_404.items() if now - ts < MATCH_404_TTL}
     for mid, t in pairs:
         if mid in gone and t and now * 1000 - t > HIST_GONE_MIN_AGE * 1000 and t > _hist_gone["before"]:
             _hist_gone["before"] = t
-    return [mid for mid, t in pairs if mid not in gone and not (t and t <= _hist_gone["before"])]
+    # ein 404 zaehlt nur bei Matches, die aelter als einen Tag sind (frisch beendete brauchen kurz)
+    return [mid for mid, t in pairs
+            if not (mid in gone and (not t or now * 1000 - t > 86400000)) and not (t and t <= _hist_gone["before"])]
 
 
 def _hist_prepend(pu, mid, comp, now, start_ms=None):
