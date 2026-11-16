@@ -4701,24 +4701,27 @@ _premade_order = {"match": None, "order": [], "team": {}}
 
 
 def _party_order_stats(mid, by_pid):
-    """Stehen echte Partys (2 bis Teamgroesse-1 Spieler) in Riots Liste lueckenlos nebeneinander? None = keine
-    Liste zu diesem Match."""
+    """Stehen echte Partys (2 bis Teamgroesse-1 Spieler) in Riots Liste lueckenlos nebeneinander - und VOR allen
+    Solo-Spielern ihres Teams ("sorted")? None = keine Liste zu diesem Match."""
     po = _premade_order
     if po["match"] != mid or not po["order"]:
         return None
     lists = {}
     for pu in po["order"]:
         lists.setdefault(po["team"].get(pu) or "", []).append(pu)
-    out = {"groups": 0, "together": 0, "front": 0, "chance": 0.0}
+    out = {"groups": 0, "together": 0, "front": 0, "chance": 0.0, "teams": 0, "sorted": 0, "sizeDesc": None}
+    in_party = {}                             # team -> [(erste Position, Groesse)] der echten Partys
     for g in by_pid.values():
         teams = {po["team"].get(pu) or "" for pu in g}
         if len(g) < 2 or len(teams) != 1:
             continue
-        row = lists.get(teams.pop()) or []
+        tname = teams.pop()
+        row = lists.get(tname) or []
         if not all(pu in row for pu in g) or len(g) >= len(row):
             continue
         idx = sorted(row.index(pu) for pu in g)
         out["groups"] += 1
+        in_party.setdefault(tname, []).append((idx[0], len(g), idx))
         if idx[-1] - idx[0] == len(g) - 1:
             out["together"] += 1
             if idx[0] == 0:
@@ -4729,6 +4732,19 @@ def _party_order_stats(mid, by_pid):
         for i in range(k):
             comb = comb * (n - i) // (i + 1)
         out["chance"] = round(out["chance"] + (n - k + 1) / comb, 2)
+    for tname, parts in in_party.items():
+        row = lists.get(tname) or []
+        members = {i for _, _, idx in parts for i in idx}
+        solos = [i for i in range(len(row)) if i not in members]
+        if not solos:
+            continue
+        out["teams"] += 1                     # Team mit Party UND Solo-Spielern
+        if max(members) < min(solos):
+            out["sorted"] += 1                # alle Party-Spieler stehen vor allen Solos
+        if len(parts) > 1:
+            sizes = [size for _, size, _ in sorted(parts)]
+            ok = sizes == sorted(sizes, reverse=True)
+            out["sizeDesc"] = ok if out["sizeDesc"] is None else (out["sizeDesc"] and ok)
     return out
 
 
@@ -4780,6 +4796,8 @@ def _party_eval_run(mid):
     _party_eval["n"] += 1
     if order and order["groups"]:
         record_feature("party_order_yes" if order["together"] == order["groups"] else "party_order_no")
+    if order and order["teams"]:
+        record_feature("party_first_yes" if order["sorted"] == order["teams"] else "party_first_no")
     if not rp and not fp:
         record_feature("party_eval_none")     # keine fremde Party, keine behauptet
     elif not res["missed"] and not res["wrong"]:
