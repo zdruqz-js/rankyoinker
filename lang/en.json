@@ -807,6 +807,18 @@
     "crutch_buys_tip": "Bought in {n} rounds",
     "crutch_buys_na": "Sidearm – counted by kills only",
     "crutch_none": "Barely any OP, Odin, shotguns, Marshal, Outlaw or Shorty – nothing unusual.",
-    "crutch_basis": "From {games} matches with a buy phase · {kills} kills · {rounds} rounds with a primary"
+    "crutch_basis": "From {games} matches with a buy phase · {kills} kills · {rounds} rounds with a primary",
+    "sess_title": "Session",
+    "sess_chip_tip": "Your session: wins–losses and RR. Click for the matches.",
+    "sess_sub": "{n} matches · since {time}",
+    "sess_sub_one": "1 match · since {time}",
+    "sess_record": "Record",
+    "sess_streak": "Streak",
+    "sess_empty": "No match in this session yet.",
+    "sess_hint": "A session ends after 3 hours without a match. Saved only on your PC.",
+    "sess_open_tip": "Open the analysis of this match",
+    "note_hint_title": "Note on {name}",
+    "note_hint_open": "Open",
+    "note_add_tip": "Note about this player"
   }
 }

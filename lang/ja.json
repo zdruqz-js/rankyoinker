@@ -806,6 +806,18 @@
     "crutch_buys_tip": "{n}ラウンドで購入",
     "crutch_buys_na": "サイドアーム – キルのみで判定",
     "crutch_none": "OP、オーディン、ショットガン、マーシャル、アウトロー、ショーティーはほぼ未使用 – 特に問題なし。",
-    "crutch_basis": "購入フェーズありの{games}試合 · {kills}キル · メイン武器{rounds}ラウンドから"
+    "crutch_basis": "購入フェーズありの{games}試合 · {kills}キル · メイン武器{rounds}ラウンドから",
+    "sess_title": "セッション",
+    "sess_chip_tip": "今回のセッション：勝敗とRR。クリックで試合一覧を表示します。",
+    "sess_sub": "{n}試合 · {time}から",
+    "sess_sub_one": "1試合 · {time}から",
+    "sess_record": "戦績",
+    "sess_streak": "連続",
+    "sess_empty": "このセッションにはまだ試合がありません。",
+    "sess_hint": "試合がないまま3時間経つとセッションは終了します。PC内にのみ保存されます。",
+    "sess_open_tip": "この試合の分析を開く",
+    "note_hint_title": "{name} のメモ",
+    "note_hint_open": "開く",
+    "note_add_tip": "このプレイヤーのメモ"
   }
 }

@@ -121,6 +121,8 @@ FALLBACK = {
     "peak_label": "Peak", "verdict_even": "Even", "verdict_slight_edge": "Slight edge",
     "verdict_clear_edge": "Clear edge", "verdict_strong_edge": "Strong edge",
     "for_your_team": "for your team", "for_the_enemies": "for the enemies",
+    "note_tag_good": "Good mate", "note_tag_toxic": "Toxic", "note_tag_thrower": "Thrower", "note_tag_smurf": "Smurf",
+    "note_badge": "Note",
 }
 
 
@@ -417,6 +419,35 @@ def _form(ops, m, x, y, w, form):
     ops.add("text", x, y + 10, w, 14, label, "form", COL["text3"], 255, "c", False)
 
 
+# Abzeichen in der zweiten Zeile (seit 2.6.7): eigene Notiz-Tags und Waffen-Crutch, Farben wie im Overlay
+BADGE_COL = {"good": "#5fd68a", "toxic": "#ff6b6b", "thrower": "#ff6b6b", "smurf": "#ffa257",
+             "crutch": "#ff6ebe", "note": "#beb4ff"}
+
+
+def _badges(ops, m, ctx, x, y, max_w, badges):
+    """Kleine Chips ab x; passt einer nicht mehr, entfallen er und die folgenden. Gibt die Breite zurueck."""
+    used = 0.0
+    for b in badges or []:
+        if not isinstance(b, dict):
+            continue
+        text = b.get("text") or (tr(ctx["strings"], b["key"]) if b.get("key") else "")
+        if not text:
+            continue
+        text = upper(str(text), ctx.get("lang"))
+        bw = m(text, "delta") + 11
+        if used + bw > max_w and b.get("short"):      # z. B. "OP" statt "OP 62%", wenn es sonst nicht passt
+            text = upper(str(b["short"]), ctx.get("lang"))
+            bw = m(text, "delta") + 11
+        if used + bw > max_w:
+            break
+        col = BADGE_COL.get(b.get("kind"), COL["text2"])
+        ops.add("fill", x + used, y, bw, 14, 7, col, 36)
+        ops.add("stroke", x + used, y, bw, 14, 7, col, 70, 1.0)
+        ops.add("text", x + used, y, bw, 14, text, "delta", col, 255, "c", False)
+        used += bw + 4
+    return used
+
+
 def _player_row(ops, m, ctx, x, y, w, p, pregame):
     strings = ctx["strings"]
     me = bool(p.get("me"))
@@ -467,8 +498,15 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
             sub.append("HS %d %%" % round(p["hs"]))
     if p.get("level"):
         sub.append("Lvl %s" % p["level"])
-    ops.add("text", nx, y + 22, nw, 16, fit_join(m, sub, "sub", nw), "sub",
-            COL["accent"] if me else COL["text3"], 255, "l", False)
+    # Abzeichen zuerst (duerfen die ganze Zeile nehmen), dann der Notiz-Anfang, wenn noch gut Platz ist
+    bw = _badges(ops, m, ctx, nx, y + 23, nw, p.get("badges")) if not me else 0
+    if bw:
+        bw += 3
+    if p.get("note") and not me and nw - bw >= 64:
+        sub.insert(1 if hovering else 0, "\u201c%s\u201d" % p["note"])
+    if nw - bw >= 36:
+        ops.add("text", nx + bw, y + 22, nw - bw, 16, fit_join(m, sub, "sub", nw - bw), "sub",
+                COL["accent"] if me else COL["text3"], 255, "l", False)
     # Letzte 5
     if form:
         _form(ops, m, x + w - RANK_W - FORM_W - 4, y + 10, FORM_W, form)

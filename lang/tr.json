@@ -806,6 +806,18 @@
     "crutch_buys_tip": "{n} raundda alındı",
     "crutch_buys_na": "Tabanca – sadece öldürmeler sayılır",
     "crutch_none": "Neredeyse hiç OP, Odin, pompalı, Marshal, Outlaw veya Shorty yok – olağan dışı bir şey yok.",
-    "crutch_basis": "Satın alma aşamalı {games} maçtan · {kills} öldürme · ana silahlı {rounds} raund"
+    "crutch_basis": "Satın alma aşamalı {games} maçtan · {kills} öldürme · ana silahlı {rounds} raund",
+    "sess_title": "Oturum",
+    "sess_chip_tip": "Oturumun: galibiyet–mağlubiyet ve RR. Maçlar için tıkla.",
+    "sess_sub": "{n} maç · {time} itibarıyla",
+    "sess_sub_one": "1 maç · {time} itibarıyla",
+    "sess_record": "Skor",
+    "sess_streak": "Seri",
+    "sess_empty": "Bu oturumda henüz maç yok.",
+    "sess_hint": "Oturum, 3 saat maç oynanmazsa sona erer. Yalnızca bilgisayarında saklanır.",
+    "sess_open_tip": "Bu maçın analizini aç",
+    "note_hint_title": "{name} için not",
+    "note_hint_open": "Aç",
+    "note_add_tip": "Bu oyuncu hakkında not"
   }
 }

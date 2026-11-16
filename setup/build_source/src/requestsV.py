@@ -1,6 +1,7 @@
 import base64
 import collections
 import json
+import re
 import threading
 import time
 from json.decoder import JSONDecodeError
@@ -55,8 +56,74 @@ _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "rea
             # Kontext fuer Sperren-Meldungen (seit 2.5.2, gleich wie im Dienst halten): eigene
             # pd-Anfragen der letzten 60 s und die letzte eigene Sperre - der Dienst meldet sie
             # mit seinem Fehlerbericht, vry.exe selbst schickt keinen
-            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": ""}
+            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": "",
+            # Budget fuer /mmr/v1/... (seit 2.6.7, gleich wie im Dienst halten)
+            "mmr_ts": "", "mmr_cap": 0, "mmr_cap_at": 0.0}
 _pd_lock = threading.Lock()
+
+# ---- Budget fuer /mmr/v1/... (2.6.7, gleiche Logik wie im Dienst - dort steht die Begruendung) ----
+# Auf kr sperrt Cloudflare schon bei ~27 Anfragen/60 s auf diesen Pfad. /mmr/-Anfragen beider Prozesse
+# zaehlen in ein gleitendes Fenster; ist es voll, wartet die Anfrage. Nach einer Sperre sinkt die
+# Obergrenze (gelernt, in pd-gate.json) und erholt sich langsam wieder.
+PD_MMR_WINDOW = 60.0
+PD_MMR_CAP = 30
+PD_MMR_CAP_KR = 20
+PD_MMR_CAP_MIN = 12
+PD_MMR_RELAX = 1800.0
+_PD_SHARD_RE = re.compile(r"//pd\.([a-z0-9]+)\.")
+
+
+def _pd_shard(url):
+    m = _PD_SHARD_RE.search(str(url or ""))
+    return m.group(1) if m else ""
+
+
+def _pd_is_mmr(url):
+    return "/mmr/v1/" in str(url or "")
+
+
+def _pd_mmr_times(g, now):
+    out = []
+    for part in str(g.get("mmr_ts") or "").split(","):
+        try:
+            t = float(part)
+        except ValueError:
+            continue
+        # auch knapp in der Zukunft: reservierte Plaetze (Takt) und die Rundung beim Speichern
+        if -PD_MMR_WINDOW < now - t < PD_MMR_WINDOW:
+            out.append(t)
+    out.sort()
+    return out
+
+
+def _pd_mmr_cap(g, shard):
+    base = PD_MMR_CAP_KR if shard == "kr" else PD_MMR_CAP
+    try:
+        cap = int(g.get("mmr_cap") or 0)
+    except (TypeError, ValueError):
+        cap = 0
+    return max(PD_MMR_CAP_MIN, min(cap, base)) if cap > 0 else base
+
+
+def _pd_mmr_note(g, times, at):
+    g["mmr_ts"] = ",".join("%.2f" % t for t in sorted(times + [at])[-60:])
+
+
+def _pd_mmr_learn(g, now, shard):
+    """Cloudflare-Sperre: Obergrenze unter den Stand bei der Sperre legen."""
+    n = len(_pd_mmr_times(g, now))
+    if n >= PD_MMR_CAP_MIN:
+        g["mmr_cap"] = max(PD_MMR_CAP_MIN, min(_pd_mmr_cap(g, shard), n) - 3)
+        g["mmr_cap_at"] = now
+    return n
+
+
+def _pd_mmr_relax(g, now, shard):
+    if (g.get("mmr_cap") and now - float(g.get("mmr_cap_at") or 0) > PD_MMR_RELAX
+            and now - float(g.get("last_block") or 0) > PD_MMR_RELAX):
+        cap = int(g["mmr_cap"]) + 1
+        g["mmr_cap"] = 0 if cap >= (PD_MMR_CAP_KR if shard == "kr" else PD_MMR_CAP) else cap
+        g["mmr_cap_at"] = now
 PD_CTX_WINDOW = 60.0
 _pd_recent = collections.deque()          # (Zeitpunkt, Art) der eigenen pd-Anfragen
 
@@ -136,15 +203,20 @@ class _PdState:
         return False
 
 
-def pd_wait():
+def pd_wait(url=""):
     """Wartet auf den naechsten freien Platz fuer eine pd-Anfrage, auch ueber
     eine Sperre hinweg. Rueckgabe "probe" = die eine Testanfrage nach einer
-    Pause, sonst True - immer an pd_feedback() zurueckgeben."""
+    Pause, sonst True - immer an pd_feedback() zurueckgeben.
+    url (seit 2.6.7): geht die Anfrage an /mmr/v1/..., zaehlt sie ins /mmr/-Budget."""
     slot = None
+    mmr, shard = _pd_is_mmr(url), _pd_shard(url)
+    budget_waiting = False
     while True:
         with _PdState() as g:
             now = time.time()
-            g["hi_until"] = max(g.get("hi_until") or 0.0, now + PD_HI_HOLD)
+            if not budget_waiting:              # wer nur auf /mmr/-Budget wartet, haelt den Dienst nicht auf
+                g["hi_until"] = max(g.get("hi_until") or 0.0, now + PD_HI_HOLD)
+            budget_waiting = False
             if now < g["blocked_until"]:
                 slot = None                     # reservierter Platz verfaellt mit der Sperre
                 sleep_for = min(g["blocked_until"] - now, 1.0)
@@ -154,16 +226,29 @@ def pd_wait():
                 g["need_probe"] = False
                 g["probe_until"] = now + PD_PROBE_TIMEOUT
                 g["next"] = max(g["next"], now + g["interval"])
+                if mmr:
+                    _pd_mmr_note(g, _pd_mmr_times(g, now), now)
                 return "probe"
             elif slot is not None and slot <= now:
                 return True
             else:
                 if slot is None:
-                    slot = max(now, g["next"])
-                    g["next"] = slot + g["interval"]
-                    if slot <= now:
-                        return True             # Platz ist sofort frei
-                sleep_for = max(0.0, slot - now)
+                    times = _pd_mmr_times(g, now) if mmr else None
+                    cap = _pd_mmr_cap(g, shard) if mmr else 0
+                    if mmr and len(times) >= cap:
+                        # Budget voll: warten, bis die aelteste Anfrage aus dem Fenster faellt
+                        sleep_for = max(0.1, min(1.0, times[len(times) - cap] + PD_MMR_WINDOW - now))
+                        budget_waiting = True
+                    else:
+                        slot = max(now, g["next"])
+                        g["next"] = slot + g["interval"]
+                        if mmr:
+                            _pd_mmr_note(g, times, slot)
+                        if slot <= now:
+                            return True         # Platz ist sofort frei
+                        sleep_for = max(0.0, slot - now)
+                else:
+                    sleep_for = max(0.0, slot - now)
         time.sleep(sleep_for)
 
 
@@ -193,9 +278,10 @@ def pd_feedback(response, ticket, log):
     probe = ticket == "probe"
     msg = None
     try:
-        kind = _pd_kind(str(getattr(response, "url", "") or ""))
+        url = str(getattr(response, "url", "") or "")
+        kind, shard = _pd_kind(url), _pd_shard(url)
     except Exception:
-        kind = "other"
+        kind, shard = "other", ""
     with _PdState() as g:
         now = time.time()
         _pd_recent.append((now, kind))
@@ -209,13 +295,15 @@ def pd_feedback(response, ticket, log):
             if now >= g["blocked_until"]:
                 strikes = g["strikes"] + 1 if now - g["last_block"] < PD_STRIKE_RESET else 1
                 pause = PD_BLOCK_PAUSES[min(strikes, len(PD_BLOCK_PAUSES)) - 1]
+                mmr_cap = _pd_mmr_cap(g, shard)
+                mmr_n = _pd_mmr_learn(g, now, shard)
                 g.update(strikes=strikes, last_block=now, blocked_until=now + pause,
                          need_probe=True, interval=PD_MAX_INTERVAL, reason="cloudflare")
                 msg = f"pd: {short_error(response)} - alle pd-Anfragen pausieren {int(pause)} s ({strikes}. in Folge)"
                 kinds = collections.Counter(k for _, k in _pd_recent)
                 g["vry_blk_at"] = now
                 g["vry_blk_msg"] = json.dumps({"st": status, "p": int(pause), "k": strikes, "ep": kind,
-                                               "kinds": dict(kinds.most_common(5))})
+                                               "kinds": dict(kinds.most_common(5)), "mm": mmr_n, "mc": mmr_cap})
         elif status == 429:
             try:
                 wait = float(response.headers.get("Retry-After") or 0)
@@ -230,6 +318,7 @@ def pd_feedback(response, ticket, log):
             msg = f"pd: Rate-Limit 429 - alle pd-Anfragen pausieren {int(pause)} s"
         elif status and status < 400:
             g["interval"] = max(PD_MIN_INTERVAL, g["interval"] * 0.97)
+            _pd_mmr_relax(g, now, shard)
             if probe:
                 # Diese Pause hat gereicht: die naechste Sperre faengt wieder bei ihr an
                 g["strikes"] = max(0, g["strikes"] - 1)
@@ -335,7 +424,7 @@ class Requests:
                 return response.json()
             elif url_type == "pd":
                 # pd.*.a.pvp.net is Riot's real cloud API too - see comment above.
-                ticket = pd_wait()
+                ticket = pd_wait(self.pd_url + endpoint)
                 try:
                     response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
                 except Exception:

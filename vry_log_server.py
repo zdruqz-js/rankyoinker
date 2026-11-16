@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.6.1"
+APP_VERSION = "2.6.7-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1822,8 +1822,82 @@ _pd_gate = {"next": 0.0, "interval": PD_MIN_INTERVAL, "blocked_until": 0.0, "rea
             # Kontext fuer Sperren-Meldungen (seit 2.5.2, beide Prozesse gleich halten): pd-Anfragen
             # der letzten 60 s je Prozess und die letzte Sperre, die vry.exe ausgeloest hat
             # (vry.exe schickt selbst keine Fehlerberichte - der Dienst meldet sie mit)
-            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": ""}
+            "svc60": 0, "svc60_at": 0.0, "vry60": 0, "vry60_at": 0.0, "vry_blk_at": 0.0, "vry_blk_msg": "",
+            # Budget fuer /mmr/v1/... (seit 2.6.7, beide Prozesse gleich halten): Zeitpunkte der letzten
+            # Anfragen als Text, gelernte Obergrenze (0 = Standard) und wann sie zuletzt angepasst wurde
+            "mmr_ts": "", "mmr_cap": 0, "mmr_cap_at": 0.0}
 _pd_gate_lock = threading.Lock()
+
+# ---- Budget fuer /mmr/v1/... (2.6.7) ----
+# Telemetrie 2.6.6.1 (2026-11-15/16): 123 Cloudflare-Sperren in 27 h, 115 davon auf kr. Die erste Sperre
+# kam dort recht eng bei ~27 Anfragen/60 s auf /mmr/v1/... (Raenge + competitiveupdates, meist 23-34),
+# waehrend die Zahl der match-details dabei zwischen 1 und 21 schwankte - das Limit haengt offenbar am
+# Pfad, nicht an der Gesamtzahl. Darum zaehlen /mmr/-Anfragen beider Prozesse zusaetzlich in ein
+# gleitendes Fenster; ist es voll, wartet die Anfrage. Nach einer Sperre sinkt die Obergrenze unter den
+# Stand bei der Sperre (gelernt, in pd-gate.json) und erholt sich langsam wieder.
+PD_MMR_WINDOW = 60.0
+PD_MMR_CAP = 30                 # je Fenster, beide Prozesse zusammen
+PD_MMR_CAP_KR = 20
+PD_MMR_CAP_MIN = 12
+PD_MMR_RESERVE = 5              # bleibt Raengen vorbehalten - Verlaeufe ("Letzte 5", Party) warten frueher
+PD_MMR_RELAX = 1800.0           # so lange ohne Sperre -> Obergrenze wieder um 1 hoch
+PD_MMR_WAIT = 20.0              # so lange wartet eine Rang-Anfrage hoechstens auf Budget
+PD_MMR_WAIT_PATIENT = 35.0      # und so lange "Letzte 5"/Party
+PD_MMR_RACE_WAIT = 3.0          # in _pd_acquire selbst nur noch so lange (mehrere wollten den letzten Platz)
+_PD_SHARD_RE = re.compile(r"//pd\.([a-z0-9]+)\.")
+
+
+def _pd_shard(url):
+    m = _PD_SHARD_RE.search(str(url or ""))
+    return m.group(1) if m else ""
+
+
+def _pd_is_mmr(path):
+    return "/mmr/v1/" in str(path or "")
+
+
+def _pd_mmr_times(g, now):
+    out = []
+    for part in str(g.get("mmr_ts") or "").split(","):
+        try:
+            t = float(part)
+        except ValueError:
+            continue
+        # auch knapp in der Zukunft: reservierte Plaetze (Takt) und die Rundung beim Speichern
+        if -PD_MMR_WINDOW < now - t < PD_MMR_WINDOW:
+            out.append(t)
+    out.sort()
+    return out
+
+
+def _pd_mmr_cap(g, shard):
+    base = PD_MMR_CAP_KR if shard == "kr" else PD_MMR_CAP
+    try:
+        cap = int(g.get("mmr_cap") or 0)
+    except (TypeError, ValueError):
+        cap = 0
+    return max(PD_MMR_CAP_MIN, min(cap, base)) if cap > 0 else base
+
+
+def _pd_mmr_note(g, times, at):
+    g["mmr_ts"] = ",".join("%.2f" % t for t in sorted(times + [at])[-60:])
+
+
+def _pd_mmr_learn(g, now, shard):
+    """Cloudflare-Sperre: Obergrenze unter den Stand bei der Sperre legen."""
+    n = len(_pd_mmr_times(g, now))
+    if n >= PD_MMR_CAP_MIN:
+        g["mmr_cap"] = max(PD_MMR_CAP_MIN, min(_pd_mmr_cap(g, shard), n) - 3)
+        g["mmr_cap_at"] = now
+    return n
+
+
+def _pd_mmr_relax(g, now, shard):
+    if (g.get("mmr_cap") and now - float(g.get("mmr_cap_at") or 0) > PD_MMR_RELAX
+            and now - float(g.get("last_block") or 0) > PD_MMR_RELAX):
+        cap = int(g["mmr_cap"]) + 1
+        g["mmr_cap"] = 0 if cap >= (PD_MMR_CAP_KR if shard == "kr" else PD_MMR_CAP) else cap
+        g["mmr_cap_at"] = now
 
 
 _pd_shared_off = {"until": 0.0}
@@ -1889,11 +1963,43 @@ class _PdState:
         return False
 
 
-def _pd_acquire():
-    """Wartet auf den naechsten freien Platz. False = gerade gesperrt, nicht
-    anfragen; "probe" = die eine Testanfrage nach einer Pause; sonst True."""
-    slot, waited = None, 0.0
+def _pd_mmr_prewait(shard, patient):
+    """Vor einer /mmr/-Anfrage: warten, bis im Budget Platz ist (nur nachsehen, nichts belegen).
+    Laeuft, BEVOR die Anfrage als wartend zaehlt (_pd_high/_pd_low): sonst hielte eine Anfrage, die
+    bis zu einer Minute auf Budget wartet, alle niedrigeren Stufen auf - auch match-details, die gar
+    kein Budget brauchen (im Test dauerten die Karten dadurch Minuten). False = keine Zeit mehr."""
+    deadline = time.time() + (PD_MMR_WAIT_PATIENT if patient else PD_MMR_WAIT)
     while True:
+        g = _pd_gate_read()
+        now = time.time()
+        if now < g["blocked_until"]:
+            return True                         # Riot-Pause: das meldet _pd_acquire sofort selbst
+        times = _pd_mmr_times(g, now)
+        cap = _pd_mmr_cap(g, shard) - (PD_MMR_RESERVE if patient else 0)
+        if len(times) < cap:
+            return True
+        if now >= deadline:
+            _tl.budget_denied = True
+            return False
+        with _pd_count_lock:
+            _pd_budget_wait["n"] += 1
+        try:
+            time.sleep(max(0.1, min(1.0, times[len(times) - cap] + PD_MMR_WINDOW - now)))
+        finally:
+            with _pd_count_lock:
+                _pd_budget_wait["n"] -= 1
+
+
+def _pd_acquire(mmr=False, shard="", patient=False):
+    """Wartet auf den naechsten freien Platz. False = gerade gesperrt (oder kein /mmr/-Budget in
+    vertretbarer Zeit), nicht anfragen; "probe" = die eine Testanfrage nach einer Pause; sonst True.
+    mmr=True: die Anfrage geht an /mmr/v1/... und zaehlt ins Budget (patient = "Letzte 5"/Party).
+    Das lange Warten auf Budget passiert vorher in _pd_mmr_prewait - hier nur noch kurz, falls
+    mehrere Anfragen gleichzeitig den letzten Platz wollten."""
+    slot, waited = None, 0.0
+    budget_deadline = time.time() + PD_MMR_RACE_WAIT
+    while True:
+        budget_wait = 0.0
         with _PdState() as g:
             now = time.time()
             if now < g["blocked_until"]:
@@ -1904,14 +2010,29 @@ def _pd_acquire():
                 g["need_probe"] = False
                 g["probe_until"] = now + PD_PROBE_TIMEOUT
                 g["next"] = max(g["next"], now + g["interval"])
+                if mmr:
+                    _pd_mmr_note(g, _pd_mmr_times(g, now), now)
                 return "probe"
             elif slot is not None and slot <= now:
                 return True
             elif slot is None:
-                slot = max(now, g["next"])
-                g["next"] = slot + g["interval"]
-                if slot <= now:
-                    return True                 # Platz ist sofort frei
+                times = _pd_mmr_times(g, now) if mmr else None
+                cap = (_pd_mmr_cap(g, shard) - (PD_MMR_RESERVE if patient else 0)) if mmr else 0
+                if mmr and len(times) >= cap:
+                    if now >= budget_deadline:
+                        _tl.budget_denied = True
+                        return False
+                    budget_wait = max(0.1, min(1.0, times[len(times) - cap] + PD_MMR_WINDOW - now))
+                else:
+                    slot = max(now, g["next"])
+                    g["next"] = slot + g["interval"]
+                    if mmr:
+                        _pd_mmr_note(g, times, slot)
+                    if slot <= now:
+                        return True             # Platz ist sofort frei
+        if budget_wait:
+            time.sleep(budget_wait)
+            continue
         if slot is None or time.time() >= slot:
             if waited >= 5.0:
                 return False
@@ -1994,14 +2115,16 @@ def _pd_vry_blocks_tick():
     kinds = collections.Counter({str(k)[:12]: int(v) for k, v in (d.get("kinds") or {}).items() if isinstance(v, int)})
     msg = "vry.exe: Cloudflare-Sperre auf pd (Status %s) - %ss Pause (%s. in Folge)" % (
         d.get("st", "?"), d.get("p", "?"), d.get("k", "?"))
+    mmr_txt = " | mmr %s/%s" % (d.get("mm"), d.get("mc")) if isinstance(d.get("mm"), int) else ""
     report_error("riot-ratelimit", msg + _pd_block_context(at, str(d.get("ep") or "")[:12], "vry.exe", kinds,
-                                                           "Dienst", sum(_pd_recent_kinds(at).values())))
+                                                           "Dienst", sum(_pd_recent_kinds(at).values())) + mmr_txt)
 
 
 def _pd_feedback(status, info, probe=False):
     """Ergebnis einer pd-Anfrage zurueckmelden: Sperre setzen bzw. Tempo anpassen."""
-    blocked_msg = None
+    blocked_msg, mmr_txt = None, ""
     kind = (info or {}).get("kind")
+    shard = (info or {}).get("shard") or ""
     n60 = _pd_recent_note(kind, time.time())
     with _PdState() as g:
         now = time.time()
@@ -2015,9 +2138,12 @@ def _pd_feedback(status, info, probe=False):
             if now >= g["blocked_until"]:
                 strikes = g["strikes"] + 1 if now - g["last_block"] < PD_STRIKE_RESET else 1
                 pause = PD_BLOCK_PAUSES[min(strikes, len(PD_BLOCK_PAUSES)) - 1]
+                mmr_cap = _pd_mmr_cap(g, shard)
+                mmr_n = _pd_mmr_learn(g, now, shard)
                 g.update(strikes=strikes, last_block=now, blocked_until=now + pause,
                          need_probe=True, interval=PD_MAX_INTERVAL, reason="cloudflare")
                 blocked_msg = "Cloudflare-Sperre auf pd (Status %s) - %ds Pause (%d. in Folge)" % (status, pause, strikes)
+                mmr_txt = " | mmr %d/%d" % (mmr_n, mmr_cap)
         elif status == 429:
             try:
                 wait = float((info or {}).get("retry_after") or 0)
@@ -2031,6 +2157,7 @@ def _pd_feedback(status, info, probe=False):
         elif status and status < 400:
             # langsam wieder schneller werden
             g["interval"] = max(PD_MIN_INTERVAL, g["interval"] * 0.97)
+            _pd_mmr_relax(g, now, shard)
             if probe:
                 # Diese Pause hat gereicht: die naechste Sperre faengt wieder bei ihr an
                 g["strikes"] = max(0, g["strikes"] - 1)
@@ -2038,7 +2165,7 @@ def _pd_feedback(status, info, probe=False):
             g["need_probe"] = True              # Testanfrage ohne verwertbare Antwort -> naechste testet
     if blocked_msg:
         report_error("riot-ratelimit", blocked_msg + _pd_block_context(now, kind, "Dienst", _pd_recent_kinds(now),
-                                                                       "vry.exe", vry_n))
+                                                                       "vry.exe", vry_n) + mmr_txt)
 
 
 def _pd_gate_read():
@@ -2054,10 +2181,10 @@ def _pd_gate_read():
     return g
 
 
-def pd_gate_state():
+def pd_gate_state(g=None):
     """Fuer die Oberflaeche: laeuft gerade eine Riot-Pause, und warum? Liest den
     gemeinsamen Stand, zeigt also auch eine Pause, die vry.exe ausgeloest hat."""
-    g = _pd_gate_read()
+    g = g or _pd_gate_read()
     left = g["blocked_until"] - time.time()
     return {"paused": left > 0, "seconds": max(0, int(left + 0.5)), "reason": g["reason"] if left > 0 else ""}
 
@@ -2086,6 +2213,7 @@ _pd_low = {"n": 0}                      # Party-Erkennung: wartend oder laufend
 # Anfragen - zwischen ihren Schritten (Historie -> Match-Details) und vor der ersten
 # rutschten sonst "Letzte 5" dazwischen
 _pd_party = {"n": 0}
+_pd_budget_wait = {"n": 0}              # Anfragen, die gerade auf /mmr/-Budget warten (_pd_mmr_prewait)
 _pd_bulk = {"next": 0.0}
 _pd_bulk_lock = threading.Lock()
 _pd_counts = collections.Counter()      # pd-Anfragen im laufenden Match, je Art (fuer /api/gamestate)
@@ -2129,7 +2257,9 @@ def _pd_bulk_wait():
         now = time.time()
         paused = _pd_bulk_paused(g)
         urgent = any(sl.get("urgent") for sl in (getattr(_tl, "slots", None) or ()))
-        busy = paused or (not urgent and (_pd_high["n"] > 0 or _pd_low["n"] > 0 or _pd_party["n"] > 0
+        # Party-Erkennung, die gerade nur auf /mmr/-Budget wartet (2.6.7), haelt "Letzte 5" nicht auf
+        party = _pd_party["n"] > 0 and _pd_budget_wait["n"] == 0
+        busy = paused or (not urgent and (_pd_high["n"] > 0 or _pd_low["n"] > 0 or party
                                           or now < g.get("hi_until", 0)))
         if paused and now >= deadline:
             return False
@@ -2158,10 +2288,15 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
         return _http(auth[base_key] + path, auth["headers"], method=method, body=body)
     low = getattr(_tl, "low", False)
     bulk = getattr(_tl, "bulk", False) and not low
+    mmr, shard = _pd_is_mmr(path), _pd_shard(auth[base_key])
     if bulk:
         if not _pd_bulk_wait():
             _tl.bulk_denied = True
             return 429, None
+    if mmr and not _pd_mmr_prewait(shard, bulk or low):
+        return 429, None
+    if bulk:
+        pass
     elif low:
         with _pd_count_lock:
             _pd_low["n"] += 1
@@ -2176,10 +2311,10 @@ def _riot_send(base_key, auth, path, method="GET", body=None):
         with _pd_count_lock:
             _pd_high["n"] += 1
     try:
-        ticket = _pd_acquire()
+        ticket = _pd_acquire(mmr=mmr, shard=shard, patient=bulk or low)
         if not ticket:
             return 429, None
-        info = {"kind": _pd_kind(path)}
+        info = {"kind": _pd_kind(path), "shard": shard}
         try:
             status, j = _http(auth[base_key] + path, auth["headers"], method=method, body=body, info=info)
         except Exception:
@@ -2578,20 +2713,201 @@ def _match_details_fetch(match_id):
     return digest
 
 
-def _recent_match_ids(puuid, count):
-    """Letzte Match-IDs eines Spielers — erst Competitive, sonst alle Modi."""
+# ---- Ein Match-Verlauf je Spieler (2.6.7) ----
+# Bis 2.6.6 fragte der Dienst je Spieler ZWEIMAL competitiveupdates: einmal mit queue=competitive fuer
+# "Letzte 5" und einmal ohne Filter fuer die Party-Erkennung - dazu den Rang (Dienst) und noch einmal den
+# Rang (vry.exe). Das waren ~40 /mmr/-Anfragen je Matchstart, auf kr sperrt Cloudflare bei ~27 (siehe
+# PD_MMR_*). Jetzt EINE ungefilterte Abfrage (HIST_FETCH Eintraege, alle Modi) fuer beides.
+# Welche Eintraege Competitive sind, steht in der Antwort nicht als Feld: Nicht-Competitive-Matches haben
+# dort eine leere SeasonID. Das wird gegen die Match-Kurzfassungen gegengeprueft (dort steht die Queue
+# sicher) - passt es einmal nicht, schaltet _hist_flags["split"] fuer diese Sitzung auf die alten zwei
+# Abfragen zurueck und meldet das (history-classify).
+# Nach einem Match werden die Verlaeufe aller Spieler dieses Matches lokal fortgeschrieben
+# (_hist_after_match) statt neu geholt: das Match steht bei allen vorn. Eigene Party und Rematches
+# kosten so im naechsten Match keine Verlaufs-Anfrage.
+HIST_FETCH = 20
+HIST_TTL = 300
+HIST_ADV_TTL = 1200             # lokal fortgeschriebener Verlauf gilt so lange ...
+HIST_REAL_MAX = 3 * 3600        # ... aber spaetestens nach dieser Zeit wieder echt von Riot
+HIST_ADV_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "spikerush", "deathmatch", "hurm",
+                             "ggteam", "onefa", "snowball", "newmap"))
+_hist_cache = {}                # puuid -> (Zeitpunkt, {"items": [...], "real": Zeitpunkt, "adv": bool})
+_hist_comp_cache = {}           # puuid -> (Zeitpunkt, [ids]) - Nachschlag mit queue=competitive
+_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0}
+_HIST_PLAIN_QUEUES = frozenset(("unrated", "swiftplay", "spikerush", "deathmatch", "hurm", "ggteam"))
+
+
+def _hist_entry(m):
+    mid = m.get("MatchID")
+    if not mid:
+        return None
+    q = m.get("QueueID")
+    if isinstance(q, str) and q:
+        comp = 1 if q.lower() == "competitive" else 0
+    else:
+        comp = 1 if m.get("SeasonID") else 0
+    return {"id": mid, "t": m.get("MatchStartTime") or 0, "c": comp, "h": 1,
+            "e": m.get("RankedRatingEarned"), "ta": m.get("TierAfterUpdate"),
+            "tb": m.get("TierBeforeUpdate"), "ra": m.get("RankedRatingAfterUpdate")}
+
+
+def _hist_valid(hit, now, max_age):
+    if not hit or not isinstance(hit[1], dict):
+        return False
+    ts, val = hit
+    if _match_current(ts):
+        return True
+    if now - float(val.get("real") or ts) > HIST_REAL_MAX:
+        return False
+    if val.get("adv") and now - ts < HIST_ADV_TTL:
+        return True
+    return now - ts < max_age
+
+
+def _history(puuid, max_age=HIST_TTL):
+    """Letzte Matches eines Spielers, alle Modi (neueste zuerst). None = Abfrage gescheitert."""
+    now = time.time()
+    with _cache_lock:
+        hit = _hist_cache.get(puuid)
+    if _hist_valid(hit, now, max_age):
+        return hit[1]["items"]
+    return _single_flight(("hist", puuid), lambda: _history_fetch(puuid, max_age))
+
+
+def _history_fetch(puuid, max_age=HIST_TTL, force=False):
+    now = time.time()
+    if not force:
+        with _cache_lock:
+            hit = _hist_cache.get(puuid)       # kam evtl. gerade erst herein
+        if _hist_valid(hit, now, max_age):
+            return hit[1]["items"]
+    status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d"
+                         % (puuid, HIST_FETCH))
+    if status in (400, 404):
+        j = {}                                 # endgueltig (kein solcher Spieler): als leer merken, nicht dauernd neu fragen
+    elif status != 200 or not isinstance(j, dict):
+        return None                            # voruebergehend (Pause, Budget, 5xx): Aufrufer versucht es spaeter erneut
+    items = [e for e in (_hist_entry(m) for m in (j.get("Matches") or []) if isinstance(m, dict)) if e]
+    with _cache_lock:
+        _cache_put(_hist_cache, puuid, (now, {"items": items, "real": now, "adv": False}))
+    _hist_flags["real"] += 1
+    return items
+
+
+def _hist_is_comp(puuid, e):
+    """Competitive? Sicher aus der Match-Kurzfassung, sonst nach der SeasonID des Eintrags."""
+    with _cache_lock:
+        dg = _match_cache.get(e["id"])
+    row = ((dg or {}).get("rows") or {}).get(puuid) if isinstance(dg, dict) else None
+    if not isinstance(row, dict) or not row.get("queue"):
+        return bool(e.get("c"))
+    comp = row["queue"] == "competitive"
+    # Nur eindeutige Faelle zaehlen als Widerspruch (Premier & Co. koennen eine SeasonID tragen)
+    clash = (comp and not e.get("c")) or (e.get("c") and row["queue"] in _HIST_PLAIN_QUEUES)
+    if e.get("h") and clash and not _hist_flags["split"]:
+        _hist_flags["split"] = True            # Annahme stimmt nicht -> wieder zwei Abfragen wie bis 2.6.6
+        if not _hist_flags["reported"]:
+            _hist_flags["reported"] = True
+            report_error("history-classify", "SeasonID passt nicht zur Queue: Eintrag c=%s, Match %s"
+                         % (e.get("c"), row["queue"]))
+    return comp
+
+
+def _recent_match_ids_split(puuid, count):
+    """Wie bis 2.6.6: erst Competitive (eigene Abfrage), sonst alle Modi. None = gescheitert."""
     status, j = riot_get(
         "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d&queue=competitive"
         % (puuid, count))
     ids = []
     if status == 200 and j:
         ids = [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
+    elif status != 200:
+        return None
     if not ids:
         status, j = riot_get("pd", "/match-history/v1/history/%s?startIndex=0&endIndex=%d"
                              % (puuid, count))
         if status == 200 and j:
             ids = [m.get("MatchID") for m in (j.get("History") or []) if m.get("MatchID")]
     return ids[:count]
+
+
+def _recent_match_ids(puuid, count):
+    """Letzte Match-IDs eines Spielers - erst Competitive, sonst alle Modi. None = Abfrage gescheitert
+    (Riot-Pause, kein Budget) - der Aufrufer darf dann nichts als "keine Matches" merken."""
+    if _hist_flags["split"]:
+        return _recent_match_ids_split(puuid, count)
+    items = _history(puuid, STATS_TTL)
+    if items is None:
+        return None
+    comp = [e["id"] for e in items if _hist_is_comp(puuid, e)]
+    if _hist_flags["split"]:                   # gerade eben aufgefallen
+        return _recent_match_ids_split(puuid, count)
+    if len(comp) >= count or (comp and len(items) < HIST_FETCH):
+        return comp[:count]
+    if not items:
+        # ganz leer (neues Konto oder Aussetzer): wie bisher ueber match-history nachsehen
+        status, j = riot_get("pd", "/match-history/v1/history/%s?startIndex=0&endIndex=%d" % (puuid, count))
+        if status == 200 and j:
+            return [m.get("MatchID") for m in (j.get("History") or []) if m.get("MatchID")][:count]
+        return []
+    if len(items) >= HIST_FETCH:
+        # Die Seite ist voll und enthaelt zu wenige Competitive-Matches: aeltere gibt es evtl. noch -
+        # nur dann die gefilterte Abfrage hinterher (wer fast nur Unrated/Deathmatch spielt)
+        now = time.time()
+        with _cache_lock:
+            hit = _hist_comp_cache.get(puuid)
+        if hit and (now - hit[0] < STATS_TTL or _match_current(hit[0])):
+            more = hit[1]
+        else:
+            status, j = riot_get(
+                "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d&queue=competitive"
+                % (puuid, max(count, 10)))
+            if status != 200 or not isinstance(j, dict):
+                return comp[:count] if comp else None
+            more = [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
+            _hist_flags["topup"] += 1
+            with _cache_lock:
+                _cache_put(_hist_comp_cache, puuid, (now, more))
+        # neu fortgeschriebene Eintraege (comp) stehen vorn und fehlen in der aelteren Antwort evtl.
+        merged = comp + [m for m in more if m not in comp]
+        if merged:
+            return merged[:count]
+    return [e["id"] for e in items][:count]
+
+
+def _hist_prepend(pu, mid, comp, now, start_ms=None):
+    """Match vorn in den gemerkten Verlauf eines Spielers eintragen (False: keiner gemerkt)."""
+    entry = {"id": mid, "t": int(start_ms or now * 1000), "c": 1 if comp else 0, "h": 0,
+             "e": None, "ta": None, "tb": None, "ra": None}
+    with _cache_lock:
+        hit = _hist_cache.get(pu)
+        if not hit or not isinstance(hit[1], dict):
+            return False
+        val = hit[1]
+        items = [e for e in val.get("items") or [] if e.get("id") != mid]
+        _hist_cache[pu] = (now, {"items": ([entry] + items)[:HIST_FETCH],
+                                 "real": val.get("real") or hit[0], "adv": True})
+    return True
+
+
+def _hist_after_match(mid, now):
+    """Match vorbei: es steht jetzt bei allen Spielern dieses Matches vorn im Verlauf - lokal
+    eintragen statt neu holen. Unbekannte Queue (Custom, Uebungsplatz): Verlaeufe verwerfen."""
+    roster = _game_roster if _game_roster.get("match") == mid else {}
+    ids = {p.get("puuid") for p in (roster.get("players") or []) if p.get("puuid")}
+    me = _account.get("puuid")
+    if me:
+        ids.add(me)
+    queue = str(roster.get("queue") or "").lower()
+    start_ms = int(float(_snapshot.get("since") or now) * 1000)
+    for pu in ids:
+        with _cache_lock:
+            _hist_comp_cache.pop(pu, None)
+            if queue not in HIST_ADV_QUEUES:
+                _hist_cache.pop(pu, None)
+                continue
+        if _hist_prepend(pu, mid, queue == "competitive", now, start_ms):
+            _hist_flags["adv"] += 1
 
 
 # Waffen-Crutch (2.6.5, Nutzerwunsch): wer auffaellig viel mit OP, Odin, Shotguns, Marshal, Outlaw oder
@@ -2818,7 +3134,8 @@ def _player_stats_fetch(puuid, count, season, key):
     _tl.bulk_denied = False
     try:
         ids = _recent_match_ids(puuid, count)
-        if not ids and (pd_gate_state()["paused"] or _tl.bulk_denied):
+        if ids is None or (not ids and (pd_gate_state()["paused"] or _tl.bulk_denied)):
+            # None (seit 2.6.7): Verlauf nicht lesbar - bis dahin wurde das als "keine Matches" gemerkt
             return {"puuid": puuid, "error": "riot-ratelimit", "matches": [], "totals": None}
         for mid in ids:
             m = _match_details(mid)
@@ -3052,23 +3369,93 @@ def _load_seasons():
         pass
 
 
+# Rohantwort von /mmr fuer vry.exe (mmr_raw, /api/mmr-raw, seit 2.6.7): Dienst und vry.exe fragten
+# dieselben Spieler je einmal ab - das allein waren ~10 /mmr/-Anfragen je Matchstart zu viel.
+# (2.5.4-dev3 hatte das schon einmal, wurde damals nur mangels Live-Test zurueckgenommen.)
+_mmr_raw_cache = collections.OrderedDict()   # puuid -> (Zeitpunkt, Antwort)
+MMR_RAW_MAX = 40
+_mmr_raw_seen = {"match": None}
+# Wiedergetroffene Spieler (Rematch, eigene Party): in Agentenauswahl/Match gilt ein Rang
+# MMR_REMATCH_TTL statt MMR_TTL - ein Rang aendert sich nur durch ein Competitive-Match, und das
+# dauert laenger. Nicht fuer Staende, die vor bzw. kurz nach dem Ende des letzten eigenen
+# Competitive-Matches geholt wurden (Riot traegt das neue RR erst nach ein paar Sekunden ein).
+MMR_REMATCH_TTL = 600
+MMR_SETTLE = 90
+_mmr_comp_end = {"ts": 0.0}
+
+
+def _mmr_fresh(hit, now=None):
+    if not hit:
+        return False
+    now = now or time.time()
+    age = now - hit[0]
+    if age < MMR_TTL or _match_current(hit[0]):
+        return True                  # waehrend eines Matches aendert sich kein Rang
+    return (_game.get("state") in ("PREGAME", "INGAME") and age < MMR_REMATCH_TTL
+            and hit[0] >= _mmr_comp_end["ts"] + MMR_SETTLE)
+
+
+def _mmr_after_match(mid, now):
+    """Competitive vorbei: Raenge der Mitspieler sind ueberholt. Sonst (Unrated & Co.): sie haben sich
+    in diesem Match nicht geaendert - Stand gilt ab jetzt weiter (naechstes Match ohne Anfrage)."""
+    roster = _game_roster if _game_roster.get("match") == mid else {}
+    queue = str(roster.get("queue") or "").lower()
+    if queue == "competitive" or not queue:
+        _mmr_comp_end["ts"] = now
+        return
+    ids = [p.get("puuid") for p in (roster.get("players") or []) if p.get("puuid")]
+    with _cache_lock:
+        for cache in (_mmr_cache, _mmr_raw_cache):
+            for pu in ids:
+                hit = cache.get(pu)
+                if hit and _match_current(hit[0]):
+                    cache[pu] = (now, hit[1])
+
+
+def _mmr_empty():
+    return {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None,
+            "seasonWins": None, "seasonGames": None}
+
+
 def mmr_summary(puuid):
     """Aktueller Rang + RR + hoechster je erreichter Rang + Saison-Bilanz eines Spielers."""
     _snapshot_wait()
-    now = time.time()
     with _cache_lock:
         hit = _mmr_cache.get(puuid)
-        if hit and now - hit[0] < MMR_TTL:
-            return hit[1]
+    if _mmr_fresh(hit):
+        return hit[1]
+    res = _single_flight(("mmr", puuid), lambda: _mmr_fetch(puuid))
+    return res if res is not None else _mmr_empty()
 
-    out = {"rank": None, "rr": None, "peakRank": None, "peakRankAct": None,
-           "seasonWins": None, "seasonGames": None}
+
+def mmr_raw(puuid):
+    """Rohantwort von /mmr/v1/players/<puuid> (fuer vry.exe) oder None."""
+    _snapshot_wait()
+    with _cache_lock:
+        hit = _mmr_raw_cache.get(puuid)
+    if not _mmr_fresh(hit):
+        _single_flight(("mmr", puuid), lambda: _mmr_fetch(puuid, need_raw=True))
+        with _cache_lock:
+            hit = _mmr_raw_cache.get(puuid)
+    return hit[1] if _mmr_fresh(hit) else None
+
+
+def _mmr_fetch(puuid, need_raw=False):
+    with _cache_lock:                # kam evtl. gerade erst herein
+        hit = _mmr_cache.get(puuid)
+        raw = _mmr_raw_cache.get(puuid)
+    if _mmr_fresh(hit) and (not need_raw or _mmr_fresh(raw)):
+        return hit[1]
+    now = time.time()
+    out = _mmr_empty()
     try:
         status, j = riot_get("pd", "/mmr/v1/players/%s" % puuid)
     except Exception:
         return out                   # nicht cachen, beim naechsten Mal erneut
     if status != 200 or not j:
         return out                   # dito (Rate-Limit/Pause, Token) - nicht 2 Minuten "kein Rang"
+    with _cache_lock:
+        _cache_put(_mmr_raw_cache, puuid, (now, j), MMR_RAW_MAX)
     if status == 200 and j:
         last = j.get("LatestCompetitiveUpdate") or {}
         seasons = (((j.get("QueueSkills") or {}).get("competitive") or {})
@@ -3132,11 +3519,10 @@ AGENT_HISTORY_MATCHES = 3      # bewusst knapp: jedes Match kostet einen eigenen
 
 def mmr_summary_nonblocking(puuid):
     """Fuer /api/pregame: gecachter Rang sofort (sonst {}), Abfrage im Hintergrund."""
-    now = time.time()
     with _cache_lock:
         hit = _mmr_cache.get(puuid)
-        if hit and now - hit[0] < MMR_TTL:
-            return hit[1]
+    if _mmr_fresh(hit):
+        return hit[1]
     _in_background("mmr", [puuid], lambda ids: [mmr_summary(u) for u in ids])
     return {}
 
@@ -4024,40 +4410,26 @@ def _party_alive(party_id):
     return None
 
 
-_premade_hist_cache = {}       # puuid -> (Zeitpunkt, [match_ids])
 PREMADE_HIST_TTL = 900
+_premade_hist_fail = {"n": 0}
 
 
 def _premade_history(puuid):
-    """Letzte Match-IDs eines Spielers — ueber alle Modi, nicht nur Competitive.
+    """Letzte Match-IDs eines Spielers - ueber alle Modi, nicht nur Competitive.
 
     competitiveupdates funktioniert im Gegensatz zu /parties auch fuer fremde
-    puuids; ohne queue-Filter kommen auch Unrated-Matches mit. Gecacht: die
-    Erkennung laeuft in der Agentenauswahl und beim Matchstart noch einmal (dann
-    mit den Gegnern, siehe premades()) - weitgehend mit denselben Spielern.
+    puuids; ohne queue-Filter kommen auch Unrated-Matches mit. Seit 2.6.7 derselbe
+    Verlauf wie fuer "Letzte 5" (_history) - eine Riot-Anfrage je Spieler fuer beides.
     """
-    now = time.time()
-    with _cache_lock:
-        hit = _premade_hist_cache.get(puuid)
-        if hit and (now - hit[0] < PREMADE_HIST_TTL or _match_current(hit[0])):
-            return hit[1]
-    ids = _premade_history_fetch(puuid)
-    if ids:
-        with _cache_lock:
-            _cache_put(_premade_hist_cache, puuid, (now, ids))
-    return ids
-
-
-def _premade_history_fetch(puuid):
     try:
-        status, j = riot_get(
-            "pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=%d"
-            % (puuid, PREMADE_HISTORY))
+        items = _history(puuid, PREMADE_HIST_TTL)
     except Exception:
+        items = None
+    if items is None:
+        with _pd_count_lock:
+            _premade_hist_fail["n"] += 1       # Ergebnis dann nicht fuers ganze Match merken (_premades_store)
         return []
-    if status != 200 or not j:
-        return []
-    return [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
+    return [e["id"] for e in items][:PREMADE_HISTORY]
 
 
 def _premade_details(match_id):
@@ -4255,13 +4627,15 @@ def _premades_store(key, mid, state, roster):
             return hit["data"]
     with _pd_count_lock:
         _pd_party["n"] += 1
+        fails = _premade_hist_fail["n"]
     try:
         data = _premades_build(mid, state, roster)
     finally:
         with _pd_count_lock:
             _pd_party["n"] -= 1
-    if pd_gate_state()["paused"]:
-        # Historie unvollstaendig - nicht fuers ganze Match merken; die Seite fragt in 8 s erneut
+    if pd_gate_state()["paused"] or _premade_hist_fail["n"] != fails:
+        # Historie unvollstaendig (Riot-Pause oder seit 2.6.7 kein /mmr/-Budget) - nicht fuers ganze Match
+        # merken; die Seite fragt in 8 s erneut, schon geholte Verlaeufe kommen dann aus dem Cache
         return {"ok": False, "error": "riot-ratelimit"}
     with _cache_lock:
         _premade_cache.update({"match": key, "ts": time.time(), "data": data})
@@ -5729,7 +6103,7 @@ _OVL_STRING_KEYS = (
     "instalock_ask_skip", "instalock_ask_yes", "instalock_ask_no", "peak_label", "side_attack", "side_defense",
     "verdict_even", "verdict_slight_edge", "verdict_clear_edge", "verdict_strong_edge", "for_your_team",
     "for_the_enemies", "ovl_today", "report_hl_ace", "report_hl_4k", "report_hl_clutch", "report_hl_flawless",
-    "report_hl_firstbloods")
+    "report_hl_firstbloods", "note_tag_good", "note_tag_toxic", "note_tag_thrower", "note_tag_smurf", "note_badge")
 # Modus-Namen bleiben Englisch (wie im Overlay)
 _OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
                "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
@@ -5994,6 +6368,44 @@ def _ovl_team_avg(rows):
     return {"tier": tier, "rr": int(round(avg % 100)), "n": len(vals), "img": _ovl_rank_img(tier)}
 
 
+# Abzeichen im Spiel-Overlay (2.6.7, Nutzerwunsch): eigene Notiz (Tags, Textanfang) und Waffen-Crutch
+# direkt in der Agentenauswahl bzw. der Tab-Tabelle. Nur lokale Daten bzw. der "Letzte 5"-Cache -
+# das Overlay stoesst dafuer keine Riot-Abfrage an.
+_OVL_CRUTCH_SHORT = {"op": "OP", "odin": "Odin", "shotgun": "Shotgun", "marshal": "Marshal",
+                     "outlaw": "Outlaw", "shorty": "Shorty"}
+OVL_NOTE_CHARS = 26
+
+
+def _ovl_badges(puuid):
+    """([{kind, key|text}], Notiz-Anfang) fuer eine Zeile."""
+    out, text = [], ""
+    try:
+        with _store_lock:
+            n = _notes_data().get(puuid)
+            n = dict(n) if isinstance(n, dict) else None
+    except Exception:
+        n = None
+    if n:
+        tags = [t for t in NOTE_TAGS if t in (n.get("tags") or [])]
+        for t in tags[:2]:
+            out.append({"kind": t, "key": "note_tag_" + t})
+        text = " ".join(str(n.get("text") or "").split())
+        if text and not tags:
+            out.append({"kind": "note", "key": "note_badge"})
+        if len(text) > OVL_NOTE_CHARS:
+            text = text[:OVL_NOTE_CHARS - 1].rstrip() + "\u2026"
+    with _cache_lock:
+        hit = _stats_cache.get("%s:5" % puuid)
+    w = hit[1].get("weapons") if (hit and isinstance(hit[1], dict) and time.time() - hit[0] < 3 * 3600) else None
+    if isinstance(w, dict) and w.get("hits"):
+        g = w["hits"][0]
+        grp = (w.get("groups") or {}).get(g) or {}
+        pct = max(grp.get("kp") or 0, grp.get("bp") or 0)
+        if g in _OVL_CRUTCH_SHORT and pct:
+            out.append({"kind": "crutch", "text": "%s %d%%" % (_OVL_CRUTCH_SHORT[g], pct), "short": _OVL_CRUTCH_SHORT[g]})
+    return out, text
+
+
 def _ovl_row(puuid, me, base, hbp, parties, encs=None):
     hbp = hbp if isinstance(hbp, dict) else {}
     name = hbp.get("name") or base.get("name") or ""
@@ -6017,6 +6429,7 @@ def _ovl_row(puuid, me, base, hbp, parties, encs=None):
     if wr is None:
         mt = _OVL_WR_RE.match(str(hbp.get("winPercentage") or ""))
         wr = float(mt.group(1)) if mt else None
+    badges, note = _ovl_badges(puuid) if (puuid and not me) else ([], "")
     return {"name": None if hidden else name, "hidden": hidden,
             "agent": agent_name or hbp.get("agent") or "", "agentImg": _ovl_agent_img(aid) if aid else None,
             "locked": bool(base.get("locked")), "hover": bool(base.get("hover")), "me": bool(me),
@@ -6025,7 +6438,8 @@ def _ovl_row(puuid, me, base, hbp, parties, encs=None):
             "rankImg": _ovl_rank_img(tier) if tier > 2 else None,
             "kd": hbp.get("kd") if isinstance(hbp.get("kd"), (int, float)) else None,
             "hs": hbp.get("headshotPercentage") if isinstance(hbp.get("headshotPercentage"), (int, float)) else None,
-            "wr": wr, "form": _ovl_form(puuid) if puuid else [], "enc": (encs or {}).get(puuid, 0)}
+            "wr": wr, "form": _ovl_form(puuid) if puuid else [], "enc": (encs or {}).get(puuid, 0),
+            "badges": badges, "note": note}
 
 
 def _ovl_sort(rows):
@@ -6182,21 +6596,24 @@ def _ovl_rr_get(mid):
     def run():
         try:
             me = get_auth()["puuid"]
-            status, j = riot_get("pd", "/mmr/v1/players/%s/competitiveupdates?startIndex=0&endIndex=10"
-                                       "&queue=competitive" % me)
-            rows = (j or {}).get("Matches") or [] if status == 200 and isinstance(j, dict) else []
-            hit = next((x for x in rows if x.get("MatchID") == mid), None)
-            if hit and _ovl_rr["match"] == mid and isinstance(hit.get("TierAfterUpdate"), int):
+            # seit 2.6.7 ueber den gemeinsamen Verlauf (alle Modi, 20 Eintraege) statt einer eigenen
+            # gefilterten Abfrage - dieselbe Antwort fuellt auch die Session-Uebersicht
+            rows = _history_fetch(me, force=True) or []
+            hit = next((x for x in rows if x.get("id") == mid), None)
+            if rows and not hit:
+                _hist_prepend(me, mid, True, time.time())     # Riot fuehrt das Match noch nicht
+            if hit and _ovl_rr["match"] == mid and isinstance(hit.get("ta"), int) and isinstance(hit.get("e"), int):
                 # "Heute": alle Competitive-Matches seit Mitternacht (PC-Uhr) aus derselben Antwort
                 lt = time.localtime()
                 midnight = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1)) * 1000
-                today = [x for x in rows if (x.get("MatchStartTime") or 0) >= midnight
-                         and isinstance(x.get("RankedRatingEarned"), int)]
-                _ovl_rr["data"] = {"earned": hit.get("RankedRatingEarned"), "tier": hit.get("TierAfterUpdate"),
-                                   "rr": hit.get("RankedRatingAfterUpdate"), "before": hit.get("TierBeforeUpdate"),
-                                   "today": {"rr": sum(x["RankedRatingEarned"] for x in today), "n": len(today),
-                                             "w": sum(1 for x in today if x["RankedRatingEarned"] > 0),
-                                             "l": sum(1 for x in today if x["RankedRatingEarned"] < 0)}}
+                today = [x for x in rows if x.get("c") and (x.get("t") or 0) >= midnight
+                         and isinstance(x.get("e"), int)]
+                _ovl_rr["data"] = {"earned": hit.get("e"), "tier": hit.get("ta"),
+                                   "rr": hit.get("ra"), "before": hit.get("tb"),
+                                   "today": {"rr": sum(x["e"] for x in today), "n": len(today),
+                                             "w": sum(1 for x in today if x["e"] > 0),
+                                             "l": sum(1 for x in today if x["e"] < 0)}}
+                session_set_rr(mid, hit.get("e"), hit.get("ta"), hit.get("ra"))
         except Exception:
             pass
         finally:
@@ -6326,6 +6743,11 @@ def _ovl_preview_data(step, strings):
                      "kd": round(0.8 + (i * 37 % 9) / 10.0, 2), "hs": 14 + (i * 7) % 18, "wr": 44 + (i * 13) % 23,
                      "form": ["wlwwl", "wwlwl", "llwlw", "wwwlw", "lwlww"][i % 5], "enc": (0, 4, 0, 2, 0, 3)[i % 6]})
         rows[-1]["form"] = list(rows[-1]["form"])
+        # Beispiel-Abzeichen (seit 2.6.7): Notiz-Tags und Waffen-Crutch
+        rows[-1]["badges"] = {1: [{"kind": "good", "key": "note_tag_good"}],
+                              6: [{"kind": "toxic", "key": "note_tag_toxic"}],
+                              8: [{"kind": "crutch", "text": "OP 41%"}]}.get(i, [])
+        rows[-1]["note"] = ""
     pid = "preview-%d" % int(_ovl["previewAt"])
     ascent = _ovl_map("/game/maps/ascent/ascent")
     if step == "pregame":
@@ -6854,13 +7276,20 @@ _game_roster = {"match": None, "map": "", "queue": "", "players": []}
 
 def game_state():
     """Spielzustand fuer die Oberflaeche — unabhaengig davon, was vry.exe sieht."""
+    g, now = _pd_gate_read(), time.time()
+    shard = ((_auth.get("data") or {}).get("shard")) or ""
     out = {"state": _game["state"], "matchId": _game["matchId"],
            # since: seit wann der Zustand gilt - die Seite verwirft damit Heartbeats von
            # vry.exe, die noch vor dem Matchende/Dodge gebaut wurden (2.5.5)
            "since": int(_game["since"]),
-           "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(),
+           "ready": game_ready(), "at": int(_game["ts"]), "riotPause": pd_gate_state(g),
            "snapshot": {"match": _snapshot["match"], "restored": _snapshot["restored"]},
            "pdRequests": dict(_pd_counts), "report": match_report_state(),
+           # seit 2.6.7: /mmr/-Budget (Anfragen im Fenster / Obergrenze) und Verlaufs-Zaehler
+           "mmrBudget": {"n": len(_pd_mmr_times(g, now)), "cap": _pd_mmr_cap(g, shard),
+                         "learned": int(g.get("mmr_cap") or 0)},
+           "history": dict(_hist_flags),
+           "session": _session_brief(),
            # Diagnose: wann die Seite zuletzt /status fragte, wann vorgeladen wurde
            "page": {"seenAgo": int(time.time() - _page_seen["ts"]) if _page_seen["ts"] else None,
                     "prefetch": _prefetch_done["key"],
@@ -7164,12 +7593,12 @@ def _prefetch_run(state, roster, puuids):
 # die Datei geloescht. Gegenstueck in vry.exe: src/match_snapshot.py.
 MATCH_SNAPSHOT_FILE = os.path.join(DATA_DIR, "match-snapshot.json")
 _SNAPSHOT_CACHES = (("stats", _stats_cache), ("mmr", _mmr_cache), ("agents", _agent_history_cache),
-                    ("premadeHist", _premade_hist_cache), ("rr", _rr_cache), ("names", _name_cache))
+                    ("hist", _hist_cache), ("rr", _rr_cache), ("names", _name_cache))
 _snapshot = {"match": None, "since": 0.0, "sig": None, "restored": 0}   # restored: fuer /api/gamestate
 # Format je Cache: aendert sich, WAS ein Cache-Eintrag bedeutet, hier erhoehen -
 # ein Snapshot aus einer aelteren Version (Update mitten im Match) bringt diesen
 # Teil dann nicht mit, der Rest bleibt. mmr 2 = Rang mit Act-Uebernahme (2.4.9).
-_SNAPSHOT_FMT = {"stats": 1, "mmr": 2, "agents": 1, "premadeHist": 1, "rr": 1, "names": 1, "premades": 1}
+_SNAPSHOT_FMT = {"stats": 1, "mmr": 2, "agents": 1, "hist": 1, "rr": 1, "names": 1, "premades": 1}
 _snapshot_ready = threading.Event()
 
 
@@ -7818,6 +8247,7 @@ def _report_tick(now):
                 with _report_lock:
                     _report.update(data=data, loaded=True)
                 ok = True
+                session_add(data)
         except Exception as e:
             report_error("match-report", e)
         finally:
@@ -7831,6 +8261,129 @@ def _report_tick(now):
                     _report["next"] = time.time() + REPORT_RETRY
 
     threading.Thread(target=run, daemon=True).start()
+
+
+# ---- Session-Uebersicht (2.6.7) ----
+# Nutzerwunsch: Bilanz der laufenden Session (Siege/Niederlagen, RR) in Overlay und Tray. Eine Session
+# sind die eigenen Matches eines Kontos, zwischen denen hoechstens SESSION_GAP liegt. Die Daten fallen
+# ohnehin an: Ergebnis aus der Match-Analyse, RR aus dem eigenen Verlauf (eine competitiveupdates-
+# Abfrage nach einem Competitive-Match, dieselbe wie fuer die Ergebnis-Karte des Spiel-Overlays).
+# Nur lokal in DATA_DIR/play-session.json. Route /api/playsession (/api/session ist der Riot-Login).
+SESSION_FILE = os.path.join(DATA_DIR, "play-session.json")
+SESSION_GAP = 3 * 3600
+SESSION_MAX = 40
+SESSION_RR_WINDOW = 600          # so lange nach Matchende wird das RR noch nachgetragen
+_session = {"data": None}
+_session_lock = threading.Lock()
+
+
+def _session_data():
+    if _session["data"] is None:
+        root = _load_json(SESSION_FILE)
+        _session["data"] = root.get("accounts") if isinstance(root.get("accounts"), dict) else {}
+    return _session["data"]
+
+
+def _session_save():
+    try:
+        _save_json(SESSION_FILE, {"v": 1, "accounts": _session["data"]})
+    except Exception:
+        pass
+
+
+def _session_matches(puuid, now):
+    """Matches der laufenden Session (aelteste zuerst) - leer, wenn sie abgelaufen ist."""
+    rows = [m for m in (_session_data().get(puuid) or []) if isinstance(m, dict) and m.get("id")]
+    if not rows or now - float(rows[-1].get("t") or 0) > SESSION_GAP:
+        return []
+    return rows
+
+
+def session_add(report):
+    """Eigenes Match (fertige Analyse) in die Session eintragen."""
+    try:
+        me, mid = report.get("puuid"), report.get("matchId")
+        if not me or not mid or report.get("pov"):
+            return
+        now = time.time()
+        row = next((p for p in report.get("players") or [] if p.get("me")), {})
+        score = report.get("score") or {}
+        entry = {"id": mid, "t": int(now), "s": report.get("startedAt"), "q": str(report.get("queue") or ""),
+                 "r": {"win": "w", "loss": "l", "draw": "d"}.get(report.get("result"), "d"),
+                 "ffa": bool(report.get("ffa")), "map": report.get("map"),
+                 "sc": [score.get("ally"), score.get("enemy")], "place": score.get("place"),
+                 "k": row.get("kills"), "d": row.get("deaths"), "a": row.get("assists"),
+                 "agent": row.get("agent"), "rr": None, "tier": None}
+        with _session_lock:
+            rows = _session_matches(me, now)
+            if any(m["id"] == mid for m in rows):
+                return
+            data = _session_data()
+            data[me] = (rows + [entry])[-SESSION_MAX:]
+            for pu in [k for k in data if k != me]:      # abgelaufene Sessions anderer Konten aufraeumen
+                if not _session_matches(pu, now):
+                    data.pop(pu, None)
+            _session_save()
+    except Exception as e:
+        report_error("session", e)
+
+
+def session_set_rr(mid, earned, tier, rr):
+    me = _account.get("puuid")
+    if not me or not isinstance(earned, int):
+        return
+    with _session_lock:
+        for m in _session_data().get(me) or []:
+            if m.get("id") == mid and m.get("rr") is None:
+                m.update(rr=earned, tier=tier if isinstance(tier, int) else None,
+                         rrNow=rr if isinstance(rr, int) else None)
+                _session_save()
+                break
+
+
+def _session_brief():
+    """Kurzform fuer /status (ohne Match-Liste)."""
+    st = session_state()
+    return {k: st[k] for k in ("n", "w", "l", "d", "rr", "streak")}
+
+
+def session_state():
+    """Fuer Overlay und Tray: Bilanz der laufenden Session des angemeldeten Kontos."""
+    me, now = _account.get("puuid"), time.time()
+    with _session_lock:
+        rows = [dict(m) for m in _session_matches(me, now)] if me else []
+    team = [m for m in rows if not m.get("ffa")]
+    w = sum(1 for m in team if m.get("r") == "w")
+    l = sum(1 for m in team if m.get("r") == "l")
+    rr = [m["rr"] for m in rows if isinstance(m.get("rr"), int)]
+    streak, kind = 0, None
+    for m in reversed(team):
+        if m.get("r") not in ("w", "l") or (kind and m["r"] != kind):
+            break
+        kind = m["r"]
+        streak += 1
+    return {"ok": True, "n": len(rows), "w": w, "l": l, "d": len(team) - w - l,
+            "rr": sum(rr) if rr else None, "rrGames": len(rr),
+            "streak": {"kind": kind, "n": streak} if streak >= 2 else None,
+            "since": rows[0].get("s") or int(rows[0]["t"] * 1000) if rows else None,
+            "matches": rows[::-1]}
+
+
+def _session_tick(now):
+    """RR des letzten Competitive-Matches nachtragen (Riot fuehrt es erst kurz nach dem Ende)."""
+    me = _account.get("puuid")
+    if not me or _game["state"] in ("PREGAME", "INGAME"):
+        return
+    with _session_lock:
+        rows = _session_data().get(me) or []
+        last = rows[-1] if rows else None
+        want = (last and last.get("q") == "competitive" and last.get("rr") is None
+                and now - float(last.get("t") or 0) < SESSION_RR_WINDOW)
+        mid = last.get("id") if want else None
+    if mid:
+        data = _ovl_rr_get(mid)
+        if data:
+            session_set_rr(mid, data.get("earned"), data.get("tier"), data.get("rr"))
 
 
 def _kill_time(k):
@@ -8187,6 +8740,8 @@ def _game_watcher():
                 if _game["state"] == "INGAME" and _game["matchId"] and state != "INGAME":
                     _report_schedule(_game["matchId"])     # Match vorbei -> Analyse holen
                     _stats_after_match(_game["matchId"], now)
+                    _hist_after_match(_game["matchId"], now)
+                    _mmr_after_match(_game["matchId"], now)
                 _game.update({"state": state, "matchId": mid, "since": now})
                 _game_hist.append((now, state))
             _game["ts"] = now
@@ -8194,6 +8749,7 @@ def _game_watcher():
             if state in ("PREGAME", "INGAME"):
                 _report_supersede(mid)
             _report_tick(now)
+            _session_tick(now)
             # Begegnungen zählen, sobald der volle Kader steht (INGAME) —
             # unabhängig davon, ob die Seite gerade offen ist
             if state == "INGAME":
@@ -11437,6 +11993,19 @@ def _bot_message(text):
             % (CHAT_BOT_JID, stamp, secrets.token_hex(6), _xml_text(text))).encode("utf-8")
 
 
+def _lang_string(key, default):
+    """Ein Text aus lang/<code>.json in der App-Sprache (sonst Englisch, sonst default)."""
+    for code in (_heartbeat_lang(), "en"):
+        try:
+            with open(os.path.join(LANG_DIR, code + ".json"), "r", encoding="utf-8") as fh:
+                v = (json.load(fh).get("strings") or {}).get(key)
+        except Exception:
+            continue
+        if isinstance(v, str) and v:
+            return v
+    return default
+
+
 def _bot_strings():
     """Texte des Chat-Freundes aus lang/<code>.json (gleiche Sprache wie Tray/Discord)."""
     out = {}
@@ -12847,6 +13416,29 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: rr_history(puuid, n) if _is_puuid(puuid)
                        else {"ok": False, "error": "Keine Spieler-ID verfügbar."})
 
+        elif path == "/api/playsession":
+            record_feature("session_view")
+            self._safe(session_state)
+
+        elif path == "/api/mmr-raw":
+            # Fuer vry.exe (src/rank.py, seit 2.6.7): Rang-Rohdaten ueber den Dienst, damit Dienst
+            # und vry.exe einen Spieler nicht je einmal bei Riot abfragen. Nur vom PC selbst und
+            # nicht aus einer Webseite heraus (vry.exe schickt keinen Origin).
+            puuid = q.get("puuid", [""])[0]
+            if not _is_local(self._client_ip()) or self.headers.get("Origin"):
+                self._json({"ok": False, "error": "Nur am PC selbst."}, 403)
+            elif not _is_puuid(puuid):
+                self._json({"ok": False, "error": "Keine Spieler-ID."})
+            else:
+                try:
+                    raw = mmr_raw(puuid)
+                except Exception:
+                    raw = None
+                if raw is not None and _game.get("matchId") and _mmr_raw_seen["match"] != _game["matchId"]:
+                    _mmr_raw_seen["match"] = _game["matchId"]
+                    record_feature("rank_shared")        # je Match einmal - zeigt im Dashboard, ob es greift
+                self._json({"ok": raw is not None, "data": raw})
+
         elif path == "/api/player":
             puuid = q.get("puuid", [""])[0]
             try:
@@ -13144,6 +13736,17 @@ def _tray_wndproc_factory(user32, shell32, nid):
             MF_GRAYED = 0x00000001
             MF_SEPARATOR = 0x00000800
             tray_strings = _tray_strings()
+            # Session-Bilanz (seit 2.6.7): eine graue Zeile ganz oben, sobald ein Match gespielt ist
+            try:
+                sb = _session_brief()
+                if sb["w"] + sb["l"] + sb["d"] > 0:
+                    line = "%s:  %d\u2013%d" % (_lang_string("sess_title", "Session"), sb["w"], sb["l"])
+                    if isinstance(sb.get("rr"), int):
+                        line += "  \u00b7  %+d RR" % sb["rr"]
+                    user32.AppendMenuW(hmenu, MF_STRING | MF_GRAYED, 0, line)
+                    user32.AppendMenuW(hmenu, MF_SEPARATOR, 0, None)
+            except Exception as e:
+                _ulog("Tray: Session-Zeile fehlgeschlagen: %s: %s" % (type(e).__name__, e))
             # Online-Status: Ueberschrift (grau) + drei Punkte, der aktuelle mit Radio-Punkt
             try:
                 chat_s = _bot_strings()

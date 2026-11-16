@@ -807,6 +807,18 @@
     "crutch_buys_tip": "{n}라운드에서 구매",
     "crutch_buys_na": "보조무기 – 킬로만 계산",
     "crutch_none": "OP, 오딘, 샷건, 마셜, 아웃로, 쇼티를 거의 쓰지 않음 – 특이사항 없음.",
-    "crutch_basis": "구매 단계가 있는 {games}경기 · {kills}킬 · 주무기 {rounds}라운드 기준"
+    "crutch_basis": "구매 단계가 있는 {games}경기 · {kills}킬 · 주무기 {rounds}라운드 기준",
+    "sess_title": "세션",
+    "sess_chip_tip": "이번 세션: 승–패와 RR. 클릭하면 매치를 볼 수 있습니다.",
+    "sess_sub": "{n}경기 · {time}부터",
+    "sess_sub_one": "1경기 · {time}부터",
+    "sess_record": "전적",
+    "sess_streak": "연속",
+    "sess_empty": "이번 세션에는 아직 매치가 없습니다.",
+    "sess_hint": "매치 없이 3시간이 지나면 세션이 끝납니다. 내 PC에만 저장됩니다.",
+    "sess_open_tip": "이 매치의 분석 열기",
+    "note_hint_title": "{name} 메모",
+    "note_hint_open": "열기",
+    "note_add_tip": "이 플레이어에 대한 메모"
   }
 }

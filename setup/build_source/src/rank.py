@@ -1,3 +1,24 @@
+import time
+
+import requests
+
+SERVICE_URL = "http://127.0.0.1:1101"     # lokaler Dienst (vry_log_server.py)
+_svc = requests.Session()
+_svc.trust_env = False                    # nie ueber einen System-Proxy, ist ja lokal
+_svc_off = {"until": 0.0}                 # Dienst nicht erreichbar -> eine Weile gar nicht erst fragen
+
+
+class _ServiceResponse:
+    """Antwort aus dem Dienst im Gewand einer requests-Antwort (get_rank liest .ok/.json())."""
+    ok = True
+    status_code = 200
+
+    def __init__(self, data):
+        self._data = data
+
+    def json(self):
+        return self._data
+
 
 class Rank:
     def __init__(self, Requests, log, content, ranks_before):
@@ -11,12 +32,36 @@ class Rank:
         if puuid in self.requestMap:
             return self.requestMap[puuid]
 
-        response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
+        response = self._from_service(puuid)
+        if response is None:
+            response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
         # Nur Erfolge merken: bis 2.5.7 galt eine 429/Cloudflare-Antwort hier bis zum Menue -
         # der Spieler stand dann die ganze Auswahl und das ganze Match als "Unranked"
         if getattr(response, "ok", False):
             self.requestMap[puuid] = response
         return response
+
+    def _from_service(self, puuid):
+        """Rang ueber den lokalen Dienst (seit 2.6.7): Der fragt denselben Spieler fuer Karten,
+        Lobby und Spiel-Overlay ohnehin ab - bisher holten Dienst und vry.exe ihn je einmal bei
+        Riot, das waren ~10 /mmr/-Anfragen je Matchstart zu viel (auf kr sperrt Cloudflare frueh).
+        Kein Dienst, keine Antwort oder Riot-Pause dort: None, dann wie bisher selbst.
+        Die Log-Zeile mit /mmr/v1/players/<puuid> braucht der Dienst fuer die Lade-Ansicht
+        (parse_progress, RE_MMR_PLAYER)."""
+        if time.time() < _svc_off["until"]:
+            return None
+        try:
+            r = _svc.get(SERVICE_URL + "/api/mmr-raw", params={"puuid": puuid}, timeout=(1.5, 30))
+            j = r.json() if r.status_code == 200 else None
+        except requests.exceptions.ConnectionError:
+            _svc_off["until"] = time.time() + 60.0
+            return None
+        except Exception:
+            return None
+        if not isinstance(j, dict) or not j.get("ok") or not isinstance(j.get("data"), dict):
+            return None
+        self.log(f"fetch: url: 'service', endpoint: /mmr/v1/players/{puuid}, method: get, response code: 200")
+        return _ServiceResponse(j["data"])
 
     def invalidate_cached_responses(self):
         self.requestMap = {}

@@ -806,6 +806,18 @@
     "crutch_buys_tip": "Comprada en {n} rondas",
     "crutch_buys_na": "Pistola – solo cuenta por kills",
     "crutch_none": "Casi nada de OP, Odin, escopetas, Marshal, Outlaw ni Shorty – nada raro.",
-    "crutch_basis": "De {games} partidas con fase de compra · {kills} kills · {rounds} rondas con arma principal"
+    "crutch_basis": "De {games} partidas con fase de compra · {kills} kills · {rounds} rondas con arma principal",
+    "sess_title": "Sesión",
+    "sess_chip_tip": "Tu sesión: victorias–derrotas y RR. Haz clic para ver las partidas.",
+    "sess_sub": "{n} partidas · desde las {time}",
+    "sess_sub_one": "1 partida · desde las {time}",
+    "sess_record": "Balance",
+    "sess_streak": "Racha",
+    "sess_empty": "Todavía no hay partidas en esta sesión.",
+    "sess_hint": "Una sesión termina tras 3 horas sin partida. Solo se guarda en tu PC.",
+    "sess_open_tip": "Abrir el análisis de esta partida",
+    "note_hint_title": "Nota sobre {name}",
+    "note_hint_open": "Abrir",
+    "note_add_tip": "Nota sobre este jugador"
   }
 }

@@ -46,7 +46,12 @@
   "report_hl_4k": "4 Kills in Runde {r}",
   "report_hl_clutch": "1v{vs} Clutch in Runde {r}",
   "report_hl_flawless": "Flawless-Runde {r}",
-  "report_hl_firstbloods": "{n} First Kills"
+  "report_hl_firstbloods": "{n} First Kills",
+  "note_tag_good": "Guter Mate",
+  "note_tag_toxic": "Toxisch",
+  "note_tag_thrower": "Thrower",
+  "note_tag_smurf": "Smurf",
+  "note_badge": "Notiz"
  },
  "settings": {
   "on": true,
@@ -104,7 +109,14 @@
      "w"
     ],
     "wr": 49,
-    "enc": 6
+    "enc": 6,
+    "badges": [
+     {
+      "kind": "good",
+      "key": "note_tag_good"
+     }
+    ],
+    "note": ""
    },
    {
     "name": "ムーンライト#JP1",
@@ -124,7 +136,18 @@
      "w"
     ],
     "wr": 51,
-    "enc": 0
+    "enc": 0,
+    "badges": [
+     {
+      "kind": "toxic",
+      "key": "note_tag_toxic"
+     },
+     {
+      "kind": "thrower",
+      "key": "note_tag_thrower"
+     }
+    ],
+    "note": "flamed after round 3, muted …"
    },
    {
     "name": "",
@@ -145,7 +168,14 @@
      "w"
     ],
     "wr": 58,
-    "enc": 2
+    "enc": 2,
+    "badges": [
+     {
+      "kind": "note",
+      "key": "note_badge"
+     }
+    ],
+    "note": "spielt nur Duelist"
    },
    {
     "name": "xXx_SuperLongNameHere_xXx#00001",
@@ -211,7 +241,14 @@
     "wr": 49,
     "enc": 6,
     "kd": 0.97,
-    "hs": 18
+    "hs": 18,
+    "badges": [
+     {
+      "kind": "good",
+      "key": "note_tag_good"
+     }
+    ],
+    "note": ""
    },
    {
     "name": "ムーンライト#JP1",
@@ -255,7 +292,19 @@
     "wr": 58,
     "enc": 2,
     "kd": 0.71,
-    "hs": 15
+    "hs": 15,
+    "badges": [
+     {
+      "kind": "thrower",
+      "key": "note_tag_thrower"
+     },
+     {
+      "kind": "crutch",
+      "text": "Shotgun 38%",
+      "short": "Shotgun"
+     }
+    ],
+    "note": "ging in Runde 9 afk"
    },
    {
     "name": "xXx_SuperLongNameHere_xXx#00001",
@@ -285,7 +334,15 @@
     "hs": 27,
     "form": [],
     "wr": 61,
-    "enc": 3
+    "enc": 3,
+    "badges": [
+     {
+      "kind": "crutch",
+      "text": "OP 62%",
+      "short": "OP"
+     }
+    ],
+    "note": ""
    },
    {
     "name": "Sage#heal",
@@ -307,7 +364,23 @@
      "w"
     ],
     "wr": 47,
-    "enc": 0
+    "enc": 0,
+    "badges": [
+     {
+      "kind": "smurf",
+      "key": "note_tag_smurf"
+     },
+     {
+      "kind": "toxic",
+      "key": "note_tag_toxic"
+     },
+     {
+      "kind": "crutch",
+      "text": "Odin 31%",
+      "short": "Odin"
+     }
+    ],
+    "note": "zweiter Account von …"
    },
    {
     "name": "Reyna Diff#KR",
@@ -349,7 +422,14 @@
      "w"
     ],
     "wr": 50,
-    "enc": 0
+    "enc": 0,
+    "badges": [
+     {
+      "kind": "note",
+      "key": "note_badge"
+     }
+    ],
+    "note": "guter Sova, Lineups"
    },
    {
     "name": "한국인플레이어#KR1",

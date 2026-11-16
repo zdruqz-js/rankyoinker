@@ -807,6 +807,18 @@
     "crutch_buys_tip": "Kupiona w {n} rundach",
     "crutch_buys_na": "Pistolet – liczą się tylko zabójstwa",
     "crutch_none": "Prawie bez OP, Odina, shotgunów, Marshala, Outlawa i Shorty – nic nietypowego.",
-    "crutch_basis": "Z {games} meczów z fazą zakupów · {kills} zabójstw · {rounds} rund z bronią główną"
+    "crutch_basis": "Z {games} meczów z fazą zakupów · {kills} zabójstw · {rounds} rund z bronią główną",
+    "sess_title": "Sesja",
+    "sess_chip_tip": "Twoja sesja: wygrane–przegrane i RR. Kliknij, aby zobaczyć mecze.",
+    "sess_sub": "Mecze: {n} · od {time}",
+    "sess_sub_one": "1 mecz · od {time}",
+    "sess_record": "Bilans",
+    "sess_streak": "Seria",
+    "sess_empty": "W tej sesji nie było jeszcze meczu.",
+    "sess_hint": "Sesja kończy się po 3 godzinach bez meczu. Zapisywana tylko na twoim komputerze.",
+    "sess_open_tip": "Otwórz analizę tego meczu",
+    "note_hint_title": "Notatka: {name}",
+    "note_hint_open": "Otwórz",
+    "note_add_tip": "Notatka o tym graczu"
   }
 }

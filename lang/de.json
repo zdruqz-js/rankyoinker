@@ -807,6 +807,18 @@
     "crutch_buys_tip": "{n} Runden mit dieser Waffe gekauft",
     "crutch_buys_na": "Pistole – zählt nur über die Kills",
     "crutch_none": "Kaum OP, Odin, Shotguns, Marshal, Outlaw oder Shorty – unauffällig.",
-    "crutch_basis": "Aus {games} Matches mit Kaufphase · {kills} Kills · {rounds} Runden mit Hauptwaffe"
+    "crutch_basis": "Aus {games} Matches mit Kaufphase · {kills} Kills · {rounds} Runden mit Hauptwaffe",
+    "sess_title": "Session",
+    "sess_chip_tip": "Deine Session: Siege–Niederlagen und RR. Klicken für die Matches.",
+    "sess_sub": "{n} Matches · seit {time}",
+    "sess_sub_one": "1 Match · seit {time}",
+    "sess_record": "Bilanz",
+    "sess_streak": "Serie",
+    "sess_empty": "Noch kein Match in dieser Session.",
+    "sess_hint": "Eine Session endet nach 3 Stunden ohne Match. Nur auf deinem PC gespeichert.",
+    "sess_open_tip": "Analyse dieses Matches öffnen",
+    "note_hint_title": "Notiz zu {name}",
+    "note_hint_open": "Öffnen",
+    "note_add_tip": "Notiz zu diesem Spieler"
   }
 }

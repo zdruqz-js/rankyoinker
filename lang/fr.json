@@ -806,6 +806,18 @@
     "crutch_buys_tip": "Achetée dans {n} rounds",
     "crutch_buys_na": "Arme de poing – comptée seulement via les kills",
     "crutch_none": "Presque pas d’OP, Odin, shotguns, Marshal, Outlaw ou Shorty – rien d’anormal.",
-    "crutch_basis": "Sur {games} matchs avec phase d’achat · {kills} kills · {rounds} rounds avec arme principale"
+    "crutch_basis": "Sur {games} matchs avec phase d’achat · {kills} kills · {rounds} rounds avec arme principale",
+    "sess_title": "Session",
+    "sess_chip_tip": "Ta session : victoires–défaites et RR. Clique pour voir les matchs.",
+    "sess_sub": "{n} matchs · depuis {time}",
+    "sess_sub_one": "1 match · depuis {time}",
+    "sess_record": "Bilan",
+    "sess_streak": "Série",
+    "sess_empty": "Aucun match dans cette session pour l'instant.",
+    "sess_hint": "Une session se termine après 3 heures sans match. Enregistrée uniquement sur ton PC.",
+    "sess_open_tip": "Ouvrir l'analyse de ce match",
+    "note_hint_title": "Note sur {name}",
+    "note_hint_open": "Ouvrir",
+    "note_add_tip": "Note sur ce joueur"
   }
 }
