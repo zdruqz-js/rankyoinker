@@ -209,24 +209,167 @@ def _redact_log(text):
     return _LOG_SECRET_RE.sub(r"\1***", text)
 
 
+# ---- Windows faehrt herunter: keine Prozesse mehr starten ----
+# Bis 2.6.7 fragte der Dienst alle paar Sekunden per tasklist.exe nach VALORANT/vry.exe. Faehrt Windows
+# herunter (oder meldet sich der Nutzer ab), kann ein NEUER Prozess nicht mehr starten - Windows zeigt
+# dann "tasklist.exe - Anwendungsfehler (0xc0000142)" und das Herunterfahren haengt an diesem Dialog.
+# Seit 2.6.8: Prozessliste direkt ueber die Windows-API (_proc_table, kein Prozessstart), und alle
+# uebrigen Starts (_sp_run/_sp_popen) sind gesperrt, sobald das Herunterfahren beginnt.
+SM_SHUTTINGDOWN = 0x2000
+SEM_FAILCRITICALERRORS = 0x0001
+SHUTDOWN_STALE = 120.0       # so lange gilt ein gemeldetes Herunterfahren, ohne dass Windows es bestaetigt
+_shutdown = {"at": 0.0, "mode": None}
+
+
+def _shutdown_mark(on, why=""):
+    """Vom Tray-Fenster (WM_QUERYENDSESSION/WM_ENDSESSION) und von _shutting_down()."""
+    if on:
+        if _shutdown["at"]:
+            return
+        _shutdown["at"] = time.time()
+        try:
+            # Kindprozesse erben das: scheitert doch noch ein Start, bleibt er ohne Fehlerdialog
+            _shutdown["mode"] = ctypes.windll.kernel32.SetErrorMode(SEM_FAILCRITICALERRORS)
+        except Exception:
+            _shutdown["mode"] = None
+        try:
+            _ulog("Windows faehrt herunter (%s) - keine Prozesse mehr starten." % why)
+        except Exception:
+            pass
+    elif _shutdown["at"]:
+        _shutdown["at"] = 0.0
+        mode, _shutdown["mode"] = _shutdown["mode"], None
+        try:
+            if mode is not None:
+                ctypes.windll.kernel32.SetErrorMode(mode)
+            _ulog("Herunterfahren abgebrochen (%s) - Prozessstarts wieder erlaubt." % why)
+        except Exception:
+            pass
+
+
+def _session_ending():
+    """Fragt Windows direkt: wird diese Sitzung gerade beendet? None = nicht feststellbar."""
+    if os.name != "nt":
+        return None
+    try:
+        return bool(ctypes.windll.user32.GetSystemMetrics(SM_SHUTTINGDOWN))
+    except Exception:
+        return None
+
+
+def _shutting_down():
+    ending = _session_ending()
+    if ending:
+        _shutdown_mark(True, "SM_SHUTTINGDOWN")
+        return True
+    if _shutdown["at"]:
+        # gemeldet vom Tray-Fenster; laeuft die Sitzung nach einer Weile doch weiter, war es ein Abbruch
+        if ending is False and time.time() - _shutdown["at"] > SHUTDOWN_STALE:
+            _shutdown_mark(False, "Sitzung laeuft weiter")
+            return False
+        return True
+    return False
+
+
+def _sp_run(*args, **kwargs):
+    """subprocess.run, aber nie waehrend Windows herunterfaehrt (OSError wie bei jedem gescheiterten Start)."""
+    if _shutting_down():
+        raise OSError("Windows faehrt herunter")
+    return subprocess.run(*args, **kwargs)
+
+
+def _sp_popen(*args, **kwargs):
+    if _shutting_down():
+        raise OSError("Windows faehrt herunter")
+    return subprocess.Popen(*args, **kwargs)
+
+
+class _PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", ctypes.c_uint32),
+        ("cntUsage", ctypes.c_uint32),
+        ("th32ProcessID", ctypes.c_uint32),
+        ("th32DefaultHeapID", ctypes.c_size_t),
+        ("th32ModuleID", ctypes.c_uint32),
+        ("cntThreads", ctypes.c_uint32),
+        ("th32ParentProcessID", ctypes.c_uint32),
+        ("pcPriClassBase", ctypes.c_int32),
+        ("dwFlags", ctypes.c_uint32),
+        ("szExeFile", ctypes.c_wchar * 260),
+    ]
+
+
+_proc_api_box = []
+
+
+def _proc_api():
+    """Eigene kernel32-Instanz: die Prototypen kollidieren so nicht mit ctypes.windll.kernel32 (Tray)."""
+    if not _proc_api_box:
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateToolhelp32Snapshot.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+        k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+        for fn in (k32.Process32FirstW, k32.Process32NextW):
+            fn.argtypes = [ctypes.c_void_p, ctypes.POINTER(_PROCESSENTRY32W)]
+            fn.restype = ctypes.c_int
+        k32.CloseHandle.argtypes = [ctypes.c_void_p]
+        k32.CloseHandle.restype = ctypes.c_int
+        _proc_api_box.append(k32)
+    return _proc_api_box[0]
+
+
+def _proc_table():
+    """{exe-name in kleinbuchstaben: {pid, ...}} aller Prozesse (alle Sitzungen, wie tasklist) ueber
+    CreateToolhelp32Snapshot - startet keinen Prozess. None = Abfrage fehlgeschlagen."""
+    if os.name != "nt":
+        return None
+    try:
+        k32 = _proc_api()
+        snap = k32.CreateToolhelp32Snapshot(0x00000002, 0)          # TH32CS_SNAPPROCESS
+        if not snap or snap == ctypes.c_void_p(-1).value:           # INVALID_HANDLE_VALUE
+            return None
+        try:
+            entry = _PROCESSENTRY32W()
+            entry.dwSize = ctypes.sizeof(_PROCESSENTRY32W)
+            table = {}
+            ok = k32.Process32FirstW(snap, ctypes.byref(entry))
+            while ok:
+                table.setdefault(entry.szExeFile.lower(), set()).add(int(entry.th32ProcessID))
+                ok = k32.Process32NextW(snap, ctypes.byref(entry))
+            return table
+        finally:
+            k32.CloseHandle(snap)
+    except Exception:
+        return None
+
+
+def _tasklist_pids(name):
+    """Rueckfall, falls die Windows-API keine Liste liefert (bis 2.6.7 der einzige Weg)."""
+    try:
+        out = _sp_run(["tasklist", "/FI", "IMAGENAME eq %s" % name, "/FO", "CSV", "/NH"],
+                      capture_output=True, text=True, timeout=10,
+                      creationflags=CREATE_NO_WINDOW).stdout or ""
+    except Exception:
+        return None
+    pids = set()
+    for line in out.splitlines():
+        m = re.match(r'\s*"([^"]*)","(\d+)"', line)
+        if m and m.group(1).lower() == name.lower():
+            pids.add(int(m.group(2)))
+    return frozenset(pids)
+
+
+def _image_pids(name):
+    """PIDs eines Prozessnamens. None = Abfrage fehlgeschlagen."""
+    table = _proc_table()
+    if table is None:
+        return _tasklist_pids(name)
+    return frozenset(table.get(name.lower(), ()))
+
+
 def vry_pids():
     """PIDs aller laufenden vry.exe — Grundlage fuer 'es darf nur eine geben'."""
-    try:
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq vry.exe", "/FO", "CSV", "/NH"],
-            capture_output=True, text=True, creationflags=CREATE_NO_WINDOW,
-        ).stdout
-    except Exception:
-        return []
-    pids = []
-    for line in (out or "").splitlines():
-        parts = [p.strip().strip('"') for p in line.split('","')]
-        if len(parts) >= 2 and parts[0].lower() == "vry.exe":
-            try:
-                pids.append(int(parts[1]))
-            except ValueError:
-                pass
-    return pids
+    pids = _image_pids("vry.exe")
+    return sorted(pids) if pids else []
 
 
 def vry_running():
@@ -236,7 +379,7 @@ def vry_running():
 def _kill_pids(pids):
     for pid in pids:
         try:
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+            _sp_run(["taskkill", "/F", "/T", "/PID", str(pid)],
                            capture_output=True, creationflags=CREATE_NO_WINDOW)
         except Exception:
             pass
@@ -244,7 +387,7 @@ def _kill_pids(pids):
 
 def _kill_all_vry():
     try:
-        subprocess.run(["taskkill", "/F", "/T", "/IM", "vry.exe"],
+        _sp_run(["taskkill", "/F", "/T", "/IM", "vry.exe"],
                        capture_output=True, creationflags=CREATE_NO_WINDOW)
     except Exception:
         pass
@@ -265,7 +408,7 @@ def _kill_other_log_servers():
         "} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
     ) % my_pid
     try:
-        subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+        _sp_run(["powershell", "-NoProfile", "-Command", ps],
                        capture_output=True, creationflags=CREATE_NO_WINDOW, timeout=15)
     except Exception:
         pass
@@ -288,14 +431,10 @@ def _image_running(name):
     hit = _task_cache.get(name)
     if hit and now - hit[0] < TASK_TTL:
         return hit[1]
-    try:
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq %s" % name, "/FO", "CSV", "/NH"],
-            capture_output=True, text=True, creationflags=CREATE_NO_WINDOW,
-        ).stdout or ""
-    except Exception:
+    pids = _image_pids(name)
+    if pids is None:
         return False
-    running = name.lower() in out.lower()
+    running = bool(pids)
     _task_cache[name] = (now, running)
     return running
 
@@ -454,7 +593,7 @@ def start_vry(force=False):
                     "waiting": True, "running": False}
         _proc["armed"] = False
         try:
-            proc = subprocess.Popen([os.path.join(BASE, "vry.exe")], cwd=BASE,
+            proc = _sp_popen([os.path.join(BASE, "vry.exe")], cwd=BASE,
                                     creationflags=CREATE_NO_WINDOW)
         except Exception as e:
             _proc["note"] = "Start fehlgeschlagen: %s" % e
@@ -475,7 +614,7 @@ def _kill_other_servers():
         % os.getpid()
     )
     try:
-        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        _sp_run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                        capture_output=True, timeout=20, creationflags=CREATE_NO_WINDOW)
     except Exception:
         pass
@@ -557,7 +696,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7"
+APP_VERSION = "2.6.8-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -1473,7 +1612,7 @@ def _trigger_self_update():
         # Pfade mit z. B. koreanischem Benutzernamen gingen sonst kaputt
         with open(waiter_path, "w", encoding="utf-8-sig") as f:
             f.write(waiter_script)
-        subprocess.Popen(
+        _sp_popen(
             ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
              "-WindowStyle", "Hidden", "-File", waiter_path],
             creationflags=CREATE_NO_WINDOW | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200),
@@ -5987,7 +6126,7 @@ def _il_popup_open(agent_id, name, ask_at):
             old = _il_popup["proc"]
             if not still or (old and old.poll() is None):
                 return
-            _il_popup["proc"] = subprocess.Popen([exe, IL_POPUP_FILE, IL_POPUP_CFG], cwd=os.path.dirname(IL_POPUP_FILE),
+            _il_popup["proc"] = _sp_popen([exe, IL_POPUP_FILE, IL_POPUP_CFG], cwd=os.path.dirname(IL_POPUP_FILE),
                                                  creationflags=CREATE_NO_WINDOW)
     except Exception as e:
         report_error("il-popup", e)
@@ -7112,7 +7251,7 @@ def _ovl_start(now):
         if not os.path.exists(exe):
             exe = sys.executable
         _ovl.update(stopping=False, seen=0.0, stopAt=0.0)
-        _ovl["proc"] = subprocess.Popen([exe, OVL_FILE, OVL_CFG], cwd=BASE, creationflags=CREATE_NO_WINDOW)
+        _ovl["proc"] = _sp_popen([exe, OVL_FILE, OVL_CFG], cwd=BASE, creationflags=CREATE_NO_WINDOW)
     except Exception as e:
         _ovl["crashes"].append(now)
         report_error("game-overlay", e)
@@ -7993,7 +8132,7 @@ def _open_app_cli():
     Dienst starten, falls er nicht laeuft, dann die Seite im Standardbrowser oeffnen."""
     if not _local_status_ok(PORT, timeout=1.0):
         try:
-            subprocess.Popen([sys.executable, os.path.abspath(__file__)], cwd=BASE, close_fds=True,
+            _sp_popen([sys.executable, os.path.abspath(__file__)], cwd=BASE, close_fds=True,
                              creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW)
         except Exception as e:
             _ulog("Dienst starten fehlgeschlagen: %s: %s" % (type(e).__name__, e))
@@ -9214,7 +9353,7 @@ def _lcu_detect():
     ps = ("Get-CimInstance Win32_Process -Filter \"Name='%s'\" | "
           "Select-Object -First 1 -ExpandProperty CommandLine" % LOL_UX_PROC)
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        out = _sp_run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                              capture_output=True, text=True, timeout=10,
                              creationflags=CREATE_NO_WINDOW).stdout or ""
     except Exception:
@@ -12958,7 +13097,7 @@ def _riot_client_cmdline():
     ps = ("Get-CimInstance Win32_Process -Filter \"Name='%s'\" | "
           "ForEach-Object { $_.CommandLine }" % RIOT_CLIENT_PROC)
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        out = _sp_run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                              capture_output=True, text=True, timeout=15,
                              creationflags=CREATE_NO_WINDOW).stdout or ""
     except Exception:
@@ -12995,7 +13134,7 @@ def _chat_rc_state(force=False):
 def _riot_kill_all():
     for name in RIOT_KILL_PROCS:
         try:
-            subprocess.run(["taskkill", "/F", "/IM", name], capture_output=True, timeout=15,
+            _sp_run(["taskkill", "/F", "/IM", name], capture_output=True, timeout=15,
                            creationflags=CREATE_NO_WINDOW)
         except Exception:
             pass
@@ -13013,7 +13152,7 @@ def _riot_spawn(path, product, patchline="live"):
         args += ["--launch-product=%s" % product, "--launch-patchline=%s" % (patchline or "live")]
     # Ueber "start": dann ist nicht der Dienst der Elternprozess - ein Neustart/Update des Dienstes
     # (taskkill /T) darf den Riot Client nicht mitreissen.
-    subprocess.Popen(["cmd", "/c", "start", ""] + args, creationflags=CREATE_NO_WINDOW, close_fds=True)
+    _sp_popen(["cmd", "/c", "start", ""] + args, creationflags=CREATE_NO_WINDOW, close_fds=True)
 
 
 # ---------------------------- Automatisch umleiten ----------------------------
@@ -13030,29 +13169,13 @@ _rc_restart_lock = threading.Lock()
 _chat_auto = {"seen": None, "hist": []}
 
 
-def _image_pids(name):
-    """PIDs eines Prozessnamens ueber tasklist (billig, ohne PowerShell). None = Abfrage fehlgeschlagen."""
-    try:
-        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq %s" % name, "/FO", "CSV", "/NH"],
-                             capture_output=True, text=True, timeout=10,
-                             creationflags=CREATE_NO_WINDOW).stdout or ""
-    except Exception:
-        return None
-    pids = set()
-    for line in out.splitlines():
-        m = re.match(r'\s*"([^"]*)","(\d+)"', line)
-        if m and m.group(1).lower() == name.lower():
-            pids.add(int(m.group(2)))
-    return frozenset(pids)
-
-
 def _riot_client_procs():
     """[(pid, alter_s, kommandozeile)] aller laufenden RiotClientServices.exe, None = Abfrage fehlgeschlagen."""
     ps = ("Get-CimInstance Win32_Process -Filter \"Name='%s'\" | ForEach-Object { "
           "'{0}|{1}|{2}' -f $_.ProcessId, [int]((Get-Date) - $_.CreationDate).TotalSeconds, $_.CommandLine }"
           % RIOT_CLIENT_PROC)
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        out = _sp_run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                              capture_output=True, text=True, timeout=15,
                              creationflags=CREATE_NO_WINDOW).stdout or ""
     except Exception:
@@ -14270,6 +14393,8 @@ def _tray_wndproc_factory(user32, shell32, nid):
 
     def _wndproc(hwnd, msg, wparam, lparam):
         WM_DESTROY = 0x0002
+        WM_QUERYENDSESSION = 0x0011
+        WM_ENDSESSION = 0x0016
         WM_LBUTTONDBLCLK = 0x0203
         WM_RBUTTONUP = 0x0205
         WM_COMMAND = 0x0111
@@ -14298,6 +14423,13 @@ def _tray_wndproc_factory(user32, shell32, nid):
                     except Exception:
                         pass
                     stop_everything()
+                return 0
+            if msg == WM_QUERYENDSESSION:
+                _shutdown_mark(True, "WM_QUERYENDSESSION")
+                return 1                                    # nichts dagegen
+            if msg == WM_ENDSESSION:
+                # wparam 0 = jemand hat das Herunterfahren abgebrochen
+                _shutdown_mark(bool(wparam), "WM_ENDSESSION")
                 return 0
             if msg == WM_DESTROY:
                 user32.PostQuitMessage(0)
