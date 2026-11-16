@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev10"
+APP_VERSION = "2.6.7-dev11"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -12323,9 +12323,9 @@ def _bot_presence(filt=None, to=None):
         p64 = base64.b64encode(json.dumps(_bot_val_json(val_json), separators=(",", ":")).encode("utf-8"))
         blocks["valorant"] = _bot_val_block(val_el, p64, now)
     if _bot_opts["mirror"]:
-        # Nur das Produkt, in dem der Nutzer gerade ist. In VALORANT bleibt League vorerst als Traeger dabei
-        # ("strict" laesst es weg): der Riot Client nimmt den valorant-Block des Kontakts bisher nicht an, und ohne
-        # ein angenommenes Spiel gilt der Kontakt dort als offline.
+        # Nur das Produkt, in dem der Nutzer gerade ist. "strict" (Standard seit dev11, am PC bestaetigt: Kontakt
+        # bleibt in der VALORANT-Freundesliste und im Riot Client als valorant sichtbar) laesst League in VALORANT
+        # weg; strict=False nimmt League als Traeger wieder dazu.
         mode = _bot_mode()
         if mode == "valorant" and "valorant" in blocks:
             order = ("keystone", "valorant") + (() if _bot_opts["strict"] else ("league_of_legends",))
@@ -12350,16 +12350,16 @@ _BOT_GAMES = ("keystone", "valorant", "league_of_legends", "riot_client")
 _BOT_ORDER = ("keystone", "valorant", "league_of_legends")
 _BOT_RESOURCE = "RC-RankYoinker"
 _bot_opts = {"order": _BOT_ORDER, "platform": "riot", "resource": _BOT_RESOURCE, "to": False,
-             "mirror": True, "strict": False, "plain": False, "rev": 0}
+             "mirror": True, "strict": True, "plain": False, "rev": 0}
 
 
 def chat_bot_test(body):
     body = body if isinstance(body, dict) else {}
     if body.get("reset"):
         _bot_opts.update(order=_BOT_ORDER, platform="riot", resource=_BOT_RESOURCE, to=False,
-                         mirror=True, strict=False, plain=False)
+                         mirror=True, strict=True, plain=False)
     for k in ("mirror", "strict", "plain"):
-        # mirror: nur das Produkt des Nutzers; strict: in VALORANT ohne League als Traeger;
+        # mirror: nur das Produkt des Nutzers; strict (Standard an): in VALORANT ohne League als Traeger;
         # plain: Kontakt ohne Radiant/Level/Premier-Werte (zum Eingrenzen, falls VALORANT ihn deshalb ausblendet)
         if isinstance(body.get(k), bool):
             _bot_opts[k] = body[k]
