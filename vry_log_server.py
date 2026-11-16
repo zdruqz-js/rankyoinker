@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev3"
+APP_VERSION = "2.6.7-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2737,7 +2737,8 @@ HIST_ADV_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "spikerush",
                              "ggteam", "onefa", "snowball", "newmap"))
 _hist_cache = {}                # puuid -> (Zeitpunkt, {"items": [...], "real": Zeitpunkt, "adv": bool})
 _hist_comp_cache = {}           # puuid -> (Zeitpunkt, [ids]) - Nachschlag mit queue=competitive
-_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0, "gone": 0, "casual": 0}
+_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0, "gone": 0, "casual": 0,
+               "why": ""}       # why: Grund fuers Umschalten auf zwei Abfragen (ohne IDs, fuer /api/gamestate)
 # Alte Matches liefert Riot nicht mehr (match-details 404, gemessen: 07/2026 und aelter im 11/2026). Wer nur
 # solche Competitive-Matches hat, bekam eine leere "Letzte 5"-Reihe - und kostete bei jedem Matchstart den
 # Nachschlag plus 5 vergebliche Abrufe. _match_404 merkt sich die IDs, _hist_gone["before"] den Zeitpunkt,
@@ -2754,8 +2755,10 @@ def _hist_entry(m):
     mid = m.get("MatchID")
     if not mid:
         return None
+    # Leere QueueID gibt es (live gesehen 2026-11-16, vermutlich Custom Games) - das ist nur "kein Competitive".
+    # Unbekannt (None) ist ein Eintrag erst, wenn das Feld ganz fehlt.
     q = m.get("QueueID")
-    comp = (1 if q.lower() == "competitive" else 0) if isinstance(q, str) and q else None    # None = unbekannt
+    comp = None if "QueueID" not in m else (1 if isinstance(q, str) and q.lower() == "competitive" else 0)
     return {"id": mid, "t": m.get("MatchStartTime") or 0, "c": comp, "h": 1,
             "e": m.get("RankedRatingEarned"), "ta": m.get("TierAfterUpdate"),
             "tb": m.get("TierBeforeUpdate"), "ra": m.get("RankedRatingAfterUpdate")}
@@ -2798,11 +2801,16 @@ def _history_fetch(puuid, max_age=HIST_TTL, force=False):
     elif status != 200 or not isinstance(j, dict):
         return None                            # voruebergehend (Pause, Budget, 5xx): Aufrufer versucht es spaeter erneut
     items = [e for e in (_hist_entry(m) for m in (j.get("Matches") or []) if isinstance(m, dict)) if e]
-    if any(e["c"] is None for e in items) and not _hist_flags["split"]:
-        _hist_flags["split"] = True            # ohne QueueID keine sichere Erkennung -> zwei Abfragen wie bis 2.6.6
-        if not _hist_flags["reported"]:
-            _hist_flags["reported"] = True
-            report_error("history-classify", "QueueID fehlt im Verlauf")
+    if items and all(e["c"] is None for e in items):
+        if not _hist_flags["split"]:
+            _hist_flags["split"] = True        # Feld bei ALLEN weg (Riot hat das Format geaendert) -> zwei Abfragen wie bis 2.6.6
+            _hist_flags["why"] = "QueueID fehlt bei allen %d Eintraegen" % len(items)
+            if not _hist_flags["reported"]:
+                _hist_flags["reported"] = True
+                report_error("history-classify", "QueueID fehlt im Verlauf (%d Eintraege)" % len(items))
+    for e in items:
+        if e["c"] is None:
+            e["c"] = 0
     with _cache_lock:
         _cache_put(_hist_cache, puuid, (now, {"items": items, "real": now, "adv": False}))
     _hist_flags["real"] += 1
@@ -2821,6 +2829,7 @@ def _hist_is_comp(puuid, e):
     clash = (comp and not e.get("c")) or (e.get("c") and row["queue"] in _HIST_PLAIN_QUEUES)
     if e.get("h") and clash and not _hist_flags["split"]:
         _hist_flags["split"] = True            # Annahme stimmt nicht -> wieder zwei Abfragen wie bis 2.6.6
+        _hist_flags["why"] = "Eintrag c=%s, Match-Queue %s" % (e.get("c"), row["queue"])
         if not _hist_flags["reported"]:
             _hist_flags["reported"] = True
             report_error("history-classify", "QueueID passt nicht zur Queue: Eintrag c=%s, Match %s"
@@ -2835,7 +2844,10 @@ def _recent_match_ids_split(puuid, count):
         % (puuid, count))
     ids = []
     if status == 200 and j:
-        ids = [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
+        # auch hier nur, was Riot noch liefert - sonst blieb "Letzte 5" bei uralten Ranked-Matches leer
+        ids = _hist_still_there([(m.get("MatchID"), m.get("MatchStartTime") or 0)
+                                 for m in (j.get("Matches") or []) if isinstance(m, dict) and m.get("MatchID")],
+                                time.time())
     elif status != 200:
         return None
     if not ids:
