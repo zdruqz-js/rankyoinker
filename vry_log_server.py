@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev5"
+APP_VERSION = "2.6.7-dev6"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -12049,6 +12049,14 @@ def _dbg_raw_games(stanza):
         return b""
 
 
+def _dbg_skeleton(stanza):
+    """Nur die Tag-Folge einer Stanza (Inhalte durch ihre Laenge ersetzt) - fuer die "bot"-Zeile im Debug."""
+    try:
+        return re.sub(rb">([^<]{13,})<", lambda m: b">[%d]<" % len(m.group(1)), stanza)[:1100]
+    except Exception:
+        return b""
+
+
 def _presence_mask(stanza, status, published=()):
     """Eigene Presence als 'offline'/'mobile': show ersetzen, Statustext und Spiele entfernen
     (bei 'mobile' bleibt League ohne Details stehen, damit der Client 'Mobil' anzeigt).
@@ -12116,6 +12124,8 @@ CHAT_BOT_ID = "52616e6b-596f-696e-6b65-722d52592121"          # fest, damit er b
 CHAT_BOT_JID = CHAT_BOT_ID + "@eu1.pvp.net"
 CHAT_BOT_NAME = "RankYoinker"
 CHAT_BOT_CARD = "89fdd50e-439b-ebeb-0ef2-af8271550943"         # VALORANT-Spielerkarte "Goldwing" (passt zum Gold)
+CHAT_BOT_TIER = 27                                              # Radiant
+CHAT_BOT_ROSTER = "52616e6b-596f-696e-6b65-722d50524d52"        # erfundene Premier-Team-ID (fuer das Tag "RY")
 CHAT_BOT_INTRO_DELAY = 8.0
 _RE_ROSTER = re.compile(rb"<query xmlns=(['\"])jabber:iq:riotgames:roster\1>")
 _ROSTER_OPENS = (b"<query xmlns='jabber:iq:riotgames:roster'>", b'<query xmlns="jabber:iq:riotgames:roster">')
@@ -12144,13 +12154,18 @@ def _bot_roster_item():
 # Was am Chat-Freund anders sein muss als an der eigenen VALORANT-Presence, nach Feldname (egal wo im JSON).
 # Alles andere (v. a. partyClientVersion) bleibt wie bei dir - sonst zeigt VALORANT "Versionskonflikt".
 _BOT_VAL_SET = {
-    "playerCardId": CHAT_BOT_CARD, "playerTitleId": "", "accountLevel": 1, "competitiveTier": 0,
-    "leaderboardPosition": 0, "isIdle": False, "isPartyOwner": True, "partySize": 1, "partyState": "DEFAULT",
+    # Nutzerwunsch 2026-11-16: der Kontakt erscheint als Radiant #1 mit Premier-Tag "RY" (nur der lokale Kontakt -
+    # die eigene Presence und alles, was an Riot geht, bleibt unveraendert)
+    "playerCardId": CHAT_BOT_CARD, "playerTitleId": "", "accountLevel": 1, "competitiveTier": CHAT_BOT_TIER,
+    "leaderboardPosition": 1, "isIdle": False, "isPartyOwner": True, "partySize": 1, "partyState": "DEFAULT",
     "partyAccessibility": "CLOSED", "partyLFM": False, "queueId": "", "matchMap": "", "partyOwnerMatchMap": "",
     "sessionLoopState": "MENUS", "partyOwnerSessionLoopState": "MENUS", "customGameName": CHAT_BOT_NAME,
     "customGameTeam": "", "rosterName": CHAT_BOT_NAME, "rosterTag": "RY", "queueEntryTime": "0001.01.01-00.00.00",
     "partyOwnerMatchScoreAllyTeam": 0, "partyOwnerMatchScoreEnemyTeam": 0,
 }
+
+
+_BOT_PREMIER = {"rosterName": CHAT_BOT_NAME, "rosterTag": "RY", "rosterId": CHAT_BOT_ROSTER, "showTag": True}
 
 
 def _bot_val_json(own):
@@ -12178,9 +12193,52 @@ def _bot_val_json(own):
     # Karte und Name auch dann, wenn Riot die Bereiche einmal anders nennt/weglaesst
     pp = out.setdefault("playerPresenceData", {})
     if isinstance(pp, dict):
-        for k in ("playerCardId", "playerTitleId", "accountLevel", "competitiveTier"):
+        for k in ("playerCardId", "playerTitleId", "accountLevel", "competitiveTier", "leaderboardPosition"):
             pp[k] = _BOT_VAL_SET[k]
+    pr = out.setdefault("premierPresenceData", {})
+    if isinstance(pr, dict):                    # nur hier - die rosterId der PARTY bleibt leer
+        pr.update(_BOT_PREMIER)
     return out
+
+
+_RE_X_PD = _xml_el_re(b"pd")
+
+
+def _bot_pd(own_pd):
+    """Hover-Karte (<pd>) des Chat-Freundes aus der eigenen: ohne Party-Aktionen, Party-Groesse 1. b"" = weglassen."""
+    try:
+        raw = re.sub(rb"^<pd[^>]*>|</pd\s*>$", b"", own_pd).strip()
+        j = json.loads(base64.b64decode(raw + b"=" * (-len(raw) % 4)))
+        if not isinstance(j, dict):
+            return b""
+        party = j.get("party")
+        if isinstance(party, dict):
+            party["actions"] = {}
+            if "currentSize" in party:
+                party["currentSize"] = 1
+        player = j.get("player")
+        if isinstance(player, dict) and "state" in player:
+            player["state"] = "MENUS"
+        return b"<pd>" + base64.b64encode(json.dumps(j, separators=(",", ":")).encode("utf-8")) + b"</pd>"
+    except Exception:
+        return b""
+
+
+def _bot_val_block(own_el, p64, now):
+    """<valorant>-Block des Chat-Freundes. Vorlage ist der eigene Block (gleiche Tags, gleiche Reihenfolge):
+    der von Hand gebaute, schlankere Block kam beim Riot Client nicht an (am PC gemessen 2026-11-16 - der
+    Kontakt stand nur mit league_of_legends in /chat/v4/presences)."""
+    if own_el:
+        try:
+            el = _RE_X_P.sub(lambda m: b"<p>" + p64 + b"</p>", own_el, count=1)
+            el = _RE_X_PD.sub(lambda m: _bot_pd(m.group(0)), el, count=1)
+            el = re.sub(rb"<s\.t>[^<]*</s\.t>", b"<s.t>%d</s.t>" % now, el, count=1)
+            el = _RE_X_ST.sub(b"<st>chat</st>", el, count=1)
+            if p64 in el:
+                return el
+        except Exception:
+            pass
+    return b"<valorant><st>chat</st><s.t>%d</s.t><s.p>valorant</s.p><s.r>PC</s.r><p>%s</p><pty/></valorant>" % (now, p64)
 
 
 def _bot_presence(filt=None):
@@ -12194,8 +12252,7 @@ def _bot_presence(filt=None):
              b"</league_of_legends>" % (now, (filt.lol_region if filt is not None else b"") or b"<s.c>live</s.c>")]
     if filt is not None and filt.val_json:
         p64 = base64.b64encode(json.dumps(_bot_val_json(filt.val_json), separators=(",", ":")).encode("utf-8"))
-        games.append(b"<valorant><st>chat</st><s.t>%d</s.t><s.p>valorant</s.p><s.r>PC</s.r><p>%s</p><pty/></valorant>"
-                     % (now, p64))
+        games.append(_bot_val_block(filt.val_el, p64, now))
     return (b"<presence from='%s/RC-RankYoinker' id='ry-%s'><games>%s</games><platform>riot</platform>"
             b"<show>chat</show><status/></presence>"
             % (CHAT_BOT_JID.encode("ascii"), secrets.token_hex(6).encode("ascii"), b"".join(games)))
@@ -12322,6 +12379,7 @@ class _PresenceFilter:
         self.last = None        # letzte eigene Presence im Original (fuer den Statuswechsel)
         self.val_version = None # VALORANT-Version aus der eigenen Presence (fuer den Chat-Freund)
         self.val_json = None    # eigene VALORANT-Presence (Vorlage fuer den Chat-Freund)
+        self.val_el = None      # der ganze eigene <valorant>-Block, wie der Riot Client ihn schickt
         self.lol_region = b""   # <s.r>/<s.c> der eigenen League-Presence (Freund in derselben Gruppe)
         self.published = set() # Spiele, die in dieser Verbindung unverfaelscht an den Server gingen
         self.replays = 0
@@ -12344,6 +12402,7 @@ class _PresenceFilter:
             data = json.loads(base64.b64decode(raw + b"=" * (-len(raw) % 4)))
             if isinstance(data, dict):
                 self.val_json = data
+                self.val_el = val.group(0)      # ganzer Block als Vorlage fuer den Chat-Freund
             ver = (data.get("partyPresenceData") or {}).get("partyClientVersion")
             if isinstance(ver, str) and ver:
                 self.val_version = ver
@@ -12473,7 +12532,9 @@ class _ChatConn:
         a = self.cli
         if self.bot_ver is False or self.bot_ver != self.filt.bot_sig():
             self.bot_ver = self.filt.bot_sig()
-            _sock_send(a, _bot_presence(self.filt))
+            pres = _bot_presence(self.filt)
+            _sock_send(a, pres)
+            _chat_dbg_add("bot", _dbg_raw_games(pres) + _dbg_skeleton(pres))
             if not self.intro_at:
                 self.intro_at = time.time() + CHAT_BOT_INTRO_DELAY
         if self.intro_at > 0 and time.time() >= self.intro_at:
