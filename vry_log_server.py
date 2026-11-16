@@ -557,7 +557,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.7-dev1"
+APP_VERSION = "2.6.7-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2704,6 +2704,9 @@ def _match_details_fetch(match_id):
     if hit is not None:
         return hit
     status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
+    if status == 404:
+        with _cache_lock:
+            _cache_put(_match_404, match_id, time.time(), 600)
     if status != 200 or not j:
         return None
     digest = _digest_match(j)
@@ -2718,10 +2721,11 @@ def _match_details_fetch(match_id):
 # "Letzte 5" und einmal ohne Filter fuer die Party-Erkennung - dazu den Rang (Dienst) und noch einmal den
 # Rang (vry.exe). Das waren ~40 /mmr/-Anfragen je Matchstart, auf kr sperrt Cloudflare bei ~27 (siehe
 # PD_MMR_*). Jetzt EINE ungefilterte Abfrage (HIST_FETCH Eintraege, alle Modi) fuer beides.
-# Welche Eintraege Competitive sind, steht in der Antwort nicht als Feld: Nicht-Competitive-Matches haben
-# dort eine leere SeasonID. Das wird gegen die Match-Kurzfassungen gegengeprueft (dort steht die Queue
-# sicher) - passt es einmal nicht, schaltet _hist_flags["split"] fuer diese Sitzung auf die alten zwei
-# Abfragen zurueck und meldet das (history-classify).
+# Welche Eintraege Competitive sind, sagt das Feld QueueID der Antwort (live nachgemessen am 2026-11-16:
+# "competitive", "swiftplay", "deathmatch", "abilitydraftarena" ...). Die SeasonID taugt dafuer NICHT - sie
+# ist auch bei Swiftplay/Deathmatch gesetzt (der Rueckfall darauf in 2.6.7-dev1 war falsch). Fehlt QueueID
+# einmal oder widerspricht sie der Match-Kurzfassung, schaltet _hist_flags["split"] fuer diese Sitzung auf
+# die alten zwei Abfragen zurueck und meldet das (history-classify).
 # Nach einem Match werden die Verlaeufe aller Spieler dieses Matches lokal fortgeschrieben
 # (_hist_after_match) statt neu geholt: das Match steht bei allen vorn. Eigene Party und Rematches
 # kosten so im naechsten Match keine Verlaufs-Anfrage.
@@ -2733,7 +2737,16 @@ HIST_ADV_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "spikerush",
                              "ggteam", "onefa", "snowball", "newmap"))
 _hist_cache = {}                # puuid -> (Zeitpunkt, {"items": [...], "real": Zeitpunkt, "adv": bool})
 _hist_comp_cache = {}           # puuid -> (Zeitpunkt, [ids]) - Nachschlag mit queue=competitive
-_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0}
+_hist_flags = {"split": False, "reported": False, "real": 0, "adv": 0, "topup": 0, "gone": 0}
+# Alte Matches liefert Riot nicht mehr (match-details 404, gemessen: 07/2026 und aelter im 11/2026). Wer nur
+# solche Competitive-Matches hat, bekam eine leere "Letzte 5"-Reihe - und kostete bei jedem Matchstart den
+# Nachschlag plus 5 vergebliche Abrufe. _match_404 merkt sich die IDs, _hist_gone["before"] den Zeitpunkt,
+# vor dem es nichts mehr gibt (nur aus Matches gelernt, die aelter als HIST_GONE_MIN_AGE sind - ein gerade
+# beendetes Match antwortet auch kurz mit 404).
+_match_404 = {}                 # match-id -> Zeitpunkt des 404
+MATCH_404_TTL = 6 * 3600
+HIST_GONE_MIN_AGE = 30 * 86400
+_hist_gone = {"before": 0}      # MatchStartTime (ms): aelteres liefert Riot nicht mehr
 _HIST_PLAIN_QUEUES = frozenset(("unrated", "swiftplay", "spikerush", "deathmatch", "hurm", "ggteam"))
 
 
@@ -2742,10 +2755,7 @@ def _hist_entry(m):
     if not mid:
         return None
     q = m.get("QueueID")
-    if isinstance(q, str) and q:
-        comp = 1 if q.lower() == "competitive" else 0
-    else:
-        comp = 1 if m.get("SeasonID") else 0
+    comp = (1 if q.lower() == "competitive" else 0) if isinstance(q, str) and q else None    # None = unbekannt
     return {"id": mid, "t": m.get("MatchStartTime") or 0, "c": comp, "h": 1,
             "e": m.get("RankedRatingEarned"), "ta": m.get("TierAfterUpdate"),
             "tb": m.get("TierBeforeUpdate"), "ra": m.get("RankedRatingAfterUpdate")}
@@ -2788,6 +2798,11 @@ def _history_fetch(puuid, max_age=HIST_TTL, force=False):
     elif status != 200 or not isinstance(j, dict):
         return None                            # voruebergehend (Pause, Budget, 5xx): Aufrufer versucht es spaeter erneut
     items = [e for e in (_hist_entry(m) for m in (j.get("Matches") or []) if isinstance(m, dict)) if e]
+    if any(e["c"] is None for e in items) and not _hist_flags["split"]:
+        _hist_flags["split"] = True            # ohne QueueID keine sichere Erkennung -> zwei Abfragen wie bis 2.6.6
+        if not _hist_flags["reported"]:
+            _hist_flags["reported"] = True
+            report_error("history-classify", "QueueID fehlt im Verlauf")
     with _cache_lock:
         _cache_put(_hist_cache, puuid, (now, {"items": items, "real": now, "adv": False}))
     _hist_flags["real"] += 1
@@ -2795,20 +2810,20 @@ def _history_fetch(puuid, max_age=HIST_TTL, force=False):
 
 
 def _hist_is_comp(puuid, e):
-    """Competitive? Sicher aus der Match-Kurzfassung, sonst nach der SeasonID des Eintrags."""
+    """Competitive? Sicher aus der Match-Kurzfassung, sonst nach der QueueID des Eintrags."""
     with _cache_lock:
         dg = _match_cache.get(e["id"])
     row = ((dg or {}).get("rows") or {}).get(puuid) if isinstance(dg, dict) else None
     if not isinstance(row, dict) or not row.get("queue"):
         return bool(e.get("c"))
     comp = row["queue"] == "competitive"
-    # Nur eindeutige Faelle zaehlen als Widerspruch (Premier & Co. koennen eine SeasonID tragen)
+    # Nur eindeutige Faelle zaehlen als Widerspruch
     clash = (comp and not e.get("c")) or (e.get("c") and row["queue"] in _HIST_PLAIN_QUEUES)
     if e.get("h") and clash and not _hist_flags["split"]:
         _hist_flags["split"] = True            # Annahme stimmt nicht -> wieder zwei Abfragen wie bis 2.6.6
         if not _hist_flags["reported"]:
             _hist_flags["reported"] = True
-            report_error("history-classify", "SeasonID passt nicht zur Queue: Eintrag c=%s, Match %s"
+            report_error("history-classify", "QueueID passt nicht zur Queue: Eintrag c=%s, Match %s"
                          % (e.get("c"), row["queue"]))
     return comp
 
@@ -2864,15 +2879,27 @@ def _recent_match_ids(puuid, count):
                 % (puuid, max(count, 10)))
             if status != 200 or not isinstance(j, dict):
                 return comp[:count] if comp else None
-            more = [m.get("MatchID") for m in (j.get("Matches") or []) if m.get("MatchID")]
+            more = [(m.get("MatchID"), m.get("MatchStartTime") or 0)
+                    for m in (j.get("Matches") or []) if isinstance(m, dict) and m.get("MatchID")]
             _hist_flags["topup"] += 1
             with _cache_lock:
                 _cache_put(_hist_comp_cache, puuid, (now, more))
         # neu fortgeschriebene Eintraege (comp) stehen vorn und fehlen in der aelteren Antwort evtl.
-        merged = comp + [m for m in more if m not in comp]
+        merged = comp + [m for m in _hist_still_there(more, now) if m not in comp]
         if merged:
             return merged[:count]
     return [e["id"] for e in items][:count]
+
+
+def _hist_still_there(pairs, now):
+    """Aus dem Competitive-Nachschlag [(id, startMs)] nur, was Riot noch liefert. Lernt dabei aus den 404
+    die Grenze, vor der es nichts mehr gibt - beim naechsten Spieler entfallen die vergeblichen Abrufe."""
+    with _cache_lock:
+        gone = {mid for mid, ts in _match_404.items() if now - ts < MATCH_404_TTL}
+    for mid, t in pairs:
+        if mid in gone and t and now * 1000 - t > HIST_GONE_MIN_AGE * 1000 and t > _hist_gone["before"]:
+            _hist_gone["before"] = t
+    return [mid for mid, t in pairs if mid not in gone and not (t and t <= _hist_gone["before"])]
 
 
 def _hist_prepend(pu, mid, comp, now, start_ms=None):
@@ -3127,6 +3154,18 @@ def player_stats(puuid, count=1, season=True):
     return res
 
 
+def _stats_details(ids):
+    """({id: Kurzfassung oder None}, lost). lost = KEINES lesbar und mindestens eines davon 404
+    (Riot hat es nicht mehr) - dann lohnt es, andere Matches zu waehlen."""
+    got = {mid: _match_details(mid) for mid in ids}
+    if not ids or any(got.values()):
+        return got, False
+    now = time.time()
+    with _cache_lock:
+        lost = any(now - _match_404.get(mid, 0) < MATCH_404_TTL for mid in ids)
+    return got, lost
+
+
 def _player_stats_fetch(puuid, count, season, key):
     now = time.time()
     out = {"puuid": puuid, "matches": [], "totals": None}
@@ -3137,8 +3176,17 @@ def _player_stats_fetch(puuid, count, season, key):
         if ids is None or (not ids and (pd_gate_state()["paused"] or _tl.bulk_denied)):
             # None (seit 2.6.7): Verlauf nicht lesbar - bis dahin wurde das als "keine Matches" gemerkt
             return {"puuid": puuid, "error": "riot-ratelimit", "matches": [], "totals": None}
+        got, lost = _stats_details(ids)
+        if lost:
+            # Kein einziges Match lesbar und Riot sagt 404 (zu alt): neu waehlen - _recent_match_ids laesst
+            # die verschwundenen jetzt weg und nimmt notfalls die neuesten Matches aller Modi
+            again = _recent_match_ids(puuid, count)
+            if again and again != ids:
+                ids = again
+                _hist_flags["gone"] += 1
+                got, lost = _stats_details(ids)
         for mid in ids:
-            m = _match_details(mid)
+            m = got.get(mid)
             if not m:
                 incomplete = True
                 continue
@@ -4291,7 +4339,8 @@ def record_encounter_now(mid):
 
 _premade_cache = {"match": None, "ts": 0.0, "data": None}
 PREMADE_TTL = 900          # ein Kader aendert sich waehrend eines Matches nicht
-PREMADE_HISTORY = 10       # so viele vergangene Matches je Spieler
+PREMADE_HISTORY = 20       # so viele vergangene Matches je Spieler (bis 2.6.7-dev1: 10; der gemeinsame
+                           # Verlauf liefert ohnehin 20, das groessere Fenster kostet keine Verlaufs-Anfrage)
 PREMADE_DETAILS = 12       # Obergrenze der Match-Details-Abfragen
 PREMADE_MAX_PARTY = 5
 _PREMADE_SOURCES = ("live", "alive", "history")   # Index = Stufe, kleiner = sicherer
@@ -4440,6 +4489,23 @@ def _premade_details(match_id):
         return None
 
 
+def _premade_pick(cand, seen, team, limit):
+    """Welche gemeinsamen Matches geladen werden (cand: frischeste zuerst). Erst je Spielerpaar, das heute im
+    selben Team steht, das frischeste gemeinsame Match - dann auffuellen. Nur nach Frische sortiert belegten
+    zwei Dauer-Partys (jedes Match gemeinsam) alle Plaetze, und ein Paar, dessen letztes gemeinsames Match
+    etwas zurueckliegt, wurde nie geprueft."""
+    covered, first, rest = set(), [], []
+    for m in cand:
+        who = sorted(seen[m])
+        new = {(a, b) for i, a in enumerate(who) for b in who[i + 1:] if team.get(a) == team.get(b)} - covered
+        if new:
+            covered |= new
+            first.append(m)
+        else:
+            rest.append(m)
+    return (first + rest)[:limit]
+
+
 def _premades_build(mid, state, roster):
     puuids = [p["puuid"] for p in roster]
     team = {p["puuid"]: p["team"] for p in roster}
@@ -4505,8 +4571,8 @@ def _premades_build(mid, state, roster):
             seen.setdefault(m, set()).add(pu)
             freshness[m] = min(freshness.get(m, 99), i)
 
-    shared = sorted((m for m, who in seen.items() if len(who) > 1),
-                    key=lambda m: (freshness[m], m))[:PREMADE_DETAILS]
+    shared = _premade_pick(sorted((m for m, who in seen.items() if len(who) > 1),
+                                  key=lambda m: (freshness[m], m)), seen, team, PREMADE_DETAILS)
     details = dict(zip(shared, _premade_pool.map(_low_priority(_premade_details), shared))) if shared else {}
 
     pairs = {}                                # (a, b) -> Zahl der Matches in derselben Party
@@ -4597,6 +4663,71 @@ def _premades_build(mid, state, roster):
     return {"ok": True, "matchId": mid, "state": state, "parties": parties,
             "groups": out_groups, "checked": len(details), "aliveChecked": len(alive),
             "at": int(time.time())}
+
+
+# ---- Selbstkontrolle der Party-Erkennung (2.6.7-dev2) ----
+# Nach dem Match steht in den Match-Details, wer wirklich in einer Party war (partyId). Das wird mit dem
+# verglichen, was die Erkennung waehrend des Matches gesagt hat - nur als Zahlen (Paare getroffen / verpasst /
+# falsch, je Quelle), ohne Spieler. So laesst sich im Dashboard sehen, wie gut die Erkennung wirklich ist,
+# statt zu raten. Die eigene Party zaehlt nicht mit (die ist live bekannt und waere geschenkt).
+_party_eval = {"last": None, "n": 0}
+
+
+def _pairs_of(groups):
+    out = set()
+    for g in groups:
+        g = sorted(g)
+        out.update((g[i], g[k]) for i in range(len(g)) for k in range(i + 1, len(g)))
+    return out
+
+
+def _party_eval_run(mid):
+    with _cache_lock:
+        hit = dict(_premade_cache)
+        dg = _match_cache.get(mid)
+    key = str(hit.get("match") or "").split("|")
+    data = hit.get("data")
+    party_of = (dg or {}).get("party") if isinstance(dg, dict) else None
+    if len(key) != 2 or key[0] != mid or not isinstance(data, dict) or not data.get("ok") or not party_of:
+        return None
+    roster = [p for p in key[1].split(",") if p]
+    me = _account.get("puuid")
+    by_pid = {}
+    for pu in roster:
+        if party_of.get(pu):
+            by_pid.setdefault(party_of[pu], set()).add(pu)
+    if len(by_pid) < 2:
+        return None                           # Custom/Uebung o. Ae.: alle in einer "Party" - sagt nichts
+    real = [g for g in by_pid.values() if len(g) > 1 and me not in g]
+    found = [(set(g.get("members") or []), g.get("source") or "") for g in data.get("groups") or []]
+    found = [(m, src) for m, src in found if me not in m and len(m) > 1]
+    rp, fp = _pairs_of(real), _pairs_of(m for m, _ in found)
+    wrong_by = {}
+    for m, src in found:
+        n = len(_pairs_of([m]) - rp)
+        if n:
+            wrong_by[src] = wrong_by.get(src, 0) + n
+    hit_by = {}
+    for m, src in found:
+        n = len(_pairs_of([m]) & rp)
+        if n:
+            hit_by[src] = hit_by.get(src, 0) + n
+    res = {"match": mid[:8], "known": len(roster), "state": data.get("state"),
+           "realGroups": sorted(len(g) for g in real), "foundGroups": sorted(len(m) for m, _ in found),
+           "pairs": len(rp), "hit": len(rp & fp), "missed": len(rp - fp), "wrong": len(fp - rp),
+           "hitBy": hit_by, "wrongBy": wrong_by, "at": int(time.time())}
+    _party_eval["last"] = res
+    _party_eval["n"] += 1
+    if not rp and not fp:
+        record_feature("party_eval_none")     # keine fremde Party, keine behauptet
+    elif not res["missed"] and not res["wrong"]:
+        record_feature("party_eval_exact")
+    else:
+        if res["missed"]:
+            record_feature("party_eval_missed")
+        if res["wrong"]:
+            record_feature("party_eval_wrong")
+    return res
 
 
 def premades():
@@ -7290,6 +7421,7 @@ def game_state():
                          "learned": int(g.get("mmr_cap") or 0)},
            "history": dict(_hist_flags),
            "session": _session_brief(),
+           "partyEval": _party_eval["last"],
            # Diagnose: wann die Seite zuletzt /status fragte, wann vorgeladen wurde
            "page": {"seenAgo": int(time.time() - _page_seen["ts"]) if _page_seen["ts"] else None,
                     "prefetch": _prefetch_done["key"],
@@ -8248,6 +8380,10 @@ def _report_tick(now):
                     _report.update(data=data, loaded=True)
                 ok = True
                 session_add(data)
+                try:
+                    _party_eval_run(mid)
+                except Exception as e:
+                    report_error("party-eval", e)
         except Exception as e:
             report_error("match-report", e)
         finally:
@@ -11834,6 +11970,21 @@ def _game_off(name):
     return b"<%s><st>offline</st><s.t>%d</s.t><s.p>%s</s.p></%s>" % (name, int(time.time() * 1000), name, name)
 
 
+def _dbg_raw_games(stanza):
+    """Fuer /api/chat/debug: welche Spiele standen in der UNVERAENDERTEN Presence (Name=st)? Die "up"-Zeile zeigt
+    sonst nur, was nach dem Umschreiben rausging - ein bei Offline weggelassenes League sah dadurch so aus, als
+    kaeme es nie beim Proxy an (Remote-Test 2026-11-16)."""
+    try:
+        items = []
+        for name, el in _presence_games(stanza):
+            st = _RE_X_ST.search(el)
+            val = re.sub(rb"<[^>]*>", b"", st.group(0))[:12] if st else b"-"
+            items.append(name[:24] + b"=" + val)
+        return b"[roh: " + (b" ".join(items) or b"-") + b"] "
+    except Exception:
+        return b""
+
+
 def _presence_mask(stanza, status, published=()):
     """Eigene Presence als 'offline'/'mobile': show ersetzen, Statustext und Spiele entfernen
     (bei 'mobile' bleibt League ohne Details stehen, damit der Client 'Mobil' anzeigt).
@@ -12172,7 +12323,7 @@ class _PresenceFilter:
         self.last = stanza
         self._own(stanza)
         out = self._out(stanza, status)
-        _chat_dbg_add("up", out)
+        _chat_dbg_add("up", _dbg_raw_games(stanza) + out)
         return out
 
     def feed(self, data, status):
@@ -12218,7 +12369,7 @@ class _PresenceFilter:
         stanza = _RE_X_ID.sub(lambda m: m.group(1) + m.group(2) + m.group(3) + b"-ry%d" % self.replays + m.group(2),
                               self.last, count=1)
         out = self._out(stanza, status)
-        _chat_dbg_add("replay", out)
+        _chat_dbg_add("replay", _dbg_raw_games(stanza) + out)
         return out
 
 
