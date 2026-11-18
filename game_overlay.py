@@ -45,6 +45,7 @@ PANEL_W = 424      # Agentenauswahl + Spielertabelle
 CARD_W = 400       # Ergebnis / Instalock-Frage
 PAD = 14
 ROW_H = 42
+SCOUT_H = 17       # Scouting-Zeile unter Gegnern im Tab-Overlay (2.7.0-dev3)
 ROW_GAP = 3
 RANK_W = 150
 FORM_W = 50        # "Letzte 5": Punktreihe + Bilanz
@@ -127,6 +128,8 @@ FALLBACK = {
     "style_tag_entry": "Entry", "style_tag_firstdeath": "Dies first", "style_tag_passive": "Passive",
     "style_tag_lurker": "Lurker", "style_tag_pusher": "Pushes early", "style_tag_clutch": "Clutcher",
     "style_tag_trader": "Trader", "style_tag_lowutil": "Little utility",
+    "style_ovl_def": "DEF", "style_ovl_atk": "ATK", "style_ovl_push": "Pushes", "style_ovl_shield": "+ shield",
+    "style_ovl_games": "{n}× map", "style_ovl_nodata": "No matches on this map yet", "style_ovl_plants": "Plants {list}",
 }
 
 
@@ -428,6 +431,46 @@ BADGE_COL = {"good": "#5fd68a", "toxic": "#ff6b6b", "thrower": "#ff6b6b", "smurf
              "crutch": "#ff6ebe", "note": "#beb4ff", "style": "#6fc3ff"}
 
 
+ZONE_COL = {"A": "#ffb45a", "B": "#5aa9ff", "C": "#c39bff", "Mid": "#3ddc84"}    # wie STYLE_ZONE_COL im Overlay
+
+
+def _scout_line(ops, m, ctx, x, y, w, sc):
+    """Dritte Zeile bei Gegnern: VT B 71% · ANG Mid 60% · Push · Ghost + Schild ... rechts: n× Karte.
+    Unsichere Zonen (wenig Runden oder < 50 %) blass."""
+    strings, lang = ctx["strings"], ctx.get("lang")
+    if not sc:
+        ops.add("text", x, y, w, 14, tr(strings, "style_ovl_nodata"), "small", COL["text3"], 170, "l", False)
+        return
+    right = tr(strings, "style_ovl_games", n=sc.get("g") or 0)
+    rw = m(right, "small") + 6
+    ops.add("text", x + w - rw, y, rw, 14, right, "small", COL["text3"], 200, "r", False)
+    cx, lim = x, x + w - rw - 4
+    for side, key in (("def", "style_ovl_def"), ("atk", "style_ovl_atk")):
+        z = sc.get(side)
+        if not z:
+            continue
+        lab = upper(tr(strings, key), lang)
+        lw = m(lab, "delta") + 4
+        val = "%s %d%%" % (z[0], z[1])
+        vw = m(val, "delta") + 11
+        if cx + lw + vw > lim:
+            break
+        a = 255 if z[2] else 120
+        col = ZONE_COL.get(z[0], COL["text2"])
+        ops.add("text", cx, y, lw, 14, lab, "delta", COL["text3"], a, "l", False)
+        ops.add("fill", cx + lw, y, vw, 14, 7, col, 44 if z[2] else 20)
+        ops.add("text", cx + lw, y, vw, 14, val, "delta", col, a, "c", False)
+        cx += lw + vw + 8
+    extra = []
+    if sc.get("push"):
+        extra.append(tr(strings, "style_ovl_push"))
+    pi = sc.get("pistol")
+    if pi:
+        extra.append(str(pi[0]) + (" " + tr(strings, "style_ovl_shield") if pi[1] else ""))
+    if extra and lim - cx > 30:
+        ops.add("text", cx, y, lim - cx, 14, fit_join(m, extra, "small", lim - cx), "small", COL["text2"], 255, "l", False)
+
+
 def _badges(ops, m, ctx, x, y, max_w, badges):
     """Kleine Chips ab x; passt einer nicht mehr, entfallen er und die folgenden. Gibt die Breite zurueck."""
     used = 0.0
@@ -453,17 +496,22 @@ def _badges(ops, m, ctx, x, y, max_w, badges):
     return used
 
 
+def row_h(p):
+    return ROW_H + (SCOUT_H if "scout" in p else 0)
+
+
 def _player_row(ops, m, ctx, x, y, w, p, pregame):
     strings = ctx["strings"]
     me = bool(p.get("me"))
+    rh = row_h(p)
     if me:
-        ops.add("hgrad", x, y, w, ROW_H, 11, COL["accent"], 46, COL["accent"], 14)
-        ops.add("stroke", x, y, w, ROW_H, 11, COL["accent"], 80, 1.0)
+        ops.add("hgrad", x, y, w, rh, 11, COL["accent"], 46, COL["accent"], 14)
+        ops.add("stroke", x, y, w, rh, 11, COL["accent"], 80, 1.0)
     else:
-        ops.add("fill", x, y, w, ROW_H, 11, COL["white"], 8)
+        ops.add("fill", x, y, w, rh, 11, COL["white"], 8)
     pc = party_color(p.get("party"))
     if pc:
-        ops.add("fill", x + 4, y + 9, 3, ROW_H - 18, 1.5, pc, 255)
+        ops.add("fill", x + 4, y + 9, 3, rh - 18, 1.5, pc, 255)
     # Agent
     tx, ty, ts = x + 12, y + 5, 32
     ops.add("fill", tx, ty, ts, ts, 9, COL["tile"], 255)
@@ -534,9 +582,11 @@ def _player_row(ops, m, ctx, x, y, w, p, pregame):
         low.append("%s %s" % (tr(strings, "peak_label"), rank_short(peak)))
     ops.add("text", rx + 32, y + 22, RANK_W - 36, 16, fit_join(m, low, "sub", RANK_W - 36), "sub",
             COL["text3"], 255, "l", False)
+    if "scout" in p:
+        _scout_line(ops, m, ctx, nx, y + ROW_H - 2, x + w - 10 - nx, p.get("scout"))
 
 
-def _section(ops, m, ctx, x, y, w, label, color, players, pregame, show_avg=True):
+def _section(ops, m, ctx, x, y, w, label, color, players, pregame, show_avg=True, foot=None):
     lw = _eyebrow(ops, m, x + 2, y, label, color)
     at = avg_tier(players) if show_avg else 0
     right = tr(ctx["strings"], "ovl_avg", rank=rank_name(at)) if at else ""
@@ -548,7 +598,10 @@ def _section(ops, m, ctx, x, y, w, label, color, players, pregame, show_avg=True
     y += 24
     for p in players:
         _player_row(ops, m, ctx, x, y, w, p, pregame)
-        y += ROW_H + ROW_GAP
+        y += row_h(p) + ROW_GAP
+    if foot:
+        ops.add("text", x + 2, y + 1, w - 4, 15, foot, "small", COL["text2"], 255, "l", False)
+        y += 19
     return y
 
 
@@ -576,10 +629,14 @@ def _panel(m, ctx, data, pregame):
             groups.append((tr(strings, "ovl_team_ally"), COL["ally"], data["allies"]))
         if data.get("enemies"):
             groups.append((tr(strings, "ovl_team_enemy"), COL["enemy"], data["enemies"]))
+    plants = data.get("plants") or []
+    plant_txt = tr(strings, "style_ovl_plants", list=" · ".join("%s %d%%" % (s_, n) for s_, n in plants)) if plants else None
     for i, (label, color, players) in enumerate(groups):
         if i:
             y += 8
-        y = _section(inner, m, ctx, x, y, iw, label, color, players[:14], pregame, show_avg=not data.get("cmp"))
+        foot = plant_txt if (players is data.get("enemies") and not pregame) else None
+        y = _section(inner, m, ctx, x, y, iw, label, color, players[:14], pregame, show_avg=not data.get("cmp"),
+                     foot=foot)
     h = (y - y0) + PAD - ROW_GAP
     _frame(ops, x0, y0, w, h)
     ops.items.extend(inner.items)

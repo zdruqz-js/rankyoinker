@@ -3394,6 +3394,8 @@ STYLE_FWD = 0.55                # Verteidiger naeher am Angreifer-Spawn als hier
 STYLE_TAGS = {"entry": 28, "entry_win": 45, "passive": 12, "lurk": 25, "lurk_n": 12, "lurk_open_n": 6, "trade": 28, "trade_n": 30,
               "clutch_n": 4, "clutch": 45, "util": 0.8, "anchor": 60, "lane": 60, "push": 35, "push_n": 8}
 STYLE_MAP_WANT = 3              # so viele Matches auf der aktuellen Karte sollen es fuer Anker/Lane sein
+OVL_SCOUT_MIN = 3        # Tab-Overlay: Zone erst ab 3 Runden auf der Karte zeigen ...
+OVL_SCOUT_SURE = 8       # ... und erst ab 8 Runden, 2 Matches und mind. 50 % kraeftig (sonst blass)
 STYLE_UPGRADE_MAX = 5           # alte Kurzfassungen ohne "sy" je Spieler hoechstens so viele neu laden
 _style_state = {"gen": 0}       # zaehlt neue Kurzfassungen - der Merkmal-Cache wird damit ungueltig
 _style_cache = collections.OrderedDict()    # (puuid, karte, full) -> (gen, vapi-Stand, Ergebnis)
@@ -7079,7 +7081,8 @@ _OVL_STRING_KEYS = (
     "report_hl_firstbloods", "note_tag_good", "note_tag_toxic", "note_tag_thrower", "note_tag_smurf", "note_badge",
     "style_tag_anchor", "style_tag_anchor_mid", "style_tag_lane", "style_tag_entry", "style_tag_firstdeath",
     "style_tag_passive", "style_tag_lurker", "style_tag_pusher", "style_tag_clutch", "style_tag_trader",
-    "style_tag_lowutil")
+    "style_tag_lowutil", "style_ovl_def", "style_ovl_atk", "style_ovl_push", "style_ovl_shield", "style_ovl_games",
+    "style_ovl_nodata", "style_ovl_plants")
 # Modus-Namen bleiben Englisch (wie im Overlay)
 _OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
                "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
@@ -7398,6 +7401,50 @@ def _ovl_badges(puuid):
     return out, text
 
 
+def _ovl_scout(puuid, cur_map):
+    """Scouting-Zeile je Gegner im Tab-Overlay (2.7.0-dev3, Nutzer: „ingame overlay bei TAB“ soll „schnell alles von den
+    Gegnern“ zeigen): Stammzone auf DIESER Karte je Seite [Zone, %, sicher], Matches auf der Karte, Push, Pistole."""
+    if not cur_map:
+        return None
+    try:
+        s = _style_summary(puuid, cur_map)
+    except Exception:
+        return None
+    if not s or not s.get("games"):
+        return None
+    m = s.get("map") or {}
+
+    def zone(side):
+        sd = m.get(side) or {}
+        zs = sd.get("zones") or []
+        if sd.get("n", 0) < OVL_SCOUT_MIN or not zs or zs[0][0] == "Spawn":
+            return None
+        p = _style_pct(zs[0][1], sd["n"])
+        return [zs[0][0], p, 1 if (sd["n"] >= OVL_SCOUT_SURE and p >= 50 and (m.get("games") or 0) >= 2) else 0]
+
+    d = m.get("def") or {}
+    push = (d.get("pushN", 0) >= STYLE_TAGS["push_n"] and (d.get("push") or 0) >= STYLE_TAGS["push"]) or \
+        any(t.get("k") == "pusher" for t in s.get("tags") or [])
+    pi = s.get("pistol") or {}
+    pistol = None
+    if pi.get("of", 0) >= 2 and pi.get("w") not in (None, "", "other") and pi["n"] * 2 >= pi["of"]:
+        pistol = [str(pi["w"]).capitalize(), 1 if (pi.get("armor") or 0) >= 50 else 0]
+    return {"def": zone("def"), "atk": zone("atk"), "g": m.get("games") or 0, "push": bool(push),
+            "pistol": pistol, "plants": m.get("plants") or []}
+
+
+def _ovl_plants(rows):
+    """Plant-Sites des Gegnerteams auf der Karte (Summe ueber ihre Matches) -> [[Site, %], ...] ab 4 Plants."""
+    tot = collections.Counter()
+    for r in rows:
+        for site, n in ((r.get("scout") or {}).get("plants") or []):
+            tot[str(site)] += n
+        if r.get("scout"):
+            r["scout"].pop("plants", None)
+    n = sum(tot.values())
+    return [[k, _style_pct(v, n)] for k, v in tot.most_common(3)] if n >= 4 else []
+
+
 def _ovl_row(puuid, me, base, hbp, parties, encs=None):
     hbp = hbp if isinstance(hbp, dict) else {}
     name = hbp.get("name") or base.get("name") or ""
@@ -7431,7 +7478,7 @@ def _ovl_row(puuid, me, base, hbp, parties, encs=None):
             "kd": hbp.get("kd") if isinstance(hbp.get("kd"), (int, float)) else None,
             "hs": hbp.get("headshotPercentage") if isinstance(hbp.get("headshotPercentage"), (int, float)) else None,
             "wr": wr, "form": _ovl_form(puuid) if puuid else [], "enc": (encs or {}).get(puuid, 0),
-            "badges": badges, "note": note}
+            "badges": badges, "note": note, "puuid": puuid}
 
 
 def _ovl_sort(rows):
@@ -7522,6 +7569,8 @@ def _ovl_pregame(strings):
             continue
         enemies.append(_ovl_row(p["puuid"], False, {"agent": p.get("agent"), "name": p.get("name"), "locked": True},
                                 {"rank": p.get("rank"), "rr": p.get("rr"), "peakRank": p.get("peakRank")}, parties, encs))
+    for row in allies + enemies:
+        row.pop("puuid", None)
     side = data.get("side")
     mapinfo = _ovl_map(data.get("map"))
     cmp = None
@@ -7560,9 +7609,18 @@ def _ovl_board():
     ffa = str(queue or "").lower() == "deathmatch" or (len(allies) <= 1 and len(enemies) > 5)
     if ffa:
         allies, enemies = allies + enemies, []
+    plants = []
+    if not ffa and map_path and str(queue or "").lower() in STYLE_QUEUES:
+        cur = str(map_path).lower()
+        for row in enemies:
+            if row.get("puuid"):
+                row["scout"] = _ovl_scout(row["puuid"], cur)
+        plants = _ovl_plants(enemies)
+    for row in allies + enemies:
+        row.pop("puuid", None)
     a, e = _ovl_team_avg(allies), _ovl_team_avg(enemies)
     mapinfo = _ovl_map(map_path)
-    return {"id": mid, "map": mapinfo.get("name") or "", "ffa": ffa,
+    return {"id": mid, "map": mapinfo.get("name") or "", "ffa": ffa, "plants": plants,
             "cmp": {"ally": a, "enemy": e} if (a and e and not ffa) else None,
             "mapImg": _ovl_img(mapinfo.get("img")) if mapinfo.get("img") else None,
             "mode": _ovl_queue_name(queue, hb.get("mode")) if (queue or hb.get("mode")) else "",

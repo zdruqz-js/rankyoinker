@@ -51,7 +51,14 @@
   "note_tag_toxic": "Toxisch",
   "note_tag_thrower": "Thrower",
   "note_tag_smurf": "Smurf",
-  "note_badge": "Notiz"
+  "note_badge": "Notiz",
+  "style_ovl_def": "VERT",
+  "style_ovl_atk": "ANGR",
+  "style_ovl_push": "Pusht",
+  "style_ovl_shield": "+ Schild",
+  "style_ovl_games": "{n}× Map",
+  "style_ovl_nodata": "Noch kein Match auf dieser Map",
+  "style_ovl_plants": "Plants {list}"
  },
  "settings": {
   "on": true,
@@ -342,7 +349,25 @@
       "short": "OP"
      }
     ],
-    "note": ""
+    "note": "",
+    "scout": {
+     "def": [
+      "B",
+      71,
+      1
+     ],
+     "atk": [
+      "Mid",
+      60,
+      1
+     ],
+     "g": 4,
+     "push": true,
+     "pistol": [
+      "Ghost",
+      0
+     ]
+    }
    },
    {
     "name": "Sage#heal",
@@ -380,7 +405,25 @@
       "short": "Odin"
      }
     ],
-    "note": "zweiter Account von …"
+    "note": "zweiter Account von …",
+    "scout": {
+     "def": [
+      "Mid",
+      62,
+      1
+     ],
+     "atk": [
+      "B",
+      54,
+      1
+     ],
+     "g": 3,
+     "push": false,
+     "pistol": [
+      "Classic",
+      1
+     ]
+    }
    },
    {
     "name": "Reyna Diff#KR",
@@ -401,7 +444,21 @@
      "w"
     ],
     "wr": 66,
-    "enc": 0
+    "enc": 0,
+    "scout": {
+     "def": [
+      "A",
+      45,
+      0
+     ],
+     "atk": null,
+     "g": 1,
+     "push": false,
+     "pistol": [
+      "Sheriff",
+      0
+     ]
+    }
    },
    {
     "name": "phoenix#1",
@@ -429,7 +486,8 @@
       "key": "note_badge"
      }
     ],
-    "note": "guter Sova, Lineups"
+    "note": "guter Sova, Lineups",
+    "scout": null
    },
    {
     "name": "한국인플레이어#KR1",
@@ -450,7 +508,22 @@
      "l"
     ],
     "wr": 52,
-    "enc": 2
+    "enc": 2,
+    "scout": {
+     "def": [
+      "C",
+      80,
+      1
+     ],
+     "atk": [
+      "A",
+      70,
+      1
+     ],
+     "g": 5,
+     "push": true,
+     "pistol": null
+    }
    }
   ],
   "mapImg": "img/ascent.png",
@@ -465,7 +538,17 @@
     "rr": 40,
     "img": "img/rank17.png"
    }
-  }
+  },
+  "plants": [
+   [
+    "B",
+    64
+   ],
+   [
+    "A",
+    36
+   ]
+  ]
  },
  "result": {
   "id": "m1",
