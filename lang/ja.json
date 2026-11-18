@@ -837,6 +837,7 @@
     "style_tip_firstdeath": "{p}%のラウンドで最初の撃ち合いに参加するが、勝つのは{w}%だけ",
     "style_tip_passive": "最初の撃ち合いへの参加は{p}%のみ（平均：20%）",
     "style_tip_lurker": "攻めラウンドの{p}%でチームから離れている（{n}ラウンド中）",
+    "style_tip_lurk_open": "攻めのファーストデュエル{on}回中{o}回を単独で",
     "style_tip_pusher": "守りで{p}%のラウンドで大きく前に出る（{n}ラウンド中）",
     "style_tip_clutch": "最後の1人として{n}ラウンド中{w}ラウンド勝利",
     "style_tip_trader": "キルの{p}%が倒れた味方の仇討ち",

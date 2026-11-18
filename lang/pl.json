@@ -838,6 +838,7 @@
     "style_tip_firstdeath": "Bierze pierwszy pojedynek w {p}% rund, ale wygrywa tylko {w}% z nich",
     "style_tip_passive": "W pierwszym pojedynku tylko w {p}% rund (średnio: 20%)",
     "style_tip_lurker": "W ataku daleko od drużyny w {p}% rund (z {n} rund)",
+    "style_tip_lurk_open": "{o} z {on} pierwszych pojedynków w ataku sam",
     "style_tip_pusher": "W obronie stoi daleko z przodu w {p}% rund (z {n} rund)",
     "style_tip_clutch": "Wygrywa {w} z {n} rund jako ostatni żywy",
     "style_tip_trader": "{p}% jego killi pomści właśnie poległego kolegę",

@@ -5655,7 +5655,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   function styleTagText(tg){ return t('style_tag_' + tg.k, {zone: tg.z || ''}); }
   function styleTagTip(tg, mapName){
     const v = {map: mapName || '', zone: tg.z || '', p: tg.p, n: tg.n, w: tg.w, v: tg.v};
-    return t('style_tip_' + (tg.k === 'anchor_mid' ? 'anchor' : tg.k), v);
+    const tip = t('style_tip_' + (tg.k === 'anchor_mid' ? 'anchor' : tg.k), v);
+    return tg.k === 'lurker' && tg.on ? tip + ' · ' + t('style_tip_lurk_open', {o: tg.o, on: tg.on}) : tip;
   }
   function styleData(puuid, map){
     const c = puuid && styleCache[puuid];
@@ -12881,7 +12882,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.7.0-dev1";
+const CURRENT_VERSION = "2.7.0-dev2";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

@@ -837,6 +837,7 @@
     "style_tip_firstdeath": "Raundların %{p}'inde ilk düelloya girer ama yalnızca %{w}'ini kazanır",
     "style_tip_passive": "Raundların yalnızca %{p}'inde ilk düelloda (ortalama: %20)",
     "style_tip_lurker": "Saldırı raundlarının %{p}'inde takımdan uzakta ({n} raunddan)",
+    "style_tip_lurk_open": "saldırıdaki {on} ilk düellonun {o} tanesine tek başına girdi",
     "style_tip_pusher": "Savunmada raundların %{p}'inde çok önde durur ({n} raunddan)",
     "style_tip_clutch": "Takımında son kalan olarak {n} raundun {w} tanesini kazanır",
     "style_tip_trader": "Kill'lerinin %{p}'i az önce ölen bir takım arkadaşının intikamı",

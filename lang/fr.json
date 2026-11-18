@@ -837,6 +837,7 @@
     "style_tip_firstdeath": "Prend le premier duel dans {p} % des manches mais n'en gagne que {w} %",
     "style_tip_passive": "Dans le premier duel dans seulement {p} % des manches (moyenne : 20 %)",
     "style_tip_lurker": "Loin de l'équipe dans {p} % des manches d'attaque (sur {n} manches)",
+    "style_tip_lurk_open": "{o} des {on} premiers duels en attaque pris seul",
     "style_tip_pusher": "Joue très avancé en défense dans {p} % des manches (sur {n} manches)",
     "style_tip_clutch": "Gagne {w} manches sur {n} en étant le dernier en vie",
     "style_tip_trader": "{p} % de ses kills vengent un coéquipier qui vient de tomber",

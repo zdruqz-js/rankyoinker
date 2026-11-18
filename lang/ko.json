@@ -838,6 +838,7 @@
     "style_tip_firstdeath": "{p}%의 라운드에서 첫 교전에 참여하지만 {w}%만 승리",
     "style_tip_passive": "첫 교전 참여가 {p}%뿐 (평균: 20%)",
     "style_tip_lurker": "공격 라운드의 {p}%에서 팀과 멀리 떨어짐 ({n}라운드 중)",
+    "style_tip_lurk_open": "공격 첫 교전 {on}회 중 {o}회를 혼자 시작",
     "style_tip_pusher": "수비 시 {p}%의 라운드에서 깊이 전진 ({n}라운드 중)",
     "style_tip_clutch": "팀의 마지막 생존자로 {n}라운드 중 {w}라운드 승리",
     "style_tip_trader": "킬의 {p}%가 방금 죽은 팀원의 복수",

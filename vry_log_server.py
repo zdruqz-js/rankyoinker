@@ -696,7 +696,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.7.0-dev1"
+APP_VERSION = "2.7.0-dev2"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -3296,7 +3296,8 @@ def _style_row(ctx, me):
     r  = Runden [Angriff, Verteidigung, Seite unbekannt]
     o  = erstes Duell der Runde [gewonnen, verloren] je Angriff / Verteidigung / unbekannt (6 Zahlen)
     tr = [eigene Tode, davon getradet, eigene Kills, davon Trades]
-    lu = Angriff: [Runden allein beim ersten Kill, gemessene Runden]
+    lu = Angriff: [Runden allein beim ersten Kill, gemessene Runden, davon erstes Duell allein, davon gewonnen,
+         erste Duelle mit gemessenem Abstand] (die letzten drei erst seit 2.7.0-dev2)
     cl = 1vX [gewonnen, gesamt]
     e  = Position beim ersten Kill der Runde [Seite, x, y, ...] (Seite 0 = Angriff, 1 = Verteidigung)
     dp = Todes-Positionen [Seite, x, y, ...], kp = eigene Position bei Kills [Seite, x, y, OP 0/1, ...]
@@ -3308,7 +3309,7 @@ def _style_row(ctx, me):
     r = [0, 0, 0]
     o = [0] * 6
     tr = [0, 0, 0, 0]
-    lu = [0, 0]
+    lu = [0, 0, 0, 0, 0]
     cl = [0, 0]
     e, dp, kp, pi = [], [], [], []
     ts = {}
@@ -3320,10 +3321,13 @@ def _style_row(ctx, me):
         if ks:
             k0 = ks[0]
             slot = 4 if side is None else side * 2
+            duel = None
             if k0["k"] == me and team.get(k0["v"]) not in (None, my):
                 o[slot] += 1
+                duel = 1
             elif k0["v"] == me and team.get(k0["k"]) not in (None, my):
                 o[slot + 1] += 1
+                duel = 0
             # Position beim ersten Kill der Runde (fuer Anker/Lane) und Abstand zum Team (Lurk)
             locs = dict(k0["pl"])
             if k0["vl"] and k0["v"]:
@@ -3337,6 +3341,12 @@ def _style_row(ctx, me):
                     lu[1] += 1
                     if d > STYLE_LURK_DIST:
                         lu[0] += 1
+                        if duel is not None:
+                            # Erstes Duell allein = Lurk-Pick, kein Entry mit dem Team (seit 2.7.0-dev2)
+                            lu[2] += 1
+                            lu[3] += duel
+                    if duel is not None:
+                        lu[4] += 1
         alive = {t: {s for s, tt in team.items() if tt == t} for t in set(team.values())}
         clutch = False
         for idx, k in enumerate(ks):
@@ -3381,7 +3391,7 @@ STYLE_MAP_MIN = 5               # Anker/Lane erst ab so vielen gemessenen Runden
 STYLE_ZONES = ("A", "B", "C", "Mid")
 STYLE_FWD = 0.55                # Verteidiger naeher am Angreifer-Spawn als hier = weit vorn ("pusht")
 # Merkmal -> Schwellen (Schaetzwerte, siehe oben). Opening-Teilnahme: im Schnitt 20 % (1 Duell, 10 Spieler)
-STYLE_TAGS = {"entry": 28, "entry_win": 45, "passive": 12, "lurk": 35, "lurk_n": 12, "trade": 28, "trade_n": 30,
+STYLE_TAGS = {"entry": 28, "entry_win": 45, "passive": 12, "lurk": 25, "lurk_n": 12, "lurk_open_n": 6, "trade": 28, "trade_n": 30,
               "clutch_n": 4, "clutch": 45, "util": 0.8, "anchor": 60, "lane": 60, "push": 35, "push_n": 8}
 STYLE_MAP_WANT = 3              # so viele Matches auf der aktuellen Karte sollen es fuer Anker/Lane sein
 STYLE_UPGRADE_MAX = 5           # alte Kurzfassungen ohne "sy" je Spieler hoechstens so viele neu laden
@@ -3529,16 +3539,24 @@ def _style_tags(g, m):
             p = _style_pct(n, a["n"])
             if z != "Spawn" and p >= T["lane"]:
                 tags.append({"k": "lane", "z": z, "p": p, "n": a["n"]})
+    # Lurker vor Entry: seltener und fuers Scouting aussagekraeftiger. Erste Duelle, die er im Angriff ALLEIN
+    # nimmt, sind Lurk-Picks - ueberwiegen sie, gibt es kein Entry-Merkmal (Nutzer-Test 2.7.0-dev1: „eher Lurker“,
+    # Analyse sagte Entry). Schnitt allein ueber alle Spieler der Testmatches: 13 %.
+    lu = g.get("lurk") or {}
+    lurker = lu.get("pct") is not None and lu["n"] >= T["lurk_n"] and lu["pct"] >= T["lurk"]
+    lurk_picks = lurker and lu.get("openN", 0) >= T["lurk_open_n"] and lu.get("open", 0) * 2 >= lu["openN"]
+    if lurker:
+        tg = {"k": "lurker", "p": lu["pct"], "n": lu["n"]}
+        if lu.get("openN", 0) >= T["lurk_open_n"]:
+            tg.update({"o": lu.get("open", 0), "on": lu["openN"]})
+        tags.append(tg)
     op = g.get("open") or {}
     if g.get("rounds", 0) >= STYLE_MIN_ROUNDS and op.get("rate") is not None:
-        if op["rate"] >= T["entry"]:
+        if op["rate"] >= T["entry"] and not lurk_picks:
             good = op.get("win") is not None and op["win"] >= T["entry_win"]
             tags.append({"k": "entry" if good else "firstdeath", "p": op["rate"], "w": op.get("win")})
         elif op["rate"] <= T["passive"]:
             tags.append({"k": "passive", "p": op["rate"]})
-    lu = g.get("lurk") or {}
-    if lu.get("pct") is not None and lu["n"] >= T["lurk_n"] and lu["pct"] >= T["lurk"]:
-        tags.append({"k": "lurker", "p": lu["pct"], "n": lu["n"]})
     pu = g.get("push") or {}
     if pu.get("pct") is not None and pu["n"] >= T["push_n"] and pu["pct"] >= T["push"]:
         tags.append({"k": "pusher", "p": pu["pct"], "n": pu["n"]})
@@ -3555,7 +3573,7 @@ def _style_tags(g, m):
 
 def _style_build(rows, cur_map, full):
     use = rows[:STYLE_GLOBAL_MAX]
-    R, O, TR, LU, CL, AB = [0] * 3, [0] * 6, [0] * 4, [0, 0], [0, 0], [0] * 4
+    R, O, TR, LU, CL, AB = [0] * 3, [0] * 6, [0] * 4, [0] * 5, [0, 0], [0] * 4
     ab_r = ab_g = 0
     pistol, armor = collections.Counter(), [0, 0]
     fwd = [0, 0]
@@ -3590,7 +3608,7 @@ def _style_build(rows, cur_map, full):
          "open": {"rate": _style_pct(ow + ol, rounds), "win": _style_pct(ow, ow + ol), "first": _style_pct(ol, rounds),
                   "n": ow + ol, "atk": _style_pct(O[0] + O[1], R[0]), "def": _style_pct(O[2] + O[3], R[1])},
          "trade": {"traded": _style_pct(TR[1], TR[0]), "deaths": TR[0], "trades": _style_pct(TR[3], TR[2]), "kills": TR[2]},
-         "lurk": {"pct": _style_pct(LU[0], LU[1]), "n": LU[1]},
+         "lurk": {"pct": _style_pct(LU[0], LU[1]), "n": LU[1], "open": LU[2], "openWon": LU[3], "openN": LU[4]},
          "push": {"pct": _style_pct(*fwd), "n": fwd[1]},
          "clutch": {"won": CL[0], "n": CL[1]},
          "util": round((AB[0] + AB[1] + AB[2]) / float(ab_r), 2) if ab_r else None,

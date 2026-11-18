@@ -838,6 +838,7 @@
     "style_tip_firstdeath": "Takes the first duel in {p}% of rounds but wins only {w}% of them",
     "style_tip_passive": "In the first duel in only {p}% of rounds (average: 20%)",
     "style_tip_lurker": "Far away from the team in {p}% of attack rounds (of {n} rounds)",
+    "style_tip_lurk_open": "took {o} of {on} attack opening duels alone",
     "style_tip_pusher": "Plays far forward on defense in {p}% of rounds (of {n} rounds)",
     "style_tip_clutch": "Wins {w} of {n} rounds as the last one alive",
     "style_tip_trader": "{p}% of their kills avenge a teammate who just died",

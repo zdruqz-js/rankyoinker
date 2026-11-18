@@ -838,6 +838,7 @@
     "style_tip_firstdeath": "In {p} % der Runden im ersten Duell, gewinnt aber nur {w} % davon",
     "style_tip_passive": "Nur in {p} % der Runden im ersten Duell (Schnitt: 20 %)",
     "style_tip_lurker": "Im Angriff in {p} % der Runden weit weg vom Team (von {n} Runden)",
+    "style_tip_lurk_open": "{o} von {on} ersten Duellen im Angriff allein genommen",
     "style_tip_pusher": "Steht als Verteidiger in {p} % der Runden weit vorn (von {n} Runden)",
     "style_tip_clutch": "Gewinnt {w} von {n} Runden als Letzter seines Teams",
     "style_tip_trader": "{p} % seiner Kills rächen einen gerade gefallenen Mitspieler",
