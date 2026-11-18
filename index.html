@@ -964,6 +964,71 @@ body.lol-mode #appLeague{display:block; animation:panelIn .6s var(--ease);}
 .crutch-row .cv small{font-weight:500; color:var(--text-3, var(--text-faint)); margin-left:3px;}
 .crutch-foot{margin-top:6px; font-size:11.5px; color:var(--text-3, var(--text-faint));}
 @media (max-width:560px){ .crutch-row{grid-template-columns:76px 1fr auto; } .crutch-row .cv.b{display:none;} }
+/* Spielstil (2.7.0): Abzeichen auf der Karte, Scouting-Block, Abschnitt im Spieler-Fenster */
+.style-badge{display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; cursor:help; max-width:100%;
+  font-family:var(--font-mono); font-weight:600; font-size:10.5px; letter-spacing:.04em; white-space:nowrap; text-transform:uppercase;
+  color:#d9efff; background:rgba(10,30,48,.9); border:1px solid rgba(111,195,255,.5); box-shadow:0 6px 18px -6px rgba(60,160,255,.4);
+  animation:popIn .55s var(--spring) both;}
+.style-badge.map{color:#06131f; background:#6fc3ff; border-color:transparent;}
+.style-badge small{font-size:9.5px; opacity:.75; margin-left:2px;}
+.style-badge svg{flex:none;}
+.scout{margin-top:14px; padding:14px 16px; border-radius:var(--r-lg); background:linear-gradient(180deg, rgba(255,77,94,.06), rgba(255,255,255,.015));
+  border:1px solid rgba(255,77,94,.18); display:flex; flex-direction:column; gap:10px; animation:rise .55s var(--ease) both;}
+.sc-title{display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2);}
+.sc-title svg{color:var(--enemy);}
+.sc-hint{display:inline-flex; color:var(--text-3); cursor:help;}
+.sc-row{display:grid; grid-template-columns:150px 1fr; gap:6px 12px; align-items:start;}
+.sc-row.first .sc-head{color:var(--text);}
+.sc-head{font-size:12.5px; font-weight:700; color:var(--text-2); padding-top:5px; display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.sc-first{font-family:var(--font-mono); font-weight:600; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; padding:2px 7px; border-radius:99px; color:var(--accent-ink); background:var(--accent);}
+.sc-zones{display:flex; flex-wrap:wrap; gap:8px;}
+.sc-zone{display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:4px 6px 4px 4px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);}
+.sc-z{min-width:26px; padding:3px 7px; border-radius:8px; text-align:center; font-family:var(--font-mono); font-weight:700; font-size:11px; color:#0b0b0d; background:var(--zc);}
+.sc-pl{display:inline-flex; align-items:center; gap:5px; padding:2px 8px 2px 2px; border-radius:99px; background:rgba(255,255,255,.05); font-size:12px; cursor:help;}
+.sc-pl img{width:22px; height:22px; border-radius:50%; object-fit:cover; background:rgba(255,255,255,.06);}
+.sc-pl b{font-weight:600;}
+.sc-pl i{font-style:normal; font-family:var(--font-mono); font-size:10.5px; color:var(--text-3);}
+.sc-pl.unsure{opacity:.6;}
+.sc-plants{grid-column:2; font-size:12px; color:var(--text-2);}
+.sc-types{display:flex; flex-wrap:wrap; gap:6px; padding-top:2px; border-top:1px solid rgba(255,255,255,.05);}
+.sc-type{font-size:12px; color:var(--text-2); padding:3px 9px; border-radius:99px; background:rgba(111,195,255,.08); border:1px solid rgba(111,195,255,.22); cursor:help;}
+.sc-type b{color:var(--text); font-weight:600;}
+@media (max-width:640px){ .sc-row{grid-template-columns:1fr;} .sc-plants{grid-column:1;} }
+.style-sec{display:flex; flex-direction:column; gap:12px;}
+.style-tags{display:flex; flex-wrap:wrap; gap:6px;}
+.style-chip{padding:6px 12px; border-radius:999px; font:600 12px/1 var(--font-body, inherit); color:#d9efff; background:rgba(111,195,255,.1); border:1px solid rgba(111,195,255,.35); cursor:help;}
+.style-chip.map{color:#06131f; background:#6fc3ff; border-color:transparent;}
+.style-sec .stat-box .sv small{font-size:14px; color:var(--text-3); margin-left:2px;}
+.style-sec .stat-group{margin-top:6px;}
+.style-line{font-size:13px; color:var(--text-2);}
+.style-tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+.style-tab{display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font:600 12px/1 var(--font-body, inherit); color:var(--text-2);
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); cursor:pointer; transition:color .15s, border-color .15s, background .15s;}
+.style-tab small{font-family:var(--font-mono); font-size:10px; color:var(--text-3);}
+.style-tab:hover{color:var(--text); border-color:rgba(255,255,255,.22);}
+.style-tab.on{color:var(--accent-ink); background:var(--accent); border-color:transparent;}
+.style-tab.on small{color:var(--accent-ink); opacity:.7;}
+.style-map{display:grid; grid-template-columns:minmax(0, 260px) minmax(0, 1fr); gap:16px; align-items:start;}
+.smini{position:relative; aspect-ratio:1; border-radius:16px; overflow:hidden; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07);}
+.smini img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:.55;}
+.pt{position:absolute; width:7px; height:7px; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 0 1px rgba(0,0,0,.55);}
+.style-legend .pt{position:static; display:inline-block; transform:none; margin-right:5px; vertical-align:-1px;}
+.pt.d{background:#3fd0c9;} .pt.a{background:#ff5a6a;} .pt.k{background:#ffd34d; width:5px; height:5px;}
+.pt.x{background:#f5f5f2; width:6px; height:6px; border-radius:1px;} .pt.o{background:#ff6ebe; width:8px; height:8px;}
+.sinfo{display:flex; flex-direction:column; gap:10px; min-width:0;}
+.sm-row{display:flex; flex-direction:column; gap:5px;}
+.sm-lab{font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3);}
+.sm-val{font-size:13px; color:var(--text);}
+.sm-val small{color:var(--text-3); font-family:var(--font-mono); font-size:10.5px;}
+.sm-sub{font-size:11.5px; color:var(--text-2);}
+.sz-bar{display:flex; height:8px; border-radius:99px; overflow:hidden; gap:2px; background:rgba(255,255,255,.05);}
+.sz-bar i{display:block; height:100%;}
+.sz-legend{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--text-2);}
+.sz-legend i{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px;}
+.sz-legend .sz-n{color:var(--text-3); font-size:11px;}
+.sz-none{color:var(--text-3);}
+.style-legend{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px; color:var(--text-2); margin-top:8px;}
+@media (max-width:640px){ .style-map{grid-template-columns:1fr;} .smini{max-width:300px;} }
 
 .pcard-body{position:relative; z-index:3; display:flex; flex-direction:column; gap:8px; padding:10px 11px 12px; flex:1;}
 
@@ -2656,8 +2721,8 @@ ul.ry-upd-notes li:nth-child(4){animation-delay:.15s;} ul.ry-upd-notes li:nth-ch
 .rr-pt:hover{transform:scale(1.5);}
 .rr-svg{height:auto;}
 /* Badges nur beim echten Szenenwechsel einploppen lassen, nicht bei jedem Heartbeat */
-#content .enc-badge, #content .smurf-badge, #content .note-badge, #content .crutch-badge{animation:none;}
-#content.anim .enc-badge, #content.anim .smurf-badge, #content.anim .note-badge, #content.anim .crutch-badge{animation:popIn .55s var(--spring) both;}
+#content .enc-badge, #content .smurf-badge, #content .note-badge, #content .crutch-badge, #content .style-badge, #content .scout{animation:none;}
+#content.anim .enc-badge, #content.anim .smurf-badge, #content.anim .note-badge, #content.anim .crutch-badge, #content.anim .style-badge{animation:popIn .55s var(--spring) both;}
 .agentpick.instalock{margin-top:0;}
 .agent-fallback-big{font-size:54px; color:rgba(255,255,255,.12);}
 .card-grid > *{max-width:340px;}
@@ -5428,6 +5493,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // ---- Account-Wechsel: alles neu holen, nichts vom alten Konto stehen lassen ----
   function onAccountSwitch(){
     Object.keys(kdaCache).forEach(k => delete kdaCache[k]);
+    Object.keys(styleCache).forEach(k => delete styleCache[k]);
     Object.keys(encCache).forEach(k => delete encCache[k]);
     presetCache = {}; presetAccount = null; presetsReady = false; tabsPrefetched = null;
     currentLoadout = null;
@@ -5566,6 +5632,241 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       const html = crutchBadgeHtml(id);
       if(html) el.outerHTML = html; else el.remove();
     });
+  }
+
+  // ---------- Spielstil (2.7.0) ----------
+  // Der Dienst wertet die Matches aus, die er fuer "Letzte 5"/Party-Erkennung ohnehin hat (/api/style, keine
+  // eigene Riot-Anfrage), und laedt im Hintergrund Matches auf der aktuellen Map nach (pending -> erneut fragen).
+  // styleCache[puuid] = {map, data, sig}; Karten-Abzeichen, Scouting-Block und Spieler-Fenster lesen daraus.
+  const styleCache = {};
+  const styleLoad = {timer: null, busy: false, polls: 0, scene: ''};
+  const STYLE_ZONE_COL = {A: '#ffb45a', B: '#5aa9ff', C: '#c39bff', Mid: '#3ddc84', Spawn: '#8a8a85', '?': '#6d6d67'};
+  const STYLE_PISTOL_NAMES = {classic: 'Classic', shorty: 'Shorty', frenzy: 'Frenzy', ghost: 'Ghost', sheriff: 'Sheriff', bandit: 'Bandit', other: '—'};
+  function styleMap(){
+    const st = latestData && latestData.state;
+    if(st !== 'PREGAME' && st !== 'INGAME') return '';
+    const m = String(heroMap(st, null) || '').toLowerCase();
+    return m.startsWith('/game/maps/') ? m : '';
+  }
+  function styleMapName(path){
+    const i = mapInfo[String(path || '').toLowerCase()];
+    return i && i.name ? i.name : (String(path || '').split('/').pop() || '?');
+  }
+  function styleTagText(tg){ return t('style_tag_' + tg.k, {zone: tg.z || ''}); }
+  function styleTagTip(tg, mapName){
+    const v = {map: mapName || '', zone: tg.z || '', p: tg.p, n: tg.n, w: tg.w, v: tg.v};
+    return t('style_tip_' + (tg.k === 'anchor_mid' ? 'anchor' : tg.k), v);
+  }
+  function styleData(puuid, map){
+    const c = puuid && styleCache[puuid];
+    return c && (map === undefined || c.map === map) ? c.data : null;
+  }
+  function styleBadgeHtml(puuid){
+    const d = styleData(puuid);
+    const tags = (d && d.tags) || [];
+    if(!tags.length) return '';
+    const mapName = d.map ? styleMapName(d.map.path) : '';
+    const tip = t('style_badge_tip_head', {games: d.games}) + '\n'
+      + tags.map(tg => '• ' + styleTagText(tg) + ': ' + styleTagTip(tg, mapName)).join('\n');
+    const more = tags.length > 1 ? `<small>+${tags.length - 1}</small>` : '';
+    const map = tags[0].k === 'anchor' || tags[0].k === 'anchor_mid' || tags[0].k === 'lane';
+    return `<span class="style-badge${map ? ' map' : ''}" data-tip="${esc(tip)}">${svgIcon('target', 11)}${esc(styleTagText(tags[0]))}${more}</span>`;
+  }
+  function loadStyleSoon(delay){
+    if(styleLoad.timer) return;
+    styleLoad.timer = setTimeout(() => { styleLoad.timer = null; loadStyle(); }, delay == null ? 700 : delay);
+  }
+  async function loadStyle(){
+    if(styleLoad.busy){ loadStyleSoon(1500); return; }
+    const map = styleMap();
+    const scene = (latestData && latestData.state || '') + '|' + map;
+    if(scene !== styleLoad.scene){ styleLoad.scene = scene; styleLoad.polls = 0; }
+    // nur Spieler, deren "Letzte 5" schon da sind - dann liegen ihre Matches beim Dienst
+    const ids = new Set();
+    content.querySelectorAll('.pcard[data-puuid]').forEach(c => {
+      const id = c.getAttribute('data-puuid');
+      if(id && kdaCache[id] !== undefined) ids.add(id);
+    });
+    const want = Array.from(ids).filter(id => { const c = styleCache[id]; return !c || c.map !== map || c.data.pending; }).slice(0, 12);
+    if(!want.length) return;
+    styleLoad.busy = true;
+    let changed = false, pending = false;
+    try{
+      const j = await api('/api/style?puuids=' + encodeURIComponent(want.join(',')) + (map ? '&map=' + encodeURIComponent(map) : ''));
+      if(j && j.ok && j.players){
+        Object.entries(j.players).forEach(([id, d]) => {
+          const sig = JSON.stringify([d.tags || [], d.map || null]);
+          const old = styleCache[id];
+          if(!old || old.sig !== sig || old.map !== map) changed = true;
+          styleCache[id] = {map, data: d, sig};
+          if(d.pending) pending = true;
+        });
+      }
+    }catch(e){}
+    styleLoad.busy = false;
+    if(changed){ lastFullSig = ''; render(); }
+    if(pending && styleLoad.polls < 30){ styleLoad.polls++; loadStyleSoon(5000); }
+  }
+  // Scouting-Block unter den Gegnern: wer verteidigt wo, wer geht im Angriff wohin - aus ihren Matches auf DIESER Map
+  function scoutHtml(players, ownSide){
+    const map = styleMap();
+    if(!map || !players.length) return '';
+    const rows = players.map(p => ({p, d: styleData(p.puuid, map)})).filter(x => x.d);
+    if(!rows.some(x => x.d.map && x.d.map.games)) return '';
+    const mapName = styleMapName(map);
+    const chip = ({p, d}, share) => {
+      const info = agentInfo(p.agent);
+      const tip = [p.name && !/^#?$/.test(p.name) ? p.name : '', d.map && d.map.games ? t('style_map_basis', {map: mapName, games: d.map.games}) : t('style_no_map_data'),
+        ...(d.tags || []).map(tg => styleTagText(tg))].filter(Boolean).join('\n');
+      return `<span class="sc-pl${share == null ? ' unsure' : ''}" data-tip="${esc(tip)}">${info && info.icon ? `<img src="${esc(info.icon)}" alt="">` : ''}<b>${esc(p.agent || splitRiotId(p.name)[0] || '?')}</b>${share != null ? `<i>${share}%</i>` : ''}</span>`;
+    };
+    const line = (side) => {
+      const groups = {};
+      rows.forEach(x => {
+        const s = x.d.map && x.d.map[side];
+        let z = '?', share = null;
+        if(s && s.n >= 3 && s.zones && s.zones.length){
+          const [zz, n] = s.zones[0];
+          const pct = Math.round(n * 100 / s.n);
+          if(pct >= 50 && zz !== 'Spawn'){ z = zz; share = pct; }
+        }
+        (groups[z] = groups[z] || []).push(chip(x, share));
+      });
+      const order = ['A', 'B', 'C', 'Mid', '?'].filter(z => groups[z]);
+      return order.map(z => `<div class="sc-zone" style="--zc:${STYLE_ZONE_COL[z] || '#888'};"><span class="sc-z">${z === '?' ? esc(t('style_scout_unknown')) : esc(z)}</span>${groups[z].join('')}</div>`).join('');
+    };
+    const plants = {};
+    rows.forEach(({d}) => ((d.map && d.map.plants) || []).forEach(([s, n]) => { plants[s] = (plants[s] || 0) + n; }));
+    const ptotal = Object.values(plants).reduce((a, b) => a + b, 0);
+    const plantTxt = ptotal >= 3 ? Object.entries(plants).sort((a, b) => b[1] - a[1]).map(([s, n]) => `${s} ${Math.round(n * 100 / ptotal)}%`).join(' · ') : '';
+    const types = [];
+    rows.forEach(({p, d}) => (d.tags || []).filter(tg => ['entry', 'firstdeath', 'lurker', 'pusher', 'clutch'].includes(tg.k))
+      .slice(0, 1).forEach(tg => types.push(`<span class="sc-type" data-tip="${esc(styleTagTip(tg, mapName))}"><b>${esc(p.agent || '?')}</b> ${esc(styleTagText(tg))}</span>`)));
+    // Seite der Gegner in der 1. Haelfte: das Gegenteil der eigenen
+    const enemyFirst = ownSide === 'attack' ? 'def' : ownSide === 'defense' ? 'atk' : null;
+    const block = (side) => `<div class="sc-row${enemyFirst === side ? ' first' : ''}">
+        <div class="sc-head">${esc(t(side === 'def' ? 'style_scout_def' : 'style_scout_atk'))}${enemyFirst === side ? `<span class="sc-first">${esc(t('style_scout_first'))}</span>` : ''}</div>
+        <div class="sc-zones">${line(side)}</div>
+        ${side === 'atk' && plantTxt ? `<div class="sc-plants">${esc(t('style_scout_plants', {list: plantTxt}))}</div>` : ''}
+      </div>`;
+    const sides = enemyFirst === 'atk' ? ['atk', 'def'] : ['def', 'atk'];
+    return `<div class="scout">
+      <div class="sc-title">${svgIcon('target', 13)}<span>${esc(t('style_scout_title', {map: mapName}))}</span><span class="sc-hint" data-tip="${esc(t('style_scout_hint'))}">${svgIcon('info', 12)}</span></div>
+      ${sides.map(block).join('')}
+      ${types.length ? `<div class="sc-types">${types.join('')}</div>` : ''}
+    </div>`;
+  }
+  // Abschnitt im Spieler-Fenster: Merkmale, Kennzahlen, Pistolrunde und Positionen je Map (Minimap)
+  const modalStyle = {puuid: null, d: null, sel: null, polls: 0, sig: ''};
+  function styleStat(value, label, tip){
+    return `<div class="stat-box"${tip ? ` data-tip="${esc(tip)}"` : ''}><div class="sv">${value}</div><div class="sl">${esc(label)}</div></div>`;
+  }
+  function stylePct(v){ return v == null ? '—' : v + '%'; }
+  function styleZonesHtml(s){
+    if(!s || !s.n) return `<span class="sz-none">—</span>`;
+    const segs = s.zones.map(([z, n]) => ({z, p: Math.round(n * 100 / s.n)})).filter(x => x.p > 0);
+    return `<div class="sz-bar">${segs.map(x => `<i style="flex:${x.p};background:${STYLE_ZONE_COL[x.z] || '#888'};" data-tip="${esc(x.z + ' ' + x.p + '%')}"></i>`).join('')}</div>
+      <div class="sz-legend">${segs.slice(0, 3).map(x => `<span><i style="background:${STYLE_ZONE_COL[x.z] || '#888'};"></i>${esc(x.z)} ${x.p}%</span>`).join('')}<span class="sz-n">${esc(t('style_rounds_n', {n: s.n}))}</span></div>`;
+  }
+  function styleSpotList(list){
+    return (list || []).length ? list.map(([n, c]) => `${esc(n)} <small>${c}×</small>`).join(' · ') : '—';
+  }
+  function styleMapHtml(d, sel){
+    const mp = (d.maps && d.maps[sel]) || (d.map && d.map.path === sel ? d.map : null);
+    const name = styleMapName(sel);
+    if(!mp || !mp.games) return `<div class="crutch-foot">${esc(t('style_no_map_data'))}</div>`;
+    const pts = (mp.mini && mp.mini.pts) || [];
+    const img = mp.mini && mp.mini.img;
+    const dots = pts.map(([k, u, v]) => `<i class="pt ${k}" style="left:${u / 10}%;top:${v / 10}%;"></i>`).join('');
+    const push = mp.def && mp.def.pushN ? `<div class="sm-sub">${esc(t('style_push_line', {p: mp.def.push, n: mp.def.pushN}))}</div>` : '';
+    return `<div class="style-map">
+      <div class="smini">${img ? `<img src="${esc(imgUrl(img))}" alt="" loading="lazy" onerror="this.onerror=null;this.src=imgOrig(this.src)">` : ''}${dots}</div>
+      <div class="sinfo">
+        <div class="sm-row"><div class="sm-lab">${esc(t('style_def'))}</div>${styleZonesHtml(mp.def)}${push}</div>
+        <div class="sm-row"><div class="sm-lab">${esc(t('style_atk'))}</div>${styleZonesHtml(mp.atk)}</div>
+        <div class="sm-row"><div class="sm-lab">${esc(t('style_plants'))}</div><div class="sm-val">${(mp.plants || []).length ? mp.plants.map(([s, n]) => `${esc(s)} <small>${n}×</small>`).join(' · ') : '—'}</div></div>
+        <div class="sm-row"><div class="sm-lab">${esc(t('style_deaths'))}</div><div class="sm-val">${styleSpotList(mp.deaths)}</div></div>
+        <div class="sm-row"><div class="sm-lab">${esc(t('style_kills'))}</div><div class="sm-val">${styleSpotList(mp.kills)}</div></div>
+        ${(mp.op || []).length ? `<div class="sm-row"><div class="sm-lab">${esc(t('style_op'))}</div><div class="sm-val">${styleSpotList(mp.op)}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="style-legend">
+      <span><i class="pt d"></i>${esc(t('style_legend_def'))}</span><span><i class="pt a"></i>${esc(t('style_legend_atk'))}</span>
+      <span><i class="pt x"></i>${esc(t('style_legend_death'))}</span><span><i class="pt k"></i>${esc(t('style_legend_kill'))}</span>
+      ${pts.some(p => p[0] === 'o') ? `<span><i class="pt o"></i>${esc(t('style_legend_op'))}</span>` : ''}
+    </div>
+    <div class="crutch-foot">${esc(t('style_map_basis', {map: name, games: mp.games}))}</div>`;
+  }
+  function styleSectionHtml(d, sel){
+    if(!d || !d.games){
+      return `<div class="loadout-empty">${esc(t(d && d.pending ? 'style_loading' : 'style_none'))}</div>`;
+    }
+    const mapName = d.map ? styleMapName(d.map.path) : '';
+    const tags = (d.tags || []).map(tg => `<span class="style-chip${['anchor', 'anchor_mid', 'lane'].includes(tg.k) ? ' map' : ''}" data-tip="${esc(styleTagTip(tg, mapName))}">${esc(styleTagText(tg))}</span>`).join('');
+    const o = d.open || {}, tr = d.trade || {}, lu = d.lurk || {}, cl = d.clutch || {};
+    const grid = [
+      styleStat(stylePct(o.rate), t('style_stat_open'), t('style_stat_open_tip')),
+      styleStat(stylePct(o.win), t('style_stat_open_win'), t('style_stat_n_tip', {n: o.n || 0})),
+      styleStat(stylePct(o.first), t('style_stat_first_death'), t('style_stat_first_death_tip')),
+      styleStat(stylePct(tr.traded), t('style_stat_traded'), t('style_stat_traded_tip')),
+      styleStat(stylePct(tr.trades), t('style_stat_trades'), t('style_stat_trades_tip')),
+      styleStat(stylePct(lu.pct), t('style_stat_alone'), t('style_stat_alone_tip')),
+      styleStat(cl.n ? `${cl.won}<small>/${cl.n}</small>` : '—', t('style_stat_clutch'), t('style_stat_clutch_tip')),
+      styleStat(d.util != null ? Number(d.util).toFixed(1) : '—', t('style_stat_util'), t('style_stat_util_tip'))
+    ].join('');
+    const pi = d.pistol;
+    const pistol = pi && pi.of >= 2 ? `<div class="style-line">${esc(t('style_pistol', {weapon: STYLE_PISTOL_NAMES[pi.w] || pi.w, n: pi.n, of: pi.of, armor: pi.armor}))}</div>` : '';
+    const maps = Object.keys(d.maps || {});
+    if(d.map && d.map.path && !maps.includes(d.map.path)) maps.unshift(d.map.path);
+    const tabs = maps.map(m => {
+      const g = ((d.maps || {})[m] || (d.map && d.map.path === m ? d.map : {})).games || 0;
+      return `<button class="style-tab${m === sel ? ' on' : ''}" data-style-map="${esc(m)}">${esc(styleMapName(m))}<small>${g}</small></button>`;
+    }).join('');
+    return `<div class="style-sec">
+      ${tags ? `<div class="style-tags">${tags}</div>` : `<div class="crutch-foot">${esc(t('style_no_tags'))}</div>`}
+      <div class="stat-grid">${grid}</div>
+      ${pistol}
+      ${maps.length ? `<div class="stat-group"><div class="stat-group-label">${esc(t('style_maps_label'))}</div>
+        <div class="style-tabs">${tabs}</div><div id="styleMapBox">${sel ? styleMapHtml(d, sel) : ''}</div></div>` : ''}
+      ${d.pending ? `<div class="crutch-foot">${svgIcon('loader', 12, 'spin')} ${esc(t('style_pending', {map: mapName || '—'}))}</div>` : ''}
+      <div class="crutch-foot">${esc(t('style_basis', {games: d.games, rounds: d.rounds}))}</div>
+    </div>`;
+  }
+  function paintModalStyle(){
+    const box = document.getElementById('modalStyle');
+    const st = modalStyle;
+    if(!box || !modalIs(st.puuid)) return;
+    box.innerHTML = styleSectionHtml(st.d, st.sel);
+    box.querySelectorAll('[data-style-map]').forEach(b => b.addEventListener('click', () => {
+      st.sel = b.getAttribute('data-style-map');
+      paintModalStyle();
+    }));
+  }
+  function loadModalStyle(puuid, poll){
+    const box = document.getElementById('modalStyle');
+    if(!box) return;
+    if(!puuid){ box.innerHTML = ''; return; }
+    if(!poll){
+      Object.assign(modalStyle, {puuid, d: null, sel: null, polls: 0, sig: ''});
+      box.innerHTML = `<div class="stats-loading">${svgIcon('loader', 15, 'spin')} ${esc(t('loading_dots'))}</div>`;
+    }
+    const map = styleMap();
+    api('/api/style?full=1&puuids=' + encodeURIComponent(puuid) + (map ? '&map=' + encodeURIComponent(map) : ''))
+      .then(j => {
+        if(!modalIs(puuid) || modalStyle.puuid !== puuid) return;
+        const d = j && j.ok && j.players ? j.players[puuid] : null;
+        if(!d){ box.innerHTML = `<div class="loadout-empty">${esc(t('style_none'))}</div>`; return; }
+        const sig = JSON.stringify(d);
+        if(!modalStyle.sel || !(d.maps && d.maps[modalStyle.sel])){
+          modalStyle.sel = (d.map && d.map.path) || ((d.mapGames || [])[0] || [])[0] || null;
+        }
+        if(sig !== modalStyle.sig){ modalStyle.sig = sig; modalStyle.d = d; paintModalStyle(); }
+        if(d.pending && modalStyle.polls < 12){
+          modalStyle.polls++;
+          setTimeout(() => { if(modalIs(puuid) && modalStyle.puuid === puuid) loadModalStyle(puuid, true); }, 5000);
+        }
+      })
+      .catch(() => { if(!poll && modalIs(puuid)) box.innerHTML = `<div class="loadout-empty">${t('err_local_service_port')}</div>`; });
   }
 
   // Zählstände laden und Badges nachtragen.
@@ -5911,6 +6212,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     fillMissingStats();
     paintSmurf();
     paintCrutch();
+    loadStyleSoon();
   }
 
   // ---------- Smurf-Hinweis ----------
@@ -6151,7 +6453,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
       <div class="pcard-portrait">
         ${info && info.art ? `<div class="pc-art" style="background-image:url('${esc(info.art)}');"></div>` : ''}
         ${isMe ? `<span class="you-badge">${t('pregame_you')}</span>` : ''}
-        <div class="pc-tl">${p.puuid ? (encCache[p.puuid] !== undefined ? encBadgeHtml(p.puuid) : `<span class="enc-slot" data-enc="${esc(p.puuid)}"></span>`) : ''}${isMe ? '' : noteBadgeHtml(p.puuid)}${crutchSlotHtml(p, isMe)}</div>
+        <div class="pc-tl">${p.puuid ? (encCache[p.puuid] !== undefined ? encBadgeHtml(p.puuid) : `<span class="enc-slot" data-enc="${esc(p.puuid)}"></span>`) : ''}${isMe ? '' : noteBadgeHtml(p.puuid)}${crutchSlotHtml(p, isMe)}${styleBadgeHtml(p.puuid)}</div>
         ${portraitUrl
           ? `<img class="portrait ${isFullPortrait ? 'full' : ''}" src="${esc(portraitUrl)}" alt="" loading="lazy">`
           : `<div class="agent-fallback-big">${esc(String(p.agent || '?').slice(0,2).toUpperCase())}</div>`}
@@ -6321,6 +6623,8 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
         <div id="modalMeta"></div>
         <div class="sec-title">${t('performance_recent_matches')}</div>
         <div id="modalStats"></div>
+        <div class="sec-title" style="margin-top:22px;">${t('style_title')}</div>
+        <div id="modalStyle"></div>
         <div class="sec-title">${t('complete_loadout')}</div>
         <div id="modalLoadout">${loadoutSkinsHtml(p)}</div>
         <div id="modalSprays">${loadoutSpraysHtml(p)}</div>
@@ -6331,6 +6635,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     document.getElementById('modalClose').addEventListener('click', closeModal);
     bindNoteEditor(p.puuid || keyHint, p.name);
     loadModalStats(p.puuid || keyHint);
+    loadModalStyle(p.puuid);
     loadModalMeta(p.puuid || keyHint);
   }
 
@@ -9749,6 +10054,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
             <span class="cnt">${t(enemies.length === 1 ? 'player_count_1' : 'player_count_n', {n: enemies.length})}</span>
           </div>
           ${renderTeam(enemies)}
+          ${scoutHtml(enemies, state === 'PREGAME' ? pregameSide : ((procStatus && procStatus.game && procStatus.game.roster) || {}).side)}
         </div>`;
       }
     }
@@ -9772,6 +10078,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     fillMissingStats();
     refreshOpenModalLoadout(playersByKey);
     loadKda();
+    loadStyleSoon(1500);
     paintSmurf();
     // Begegnungen nur bei echten Matches zählen, nicht im Menü. In PREGAME steckt
     // "list" noch nur das eigene Team — die Gegner (falls vom Server gefunden,
@@ -12574,7 +12881,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.6.8";
+const CURRENT_VERSION = "2.7.0-dev1";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)

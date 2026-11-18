@@ -123,6 +123,10 @@ FALLBACK = {
     "for_your_team": "for your team", "for_the_enemies": "for the enemies",
     "note_tag_good": "Good mate", "note_tag_toxic": "Toxic", "note_tag_thrower": "Thrower", "note_tag_smurf": "Smurf",
     "note_badge": "Note",
+    "style_tag_anchor": "{zone} anchor", "style_tag_anchor_mid": "Holds Mid", "style_tag_lane": "Attacks {zone}",
+    "style_tag_entry": "Entry", "style_tag_firstdeath": "Dies first", "style_tag_passive": "Passive",
+    "style_tag_lurker": "Lurker", "style_tag_pusher": "Pushes early", "style_tag_clutch": "Clutcher",
+    "style_tag_trader": "Trader", "style_tag_lowutil": "Little utility",
 }
 
 
@@ -421,7 +425,7 @@ def _form(ops, m, x, y, w, form):
 
 # Abzeichen in der zweiten Zeile (seit 2.6.7): eigene Notiz-Tags und Waffen-Crutch, Farben wie im Overlay
 BADGE_COL = {"good": "#5fd68a", "toxic": "#ff6b6b", "thrower": "#ff6b6b", "smurf": "#ffa257",
-             "crutch": "#ff6ebe", "note": "#beb4ff"}
+             "crutch": "#ff6ebe", "note": "#beb4ff", "style": "#6fc3ff"}
 
 
 def _badges(ops, m, ctx, x, y, max_w, badges):
@@ -430,7 +434,8 @@ def _badges(ops, m, ctx, x, y, max_w, badges):
     for b in badges or []:
         if not isinstance(b, dict):
             continue
-        text = b.get("text") or (tr(ctx["strings"], b["key"]) if b.get("key") else "")
+        kw = b.get("kw") if isinstance(b.get("kw"), dict) else {}      # z. B. {"zone": "B"} fuer "B-Anker" (2.7.0)
+        text = b.get("text") or (tr(ctx["strings"], b["key"], **kw) if b.get("key") else "")
         if not text:
             continue
         text = upper(str(text), ctx.get("lang"))

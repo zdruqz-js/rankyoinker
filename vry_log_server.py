@@ -696,7 +696,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.6.8"
+APP_VERSION = "2.7.0-dev1"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2730,8 +2730,19 @@ def _cache_put(cache, key, value, limit=CACHE_MAX):
         cache.pop(next(iter(cache)))
 
 
+_style_err = {"n": 0}
+
+
 def _digest_match(match):
     rows, party = {}, {}
+    # Spielstil (2.7.0): Rundenablauf einmal je Match, dann je Spieler - ein Fehler darin kostet nur "sy"
+    try:
+        sctx = _style_match(match)
+    except Exception as e:
+        sctx = None
+        _style_err["n"] += 1
+        if _style_err["n"] <= 2:
+            report_error("style-extract", e)
     for p in match.get("players") or []:
         sub = p.get("subject")
         if not sub:
@@ -2739,7 +2750,17 @@ def _digest_match(match):
         party[sub] = p.get("partyId")
         row = _extract(match, sub)
         if row:
+            if sctx:
+                try:
+                    sy = _style_row(sctx, sub)
+                    if sy:
+                        row["sy"] = sy
+                except Exception as e:
+                    _style_err["n"] += 1
+                    if _style_err["n"] <= 2:
+                        report_error("style-extract", e)
             rows[sub] = row
+    _style_state["gen"] += 1
     return {"rows": rows, "party": party}
 
 
@@ -2749,7 +2770,8 @@ def _digest_match(match):
 # letzten Matches und die der Party tauchen in jedem Spiel wieder auf und kamen
 # bisher jedes Mal neu von Riot. Aendern sich _digest_match()/_extract(),
 # DIGEST_VERSION erhoehen - sonst kaemen alte Kurzfassungen ohne neue Felder.
-DIGEST_VERSION = 2      # 2: wk/wb/pr fuer den Waffen-Crutch (2.6.5)
+DIGEST_VERSION = 2      # 2: wk/wb/pr fuer den Waffen-Crutch (2.6.5). "sy" (Spielstil, 2.7.0) bewusst OHNE Sprung,
+                        # siehe _style_match - fehlt es, zaehlt das Match nur fuer den Spielstil nicht
 MATCH_DIGEST_FILE = os.path.join(DATA_DIR, "match-digests.json")
 MATCH_DIGEST_KEEP = 400
 _digest_disk = {"dirty": False, "saved": 0.0}
@@ -2837,10 +2859,11 @@ def _match_details(match_id):
     return _single_flight(("match", match_id), lambda: _match_details_fetch(match_id))
 
 
-def _match_details_fetch(match_id):
+def _match_details_fetch(match_id, force=False):
+    """force (2.7.0): Kurzfassung neu bauen, obwohl eine da ist - fuer alte ohne Spielstil ("sy")."""
     with _cache_lock:
         hit = _match_cache.get(match_id)   # kam evtl. gerade erst herein
-    if hit is not None:
+    if hit is not None and not force:
         return hit
     status, j = riot_get("pd", "/match-details/v1/matches/" + match_id)
     if status == 404:
@@ -2898,9 +2921,11 @@ def _hist_entry(m):
     # Unbekannt (None) ist ein Eintrag erst, wenn das Feld ganz fehlt.
     q = m.get("QueueID")
     comp = None if "QueueID" not in m else (1 if isinstance(q, str) and q.lower() == "competitive" else 0)
+    # m/q seit 2.7.0: Karte und Modus - der Spielstil sucht damit Matches auf der aktuellen Karte (_style_map_ids)
     return {"id": mid, "t": m.get("MatchStartTime") or 0, "c": comp, "h": 1,
             "e": m.get("RankedRatingEarned"), "ta": m.get("TierAfterUpdate"),
-            "tb": m.get("TierBeforeUpdate"), "ra": m.get("RankedRatingAfterUpdate")}
+            "tb": m.get("TierBeforeUpdate"), "ra": m.get("RankedRatingAfterUpdate"),
+            "m": str(m.get("MapID") or "").lower(), "q": q.lower() if isinstance(q, str) else ""}
 
 
 def _hist_valid(hit, now, max_age):
@@ -3064,10 +3089,10 @@ def _hist_still_there(pairs, now):
         not (mid in gone and (not t or now * 1000 - t > 86400000)) and not (t and t <= _hist_gone["before"]))]
 
 
-def _hist_prepend(pu, mid, comp, now, start_ms=None):
+def _hist_prepend(pu, mid, comp, now, start_ms=None, map_path="", queue=""):
     """Match vorn in den gemerkten Verlauf eines Spielers eintragen (False: keiner gemerkt)."""
     entry = {"id": mid, "t": int(start_ms or now * 1000), "c": 1 if comp else 0, "h": 0,
-             "e": None, "ta": None, "tb": None, "ra": None}
+             "e": None, "ta": None, "tb": None, "ra": None, "m": str(map_path or "").lower(), "q": queue or ""}
     with _cache_lock:
         hit = _hist_cache.get(pu)
         if not hit or not isinstance(hit[1], dict):
@@ -3095,7 +3120,7 @@ def _hist_after_match(mid, now):
             if queue not in HIST_ADV_QUEUES:
                 _hist_cache.pop(pu, None)
                 continue
-        if _hist_prepend(pu, mid, queue == "competitive", now, start_ms):
+        if _hist_prepend(pu, mid, queue == "competitive", now, start_ms, roster.get("map") or "", queue):
             _hist_flags["adv"] += 1
 
 
@@ -3159,6 +3184,582 @@ def _crutch_summary(matches):
     hits.sort(reverse=True)
     return {"games": len(use), "kills": kills, "rounds": prim, "groups": groups,
             "hits": [g for _, g in hits]}
+
+
+# ============================ Spielstil (2.7.0) ============================
+# Nutzerwunsch 2026-11-18: "wie spielen die Leute - aggressiv, on site, auf bestimmten Maps ... bevor das Match
+# losgeht". Die Match-Details, die fuer "Letzte 5" und die Party-Erkennung ohnehin geladen werden, enthalten zu
+# jedem Kill die Positionen der lebenden Spieler (playerLocations, der Getoetete steht in victimLocation), die
+# Plant-Site, die Wirtschaft je Runde und die Faehigkeiten - bis 2.6.8 wurde das verworfen.
+# _style_match() rechnet je Match EINMAL den Rundenablauf aus (wer greift an, alle Kills in zeitlicher Reihenfolge),
+# _style_row() daraus je Spieler kompakte Zaehler plus grobe Positionen (Feld "sy" der Kurzfassung). DIGEST_VERSION
+# bleibt 2: aeltere Kurzfassungen haben nur kein "sy" und zaehlen fuer den Spielstil nicht mit - ein Hochzaehlen
+# haette alle 400 gespeicherten Matches verworfen und beim naechsten Matchstart neu von Riot geholt.
+# Callouts (A/B/Mid, "A Main" ...) kommen erst beim Auswerten dazu (_style_summary, valorant-api.com /v1/maps):
+# die Kurzfassung haengt so nicht davon ab, ob die Kartenliste beim Laden schon da war.
+# Feldnamen gegen echte Antworten geprueft (valorant-api-docs, tests/endpoint-responses/match-details: Competitive,
+# Swiftplay, Unrated). Die Schwellen der Merkmale (STYLE_TAGS) sind Schaetzwerte - nach Felddaten nachjustieren.
+STYLE_QUEUES = frozenset(("competitive", "unrated", "swiftplay", "premier", "newmap"))
+STYLE_HALF = {"swiftplay": 4}           # Runden je Haelfte, sonst 12
+STYLE_POS_Q = 25                        # Positionen auf 25 Einheiten gerundet (Karten sind ~15000 breit)
+STYLE_TRADE_MS = 3000                   # Tod gilt als getradet, wenn der Killer binnen 3 s selbst faellt
+STYLE_LURK_DIST = 2200                  # beim ersten Kill der Runde so weit vom naechsten Mitspieler = allein
+STYLE_OP = "a03b24d3-4319-996d-0f8c-94bbfba1dfc7"
+STYLE_PISTOLS = {"29a0cfab-485b-f5d5-779a-b59f85e204a8": "classic", "42da8ccc-40d5-affc-beec-15aa47b42eda": "shorty",
+                 "44d4e95c-4157-0037-81b2-17841bf2e8e3": "frenzy", "1baa85b4-4c70-1284-64bb-6481dfc3bb4e": "ghost",
+                 "e336c6b8-418d-9340-d77f-7a9e4cfe0702": "sheriff", "410b2e0b-4ceb-1321-1727-20858f7f3477": "bandit"}
+
+
+def _style_xy(loc):
+    if not isinstance(loc, dict):
+        return None
+    x, y = loc.get("x"), loc.get("y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or (not x and not y):
+        return None
+    return (x, y)
+
+
+def _style_match(match):
+    """Rundenablauf eines Matches fuer _style_row (einmal je Match). None bei Modi ohne Seiten/Kaufen."""
+    info = match.get("matchInfo") or {}
+    queue = str(info.get("queueID") or info.get("queueId") or "").lower()
+    if queue not in STYLE_QUEUES:
+        return None
+    team, casts = {}, {}
+    for p in match.get("players") or []:
+        sub = p.get("subject")
+        if sub and p.get("teamId") and not p.get("isObserver"):
+            team[sub] = p["teamId"]
+            ac = (p.get("stats") or {}).get("abilityCasts")
+            if isinstance(ac, dict):
+                casts[sub] = [ac.get("grenadeCasts") or 0, ac.get("ability1Casts") or 0,
+                              ac.get("ability2Casts") or 0, ac.get("ultimateCasts") or 0]
+    teams = sorted(set(team.values()))
+    if len(teams) != 2:
+        return None
+    other = {teams[0]: teams[1], teams[1]: teams[0]}
+    half = STYLE_HALF.get(queue, 12)
+    rounds = match.get("roundResults") or []
+
+    def flipped(i):
+        return (i // half) % 2 if i < 2 * half else (i - 2 * half) % 2   # Verlaengerung: Seite je Runde
+
+    # Riot: "Red" greift in der ersten Haelfte an. Gegenprobe mit Planter/Defuser (wo vorhanden - im Unrated-Beispiel
+    # fehlt bombPlanter ganz); widersprechen sie mehrheitlich, ist es umgekehrt, sind sie uneins, bleibt die Seite offen
+    first = "Red" if "Red" in teams else teams[0]
+    agree = clash = 0
+    for i, r in enumerate(rounds):
+        exp = other[first] if flipped(i) else first
+        pl, df = team.get(r.get("bombPlanter")), team.get(r.get("bombDefuser"))
+        if pl:
+            agree, clash = agree + (pl == exp), clash + (pl != exp)
+        if df:
+            agree, clash = agree + (df != exp), clash + (df == exp)
+    if clash > agree:
+        first, agree, clash = other[first], clash, agree
+    sides_ok = clash <= max(1, agree // 6)
+    out = []
+    for i, r in enumerate(rounds):
+        pl = team.get(r.get("bombPlanter"))
+        atk = pl or ((other[first] if flipped(i) else first) if sides_ok else None)
+        kills, eco = [], {}
+        for ps in r.get("playerStats") or []:
+            e = ps.get("economy") or {}
+            if ps.get("subject"):
+                eco[ps["subject"]] = (str(e.get("weapon") or "").lower(), bool(e.get("armor")))
+            for k in ps.get("kills") or []:
+                t = k.get("roundTime")
+                if t is None:
+                    t = k.get("timeSinceRoundStartMillis")
+                if not isinstance(t, (int, float)):
+                    continue
+                locs = {}
+                for pl_ in k.get("playerLocations") or []:
+                    xy = _style_xy((pl_ or {}).get("location"))
+                    if xy and pl_.get("subject"):
+                        locs[pl_["subject"]] = xy
+                fd = k.get("finishingDamage") or {}
+                kills.append({"t": t, "k": k.get("killer"), "v": k.get("victim"), "vl": _style_xy(k.get("victimLocation")),
+                              "pl": locs, "op": str(fd.get("damageItem") or "").lower() == STYLE_OP})
+        kills.sort(key=lambda k: k["t"])
+        site = r.get("plantSite") if isinstance(r.get("plantSite"), str) and r.get("plantSite") else None
+        out.append({"atk": atk, "win": r.get("winningTeam"), "kills": kills, "site": site, "eco": eco})
+    return {"queue": queue, "team": team, "rounds": out, "half": half, "casts": casts}
+
+
+def _style_q(xy):
+    return [int(round(xy[0] / STYLE_POS_Q)), int(round(xy[1] / STYLE_POS_Q))]
+
+
+def _style_row(ctx, me):
+    """Spielstil-Zaehler eines Spielers in einem Match (Feld "sy" der Kurzfassung).
+    r  = Runden [Angriff, Verteidigung, Seite unbekannt]
+    o  = erstes Duell der Runde [gewonnen, verloren] je Angriff / Verteidigung / unbekannt (6 Zahlen)
+    tr = [eigene Tode, davon getradet, eigene Kills, davon Trades]
+    lu = Angriff: [Runden allein beim ersten Kill, gemessene Runden]
+    cl = 1vX [gewonnen, gesamt]
+    e  = Position beim ersten Kill der Runde [Seite, x, y, ...] (Seite 0 = Angriff, 1 = Verteidigung)
+    dp = Todes-Positionen [Seite, x, y, ...], kp = eigene Position bei Kills [Seite, x, y, OP 0/1, ...]
+    ts = Plant-Sites des eigenen Teams im Angriff, pi = Pistolrunden [Waffe, Schild 0/1, ...], ab = Faehigkeiten"""
+    team = ctx["team"]
+    my = team.get(me)
+    if not my:
+        return None
+    r = [0, 0, 0]
+    o = [0] * 6
+    tr = [0, 0, 0, 0]
+    lu = [0, 0]
+    cl = [0, 0]
+    e, dp, kp, pi = [], [], [], []
+    ts = {}
+    half = ctx["half"]
+    for i, rd in enumerate(ctx["rounds"]):
+        side = None if rd["atk"] is None else (0 if rd["atk"] == my else 1)
+        r[2 if side is None else side] += 1
+        ks = rd["kills"]
+        if ks:
+            k0 = ks[0]
+            slot = 4 if side is None else side * 2
+            if k0["k"] == me and team.get(k0["v"]) not in (None, my):
+                o[slot] += 1
+            elif k0["v"] == me and team.get(k0["k"]) not in (None, my):
+                o[slot + 1] += 1
+            # Position beim ersten Kill der Runde (fuer Anker/Lane) und Abstand zum Team (Lurk)
+            locs = dict(k0["pl"])
+            if k0["vl"] and k0["v"]:
+                locs[k0["v"]] = k0["vl"]
+            pos = locs.get(me)
+            if pos and side is not None:
+                e.extend([side] + _style_q(pos))
+                mates = [xy for s, xy in locs.items() if s != me and team.get(s) == my]
+                if side == 0 and mates:
+                    d = min(math.hypot(pos[0] - x, pos[1] - y) for x, y in mates)
+                    lu[1] += 1
+                    if d > STYLE_LURK_DIST:
+                        lu[0] += 1
+        alive = {t: {s for s, tt in team.items() if tt == t} for t in set(team.values())}
+        clutch = False
+        for idx, k in enumerate(ks):
+            vt, kt = team.get(k["v"]), team.get(k["k"])
+            if k["v"] == me and kt not in (None, my):
+                tr[0] += 1
+                if any(k2["v"] == k["k"] and team.get(k2["k"]) == my and 0 < k2["t"] - k["t"] <= STYLE_TRADE_MS
+                       for k2 in ks[idx + 1:]):
+                    tr[1] += 1
+                if k["vl"] and side is not None:
+                    dp.extend([side] + _style_q(k["vl"]))
+            if k["k"] == me and vt not in (None, my):
+                tr[2] += 1
+                if any(k2["k"] == k["v"] and team.get(k2["v"]) == my and k2["v"] != me
+                       and 0 <= k["t"] - k2["t"] <= STYLE_TRADE_MS for k2 in ks[:idx]):
+                    tr[3] += 1
+                pos = k["pl"].get(me)
+                if pos and side is not None:
+                    kp.extend([side] + _style_q(pos) + [1 if k["op"] else 0])
+            if vt in alive:
+                alive[vt].discard(k["v"])
+            mine = alive.get(my) or set()
+            if not clutch and mine == {me} and any(alive[t] for t in alive if t != my):
+                clutch = True
+        if clutch:
+            cl[1] += 1
+            cl[0] += rd["win"] == my
+        if side == 0 and rd["site"]:
+            ts[rd["site"]] = ts.get(rd["site"], 0) + 1
+        if i in (0, half) and me in rd["eco"]:
+            w, armor = rd["eco"][me]
+            pi.extend([STYLE_PISTOLS.get(w, "classic" if not w else "other"), 1 if armor else 0])
+    return {"r": r, "o": o, "tr": tr, "lu": lu, "cl": cl, "e": e, "dp": dp, "kp": kp, "ts": ts, "pi": pi,
+            "ab": ctx["casts"].get(me)}
+
+
+# ---- Auswertung: Merkmale je Spieler, Positionen je Karte ----
+STYLE_GLOBAL_MAX = 12           # so viele juengste Matches fuer die allgemeinen Merkmale (alles, was lokal liegt)
+STYLE_MAP_MAX = 6               # je Karte hoechstens so viele
+STYLE_MIN_ROUNDS = 40           # allgemeine Merkmale erst ab so vielen Runden (~2 Competitive-Matches)
+STYLE_MAP_MIN = 5               # Anker/Lane erst ab so vielen gemessenen Runden je Seite auf DER Karte
+STYLE_ZONES = ("A", "B", "C", "Mid")
+STYLE_FWD = 0.55                # Verteidiger naeher am Angreifer-Spawn als hier = weit vorn ("pusht")
+# Merkmal -> Schwellen (Schaetzwerte, siehe oben). Opening-Teilnahme: im Schnitt 20 % (1 Duell, 10 Spieler)
+STYLE_TAGS = {"entry": 28, "entry_win": 45, "passive": 12, "lurk": 35, "lurk_n": 12, "trade": 28, "trade_n": 30,
+              "clutch_n": 4, "clutch": 45, "util": 0.8, "anchor": 60, "lane": 60, "push": 35, "push_n": 8}
+STYLE_MAP_WANT = 3              # so viele Matches auf der aktuellen Karte sollen es fuer Anker/Lane sein
+STYLE_UPGRADE_MAX = 5           # alte Kurzfassungen ohne "sy" je Spieler hoechstens so viele neu laden
+_style_state = {"gen": 0}       # zaehlt neue Kurzfassungen - der Merkmal-Cache wird damit ungueltig
+_style_cache = collections.OrderedDict()    # (puuid, karte, full) -> (gen, vapi-Stand, Ergebnis)
+_style_lock = threading.Lock()
+_style_more = {"match": None, "done": set(), "pending": set(), "fetched": 0, "upgraded": 0}
+_style_pool = ThreadPoolExecutor(max_workers=1)
+
+
+def _style_pct(a, b):
+    return int(round(a * 100.0 / b)) if b else None
+
+
+def _style_geo(path):
+    """Callouts und Minimap-Umrechnung einer Karte (valorant-api.com) - None, solange die Liste fehlt."""
+    m = _vapi["maps"].get(str(path or "").lower()) or {}
+    co = m.get("co") or []
+    if not co:
+        return None
+    sa = next(((x, y) for s, r, x, y in co if s.replace(" ", "").lower() == "attackerside"), None)
+    sd = next(((x, y) for s, r, x, y in co if s.replace(" ", "").lower() == "defenderside"), None)
+    return {"co": co, "sa": sa, "sd": sd, "mini": m.get("mini"), "xm": m.get("xm"), "ym": m.get("ym"),
+            "xa": m.get("xa"), "ya": m.get("ya")}
+
+
+def _style_where(geo, x, y):
+    """(Zone, Callout) zum naechsten Callout: Zone A/B/C/Mid oder Spawn, Callout z. B. "A Main"."""
+    s, r, _, _ = min(geo["co"], key=lambda c: (c[2] - x) ** 2 + (c[3] - y) ** 2)
+    if s in STYLE_ZONES:
+        return s, ("%s %s" % (s, r)).strip()
+    return "Spawn", ("%s %s" % (s, r)).strip()
+
+
+def _style_fwd(geo, x, y):
+    if not geo["sa"] or not geo["sd"]:
+        return None
+    dd = math.hypot(x - geo["sd"][0], y - geo["sd"][1])
+    da = math.hypot(x - geo["sa"][0], y - geo["sa"][1])
+    return dd / (dd + da) if dd + da else None
+
+
+def _style_uv(geo, x, y):
+    """Spielkoordinaten -> Minimap 0..1000 (valorant-api.com: u = y*xMultiplier + xScalarToAdd, v = x*yMultiplier + ...)."""
+    try:
+        u = y * geo["xm"] + geo["xa"]
+        v = x * geo["ym"] + geo["ya"]
+    except TypeError:
+        return None
+    if not (-0.02 <= u <= 1.02 and -0.02 <= v <= 1.02):
+        return None
+    return int(round(u * 1000)), int(round(v * 1000))
+
+
+def _style_rows(puuid):
+    """Alle lokal vorliegenden Matches eines Spielers mit Spielstil-Daten, neueste zuerst (ein Match je ID)."""
+    with _cache_lock:
+        dgs = list(_match_cache.values())
+    rows = {}
+    for dg in dgs:
+        row = ((dg or {}).get("rows") or {}).get(puuid) if isinstance(dg, dict) else None
+        if isinstance(row, dict) and isinstance(row.get("sy"), dict) and row.get("queue") in STYLE_QUEUES:
+            if row.get("matchId"):
+                rows[row["matchId"]] = row
+    return sorted(rows.values(), key=lambda r: -(r.get("startedAt") or 0))
+
+
+def _style_triples(flat, n):
+    for i in range(0, len(flat) - n + 1, n):
+        yield flat[i:i + n]
+
+
+def _style_map_part(rows, path, points):
+    use = [r for r in rows if str(r.get("map") or "").lower() == path][:STYLE_MAP_MAX]
+    out = {"games": len(use), "rounds": [sum(r["sy"]["r"][0] for r in use), sum(r["sy"]["r"][1] for r in use)]}
+    geo = _style_geo(path)
+    if not use or not geo:
+        out["geo"] = bool(geo)
+        return out
+    zones = [collections.Counter(), collections.Counter()]
+    fwd = [0, 0]
+    deaths, ops, plants, kills = collections.Counter(), collections.Counter(), collections.Counter(), collections.Counter()
+    pts = []
+    Q = STYLE_POS_Q
+    for row in use:
+        sy = row["sy"]
+        for s, x, y in _style_triples(sy.get("e") or [], 3):
+            x, y = x * Q, y * Q
+            zone, _ = _style_where(geo, x, y)
+            if s in (0, 1):
+                zones[s][zone] += 1
+            if s == 1:
+                f = _style_fwd(geo, x, y)
+                if f is not None:
+                    fwd[1] += 1
+                    fwd[0] += f > STYLE_FWD
+            if points:
+                uv = _style_uv(geo, x, y)
+                if uv:
+                    pts.append(["a" if s == 0 else "d", uv[0], uv[1]])
+        for s, x, y in _style_triples(sy.get("dp") or [], 3):
+            _, name = _style_where(geo, x * Q, y * Q)
+            deaths[name] += 1
+            if points:
+                uv = _style_uv(geo, x * Q, y * Q)
+                if uv:
+                    pts.append(["x", uv[0], uv[1]])
+        for s, x, y, op in _style_triples(sy.get("kp") or [], 4):
+            _, name = _style_where(geo, x * Q, y * Q)
+            kills[name] += 1
+            if op:
+                ops[name] += 1
+            if points:
+                uv = _style_uv(geo, x * Q, y * Q)
+                if uv:
+                    pts.append(["o" if op else "k", uv[0], uv[1]])
+        for site, n in (sy.get("ts") or {}).items():
+            plants[str(site)] += n
+
+    def top(c, n=4, least=1):
+        return [[k, v] for k, v in c.most_common(n) if v >= least]
+
+    out.update({"def": {"zones": top(zones[1]), "n": sum(zones[1].values()), "push": _style_pct(*fwd), "pushN": fwd[1]},
+                "atk": {"zones": top(zones[0]), "n": sum(zones[0].values())},
+                "plants": top(plants), "deaths": top(deaths, 3, 2), "kills": top(kills, 3, 2), "op": top(ops, 2, 2),
+                "geo": True})
+    if points:
+        out["mini"] = {"img": geo.get("mini"), "pts": pts[:700]}
+    return out
+
+
+def _style_tags(g, m):
+    """Merkmale (staerkste Aussage zuerst): Karte (Anker/Lane/Push) vor den allgemeinen."""
+    T = STYLE_TAGS
+    tags = []
+    if m and m.get("games"):
+        d, a = m.get("def") or {}, m.get("atk") or {}
+        if d.get("zones") and d["n"] >= STYLE_MAP_MIN:
+            z, n = d["zones"][0]
+            p = _style_pct(n, d["n"])
+            if z != "Spawn" and p >= T["anchor"]:
+                tags.append({"k": "anchor_mid" if z == "Mid" else "anchor", "z": z, "p": p, "n": d["n"]})
+        if a.get("zones") and a["n"] >= STYLE_MAP_MIN:
+            z, n = a["zones"][0]
+            p = _style_pct(n, a["n"])
+            if z != "Spawn" and p >= T["lane"]:
+                tags.append({"k": "lane", "z": z, "p": p, "n": a["n"]})
+    op = g.get("open") or {}
+    if g.get("rounds", 0) >= STYLE_MIN_ROUNDS and op.get("rate") is not None:
+        if op["rate"] >= T["entry"]:
+            good = op.get("win") is not None and op["win"] >= T["entry_win"]
+            tags.append({"k": "entry" if good else "firstdeath", "p": op["rate"], "w": op.get("win")})
+        elif op["rate"] <= T["passive"]:
+            tags.append({"k": "passive", "p": op["rate"]})
+    lu = g.get("lurk") or {}
+    if lu.get("pct") is not None and lu["n"] >= T["lurk_n"] and lu["pct"] >= T["lurk"]:
+        tags.append({"k": "lurker", "p": lu["pct"], "n": lu["n"]})
+    pu = g.get("push") or {}
+    if pu.get("pct") is not None and pu["n"] >= T["push_n"] and pu["pct"] >= T["push"]:
+        tags.append({"k": "pusher", "p": pu["pct"], "n": pu["n"]})
+    cl = g.get("clutch") or {}
+    if cl.get("n", 0) >= T["clutch_n"] and _style_pct(cl["won"], cl["n"]) >= T["clutch"]:
+        tags.append({"k": "clutch", "w": cl["won"], "n": cl["n"]})
+    tr = g.get("trade") or {}
+    if tr.get("trades") is not None and tr["kills"] >= T["trade_n"] and tr["trades"] >= T["trade"]:
+        tags.append({"k": "trader", "p": tr["trades"]})
+    if g.get("util") is not None and g.get("rounds", 0) >= STYLE_MIN_ROUNDS and g["util"] < T["util"]:
+        tags.append({"k": "lowutil", "v": g["util"]})
+    return tags
+
+
+def _style_build(rows, cur_map, full):
+    use = rows[:STYLE_GLOBAL_MAX]
+    R, O, TR, LU, CL, AB = [0] * 3, [0] * 6, [0] * 4, [0, 0], [0, 0], [0] * 4
+    ab_r = ab_g = 0
+    pistol, armor = collections.Counter(), [0, 0]
+    fwd = [0, 0]
+    for row in use:
+        sy = row["sy"]
+        for vec, src in ((R, sy.get("r")), (O, sy.get("o")), (TR, sy.get("tr")), (LU, sy.get("lu")),
+                         (CL, sy.get("cl"))):
+            for i, v in enumerate((src or [])[:len(vec)]):
+                vec[i] += v or 0
+        if sy.get("ab"):
+            for i, v in enumerate(sy["ab"][:4]):
+                AB[i] += v or 0
+            ab_r += sum(sy.get("r") or [])
+            ab_g += 1
+        pi = sy.get("pi") or []
+        for i in range(0, len(pi) - 1, 2):
+            pistol[pi[i]] += 1
+            armor[1] += 1
+            armor[0] += pi[i + 1] or 0
+        geo = _style_geo(row.get("map"))
+        if geo:
+            for s, x, y in _style_triples(sy.get("e") or [], 3):
+                if s == 1:
+                    f = _style_fwd(geo, x * STYLE_POS_Q, y * STYLE_POS_Q)
+                    if f is not None:
+                        fwd[1] += 1
+                        fwd[0] += f > STYLE_FWD
+    rounds = sum(R)
+    ow, ol = O[0] + O[2] + O[4], O[1] + O[3] + O[5]
+    maps = collections.Counter(str(r.get("map") or "").lower() for r in rows if r.get("map"))
+    g = {"games": len(use), "rounds": rounds, "atk": R[0], "def": R[1],
+         "open": {"rate": _style_pct(ow + ol, rounds), "win": _style_pct(ow, ow + ol), "first": _style_pct(ol, rounds),
+                  "n": ow + ol, "atk": _style_pct(O[0] + O[1], R[0]), "def": _style_pct(O[2] + O[3], R[1])},
+         "trade": {"traded": _style_pct(TR[1], TR[0]), "deaths": TR[0], "trades": _style_pct(TR[3], TR[2]), "kills": TR[2]},
+         "lurk": {"pct": _style_pct(LU[0], LU[1]), "n": LU[1]},
+         "push": {"pct": _style_pct(*fwd), "n": fwd[1]},
+         "clutch": {"won": CL[0], "n": CL[1]},
+         "util": round((AB[0] + AB[1] + AB[2]) / float(ab_r), 2) if ab_r else None,
+         "ult": round(AB[3] / float(ab_g), 1) if ab_g else None,
+         "pistol": ({"w": pistol.most_common(1)[0][0], "n": pistol.most_common(1)[0][1], "of": armor[1],
+                     "armor": _style_pct(armor[0], armor[1])} if armor[1] else None),
+         "mapGames": [[k, v] for k, v in maps.most_common(8)]}
+    m = None
+    if cur_map:
+        m = _style_map_part(rows, cur_map, full)
+        g["map"] = dict(m, path=cur_map)
+    if full:
+        g["maps"] = {}
+        for path, _ in maps.most_common(6):
+            g["maps"][path] = m if (m is not None and path == cur_map) else _style_map_part(rows, path, True)
+    g["tags"] = _style_tags(g, m)
+    return g
+
+
+def _style_summary(puuid, cur_map=None, full=False):
+    cur_map = str(cur_map or "").lower()
+    key = (puuid, cur_map, bool(full))
+    gen, vat = _style_state["gen"], _vapi.get("at")
+    with _style_lock:
+        hit = _style_cache.get(key)
+    if hit and hit[0] == gen and hit[1] == vat:
+        return hit[2]
+    out = _style_build(_style_rows(puuid), cur_map, full)
+    with _style_lock:
+        _cache_put(_style_cache, key, (gen, vat, out), 120)
+    return out
+
+
+def _style_cur_map():
+    """Riot-Kartenpfad des laufenden Matches (Agentenauswahl oder Match), sonst ""."""
+    st, mid = _game.get("state"), _game.get("matchId")
+    if not mid or st not in ("PREGAME", "INGAME"):
+        return ""
+    if _game_roster.get("match") == mid and _game_roster.get("map"):
+        return str(_game_roster["map"]).lower()
+    d = _pregame_cache.get("data") or {}
+    if isinstance(d, dict) and d.get("matchId") == mid:
+        return str(d.get("map") or "").lower()
+    return ""
+
+
+def _style_upgrade_ids(puuid):
+    """IDs aus "Letzte 5", deren Kurzfassung noch von vor 2.7.0 ist (ohne "sy") - in einem Spielstil-Modus."""
+    with _cache_lock:
+        hit = _stats_cache.get("%s:5" % puuid)
+        out = []
+        for m in ((hit[1] or {}).get("matches") or []) if hit else []:
+            mid = m.get("matchId")
+            dg = _match_cache.get(mid) if mid else None
+            row = ((dg or {}).get("rows") or {}).get(puuid) if isinstance(dg, dict) else None
+            if isinstance(row, dict) and "sy" not in row and row.get("queue") in STYLE_QUEUES:
+                out.append(mid)
+    return out[:STYLE_UPGRADE_MAX]
+
+
+def _style_map_ids(puuid, path):
+    """Phase 2: Matches auf der aktuellen Karte aus dem schon geholten Verlauf (20 Eintraege, keine neue Anfrage)."""
+    have = [r for r in _style_rows(puuid) if str(r.get("map") or "").lower() == path]
+    need = STYLE_MAP_WANT - len(have)
+    if need <= 0:
+        return []
+    with _cache_lock:
+        hit = _hist_cache.get(puuid)
+    items = hit[1].get("items") if (hit and isinstance(hit[1], dict)) else None
+    if not items:
+        return []
+    have_ids = {r.get("matchId") for r in have}
+    cand = [(e["id"], e.get("t") or 0) for e in items
+            if e.get("m") == path and (e.get("q") in STYLE_QUEUES or (not e.get("q") and e.get("c")))
+            and e["id"] not in have_ids]
+    return _hist_still_there(cand, time.time())[:need]
+
+
+def _style_more_for(puuid, path=None, upgrade=False):
+    """Fehlende Spielstil-Daten im Hintergrund nachladen (nur match-details, je Match einmal). True = laeuft noch.
+    path = Karte des laufenden Matches (Phase 2), upgrade = alte Kurzfassungen der "Letzte 5" neu holen."""
+    mid = _game.get("matchId") or "-"
+    if path and path != _style_cur_map():
+        path = None
+    if not path and not upgrade:
+        return False
+    key = (puuid, path or "")
+    with _style_lock:
+        if _style_more["match"] != mid:
+            _style_more.update(match=mid, done=set(), pending=set())
+        if key in _style_more["pending"]:
+            return True
+        if key in _style_more["done"]:
+            return False
+    ids = _style_upgrade_ids(puuid)
+    if path:
+        ids += [i for i in _style_map_ids(puuid, path) if i not in ids]
+    if not ids:
+        if path and _hist_cache.get(puuid):
+            with _style_lock:
+                _style_more["done"].add(key)     # Verlauf da, nichts auf dieser Karte -> nicht dauernd neu pruefen
+        return False
+    with _style_lock:
+        _style_more["pending"].add(key)
+    _style_pool.submit(_style_more_run, puuid, key, ids)
+    return True
+
+
+def _style_quiet(limit=90.0):
+    """Erst wenn "Letzte 5" und Party-Erkennung durch sind - der Spielstil ist das Unwichtigste beim Matchstart."""
+    end = time.time() + limit
+    while time.time() < end:
+        with _inflight_lock:
+            busy = any(isinstance(k, tuple) and k and k[0] == "stats" for k in _inflight)
+        if not busy and _pd_party["n"] <= 0:
+            return
+        time.sleep(0.5)
+
+
+@_bulk_priority
+def _style_more_run(puuid, key, ids):
+    try:
+        _style_quiet()
+        for mid in ids:
+            if _pd_bulk_paused():
+                break
+            with _cache_lock:
+                dg = _match_cache.get(mid)
+            row = ((dg or {}).get("rows") or {}).get(puuid) if isinstance(dg, dict) else None
+            if isinstance(row, dict) and "sy" in row:
+                continue                        # inzwischen schon da (anderer Spieler desselben Matches)
+            try:
+                if dg is not None:
+                    _single_flight(("match", mid), lambda m=mid: _match_details_fetch(m, force=True))
+                    _style_more["upgraded"] += 1
+                else:
+                    _match_details(mid)
+                    _style_more["fetched"] += 1
+            except Exception:
+                pass
+    finally:
+        with _style_lock:
+            _style_more["pending"].discard(key)
+            _style_more["done"].add(key)
+        _style_state["gen"] += 1
+
+
+def _style_prefetch(puuids):
+    """Nach dem Vorladen (_prefetch_run): Karten-Matches fuer alle Spieler - auch ohne offene Seite (Spiel-Overlay)."""
+    path = _style_cur_map()
+    for pu in puuids or ():
+        try:
+            _style_more_for(pu, path, upgrade=True)
+        except Exception:
+            pass
+
+
+def style_data(puuids, cur_map=None, full=False):
+    """/api/style: Spielstil je Spieler aus dem, was lokal liegt. pending = im Hintergrund kommt noch etwas."""
+    cur_map = str(cur_map or "").lower() or None
+    out = {}
+    for pu in puuids:
+        s = dict(_style_summary(pu, cur_map, full))
+        try:
+            s["pending"] = _style_more_for(pu, cur_map, upgrade=bool(full) or bool(cur_map))
+        except Exception:
+            s["pending"] = False
+        out[pu] = s
+    return out
 
 
 def _extract(match, puuid):
@@ -4439,6 +5040,8 @@ def _core_game_roster(mid):
         # die Seite selbst auf, die hat die Kartenliste ohnehin schon geladen.
         "map": (m.get("MapID") or "").lower(),
         "queue": (m.get("MatchmakingData") or {}).get("QueueID") or "",
+        # eigene Seite in der ERSTEN Haelfte (Red greift an) - fuer den Scouting-Block (2.7.0)
+        "side": {"red": "attack", "blue": "defense"}.get(str(my_team or "").lower()),
     }
 
 
@@ -4456,7 +5059,7 @@ def record_encounter_now(mid):
             return False
         # Gleich mit merken: die Lade-Ansicht zeigt damit Karte und Agenten,
         # waehrend vry.exe noch die Raenge holt - ohne eigene Riot-Anfrage.
-        _game_roster.update({"match": mid, "map": roster["map"], "queue": roster["queue"],
+        _game_roster.update({"match": mid, "map": roster["map"], "queue": roster["queue"], "side": roster.get("side"),
                              "players": [{"puuid": p["puuid"], "ally": p["ally"], "agent": p.get("agent")}
                                          for p in roster["players"]]})
         _, party = _own_party()
@@ -6455,7 +7058,10 @@ _OVL_STRING_KEYS = (
     "instalock_ask_skip", "instalock_ask_yes", "instalock_ask_no", "peak_label", "side_attack", "side_defense",
     "verdict_even", "verdict_slight_edge", "verdict_clear_edge", "verdict_strong_edge", "for_your_team",
     "for_the_enemies", "ovl_today", "report_hl_ace", "report_hl_4k", "report_hl_clutch", "report_hl_flawless",
-    "report_hl_firstbloods", "note_tag_good", "note_tag_toxic", "note_tag_thrower", "note_tag_smurf", "note_badge")
+    "report_hl_firstbloods", "note_tag_good", "note_tag_toxic", "note_tag_thrower", "note_tag_smurf", "note_badge",
+    "style_tag_anchor", "style_tag_anchor_mid", "style_tag_lane", "style_tag_entry", "style_tag_firstdeath",
+    "style_tag_passive", "style_tag_lurker", "style_tag_pusher", "style_tag_clutch", "style_tag_trader",
+    "style_tag_lowutil")
 # Modus-Namen bleiben Englisch (wie im Overlay)
 _OVL_QUEUES = {"competitive": "Competitive", "unrated": "Unrated", "swiftplay": "Swiftplay",
                "spikerush": "Spike Rush", "deathmatch": "Deathmatch", "ggteam": "Escalation",
@@ -6587,8 +7193,18 @@ def _vapi_ensure():
             maps = {}
             for x in (m or {}).get("data") or []:
                 if isinstance(x, dict) and x.get("mapUrl"):
+                    # co/mini/xm..ya seit 2.7.0 fuer den Spielstil: Callouts (Zone/Name) und Minimap-Umrechnung
+                    co = []
+                    for c in x.get("callouts") or []:
+                        loc = (c or {}).get("location") or {}
+                        if isinstance(loc.get("x"), (int, float)) and isinstance(loc.get("y"), (int, float)):
+                            co.append((str(c.get("superRegionName") or ""), str(c.get("regionName") or ""),
+                                       loc["x"], loc["y"]))
                     maps[x["mapUrl"].lower()] = {"name": x.get("displayName") or "",
-                                                 "img": x.get("listViewIcon") or x.get("splash")}
+                                                 "img": x.get("listViewIcon") or x.get("splash"),
+                                                 "mini": x.get("displayIcon"), "co": co,
+                                                 "xm": x.get("xMultiplier"), "ym": x.get("yMultiplier"),
+                                                 "xa": x.get("xScalarToAdd"), "ya": x.get("yScalarToAdd")}
             # Fehlt eine der Listen (5xx/429 bei valorant-api), den alten Stand behalten und bald erneut -
             # bis 2.5.7 galten leere Raenge/Karten 12 h (VAPI_TTL): Overlay ohne Rang-Symbole/Kartennamen
             partial = not tiers or not maps
@@ -6755,6 +7371,12 @@ def _ovl_badges(puuid):
         pct = max(grp.get("kp") or 0, grp.get("bp") or 0)
         if g in _OVL_CRUTCH_SHORT and pct:
             out.append({"kind": "crutch", "text": "%s %d%%" % (_OVL_CRUTCH_SHORT[g], pct), "short": _OVL_CRUTCH_SHORT[g]})
+    # Spielstil (2.7.0): das staerkste Merkmal (Karte zuerst, z. B. "B-Anker") - nur aus lokalen Daten
+    try:
+        for tg in (_style_summary(puuid, _style_cur_map()).get("tags") or [])[:1]:
+            out.append({"kind": "style", "key": "style_tag_" + tg["k"], "kw": {"zone": tg.get("z") or ""}})
+    except Exception:
+        pass
     return out, text
 
 
@@ -7623,7 +8245,7 @@ def _game_wait():
         return
 
 
-_game_roster = {"match": None, "map": "", "queue": "", "players": []}
+_game_roster = {"match": None, "map": "", "queue": "", "side": None, "players": []}
 
 
 def game_state():
@@ -7643,13 +8265,16 @@ def game_state():
            "history": dict(_hist_flags),
            "session": _session_brief(),
            "partyEval": _party_eval["last"],
+           # seit 2.7.0: Spielstil - nachgeladene Karten-Matches, neu gebaute alte Kurzfassungen, laufende Nachlade-Auftraege
+           "style": {"fetched": _style_more["fetched"], "upgraded": _style_more["upgraded"],
+                     "pending": len(_style_more["pending"]), "errors": _style_err["n"]},
            # Diagnose: wann die Seite zuletzt /status fragte, wann vorgeladen wurde
            "page": {"seenAgo": int(time.time() - _page_seen["ts"]) if _page_seen["ts"] else None,
                     "prefetch": _prefetch_done["key"],
                     "prefetchAgo": int(time.time() - _prefetch_done["at"]) if _prefetch_done["at"] else None}}
     if _game["state"] == "INGAME" and _game_roster["match"] and _game_roster["match"] == _game["matchId"]:
         out["roster"] = {"map": _game_roster["map"], "queue": _game_roster["queue"],
-                         "players": _game_roster["players"]}
+                         "side": _game_roster.get("side"), "players": _game_roster["players"]}
     return out
 
 
@@ -7931,6 +8556,11 @@ def _prefetch_run(state, roster, puuids):
         except Exception:
             ok[0] = False
     party_done.wait(120)
+    # Spielstil (2.7.0): Matches auf der aktuellen Karte im Hintergrund - erst jetzt, alles andere ist wichtiger
+    try:
+        _style_prefetch(puuids)
+    except Exception:
+        pass
     return ok[0]
 
 
@@ -13934,6 +14564,21 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lambda: match_view((q.get("id") or [""])[0], (q.get("pov") or [""])[0],
                                           (q.get("at") or [""])[0], (q.get("queue") or [""])[0],
                                           (q.get("with") or [""])[0]))
+
+        elif path == "/api/style":
+            # Spielstil (2.7.0): nur aus lokal liegenden Match-Kurzfassungen - die Riot-Anfragen dafuer (Matches auf
+            # der aktuellen Karte, alte Kurzfassungen neu) laufen im Hintergrund, pending sagt, dass noch etwas kommt
+            puuids = [p for p in (q.get("puuids", [""])[0]).split(",") if _is_puuid(p)][:12]
+            if not puuids:
+                self._json({"ok": False, "error": "keine puuids angegeben"})
+                return
+            full = (q.get("full", ["0"])[0]) == "1"
+            if full:
+                record_feature("style_view")
+            map_path = (q.get("map", [""])[0] or "").lower()
+            if map_path and not map_path.startswith("/game/maps/"):
+                map_path = ""
+            self._safe(lambda: {"ok": True, "players": style_data(puuids, map_path, full)})
 
         elif path == "/api/kda":
             puuids = [p for p in (q.get("puuids", [""])[0]).split(",") if p]
