@@ -696,7 +696,7 @@ def _follow_valorant():
 # fuer die Offenlegung dieser zusaetzlichen Kategorie.
 # Von Hand mit CURRENT_VERSION (index.html) und MyAppVersion (RankYoinker.iss)
 # synchron halten - bei jedem Release alle drei zusammen hochzaehlen.
-APP_VERSION = "2.7.0-dev3"
+APP_VERSION = "2.7.0-dev4"
 HEARTBEAT_URL = "https://rankyoinker.de/api/heartbeat"
 HEARTBEAT_INTERVAL = 60
 _CLIENT_ID_PATH = os.path.join(DATA_DIR, ".rankyoinker_client_id")
@@ -2594,17 +2594,33 @@ def entitlements(force=False):
     return {"ok": False, "error": "Besitz nicht lesbar (Status %s)." % status}
 
 
-def owned_agents():
-    """UUIDs der freigeschalteten Agenten — zum Ausgrauen in der Auswahl.
-    Immer frisch (ein gerade freigeschalteter Agent soll sofort waehlbar sein),
-    bei einem Fehlschlag der letzte bekannte Stand statt einer leeren Liste."""
+def owned_agents_state():
+    """Freigeschaltete Agenten MIT Herkunft fuer /api/agents/owned.
+    Bis 2.7.0-dev3 kam bei einem Fehlschlag ohne gemerkten Stand ok mit leerer Liste -
+    das Overlay las "leer" als "unbekannt, alles frei", und nach einem Kontowechsel
+    (pd gerade mit dem Vorladen des neuen Kontos beschaeftigt) wirkten so alle Agenten
+    freigeschaltet: hovern ging, sperren nicht. Jetzt: unbekannt = ok False (Overlay
+    fragt erneut), und gehoert die Antwort nicht mehr zum eingeloggten Konto, ebenso."""
     puuid = get_auth()["puuid"]
     status, j = riot_get("pd", "/store/v1/entitlements/%s/%s" % (puuid, AGENT_ITEM_TYPE))
+    if get_auth()["puuid"] != puuid:
+        return {"ok": False, "error": "account-switch", "puuid": get_auth()["puuid"]}
     if status == 200 and isinstance(j, dict):
         ids = [e.get("ItemID") for e in (j.get("Entitlements") or []) if e.get("ItemID")]
         acct_store(puuid, "agents", {"ids": ids})
-        return ids
-    return (acct_cached(puuid, "agents")[1] or {}).get("ids") or []
+        return {"ok": True, "agents": ids, "puuid": puuid}
+    old = acct_cached(puuid, "agents")[1]
+    if old and isinstance(old.get("ids"), list):
+        return {"ok": True, "agents": old["ids"], "puuid": puuid, "stale": True}
+    return {"ok": False, "error": "Agenten nicht lesbar (Status %s)." % status, "puuid": puuid}
+
+
+def owned_agents():
+    """UUIDs der freigeschalteten Agenten (Zufalls-Instalock, Vorladen).
+    Immer frisch (ein gerade freigeschalteter Agent soll sofort waehlbar sein),
+    bei einem Fehlschlag der letzte bekannte Stand, sonst leer (= nur Grund-Agenten)."""
+    st = owned_agents_state()
+    return (st.get("agents") or []) if st.get("ok") else []
 
 
 # Namen aendern sich waehrend einer Sitzung praktisch nie. Bis 2.4.9-dev2 fragte
@@ -13000,6 +13016,16 @@ CHAT_BOT_CARD = "89fdd50e-439b-ebeb-0ef2-af8271550943"         # VALORANT-Spiele
 CHAT_BOT_TIER = 27                                              # Radiant
 CHAT_BOT_ROSTER = "52616e6b-596f-696e-6b65-722d50524d52"        # erfundene Premier-Team-ID (fuer das Tag "RY")
 CHAT_BOT_INTRO_DELAY = 8.0
+# Kontakt erschien in VALORANT erst nach einer Aktion in der Freundesliste (Freund annehmen o. Ae., Nutzer 2026-11-25).
+# Bis 2.7.0-dev3 ging seine Presence genau EINMAL raus, direkt nach der Roster-Antwort - vermutlich bevor der
+# Client sein Freundesmodell aufgebaut hatte. Jetzt: erst nach der eigenen Presence (spaetestens nach
+# CHAT_BOT_WAIT_OWN), dann noch einmal nach CHAT_BOT_RESEND Sekunden, und nach CHAT_BOT_PUSH_AFTER ein
+# Roster-Push (iq set) mit dem Kontakt - das, was der Server bei "Freund angenommen" schickt.
+CHAT_BOT_WAIT_OWN = 4.0
+CHAT_BOT_RESEND = (3.0, 10.0, 30.0)
+CHAT_BOT_PUSH_AFTER = 5.0
+CHAT_BOT_PUSH_ID = "ry-rpush"
+CHAT_RPUSH_LOG = 3                            # so viele echte Roster-Pushes vom Server je Verbindung loggen
 _RE_ROSTER = re.compile(rb"<query xmlns=(['\"])jabber:iq:riotgames:roster\1>")
 _ROSTER_OPENS = (b"<query xmlns='jabber:iq:riotgames:roster'>", b'<query xmlns="jabber:iq:riotgames:roster">')
 _RE_TAG = re.compile(rb"<(/?)([^\s/>]+)[^>]*?(/?)>")
@@ -13197,15 +13223,15 @@ _BOT_GAMES = ("keystone", "valorant", "league_of_legends", "riot_client")
 _BOT_ORDER = ("keystone", "valorant", "league_of_legends")
 _BOT_RESOURCE = "RC-RankYoinker"
 _bot_opts = {"order": _BOT_ORDER, "platform": "riot", "resource": _BOT_RESOURCE, "to": False,
-             "mirror": True, "strict": True, "plain": False, "rev": 0}
+             "mirror": True, "strict": True, "plain": False, "push": True, "rev": 0}
 
 
 def chat_bot_test(body):
     body = body if isinstance(body, dict) else {}
     if body.get("reset"):
         _bot_opts.update(order=_BOT_ORDER, platform="riot", resource=_BOT_RESOURCE, to=False,
-                         mirror=True, strict=True, plain=False)
-    for k in ("mirror", "strict", "plain"):
+                         mirror=True, strict=True, plain=False, push=True)
+    for k in ("mirror", "strict", "plain", "push"):
         # mirror: nur das Produkt des Nutzers; strict (Standard an): in VALORANT ohne League als Traeger;
         # plain: Kontakt ohne Radiant/Level/Premier-Werte (zum Eingrenzen, falls VALORANT ihn deshalb ausblendet)
         if isinstance(body.get(k), bool):
@@ -13229,13 +13255,18 @@ def chat_bot_test(body):
         conns = list(_chat["conns"])
     for c in conns:
         c.bot_ver = False                     # beim naechsten Durchlauf neu schicken
+        if body.get("repush"):
+            c.pushed = False                  # Roster-Push noch einmal (nach CHAT_BOT_PUSH_AFTER)
+            c.bot_first = time.time()
         if body.get("sample"):
             c.in_shapes.clear()               # eingehende Presences echter Freunde neu mitschreiben
     return {"ok": True, "order": list(_bot_opts["order"]), "platform": _bot_opts["platform"],
             "resource": _bot_opts["resource"], "to": _bot_opts["to"], "mirror": _bot_opts["mirror"],
-            "strict": _bot_opts["strict"], "plain": _bot_opts["plain"], "mode": _bot_mode(),
+            "strict": _bot_opts["strict"], "plain": _bot_opts["plain"], "push": _bot_opts["push"],
+            "mode": _bot_mode(),
             "ownGames": sorted(n.decode("ascii", "replace") for n in _chat_own["games"]),
             "conns": [{"n": c.n, "valorant": bool(c.filt.val_json), "roster": bool(c.roster.done),
+                       "ownSent": c.filt.last is not None, "botSent": c.bot_sends, "pushed": c.pushed,
                        "age": int(time.time() - c.since), "queries": sorted(c.filt.queries)} for c in conns]}
 
 
@@ -13455,6 +13486,10 @@ class _PresenceFilter:
             return self._bot(stanza)
         if not stanza.startswith(b"<presence"):
             if stanza.startswith(b"<iq"):
+                head = stanza[:_start_tag_end(stanza)]
+                if CHAT_BOT_PUSH_ID.encode("ascii") in head:
+                    _chat_dbg_add("rpush", self.tag + b"Antwort des Clients abgefangen: " + _dbg_skeleton(stanza))
+                    return b""                  # Antwort auf unseren Roster-Push - kennt der Server nicht
                 self._query(stanza)
             if b"league_of_legends" in stanza or b"<valorant" in stanza:
                 _chat_dbg_add("other", self.tag + stanza[:600])
@@ -13550,17 +13585,46 @@ class _ChatConn:
         self.in_shapes = set()      # schon geloggte Formen eingehender Presences (Diagnose)
         self.roster_logged = False
         self.intro_at = 0.0
+        self.roster_at = 0.0        # wann die Roster-Antwort (mit Kontakt) durch war
+        self.bot_first = 0.0        # erste Presence des Kontakts
+        self.bot_again = list(CHAT_BOT_RESEND)
+        self.bot_sends = 0
+        self.pushed = False
+        self.rpush_seen = 0
 
     def _to_client(self):
         """Eigene Meldungen an den Riot Client - nur zwischen zwei Stanzas."""
         if not self.roster.done or not self.down.boundary():
             return
         a = self.cli
+        now = time.time()
+        if not self.roster_at:
+            self.roster_at = now
+        own_ready = self.filt.last is not None or now - self.roster_at >= CHAT_BOT_WAIT_OWN
+        why = None
         if self.bot_ver is False or self.bot_ver != self.filt.bot_sig():
+            why = b"" if own_ready else None
+        elif self.bot_first and self.bot_again and now - self.bot_first >= self.bot_again[0]:
+            self.bot_again.pop(0)
+            why = b"again "
+        if (why is None and _bot_opts["push"] and not self.pushed and self.bot_first
+                and now - self.bot_first >= CHAT_BOT_PUSH_AFTER):
+            # wie "Freund angenommen": Roster-Push mit dem Kontakt, danach seine Presence
+            self.pushed = True
+            to = (b" to='" + self.own_full + b"'") if self.own_full and re.fullmatch(
+                rb"[^'\"<>&\s]{3,200}", self.own_full) else b""
+            _sock_send(a, b"<iq type='set' id='%s-%d'%s><query xmlns='jabber:iq:riotgames:roster'>%s</query></iq>"
+                       % (CHAT_BOT_PUSH_ID.encode("ascii"), self.n, to, _bot_roster_item()))
+            _chat_dbg_add("rpush", b"c%d Roster-Push mit Kontakt geschickt" % self.n)
+            why = b"push "
+        if why is not None:
             self.bot_ver = self.filt.bot_sig()
             pres = _bot_presence(self.filt, self.own_full)
             _sock_send(a, pres)
-            _chat_dbg_add("bot", b"c%d " % self.n + _dbg_raw_games(pres) + _dbg_skeleton(pres))
+            self.bot_sends += 1
+            if not self.bot_first:
+                self.bot_first = now
+            _chat_dbg_add("bot", b"c%d %s" % (self.n, why) + _dbg_raw_games(pres) + _dbg_skeleton(pres))
             if not self.intro_at:
                 self.intro_at = time.time() + CHAT_BOT_INTRO_DELAY
         if self.intro_at > 0 and time.time() >= self.intro_at:
@@ -13623,6 +13687,14 @@ class _ChatConn:
             if self.roster.done and not self.roster_logged:
                 self.roster_logged = True
                 _chat_dbg_add("roster", b"c%d Kontakt in die Freundesliste eingefuegt" % self.n)
+            if (self.roster_logged and self.rpush_seen < CHAT_RPUSH_LOG and b"riotgames:roster" in data
+                    and re.search(rb"<iq[^>]*type=['\"]set['\"]", data)):
+                # Vorlage: wie sieht ein echter Roster-Push aus (Freund angenommen/entfernt)?
+                self.rpush_seen += 1
+                m = re.search(rb"<iq[^>]*type=['\"]set['\"]", data)
+                k = data.find(b"</iq>", m.start())
+                st = data[m.start():k + 5] if k >= 0 else data[m.start():m.start() + 1500]
+                _chat_dbg_add("rpush", b"c%d vom Server: " % self.n + _dbg_skeleton(st[:4000], True))
             if len(self.in_shapes) < CHAT_IN_SHAPES and b"<presence" in data:
                 # Vorlage: wie sehen Presences ECHTER Freunde auf DIESER Verbindung aus (je Form einmal)?
                 for m in re.finditer(rb"<presence\s[^>]*>", data):
@@ -14680,7 +14752,7 @@ class Handler(BaseHTTPRequestHandler):
             self._safe(lobby_info)
 
         elif path == "/api/agents/owned":
-            self._safe(lambda: {"ok": True, "agents": owned_agents()})
+            self._safe(owned_agents_state)
 
         elif path == "/api/entitlements":
             self._safe(entitlements)

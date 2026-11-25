@@ -5497,7 +5497,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     Object.keys(encCache).forEach(k => delete encCache[k]);
     presetCache = {}; presetAccount = null; presetsReady = false; tabsPrefetched = null;
     currentLoadout = null;
-    entOwned = null; ownedAgents = null; ownPuuid = null;
+    entOwned = null; ownedAgents = null; ownedTries = 0; ownPuuid = null;
     loadOwnedAgents();
     shopState.data = null; shopState.at = 0;
     partySig = ''; lastFullSig = ''; lastSceneSig = '';
@@ -8318,8 +8318,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const uid = a.uuid.toLowerCase();
     const sel = String(pickSelected || '').toLowerCase();
     const taken = pickTaken[uid] && uid !== sel;
-    const owned = agentBase[uid] || !ownedAgents || !ownedAgents.length
-      || ownedAgents.some(x => String(x).toLowerCase() === uid);
+    const owned = agentOwned(uid);
     const isFav = loadFavAgents().some(n => String(n).toLowerCase() === a.name.toLowerCase());
     const cls = [
       uid === sel ? (pickLocked ? 'locked' : 'sel') : '',
@@ -8374,21 +8373,49 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
   // Freigeschaltete Agenten des EINGELOGGTEN Kontos. Bis 2.5.12 nur in der Agentenauswahl geladen - in der
   // Lobby (Instalock-Box) galten nach einem Kontowechsel alle Agenten als freigeschaltet. Antworten eines
   // vorherigen Kontos werden verworfen (ownedGen).
-  let ownedGen = 0;
+  // Bis 2.7.0-dev3 hieß eine LEERE Liste "unbekannt, alles frei": nach einem Kontowechsel (Liste geleert,
+  // Riot-Abfrage scheiterte, weil pd mit dem Vorladen des neuen Kontos beschäftigt war) wirkten alle Agenten
+  // freigeschaltet - hovern ging, sperren nicht. Jetzt: null = unbekannt (kein Ausgrauen, aber es wird
+  // nachgefragt, bis eine Antwort FÜR DIESES KONTO da ist), Liste = bekannt, auch leer (= nur Grund-Agenten).
+  let ownedGen = 0, ownedBusy = false, ownedRetry = null, ownedTries = 0;
+  function agentOwned(uid){
+    if(agentBase[uid] || !Array.isArray(ownedAgents)) return true;
+    return ownedAgents.some(x => String(x).toLowerCase() === uid);
+  }
+  function ownedRepaint(){
+    refreshPregameView();
+    if(document.getElementById('instalockBox')) repaintInstalock();
+  }
   function loadOwnedAgents(){
     const gen = ++ownedGen;
-    ownedAgents = [];
+    clearTimeout(ownedRetry); ownedRetry = null;
+    ownedBusy = true;
+    const retry = () => {
+      if(gen !== ownedGen) return;
+      ownedBusy = false;
+      // nur nachfragen, solange es gebraucht wird (Agentenauswahl / Instalock sichtbar)
+      ownedRetry = setTimeout(() => {
+        ownedRetry = null;
+        if(gen !== ownedGen || Array.isArray(ownedAgents)) return;
+        if(document.querySelector('.agentpick')) loadOwnedAgents();
+      }, Math.min(15000, 2000 * Math.pow(1.6, ownedTries++)));
+    };
     api('/api/agents/owned').then(j => {
-      if(gen !== ownedGen || !j || !j.ok) return;
-      ownedAgents = j.agents || [];
-      refreshPregameView();
-      if(document.getElementById('instalockBox')) repaintInstalock();
-    }).catch(() => {});
+      if(gen !== ownedGen) return;
+      if(!j || !j.ok || !Array.isArray(j.agents)
+         || (j.puuid && lastAccountPuuid && j.puuid !== lastAccountPuuid)) return retry();
+      ownedBusy = false; ownedTries = 0;
+      ownedAgents = j.agents;
+      ownedRepaint();
+    }).catch(retry);
+  }
+  function ensureOwnedAgents(){
+    if(!Array.isArray(ownedAgents) && !ownedBusy && !ownedRetry) loadOwnedAgents();
   }
   function bindAgentPick(){
     const panel = document.querySelector('.agentpick:not(.instalock)');
     if(!panel) return;
-    if(ownedAgents === null) loadOwnedAgents();
+    ensureOwnedAgents();
     if(panel.dataset.bound) return;
     panel.dataset.bound = '1';
     // Stern zuerst binden und die Klicks dort stoppen, bevor sie die
@@ -8471,15 +8498,14 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
     const sel = String(instalockAgent || '').toLowerCase();
     const cell = a => {
       const uid = a.uuid.toLowerCase();
-      const owned = agentBase[uid] || !ownedAgents || !ownedAgents.length
-        || ownedAgents.some(x => String(x).toLowerCase() === uid);
+      const owned = agentOwned(uid);
       const isFav = favNames.some(n => String(n).toLowerCase() === a.name.toLowerCase());
       return `<div class="agent-cell ${uid === sel ? 'sel' : ''} ${owned ? '' : 'notowned'}" data-il="${esc(a.uuid)}" data-tip="${esc(a.name)}">
         <img src="${esc(a.info.icon)}" alt="" loading="lazy"><div class="an">${esc(a.name)}</div>
         <button type="button" class="fav-star ${isFav ? 'active' : ''}" data-fav="${esc(a.name)}" data-tip="${esc(t(isFav ? 'unfavorite_agent' : 'favorite_agent'))}">★</button>
         </div>`;
     };
-    if(ownedAgents === null) setTimeout(loadOwnedAgents, 0);
+    setTimeout(ensureOwnedAgents, 0);
     const isRandom = sel === 'random';
     const chosen = instalockAgent ? (isRandom ? t('il_random_agent') : (agentById[sel] || '—')) : null;
     const randomCell = `<div class="agent-cell il-random ${isRandom ? 'sel' : ''}" data-il="random" data-tip="${esc(t('il_random_tip'))}">
@@ -12882,7 +12908,7 @@ html.perf .bi.owned img, html.perf .shop-card.owned img.sk{filter:grayscale(.3) 
 // Bump CURRENT_VERSION in jedem neu gebauten Release - einzige Stelle dafür,
 // wird unten sowohl für den Update-Check als auch für die Versionsanzeige
 // im Einstellungen-Panel verwendet.
-const CURRENT_VERSION = "2.7.0-dev3";
+const CURRENT_VERSION = "2.7.0-dev4";
 document.getElementById("settingsVersion").textContent = "Version " + CURRENT_VERSION;
 document.getElementById("setRailVer").textContent = "v" + CURRENT_VERSION;
 (function(){   // Dev-Build oder Stable neben der Version (Einstellungen -> Info)
